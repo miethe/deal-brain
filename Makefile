@@ -8,10 +8,10 @@ setup:
 	pnpm install --frozen-lockfile=false
 
 up:
-	docker compose up --build
+	docker-compose up --build
 
 down:
-	docker compose down
+	docker-compose down
 
 api:
 	poetry run dealbrain-api
