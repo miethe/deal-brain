@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.Python
+.env
+.venv
+venv/
+build/
+dist/
+.eggs/
+.mypy_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.cache/
+
+# Node
+node_modules/
+.pnp.cjs
+.next/
+out/
+yarn-debug.log*
+npm-debug.log*
+.pnpm-debug.log*
+dist-*/
+
+# Editors/OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Data/Artifacts
+/data/imports/
+/data/exports/
+/secrets/
+logs/
+.tmp/
+
+# Docker
+volumes/
+*.pid
+
+# Playwright
+playwright-report/
+playwright/.cache/
+

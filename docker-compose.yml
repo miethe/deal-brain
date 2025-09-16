@@ -1,0 +1,103 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dealbrain
+      POSTGRES_PASSWORD: dealbrain
+      POSTGRES_DB: dealbrain
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dealbrain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/api/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file: .env.example
+    environment:
+      DATABASE_URL: postgresql+asyncpg://dealbrain:dealbrain@db:5432/dealbrain
+      SYNC_DATABASE_URL: postgresql+psycopg://dealbrain:dealbrain@db:5432/dealbrain
+    ports:
+      - "8000:8000"
+    command: ["dealbrain-api"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/worker/Dockerfile
+    depends_on:
+      api:
+        condition: service_started
+      redis:
+        condition: service_started
+    env_file: .env.example
+    command: ["celery", "-A", "dealbrain_api.worker", "worker", "-l", "info"]
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/web/Dockerfile
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8000
+    ports:
+      - "3000:3000"
+    command: ["pnpm", "--filter", "web", "dev", "--", "-H", "0.0.0.0"]
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.89.0
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./infra/otel/config.yaml:/etc/otel-collector-config.yaml:ro
+
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    restart: unless-stopped
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:10.3.1
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  db_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+

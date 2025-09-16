@@ -1,0 +1,11 @@
+{
+  "name": "deal-brain-monorepo",
+  "private": true,
+  "packageManager": "pnpm@8.15.4",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "web": "pnpm --filter web dev"
+  }
+}
