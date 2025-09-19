@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: dealbrain
       POSTGRES_DB: dealbrain
     ports:
-      - "5432:5432"
+      - "5442:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,7 +22,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6399:6379"
     volumes:
       - redis_data:/data
 
@@ -40,7 +40,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://dealbrain:dealbrain@db:5432/dealbrain
       SYNC_DATABASE_URL: postgresql+psycopg://dealbrain:dealbrain@db:5432/dealbrain
     ports:
-      - "8000:8000"
+      - "8020:8000"
     command: ["dealbrain-api"]
 
   worker:
@@ -65,7 +65,7 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://api:8000
     ports:
-      - "3000:3000"
+      - "3020:3000"
     command: ["pnpm", "--filter", "web", "dev", "--", "-H", "0.0.0.0"]
 
   otel-collector:
@@ -91,7 +91,7 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
     ports:
-      - "3001:3000"
+      - "3021:3000"
     volumes:
       - grafana_data:/var/lib/grafana
 

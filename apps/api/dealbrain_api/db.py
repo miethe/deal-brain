@@ -37,7 +37,7 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
 
 
 @asynccontextmanager
-def session_scope() -> AsyncIterator[AsyncSession]:
+async def session_scope() -> AsyncIterator[AsyncSession]:
     """Provide a transactional scope for async operations."""
     session = get_session_factory()()
     try:
@@ -68,4 +68,3 @@ async def session_dependency() -> AsyncIterator[AsyncSession]:
 
 
 __all__ = ["Base", "get_engine", "get_session_factory", "session_scope", "SessionDependency", "session_dependency"]
-
