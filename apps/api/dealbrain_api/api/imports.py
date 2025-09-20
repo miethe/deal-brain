@@ -1,14 +1,137 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
+from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..seeds import apply_seed
+from ..db import session_dependency
 from ..importers import SpreadsheetImporter
+from ..models.core import ImportSession
+from ..seeds import apply_seed
+from ..services.imports import ImportSessionService
+from .schemas.imports import (
+    CommitImportRequest,
+    CommitImportResponse,
+    ImportSessionListModel,
+    ImportSessionSnapshotModel,
+    UpdateMappingsRequest,
+)
 
 router = APIRouter(prefix="/v1/imports", tags=["imports"])
+service = ImportSessionService()
+
+
+async def _get_session_or_404(db: AsyncSession, session_id: UUID) -> ImportSession:
+    import_session = await db.get(ImportSession, session_id)
+    if import_session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Import session not found")
+    return import_session
+
+
+def _snapshot(import_session: ImportSession) -> ImportSessionSnapshotModel:
+    payload: dict[str, Any] = {
+        "id": import_session.id,
+        "filename": import_session.filename,
+        "content_type": import_session.content_type,
+        "status": import_session.status,
+        "checksum": import_session.checksum,
+        "sheet_meta": import_session.sheet_meta_json or [],
+        "mappings": import_session.mappings_json or {},
+        "preview": import_session.preview_json or {},
+        "conflicts": import_session.conflicts_json or {},
+        "created_at": import_session.created_at,
+        "updated_at": import_session.updated_at,
+    }
+    return ImportSessionSnapshotModel.model_validate(payload)
+
+
+@router.post("/sessions", response_model=ImportSessionSnapshotModel, status_code=status.HTTP_201_CREATED)
+async def create_import_session(
+    upload: UploadFile = File(...),
+    db: AsyncSession = Depends(session_dependency),
+) -> ImportSessionSnapshotModel:
+    try:
+        import_session = await service.create_session(db, upload=upload)
+        await service.refresh_preview(db, import_session)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return _snapshot(import_session)
+
+
+@router.get("/sessions", response_model=ImportSessionListModel)
+async def list_import_sessions(db: AsyncSession = Depends(session_dependency)) -> ImportSessionListModel:
+    result = await db.execute(select(ImportSession).order_by(ImportSession.created_at.desc()))
+    sessions = result.scalars().all()
+    return ImportSessionListModel(sessions=[_snapshot(session) for session in sessions])
+
+
+@router.get("/sessions/{session_id}", response_model=ImportSessionSnapshotModel)
+async def get_import_session(
+    session_id: UUID,
+    db: AsyncSession = Depends(session_dependency),
+) -> ImportSessionSnapshotModel:
+    import_session = await _get_session_or_404(db, session_id)
+    await service.refresh_preview(db, import_session)
+    return _snapshot(import_session)
+
+
+@router.post("/sessions/{session_id}/mappings", response_model=ImportSessionSnapshotModel)
+async def update_import_mappings(
+    session_id: UUID,
+    request: UpdateMappingsRequest,
+    db: AsyncSession = Depends(session_dependency),
+) -> ImportSessionSnapshotModel:
+    import_session = await _get_session_or_404(db, session_id)
+    await service.update_mappings(db, import_session, mappings=request.model_dump()["mappings"])
+    await service.compute_conflicts(db, import_session)
+    return _snapshot(import_session)
+
+
+@router.post("/sessions/{session_id}/conflicts", response_model=ImportSessionSnapshotModel)
+async def refresh_conflicts(
+    session_id: UUID,
+    db: AsyncSession = Depends(session_dependency),
+) -> ImportSessionSnapshotModel:
+    import_session = await _get_session_or_404(db, session_id)
+    await service.compute_conflicts(db, import_session)
+    return _snapshot(import_session)
+
+
+@router.post("/sessions/{session_id}/commit", response_model=CommitImportResponse)
+async def commit_import_session(
+    session_id: UUID,
+    request: CommitImportRequest,
+    db: AsyncSession = Depends(session_dependency),
+) -> CommitImportResponse:
+    import_session = await _get_session_or_404(db, session_id)
+    conflict_resolutions = {
+        resolution.identifier: resolution.action
+        for resolution in request.conflict_resolutions
+        if resolution.entity == "cpu"
+    }
+    component_overrides = {
+        override.row_index: {
+            "cpu_match": override.cpu_match,
+            "gpu_match": override.gpu_match,
+        }
+        for override in request.component_overrides
+    }
+    try:
+        counts = await service.commit(
+            db,
+            import_session,
+            conflict_resolutions=conflict_resolutions,
+            component_overrides=component_overrides,
+        )
+        await service.refresh_preview(db, import_session)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return CommitImportResponse(status="completed", counts=counts, session=_snapshot(import_session))
 
 
 class ImportRequest(BaseModel):
@@ -33,4 +156,3 @@ async def import_workbook(
     await apply_seed(seed)
     counts = summary.__dict__
     return ImportResponse(status="completed", path=str(path), counts=counts)
-

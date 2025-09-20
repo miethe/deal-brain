@@ -125,7 +125,7 @@ Status legend: ☐ Todo · ◐ In Progress · ☐● Blocked · ✔ Done
 - ◐ Listings table + add/edit dialogs + explain view (edit flow pending)
 - ◐ Profiles management UI (read-only, editing to follow)
 - ☐ Valuation rules editor + preview
-- ✔ Import wizard + progress
+- ◐ Import experience revamp (multi-entity mapping, conflict resolution, Apple-tier UX)
 
 ## Phase 6 — CLI & Automation
 - ✔ Typer CLI scaffold sharing domain layer

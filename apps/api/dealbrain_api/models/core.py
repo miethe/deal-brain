@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID, uuid4
 
 from sqlalchemy import JSON, ForeignKey, Integer, String, Text, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import ENUM
+from sqlalchemy.dialects.postgresql import ENUM, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from dealbrain_core.enums import ComponentMetric, ComponentType, Condition, ListingStatus, PortType
@@ -206,3 +207,36 @@ class TaskRun(Base, TimestampMixin):
     started_at: Mapped[datetime | None]
     finished_at: Mapped[datetime | None]
 
+
+class ImportSession(Base, TimestampMixin):
+    __tablename__ = "import_session"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str | None] = mapped_column(String(128))
+    checksum: Mapped[str | None] = mapped_column(String(64))
+    upload_path: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    sheet_meta_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    mappings_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    conflicts_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    preview_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    created_by: Mapped[str | None] = mapped_column(String(128))
+
+    audit_events: Mapped[list["ImportSessionAudit"]] = relationship(
+        back_populates="session", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class ImportSessionAudit(Base, TimestampMixin):
+    __tablename__ = "import_session_audit"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("import_session.id", ondelete="CASCADE"), nullable=False
+    )
+    event: Mapped[str] = mapped_column(String(64), nullable=False)
+    message: Mapped[str | None] = mapped_column(Text)
+    payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+
+    session: Mapped[ImportSession] = relationship(back_populates="audit_events")

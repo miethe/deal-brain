@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     import_root: Path = PROJECT_ROOT / "data" / "imports"
     export_root: Path = PROJECT_ROOT / "data" / "exports"
+    upload_root: Path = PROJECT_ROOT / "data" / "uploads"
 
     secret_key: str = "changeme"
     api_host: str = "0.0.0.0"
@@ -38,4 +39,3 @@ def get_settings() -> Settings:
 
 
 __all__ = ["Settings", "get_settings"]
-

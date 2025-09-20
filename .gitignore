@@ -37,6 +37,7 @@ dist-*/
 # Data/Artifacts
 /data/imports/
 /data/exports/
+/data/uploads/
 /secrets/
 logs/
 .tmp/
@@ -48,4 +49,3 @@ volumes/
 # Playwright
 playwright-report/
 playwright/.cache/
-
