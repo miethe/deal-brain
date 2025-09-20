@@ -63,7 +63,8 @@ services:
       api:
         condition: service_started
     environment:
-      NEXT_PUBLIC_API_URL: http://api:8000
+      # Update this to your remote host's IP if running remotely, e.g., http://<remote-ip>:8020
+      NEXT_PUBLIC_API_URL: http://10.42.9.11:8020
     ports:
       - "3020:3000"
     command: ["pnpm", "--filter", "web", "dev", "--", "-H", "0.0.0.0"]

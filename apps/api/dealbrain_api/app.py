@@ -19,17 +19,15 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Instrument the app for Prometheus metrics
+    instrumentator = Instrumentator()
+    instrumentator.instrument(app).expose(app)
+
     @app.get("/health", tags=["health"])
     async def health() -> dict[str, str]:
         return {"status": "ok", "environment": settings.environment}
 
     app.include_router(api_router)
-
-    instrumentator = Instrumentator()
-
-    @app.on_event("startup")
-    async def _startup() -> None:
-        instrumentator.instrument(app).expose(app)
 
     return app
 
