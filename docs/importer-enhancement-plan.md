@@ -128,7 +128,7 @@
 2. Provide runbook snippet for regenerating mapping templates and interpreting audit logs.
 3. Prepare Loom/animated walkthrough for stakeholders post-implementation (optional).
 
-## 12. Implementation Notes (September 2024)
+## 12. Implementation Notes (September 2025)
 - FastAPI now persists import sessions/audit logs and exposes `/v1/imports/sessions` endpoints for upload, mapping updates, conflict refresh, and commit.
 - The mapping engine uses RapidFuzz-driven heuristics to pre-populate columns for CPUs, GPUs, valuation rules, ports profiles, and listings while flagging missing required fields.
 - Listing previews include component match suggestions (auto, needs review, unmatched) and capture overrides that flow into the commit payload.
