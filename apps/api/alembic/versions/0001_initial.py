@@ -17,16 +17,9 @@ depends_on = None
 def upgrade() -> None:
     component_type = sa.Enum(ComponentType, name="component_type")
     component_metric = sa.Enum(ComponentMetric, name="component_metric")
-    condition = sa.Enum(Condition, name="condition")
-    listing_status = sa.Enum(ListingStatus, name="listing_status")
+    condition = sa.Enum('new', 'refurb', 'used', name="condition")
+    listing_status = sa.Enum('active', 'archived', 'pending', name="listing_status")
     port_type = sa.Enum(PortType, name="port_type")
-
-    bind = op.get_bind()
-    component_type.create(bind, checkfirst=True)
-    component_metric.create(bind, checkfirst=True)
-    condition.create(bind, checkfirst=True)
-    listing_status.create(bind, checkfirst=True)
-    port_type.create(bind, checkfirst=True)
 
     op.create_table(
         "cpu",
@@ -141,8 +134,8 @@ def upgrade() -> None:
         sa.Column("seller", sa.String(length=128)),
         sa.Column("price_usd", sa.Numeric(10, 2), nullable=False),
         sa.Column("price_date", sa.DateTime()),
-        sa.Column("condition", condition, nullable=False, server_default="used"),
-        sa.Column("status", listing_status, nullable=False, server_default="active"),
+        sa.Column("condition", condition, nullable=False, server_default=sa.text(f"'{Condition.USED.value}'")),
+        sa.Column("status", listing_status, nullable=False, server_default=sa.text(f"'{ListingStatus.ACTIVE.value}'")),
         sa.Column("cpu_id", sa.Integer(), sa.ForeignKey("cpu.id")),
         sa.Column("gpu_id", sa.Integer(), sa.ForeignKey("gpu.id")),
         sa.Column("ports_profile_id", sa.Integer(), sa.ForeignKey("ports_profile.id")),
@@ -176,7 +169,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("listing_id", sa.Integer(), sa.ForeignKey("listing.id", ondelete="CASCADE"), nullable=False),
         sa.Column("rule_id", sa.Integer(), sa.ForeignKey("valuation_rule.id")),
-        sa.Column("component_type", component_type, nullable=False),
+        sa.Column("component_type", sa.Enum(ComponentType), nullable=False),
         sa.Column("name", sa.String(length=255)),
         sa.Column("quantity", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("metadata_json", sa.JSON()),
@@ -213,9 +206,3 @@ def downgrade() -> None:
     op.drop_table("ports_profile")
     op.drop_table("gpu")
     op.drop_table("cpu")
-
-    sa.Enum(name="port_type").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="listing_status").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="condition").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="component_metric").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="component_type").drop(op.get_bind(), checkfirst=True)

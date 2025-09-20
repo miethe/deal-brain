@@ -68,7 +68,7 @@ class Port(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     ports_profile_id: Mapped[int] = mapped_column(ForeignKey("ports_profile.id", ondelete="CASCADE"), nullable=False)
-    type: Mapped[PortType] = mapped_column(ENUM(PortType, name="port_type", create_type=False), nullable=False)
+    type: Mapped[PortType] = mapped_column(ENUM('usb_a', 'usb_c', 'thunderbolt', 'hdmi', 'displayport', 'rj45_1g', 'rj45_2_5g', 'rj45_10g', 'audio', 'sdxc', 'pcie_x16', 'pcie_x8', 'm2_slot', 'sata_bay', 'other', name="port_type", create_type=True), nullable=False)
     count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     spec_notes: Mapped[str | None] = mapped_column(String(255))
 
@@ -92,8 +92,8 @@ class ValuationRule(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
-    component_type: Mapped[ComponentType] = mapped_column(ENUM(ComponentType, name="component_type", create_type=False), nullable=False)
-    metric: Mapped[ComponentMetric] = mapped_column(ENUM(ComponentMetric, name="component_metric", create_type=False), nullable=False)
+    component_type: Mapped[ComponentType] = mapped_column(ENUM('ram', 'ssd', 'hdd', 'os_license', 'wifi', 'gpu', 'misc', name="component_type", create_type=True), nullable=False)
+    metric: Mapped[ComponentMetric] = mapped_column(ENUM('per_gb', 'per_tb', 'flat', name="component_metric", create_type=True), nullable=False)
     unit_value_usd: Mapped[float] = mapped_column(nullable=False)
     condition_new: Mapped[float] = mapped_column(nullable=False, default=1.0)
     condition_refurb: Mapped[float] = mapped_column(nullable=False, default=0.75)
@@ -113,8 +113,8 @@ class Listing(Base, TimestampMixin):
     seller: Mapped[str | None] = mapped_column(String(128))
     price_usd: Mapped[float] = mapped_column(nullable=False)
     price_date: Mapped[datetime | None]
-    condition: Mapped[Condition] = mapped_column(ENUM(Condition, name="condition", create_type=False), nullable=False, default=Condition.USED)
-    status: Mapped[ListingStatus] = mapped_column(ENUM(ListingStatus, name="listing_status", create_type=False), default=ListingStatus.ACTIVE, nullable=False)
+    condition: Mapped[Condition] = mapped_column(ENUM('new', 'refurb', 'used', name="condition", create_type=True), nullable=False, default=Condition.USED)
+    status: Mapped[ListingStatus] = mapped_column(ENUM('active', 'archived', 'pending', name="listing_status", create_type=True), default=ListingStatus.ACTIVE, nullable=False)
     cpu_id: Mapped[int | None] = mapped_column(ForeignKey("cpu.id"))
     gpu_id: Mapped[int | None] = mapped_column(ForeignKey("gpu.id"))
     ports_profile_id: Mapped[int | None] = mapped_column(ForeignKey("ports_profile.id"))
@@ -155,7 +155,7 @@ class ListingComponent(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     listing_id: Mapped[int] = mapped_column(ForeignKey("listing.id", ondelete="CASCADE"), nullable=False)
     rule_id: Mapped[int | None] = mapped_column(ForeignKey("valuation_rule.id"))
-    component_type: Mapped[ComponentType] = mapped_column(ENUM(ComponentType, name="component_type", create_type=False), nullable=False)
+    component_type: Mapped[ComponentType] = mapped_column(ENUM('ram', 'ssd', 'hdd', 'os_license', 'wifi', 'gpu', 'misc', name="component_type", create_type=True), nullable=False)
     name: Mapped[str | None] = mapped_column(String(255))
     quantity: Mapped[int] = mapped_column(default=1)
     metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
