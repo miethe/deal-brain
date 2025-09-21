@@ -93,6 +93,7 @@ class ImportSessionService:
         )
         db.add(import_session)
         await db.flush()
+        await db.refresh(import_session)
 
         self._record_audit(db, import_session, event="session_created", payload={
             "filename": filename,
