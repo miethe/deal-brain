@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Any, Iterable
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dealbrain_core.enums import ComponentType
+from dealbrain_core.enums import ComponentMetric, ComponentType, Condition
 from dealbrain_core.gpu import compute_gpu_score
 from dealbrain_core.scoring import ListingMetrics, compute_composite_score, dollar_per_metric
 from dealbrain_core.valuation import ComponentValuationInput, ValuationRuleData, compute_adjusted_price
@@ -17,8 +17,8 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
     rules = await session.execute(select(ValuationRule))
     rule_data = [
         ValuationRuleData(
-            component_type=row.component_type,
-            metric=row.metric,
+            component_type=_coerce_component_type(row.component_type),
+            metric=_coerce_component_metric(row.metric),
             unit_value_usd=float(row.unit_value_usd or 0),
             condition_new=row.condition_new,
             condition_refurb=row.condition_refurb,
@@ -30,7 +30,7 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
     components: list[ComponentValuationInput] = list(build_component_inputs(listing))
     valuation = compute_adjusted_price(
         listing_price_usd=float(listing.price_usd or 0),
-        condition=listing.condition,
+        condition=_coerce_condition(listing.condition),
         rules=rule_data,
         components=components,
     )
@@ -119,7 +119,7 @@ def build_component_inputs(listing: Listing) -> Iterable[ComponentValuationInput
             label=f"OS License {listing.os_license}",
         )
     for component in listing.components:
-        component_type = component.component_type
+        component_type = _coerce_component_type(component.component_type)
         quantity = float(component.quantity or 1)
         yield ComponentValuationInput(
             component_type=component_type,
@@ -169,9 +169,10 @@ async def sync_listing_components(
     await session.flush()
     for component in components_payload:
         component_type = component.get("component_type")
+        component_type_enum = _coerce_component_type(component_type)
         listing.components.append(
             ListingComponent(
-                component_type=ComponentType(component_type) if component_type else ComponentType.MISC,
+                component_type=component_type_enum.value,
                 name=component.get("name"),
                 quantity=component.get("quantity") or 1,
                 metadata_json=component.get("metadata_json"),
@@ -181,3 +182,26 @@ async def sync_listing_components(
         )
     await session.flush()
 
+
+def _coerce_component_type(value: Any) -> ComponentType:
+    if isinstance(value, ComponentType):
+        return value
+    if isinstance(value, str) and value in ComponentType._value2member_map_:
+        return ComponentType(value)
+    return ComponentType.MISC
+
+
+def _coerce_component_metric(value: Any) -> ComponentMetric:
+    if isinstance(value, ComponentMetric):
+        return value
+    if isinstance(value, str) and value in ComponentMetric._value2member_map_:
+        return ComponentMetric(value)
+    return ComponentMetric.FLAT
+
+
+def _coerce_condition(value: Any) -> Condition:
+    if isinstance(value, Condition):
+        return value
+    if isinstance(value, str) and value in Condition._value2member_map_:
+        return Condition(value)
+    return Condition.USED
