@@ -60,12 +60,14 @@ class ImportSessionService:
         db: AsyncSession,
         *,
         upload: UploadFile,
+        declared_entities: Mapping[str, str] | None = None,
         created_by: str | None = None,
     ) -> ImportSession:
         raw_bytes = await upload.read()
         if not raw_bytes:
             raise ValueError("Uploaded file is empty")
 
+        declared_entities = dict(declared_entities or {})
         session_id = uuid4()
         filename = upload.filename or f"import-{session_id}.xlsx"
         upload_root = self.settings.upload_root / str(session_id) / "source"
@@ -74,7 +76,7 @@ class ImportSessionService:
         file_path.write_bytes(raw_bytes)
 
         workbook = self._load_workbook(file_path)
-        sheet_meta = self._inspect_workbook(workbook)
+        sheet_meta = self._inspect_workbook(workbook, declared_entities=declared_entities)
         mappings = self._generate_initial_mappings(sheet_meta)
         preview = self._build_preview(workbook, mappings)
 
@@ -89,6 +91,7 @@ class ImportSessionService:
             mappings_json=mappings,
             preview_json=preview,
             conflicts_json={},
+            declared_entities_json=declared_entities,
             created_by=created_by,
         )
         db.add(import_session)
@@ -99,6 +102,26 @@ class ImportSessionService:
             "filename": filename,
             "sheet_count": len(workbook),
         })
+
+        mismatches = [
+            {
+                "sheet": meta.get("sheet_name"),
+                "declared": meta.get("declared_entity"),
+                "inferred": meta.get("entity"),
+                "confidence": meta.get("confidence"),
+            }
+            for meta in sheet_meta
+            if meta.get("declared_entity")
+            and meta.get("entity")
+            and meta.get("entity") != meta.get("declared_entity")
+        ]
+        if mismatches:
+            self._record_audit(
+                db,
+                import_session,
+                event="declared_entity_mismatch",
+                payload={"mismatches": mismatches},
+            )
         return import_session
 
     async def refresh_preview(
@@ -648,11 +671,21 @@ class ImportSessionService:
             )
         ]
 
-    def _inspect_workbook(self, workbook: Mapping[str, DataFrame]) -> list[dict[str, Any]]:
+    def _inspect_workbook(
+        self,
+        workbook: Mapping[str, DataFrame],
+        *,
+        declared_entities: Mapping[str, str] | None = None,
+    ) -> list[dict[str, Any]]:
         sheet_meta: list[dict[str, Any]] = []
         for sheet_name, dataframe in workbook.items():
             columns = [str(column) for column in dataframe.columns]
-            best_schema, confidence = self._infer_schema(sheet_name, columns)
+            declared_entity = (declared_entities or {}).get(sheet_name)
+            if declared_entity:
+                best_schema = IMPORT_SCHEMAS.get(declared_entity)
+                confidence = 1.0 if best_schema else 0.0
+            else:
+                best_schema, confidence = self._infer_schema(sheet_name, columns)
             sheet_meta.append(
                 {
                     "sheet_name": sheet_name,
@@ -675,6 +708,7 @@ class ImportSessionService:
                     "entity": best_schema.entity if best_schema else None,
                     "entity_label": best_schema.label if best_schema else None,
                     "confidence": round(confidence, 3),
+                    "declared_entity": declared_entity,
                 }
             )
         return sheet_meta
@@ -694,7 +728,7 @@ class ImportSessionService:
     def _generate_initial_mappings(self, sheet_meta: list[dict[str, Any]]) -> dict[str, Any]:
         mappings: dict[str, Any] = {}
         for entry in sheet_meta:
-            entity = entry.get("entity")
+            entity = entry.get("declared_entity") or entry.get("entity")
             if not entity or entity in mappings:
                 continue
             schema = IMPORT_SCHEMAS.get(entity)

@@ -23,6 +23,7 @@ class CpuBase(DealBrainModel):
     cpu_mark_single: int | None = None
     release_year: int | None = None
     notes: str | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
 
 
 class CpuCreate(CpuBase):
@@ -41,6 +42,7 @@ class GpuBase(DealBrainModel):
     gpu_mark: int | None = None
     metal_score: int | None = None
     notes: str | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
 
 
 class GpuCreate(GpuBase):
@@ -63,6 +65,7 @@ class ValuationRuleBase(DealBrainModel):
     condition_used: float = 0.6
     age_curve_json: dict[str, Any] | None = None
     notes: str | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
 
 
 class ValuationRuleCreate(ValuationRuleBase):
@@ -95,6 +98,7 @@ class ProfileRead(ProfileBase):
 class PortsProfileBase(DealBrainModel):
     name: str
     description: str | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
 
 
 class PortsProfileCreate(PortsProfileBase):
@@ -125,4 +129,3 @@ class PortRead(PortBase):
 
 
 PortsProfileRead.model_rebuild()
-

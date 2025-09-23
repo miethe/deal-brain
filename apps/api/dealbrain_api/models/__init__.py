@@ -2,10 +2,13 @@
 
 from .core import (
     Cpu,
+    CustomFieldDefinition,
     Gpu,
     Listing,
     ListingComponent,
     ListingScoreSnapshot,
+    ImportSession,
+    ImportSessionAudit,
     Port,
     PortsProfile,
     Profile,
@@ -16,10 +19,13 @@ from .core import (
 
 __all__ = [
     "Cpu",
+    "CustomFieldDefinition",
     "Gpu",
     "Listing",
     "ListingComponent",
     "ListingScoreSnapshot",
+    "ImportSession",
+    "ImportSessionAudit",
     "Port",
     "PortsProfile",
     "Profile",
@@ -27,4 +33,3 @@ __all__ = [
     "ImportJob",
     "TaskRun",
 ]
-

@@ -51,6 +51,7 @@ class ListingBase(DealBrainModel):
     os_license: str | None = None
     other_components: list[str] = Field(default_factory=list)
     notes: str | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
 
 
 class ListingCreate(ListingBase):
@@ -75,4 +76,3 @@ class ListingRead(ListingBase):
 
 
 ListingRead.model_rebuild()
-

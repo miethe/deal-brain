@@ -43,6 +43,7 @@ class SheetMetaModel(BaseModel):
     entity: str | None = None
     entity_label: str | None = None
     confidence: float = 0.0
+    declared_entity: str | None = None
 
 
 class ComponentMatchSuggestionModel(BaseModel):
@@ -89,6 +90,7 @@ class ImportSessionSnapshotModel(BaseModel):
     mappings: dict[str, EntityMappingModel]
     preview: dict[str, EntityPreviewModel]
     conflicts: dict[str, Any]
+    declared_entities: dict[str, str] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 

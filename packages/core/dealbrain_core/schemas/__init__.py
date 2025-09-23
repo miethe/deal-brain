@@ -30,6 +30,11 @@ from .listing import (
     ListingCreate,
     ListingRead,
 )
+from .custom_field import (
+    CustomFieldDefinitionCreate,
+    CustomFieldDefinitionRead,
+    CustomFieldDefinitionUpdate,
+)
 
 __all__ = [
     "DealBrainModel",
@@ -58,4 +63,7 @@ __all__ = [
     "ListingCreate",
     "ListingRead",
     "SpreadsheetSeed",
+    "CustomFieldDefinitionCreate",
+    "CustomFieldDefinitionRead",
+    "CustomFieldDefinitionUpdate",
 ]

@@ -4,7 +4,9 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+import json
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,10 +43,24 @@ def _snapshot(import_session: ImportSession) -> ImportSessionSnapshotModel:
 @router.post("/sessions", response_model=ImportSessionSnapshotModel, status_code=status.HTTP_201_CREATED)
 async def create_import_session(
     upload: UploadFile = File(...),
+    declared_entities: str | None = Form(default=None),
     db: AsyncSession = Depends(session_dependency),
 ) -> ImportSessionSnapshotModel:
+    declared_entities_payload: dict[str, str] = {}
+    if declared_entities:
+        try:
+            payload = json.loads(declared_entities)
+            if not isinstance(payload, dict):
+                raise ValueError("declared_entities must be an object")
+            declared_entities_payload = {str(key): str(value) for key, value in payload.items()}
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     try:
-        import_session = await service.create_session(db, upload=upload)
+        import_session = await service.create_session(
+            db,
+            upload=upload,
+            declared_entities=declared_entities_payload,
+        )
         await service.refresh_preview(db, import_session)
         await db.refresh(import_session)
         # Build dict while still in async context
@@ -58,6 +74,7 @@ async def create_import_session(
             "mappings": import_session.mappings_json or {},
             "preview": import_session.preview_json or {},
             "conflicts": import_session.conflicts_json or {},
+            "declared_entities": import_session.declared_entities_json or {},
             "created_at": import_session.created_at,
             "updated_at": import_session.updated_at,
         }
@@ -81,6 +98,7 @@ async def list_import_sessions(db: AsyncSession = Depends(session_dependency)) -
             "mappings": session.mappings_json or {},
             "preview": session.preview_json or {},
             "conflicts": session.conflicts_json or {},
+            "declared_entities": session.declared_entities_json or {},
             "created_at": session.created_at,
             "updated_at": session.updated_at,
         }
@@ -107,6 +125,7 @@ async def get_import_session(
         "mappings": import_session.mappings_json or {},
         "preview": import_session.preview_json or {},
         "conflicts": import_session.conflicts_json or {},
+        "declared_entities": import_session.declared_entities_json or {},
         "created_at": import_session.created_at,
         "updated_at": import_session.updated_at,
     }
@@ -133,6 +152,7 @@ async def update_import_mappings(
         "mappings": import_session.mappings_json or {},
         "preview": import_session.preview_json or {},
         "conflicts": import_session.conflicts_json or {},
+        "declared_entities": import_session.declared_entities_json or {},
         "created_at": import_session.created_at,
         "updated_at": import_session.updated_at,
     }
@@ -157,6 +177,7 @@ async def refresh_conflicts(
         "mappings": import_session.mappings_json or {},
         "preview": import_session.preview_json or {},
         "conflicts": import_session.conflicts_json or {},
+        "declared_entities": import_session.declared_entities_json or {},
         "created_at": import_session.created_at,
         "updated_at": import_session.updated_at,
     }

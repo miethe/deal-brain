@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, ForeignKey, Integer, String, Text, UniqueConstraint, func, Index
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -35,6 +35,7 @@ class Cpu(Base, TimestampMixin):
     cpu_mark_single: Mapped[int | None]
     release_year: Mapped[int | None]
     notes: Mapped[str | None] = mapped_column(Text)
+    attributes_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
     listings: Mapped[list["Listing"]] = relationship(back_populates="cpu", lazy="selectin")
 
@@ -48,6 +49,7 @@ class Gpu(Base, TimestampMixin):
     gpu_mark: Mapped[int | None]
     metal_score: Mapped[int | None]
     notes: Mapped[str | None] = mapped_column(Text)
+    attributes_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
     listings: Mapped[list["Listing"]] = relationship(back_populates="gpu", lazy="selectin")
 
@@ -58,6 +60,7 @@ class PortsProfile(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
+    attributes_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
     ports: Mapped[list["Port"]] = relationship(back_populates="profile", cascade="all, delete-orphan", lazy="selectin")
     listings: Mapped[list["Listing"]] = relationship(back_populates="ports_profile", lazy="selectin")
@@ -101,6 +104,7 @@ class ValuationRule(Base, TimestampMixin):
     condition_used: Mapped[float] = mapped_column(nullable=False, default=0.6)
     age_curve_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     notes: Mapped[str | None] = mapped_column(Text)
+    attributes_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
     listing_components: Mapped[list["ListingComponent"]] = relationship(back_populates="rule")
 
@@ -130,6 +134,7 @@ class Listing(Base, TimestampMixin):
     other_components: Mapped[list[str]] = mapped_column(JSON, default=list)
     notes: Mapped[str | None] = mapped_column(Text)
     raw_listing_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    attributes_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
     adjusted_price_usd: Mapped[float | None]
     valuation_breakdown: Mapped[dict[str, Any] | None] = mapped_column(JSON)
@@ -221,6 +226,7 @@ class ImportSession(Base, TimestampMixin):
     mappings_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     conflicts_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     preview_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    declared_entities_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     created_by: Mapped[str | None] = mapped_column(String(128))
 
     audit_events: Mapped[list["ImportSessionAudit"]] = relationship(
@@ -240,3 +246,25 @@ class ImportSessionAudit(Base, TimestampMixin):
     payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     session: Mapped[ImportSession] = relationship(back_populates="audit_events")
+
+
+class CustomFieldDefinition(Base, TimestampMixin):
+    __tablename__ = "custom_field_definition"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entity: Mapped[str] = mapped_column(String(64), nullable=False)
+    key: Mapped[str] = mapped_column(String(64), nullable=False)
+    label: Mapped[str] = mapped_column(String(128), nullable=False)
+    data_type: Mapped[str] = mapped_column(String(32), nullable=False, default="string")
+    description: Mapped[str | None] = mapped_column(Text)
+    required: Mapped[bool] = mapped_column(nullable=False, default=False)
+    default_value: Mapped[Any | None] = mapped_column(JSON)
+    options: Mapped[list[str] | None] = mapped_column(JSON)
+    is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    visibility: Mapped[str] = mapped_column(String(32), nullable=False, default="public")
+    created_by: Mapped[str | None] = mapped_column(String(128))
+
+    __table_args__ = (
+        UniqueConstraint("entity", "key", name="uq_custom_field_entity_key"),
+        Index("ix_custom_field_definition_entity", "entity"),
+    )
