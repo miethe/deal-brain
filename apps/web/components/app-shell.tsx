@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/listings", label: "Listings" },
   { href: "/profiles", label: "Profiles" },
   { href: "/valuation-rules", label: "Valuation Rules" },
+  { href: "/global-fields", label: "Global Fields" },
   { href: "/import", label: "Import" }
 ];
 

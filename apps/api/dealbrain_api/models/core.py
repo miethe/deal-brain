@@ -263,8 +263,20 @@ class CustomFieldDefinition(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
     visibility: Mapped[str] = mapped_column(String(32), nullable=False, default="public")
     created_by: Mapped[str | None] = mapped_column(String(128))
+    validation_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    deleted_at: Mapped[datetime | None]
 
     __table_args__ = (
         UniqueConstraint("entity", "key", name="uq_custom_field_entity_key"),
         Index("ix_custom_field_definition_entity", "entity"),
+        Index("ix_custom_field_definition_order", "entity", "display_order"),
     )
+
+    @property
+    def validation(self) -> dict[str, Any] | None:
+        return self.validation_json or None
+
+    @validation.setter
+    def validation(self, value: dict[str, Any] | None) -> None:
+        self.validation_json = value or None

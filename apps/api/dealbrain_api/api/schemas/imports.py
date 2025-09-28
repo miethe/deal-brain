@@ -8,6 +8,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from .custom_fields import CustomFieldCreateRequest, CustomFieldResponse
+
 
 class MappingSuggestionModel(BaseModel):
     column: str
@@ -137,6 +139,16 @@ class CommitImportResponse(BaseModel):
     status: str
     counts: dict[str, int]
     session: ImportSessionSnapshotModel
+    auto_created_cpus: list[str] = Field(default_factory=list)
+
+
+class ImporterFieldCreateRequest(CustomFieldCreateRequest):
+    pass
+
+
+class ImporterFieldCreateResponse(BaseModel):
+    field: CustomFieldResponse
+    session: ImportSessionSnapshotModel
 
 
 __all__ = [
@@ -147,4 +159,6 @@ __all__ = [
     "CommitImportResponse",
     "CpuConflictModel",
     "ComponentMatchModel",
+    "ImporterFieldCreateRequest",
+    "ImporterFieldCreateResponse",
 ]

@@ -49,6 +49,26 @@ export interface ComponentMatch {
   suggestions: ComponentMatchSuggestion[];
 }
 
+export interface CustomFieldDefinition {
+  id: number;
+  entity: string;
+  key: string;
+  label: string;
+  data_type: string;
+  description?: string | null;
+  required: boolean;
+  default_value?: unknown;
+  options?: string[] | null;
+  is_active: boolean;
+  visibility: string;
+  created_by?: string | null;
+  validation?: Record<string, unknown> | null;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string | null;
+}
+
 export interface EntityPreview {
   rows: Record<string, unknown>[];
   missing_required_fields: string[];
@@ -80,6 +100,7 @@ export interface ImportSessionSnapshot {
   mappings: Record<string, EntityMapping>;
   preview: Record<string, EntityPreview>;
   conflicts: Record<string, unknown>;
+  declared_entities: Record<string, string>;
   created_at: string;
   updated_at: string;
 }
@@ -104,5 +125,11 @@ export interface ComponentOverridePayload {
 export interface CommitResponse {
   status: string;
   counts: Record<string, number>;
+  session: ImportSessionSnapshot;
+  auto_created_cpus: string[];
+}
+
+export interface ImporterFieldCreateResponse {
+  field: CustomFieldDefinition;
   session: ImportSessionSnapshot;
 }

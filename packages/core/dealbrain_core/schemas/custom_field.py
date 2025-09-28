@@ -20,6 +20,8 @@ class CustomFieldDefinitionBase(DealBrainModel):
     is_active: bool = True
     visibility: str = "public"
     created_by: str | None = None
+    validation: dict[str, Any] | None = None
+    display_order: int = 100
 
 
 class CustomFieldDefinitionCreate(CustomFieldDefinitionBase):
@@ -36,12 +38,15 @@ class CustomFieldDefinitionUpdate(DealBrainModel):
     is_active: bool | None = None
     visibility: str | None = None
     created_by: str | None = None
+    validation: dict[str, Any] | None = None
+    display_order: int | None = None
 
 
 class CustomFieldDefinitionRead(CustomFieldDefinitionBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    deleted_at: datetime | None = None
 
 
 __all__ = [

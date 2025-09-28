@@ -15,17 +15,22 @@ from ..db import session_dependency
 from ..importers import SpreadsheetImporter
 from ..models.core import ImportSession
 from ..seeds import apply_seed
+from ..services.custom_fields import CustomFieldService
 from ..services.imports import ImportSessionService
+from .schemas.custom_fields import CustomFieldResponse
 from .schemas.imports import (
     CommitImportRequest,
     CommitImportResponse,
     ImportSessionListModel,
     ImportSessionSnapshotModel,
+    ImporterFieldCreateRequest,
+    ImporterFieldCreateResponse,
     UpdateMappingsRequest,
 )
 
 router = APIRouter(prefix="/v1/imports", tags=["imports"])
 service = ImportSessionService()
+custom_field_service = CustomFieldService()
 
 
 async def _get_session_or_404(db: AsyncSession, session_id: UUID) -> ImportSession:
@@ -204,7 +209,7 @@ async def commit_import_session(
         for override in request.component_overrides
     }
     try:
-        counts = await service.commit(
+        counts, auto_created_cpus = await service.commit(
             db,
             import_session,
             conflict_resolutions=conflict_resolutions,
@@ -227,7 +232,69 @@ async def commit_import_session(
         }
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    return CommitImportResponse(status="completed", counts=counts, session=_snapshot(payload))
+    return CommitImportResponse(
+        status="completed",
+        counts=counts,
+        session=_snapshot(payload),
+        auto_created_cpus=auto_created_cpus,
+    )
+
+
+@router.post(
+    "/sessions/{session_id}/fields",
+    response_model=ImporterFieldCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_import_field(
+    session_id: UUID,
+    request: ImporterFieldCreateRequest,
+    db: AsyncSession = Depends(session_dependency),
+) -> ImporterFieldCreateResponse:
+    import_session = await _get_session_or_404(db, session_id)
+    try:
+        field = await custom_field_service.create_field(
+            db,
+            entity=request.entity,
+            key=request.key,
+            label=request.label,
+            data_type=request.data_type,
+            description=request.description,
+            required=request.required,
+            default_value=request.default_value,
+            options=request.options,
+            is_active=request.is_active,
+            visibility=request.visibility,
+            created_by=request.created_by,
+            validation=request.validation,
+            display_order=request.display_order,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    await service.attach_custom_field(db, import_session, field)
+    await service.refresh_preview(db, import_session)
+    await db.refresh(import_session)
+
+    payload = {
+        "id": import_session.id,
+        "filename": import_session.filename,
+        "content_type": import_session.content_type,
+        "status": import_session.status,
+        "checksum": import_session.checksum,
+        "sheet_meta": import_session.sheet_meta_json or [],
+        "mappings": import_session.mappings_json or {},
+        "preview": import_session.preview_json or {},
+        "conflicts": import_session.conflicts_json or {},
+        "declared_entities": import_session.declared_entities_json or {},
+        "created_at": import_session.created_at,
+        "updated_at": import_session.updated_at,
+    }
+
+    snapshot = _snapshot(payload)
+    return ImporterFieldCreateResponse(
+        field=CustomFieldResponse.model_validate(field),
+        session=snapshot,
+    )
 
 
 class ImportRequest(BaseModel):

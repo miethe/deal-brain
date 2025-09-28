@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 import json
 from pathlib import Path
@@ -28,7 +29,7 @@ from dealbrain_core.schemas import (
     ValuationRuleCreate,
 )
 
-from ...models.core import Cpu, Gpu, ImportSession, ImportSessionAudit
+from ...models.core import Cpu, CustomFieldDefinition, Gpu, ImportSession, ImportSessionAudit
 from ...seeds import apply_seed
 from ...settings import Settings, get_settings
 from .specs import IMPORT_SCHEMAS, ImportSchema, SchemaField, iter_schemas
@@ -171,12 +172,39 @@ class ImportSessionService:
         *,
         conflict_resolutions: Mapping[str, str],
         component_overrides: Mapping[int, dict[str, Any]],
-    ) -> dict[str, int]:
+    ) -> tuple[dict[str, int], list[str]]:
         workbook = self._load_workbook(Path(import_session.upload_path))
         self._validate_conflicts(import_session.conflicts_json, conflict_resolutions)
 
         cpu_lookup = await self._load_cpu_lookup(db)
         gpu_lookup = await self._load_gpu_lookup(db)
+
+        auto_created_cpus: list[str] = []
+        listing_mapping = import_session.mappings_json.get("listing") if import_session.mappings_json else None
+        if listing_mapping:
+            dataframe = workbook.get(listing_mapping.get("sheet"))
+            if dataframe is not None:
+                missing_cpu_entries = self._collect_missing_cpus(
+                    dataframe,
+                    listing_mapping.get("fields", {}),
+                    component_overrides=component_overrides,
+                    cpu_lookup=cpu_lookup,
+                )
+                if missing_cpu_entries:
+                    created_cpus = await self._auto_create_cpus(
+                        db,
+                        entries=missing_cpu_entries,
+                        import_session=import_session,
+                    )
+                    if created_cpus:
+                        auto_created_cpus = [cpu.name for cpu in created_cpus]
+                        cpu_lookup = await self._load_cpu_lookup(db)
+                        self._record_audit(
+                            db,
+                            import_session,
+                            event="cpu_auto_created",
+                            payload={"cpus": auto_created_cpus},
+                        )
 
         seed = self._build_seed(
             workbook,
@@ -199,9 +227,14 @@ class ImportSessionService:
 
         import_session.status = "completed"
         import_session.conflicts_json = {}
-        self._record_audit(db, import_session, event="commit_success", payload=counts)
+        self._record_audit(
+            db,
+            import_session,
+            event="commit_success",
+            payload={**counts, "auto_created_cpus": auto_created_cpus},
+        )
         await db.flush()
-        return counts
+        return counts, auto_created_cpus
 
     def _load_workbook(self, path: Path) -> dict[str, DataFrame]:
         suffix = path.suffix.lower()
@@ -490,6 +523,101 @@ class ImportSessionService:
             listing.components = components or None
             listings.append(listing)
         return listings
+
+    def _collect_missing_cpus(
+        self,
+        dataframe: DataFrame,
+        field_mappings: Mapping[str, Any],
+        *,
+        component_overrides: Mapping[int, dict[str, Any]],
+        cpu_lookup: Mapping[str, int],
+    ) -> list[dict[str, Any]]:
+        cpu_column = field_mappings.get("cpu_name", {}).get("column")
+        if not cpu_column or cpu_column not in dataframe.columns:
+            return []
+
+        matches = self._match_components(dataframe, cpu_column, list(cpu_lookup.keys()), limit=None)
+        match_lookup = {match["row_index"]: match for match in matches}
+        normalized_lookup = set(cpu_lookup.keys())
+
+        missing: dict[str, dict[str, Any]] = {}
+        records = dataframe.fillna("").to_dict(orient="records")
+        for index, row in enumerate(records):
+            override = component_overrides.get(index)
+            match_data = match_lookup.get(index)
+            candidate = None
+            if override and override.get("cpu_match"):
+                candidate = self._to_str(override.get("cpu_match"))
+            elif match_data and match_data.get("status") == "auto":
+                candidate = self._to_str(match_data.get("auto_match"))
+            else:
+                candidate = self._to_str(row.get(cpu_column))
+            if not candidate:
+                continue
+            normalized = normalize_text(candidate)
+            if not normalized or normalized in normalized_lookup or normalized in missing:
+                continue
+            missing[normalized] = {
+                "name": candidate,
+                "row_index": index,
+                "manufacturer": self._guess_cpu_manufacturer(candidate),
+            }
+        return list(missing.values())
+
+    def _guess_cpu_manufacturer(self, cpu_name: str) -> str:
+        if not cpu_name:
+            return "Unknown"
+        tokens = cpu_name.strip().split()
+        if not tokens:
+            return "Unknown"
+        first = tokens[0].lower()
+        mapping = {
+            "intel": "Intel",
+            "amd": "AMD",
+            "apple": "Apple",
+            "ibm": "IBM",
+            "qualcomm": "Qualcomm",
+        }
+        if first in mapping:
+            return mapping[first]
+        if "intel" in first:
+            return "Intel"
+        if "ryzen" in first or "epyc" in first:
+            return "AMD"
+        if "m" in first and tokens[0].lower().startswith("m") and "apple" in cpu_name.lower():
+            return "Apple"
+        return "Unknown"
+
+    async def _auto_create_cpus(
+        self,
+        db: AsyncSession,
+        *,
+        entries: list[dict[str, Any]],
+        import_session: ImportSession,
+    ) -> list[Cpu]:
+        created: list[Cpu] = []
+        for entry in entries:
+            name = entry.get("name")
+            if not name:
+                continue
+            existing = await db.scalar(select(Cpu).where(Cpu.name.ilike(name)))
+            if existing:
+                continue
+            cpu = Cpu(
+                name=name,
+                manufacturer=entry.get("manufacturer") or "Unknown",
+                attributes_json={
+                    "auto_created_from_import": str(import_session.id),
+                    "source_row_index": entry.get("row_index"),
+                },
+            )
+            db.add(cpu)
+            await db.flush()
+            await db.refresh(cpu)
+            created.append(cpu)
+        if created:
+            await db.commit()
+        return created
 
     def _resolve_cpu_assignment(
         self,
@@ -866,6 +994,39 @@ class ImportSessionService:
                         "suggestions": mapping.get("suggestions", existing.get("suggestions", [])),
                     }
         return merged
+
+    async def attach_custom_field(
+        self,
+        db: AsyncSession,
+        import_session: ImportSession,
+        field: CustomFieldDefinition,
+    ) -> ImportSession:
+        existing_mappings = import_session.mappings_json or {}
+        updated_mappings = deepcopy(existing_mappings)
+        entity_config = updated_mappings.setdefault(field.entity, {"sheet": None, "fields": {}})
+        fields = entity_config.setdefault("fields", {})
+        if field.key not in fields:
+            fields[field.key] = {
+                "field": field.key,
+                "label": field.label,
+                "required": field.required,
+                "data_type": field.data_type,
+                "column": None,
+                "status": "missing",
+                "confidence": 0.0,
+                "suggestions": [],
+            }
+            import_session.mappings_json = updated_mappings
+            self._record_audit(
+                db,
+                import_session,
+                event="custom_field_attached",
+                payload={"field": field.key, "entity": field.entity},
+            )
+        else:
+            import_session.mappings_json = updated_mappings
+        await db.flush()
+        return import_session
 
     async def _enrich_listing_preview(
         self,

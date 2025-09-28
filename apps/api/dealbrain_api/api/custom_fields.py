@@ -22,9 +22,15 @@ service = CustomFieldService()
 async def list_custom_fields(
     entity: str | None = Query(default=None, description="Filter by entity type"),
     include_inactive: bool = Query(default=False),
+    include_deleted: bool = Query(default=False),
     db: AsyncSession = Depends(session_dependency),
 ) -> CustomFieldListResponse:
-    records = await service.list_fields(db, entity=entity, include_inactive=include_inactive)
+    records = await service.list_fields(
+        db,
+        entity=entity,
+        include_inactive=include_inactive,
+        include_deleted=include_deleted,
+    )
     return CustomFieldListResponse(fields=[CustomFieldResponse.model_validate(record) for record in records])
 
 
@@ -47,6 +53,8 @@ async def create_custom_field(
             is_active=request.is_active,
             visibility=request.visibility,
             created_by=request.created_by,
+            validation=request.validation,
+            display_order=request.display_order,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -73,12 +81,26 @@ async def update_custom_field(
             is_active=payload.get("is_active"),
             visibility=payload.get("visibility"),
             created_by=payload.get("created_by"),
+            validation=payload.get("validation"),
+            display_order=payload.get("display_order"),
         )
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return CustomFieldResponse.model_validate(record)
+
+
+@router.delete("/{field_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_custom_field(
+    field_id: int,
+    hard_delete: bool = Query(default=False, description="Permanently remove the field"),
+    db: AsyncSession = Depends(session_dependency),
+) -> None:
+    try:
+        await service.delete_field(db, field_id=field_id, hard_delete=hard_delete)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 __all__ = ["router"]

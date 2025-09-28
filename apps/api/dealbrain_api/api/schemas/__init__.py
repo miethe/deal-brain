@@ -5,7 +5,16 @@ from .imports import (
     CommitImportResponse,
     ImportSessionListModel,
     ImportSessionSnapshotModel,
+    ImporterFieldCreateRequest,
+    ImporterFieldCreateResponse,
     UpdateMappingsRequest,
+)
+from .listings import (
+    ListingBulkUpdateRequest,
+    ListingBulkUpdateResponse,
+    ListingFieldSchema,
+    ListingPartialUpdateRequest,
+    ListingSchemaResponse,
 )
 
 __all__ = [
@@ -13,5 +22,12 @@ __all__ = [
     "CommitImportResponse",
     "ImportSessionListModel",
     "ImportSessionSnapshotModel",
+    "ImporterFieldCreateRequest",
+    "ImporterFieldCreateResponse",
     "UpdateMappingsRequest",
+    "ListingFieldSchema",
+    "ListingSchemaResponse",
+    "ListingPartialUpdateRequest",
+    "ListingBulkUpdateRequest",
+    "ListingBulkUpdateResponse",
 ]

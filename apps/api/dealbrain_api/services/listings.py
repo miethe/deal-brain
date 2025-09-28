@@ -13,6 +13,29 @@ from dealbrain_core.valuation import ComponentValuationInput, ValuationRuleData,
 from ..models import Cpu, Gpu, Listing, ListingComponent, Profile, ValuationRule
 
 
+MUTABLE_LISTING_FIELDS: set[str] = {
+    "title",
+    "url",
+    "seller",
+    "price_usd",
+    "price_date",
+    "condition",
+    "status",
+    "cpu_id",
+    "gpu_id",
+    "ports_profile_id",
+    "device_model",
+    "ram_gb",
+    "ram_notes",
+    "primary_storage_gb",
+    "primary_storage_type",
+    "secondary_storage_gb",
+    "secondary_storage_type",
+    "os_license",
+    "notes",
+}
+
+
 async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None:
     rules = await session.execute(select(ValuationRule))
     rule_data = [
@@ -147,6 +170,9 @@ async def get_default_profile(session: AsyncSession) -> Profile | None:
 
 
 async def create_listing(session: AsyncSession, payload: dict) -> Listing:
+    # Map 'attributes' to 'attributes_json' for SQLAlchemy model
+    if 'attributes' in payload:
+        payload['attributes_json'] = payload.pop('attributes')
     listing = Listing(**payload)
     session.add(listing)
     await session.flush()
@@ -167,6 +193,70 @@ async def sync_listing_components(
         return
     listing.components.clear()
     await session.flush()
+
+
+async def partial_update_listing(
+    session: AsyncSession,
+    listing: Listing,
+    fields: dict[str, Any] | None = None,
+    attributes: dict[str, Any] | None = None,
+    *,
+    run_metrics: bool = True,
+) -> Listing:
+    fields = fields or {}
+    attributes = attributes or {}
+
+    for field, value in fields.items():
+        if field in MUTABLE_LISTING_FIELDS:
+            setattr(listing, field, value)
+
+    if attributes:
+        merged = dict(listing.attributes_json or {})
+        for key, value in attributes.items():
+            if value is None:
+                merged.pop(key, None)
+            else:
+                merged[key] = value
+        listing.attributes_json = merged
+
+    await session.flush()
+
+    if run_metrics:
+        await apply_listing_metrics(session, listing)
+        await session.refresh(listing)
+    return listing
+
+
+async def bulk_update_listings(
+    session: AsyncSession,
+    listing_ids: list[int],
+    fields: dict[str, Any] | None = None,
+    attributes: dict[str, Any] | None = None,
+) -> list[Listing]:
+    if not listing_ids:
+        return []
+
+    result = await session.execute(select(Listing).where(Listing.id.in_(listing_ids)))
+    listings = result.scalars().unique().all()
+    if not listings:
+        return []
+
+    for listing in listings:
+        await partial_update_listing(
+            session,
+            listing,
+            fields,
+            attributes,
+            run_metrics=False,
+        )
+
+    await session.flush()
+    for listing in listings:
+        await apply_listing_metrics(session, listing)
+    await session.flush()
+    for listing in listings:
+        await session.refresh(listing)
+    return listings
     for component in components_payload:
         component_type = component.get("component_type")
         component_type_enum = _coerce_component_type(component_type)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import { apiFetch, cn } from "../../lib/utils";
 import {
@@ -11,7 +11,9 @@ import {
   EntityMapping,
   EntityPreview,
   FieldMapping,
+  CommitResponse,
   ImportSessionSnapshot,
+  ImporterFieldCreateResponse,
   SheetMeta
 } from "../../types/importer";
 import { UploadDropzone } from "./upload-dropzone";
@@ -31,6 +33,41 @@ type ConflictState = Record<string, ConflictAction>;
 
 type ComponentOverrideState = Record<number, { cpu_match?: string | null; gpu_match?: string | null }>;
 
+interface NewFieldForm {
+  label: string;
+  key: string;
+  data_type: string;
+  description: string;
+  required: boolean;
+  optionsText: string;
+  defaultValue: string;
+  validationPattern: string;
+  validationMin: string;
+  validationMax: string;
+  displayOrder: string;
+}
+
+const EMPTY_FIELD_FORM: NewFieldForm = {
+  label: "",
+  key: "",
+  data_type: "string",
+  description: "",
+  required: false,
+  optionsText: "",
+  defaultValue: "",
+  validationPattern: "",
+  validationMin: "",
+  validationMax: "",
+  displayOrder: "500",
+};
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
 export function ImporterWorkspace() {
   const [session, setSession] = useState<ImportSessionSnapshot | null>(null);
   const [mappingsDraft, setMappingsDraft] = useState<MappingDraftState>({});
@@ -42,6 +79,11 @@ export function ImporterWorkspace() {
   const [isCommitting, setIsCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
+  const [fieldForm, setFieldForm] = useState<NewFieldForm>(() => ({ ...EMPTY_FIELD_FORM }));
+  const [hasCustomKey, setHasCustomKey] = useState(false);
+  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [isCreatingField, setIsCreatingField] = useState(false);
 
   const hasSession = session !== null;
 
@@ -183,6 +225,123 @@ export function ImporterWorkspace() {
     setSuccessMessage(null);
   };
 
+  const handleOpenFieldModal = () => {
+    if (!activeEntity) return;
+    setFieldForm({ ...EMPTY_FIELD_FORM });
+    setHasCustomKey(false);
+    setFieldError(null);
+    setIsFieldModalOpen(true);
+  };
+
+  const handleCloseFieldModal = () => {
+    setIsFieldModalOpen(false);
+    setFieldError(null);
+    setFieldForm({ ...EMPTY_FIELD_FORM });
+    setHasCustomKey(false);
+  };
+
+  const handleFieldLabelChange = (value: string) => {
+    setFieldForm((prev) => {
+      const next = { ...prev, label: value };
+      if (!hasCustomKey) {
+        next.key = slugify(value);
+      }
+      return next;
+    });
+  };
+
+  const handleFieldKeyChange = (value: string) => {
+    setHasCustomKey(true);
+    setFieldForm((prev) => ({ ...prev, key: slugify(value) }));
+  };
+
+  const handleFieldFormChange = (field: keyof NewFieldForm, value: string | boolean) => {
+    setFieldForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleCreateField = async () => {
+    if (!session || !activeEntity) return;
+    const trimmedLabel = fieldForm.label.trim();
+    const effectiveKey = (fieldForm.key || slugify(trimmedLabel)).trim();
+    if (!trimmedLabel) {
+      setFieldError("Field label is required");
+      return;
+    }
+    if (!effectiveKey) {
+      setFieldError("Field key is required");
+      return;
+    }
+
+    const options =
+      fieldForm.data_type === "enum" || fieldForm.data_type === "multi_select"
+        ? fieldForm.optionsText
+            .split(/\r?\n|,/)
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : undefined;
+
+    const validation: Record<string, unknown> = {};
+    if (fieldForm.validationPattern) {
+      validation.pattern = fieldForm.validationPattern;
+    }
+    if (fieldForm.data_type === "number") {
+      if (fieldForm.validationMin) {
+        validation.min = Number(fieldForm.validationMin);
+      }
+      if (fieldForm.validationMax) {
+        validation.max = Number(fieldForm.validationMax);
+      }
+    }
+
+    let defaultValue: unknown = null;
+    if (fieldForm.defaultValue.trim() !== "") {
+      if (fieldForm.data_type === "number") {
+        defaultValue = Number(fieldForm.defaultValue);
+      } else if (fieldForm.data_type === "boolean") {
+        defaultValue = fieldForm.defaultValue.trim().toLowerCase() === "true";
+      } else {
+        defaultValue = fieldForm.defaultValue;
+      }
+    }
+
+    setIsCreatingField(true);
+    setFieldError(null);
+    try {
+      const response = await apiFetch<ImporterFieldCreateResponse>(
+        `/v1/imports/sessions/${session.id}/fields`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            entity: activeEntity,
+            key: effectiveKey,
+            label: trimmedLabel,
+            data_type: fieldForm.data_type,
+            description: fieldForm.description || null,
+            required: fieldForm.required,
+            default_value: defaultValue,
+            options,
+            is_active: true,
+            visibility: "public",
+            created_by: "importer",
+            validation: Object.keys(validation).length ? validation : undefined,
+            display_order: Number(fieldForm.displayOrder) || 500,
+          }),
+        }
+      );
+      setSession(response.session);
+      setSuccessMessage(`Field "${response.field.label}" added to ${activeEntity}.`);
+      handleCloseFieldModal();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create field";
+      setFieldError(message);
+    } finally {
+      setIsCreatingField(false);
+    }
+  };
+
   const canCommit = useMemo(() => {
     if (!session) return false;
     const unresolved = cpuConflicts.some((conflict) => !conflictState[conflict.name]);
@@ -208,7 +367,7 @@ export function ImporterWorkspace() {
         gpu_match: override.gpu_match ?? null
       }));
     try {
-      const response = await apiFetch(`/v1/imports/sessions/${session.id}/commit`, {
+      const response = await apiFetch<CommitResponse>(`/v1/imports/sessions/${session.id}/commit`, {
         method: "POST",
         body: JSON.stringify({
           conflict_resolutions,
@@ -216,9 +375,14 @@ export function ImporterWorkspace() {
           notes: null
         })
       });
-      const typed = response as { session: ImportSessionSnapshot; counts: Record<string, number> };
-      setSession(typed.session);
-      setSuccessMessage("Import committed successfully.");
+      setSession(response.session);
+      if (response.auto_created_cpus.length) {
+        setSuccessMessage(
+          `Import committed. Auto-created CPUs: ${response.auto_created_cpus.join(", ")}.`
+        );
+      } else {
+        setSuccessMessage("Import committed successfully.");
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to commit import";
       setError(message);
@@ -311,6 +475,7 @@ export function ImporterWorkspace() {
                   mapping={mappingsDraft[activeEntity]}
                   sheetMeta={sheetMetaForEntity(activeEntity)}
                   onColumnChange={handleSelectColumn}
+                  onAddField={handleOpenFieldModal}
                 />
               ) : (
                 <p className="text-sm text-muted-foreground">No mapping details available.</p>
@@ -354,6 +519,19 @@ export function ImporterWorkspace() {
           </div>
         </div>
       )}
+      {isFieldModalOpen && activeEntity && (
+        <FieldModal
+          entity={activeEntity}
+          form={fieldForm}
+          onLabelChange={handleFieldLabelChange}
+          onKeyChange={handleFieldKeyChange}
+          onChange={handleFieldFormChange}
+          onClose={handleCloseFieldModal}
+          onSubmit={handleCreateField}
+          isSubmitting={isCreatingField}
+          error={fieldError}
+        />
+      )}
     </div>
   );
 }
@@ -363,19 +541,29 @@ interface MappingEditorProps {
   mapping: EntityMapping;
   sheetMeta?: SheetMeta;
   onColumnChange: (entityKey: string, fieldKey: string, column: string | null) => void;
+  onAddField?: () => void;
 }
 
-function MappingEditor({ entityKey, mapping, sheetMeta, onColumnChange }: MappingEditorProps) {
+function MappingEditor({ entityKey, mapping, sheetMeta, onColumnChange, onAddField }: MappingEditorProps) {
   const columns = sheetMeta?.columns ?? [];
   const missingFields = Object.values(mapping.fields).filter((field) => field.required && !field.column);
 
   return (
     <div className="space-y-2">
-      {missingFields.length > 0 && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          Missing required fields: {missingFields.map((field) => field.label).join(", ")}
-        </div>
-      )}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {missingFields.length > 0 ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            Missing required fields: {missingFields.map((field) => field.label).join(", ")}
+          </div>
+        ) : (
+          <span className="text-sm text-muted-foreground">Map each field to a column or add new ones.</span>
+        )}
+        {onAddField && (
+          <Button type="button" variant="outline" size="sm" onClick={onAddField}>
+            Add field
+          </Button>
+        )}
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
@@ -427,6 +615,193 @@ function MappingEditor({ entityKey, mapping, sheetMeta, onColumnChange }: Mappin
           ))}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+interface FieldModalProps {
+  entity: string;
+  form: NewFieldForm;
+  onLabelChange: (value: string) => void;
+  onKeyChange: (value: string) => void;
+  onChange: (field: keyof NewFieldForm, value: string | boolean) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+  isSubmitting: boolean;
+  error: string | null;
+}
+
+function FieldModal({
+  entity,
+  form,
+  onLabelChange,
+  onKeyChange,
+  onChange,
+  onClose,
+  onSubmit,
+  isSubmitting,
+  error
+}: FieldModalProps) {
+  const showOptions = form.data_type === "enum" || form.data_type === "multi_select";
+  const showNumericValidation = form.data_type === "number";
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    onSubmit();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
+      <div
+        className="w-full max-w-lg space-y-6 rounded-lg bg-background p-6 shadow-lg"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold">Add field to {entity.replace(/_/g, " ")}</h2>
+          <p className="text-sm text-muted-foreground">
+            Define the field label, data type, and optional validation. The field becomes immediately available for mapping.
+          </p>
+        </div>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="grid gap-2">
+            <Label htmlFor="field-label">Label</Label>
+            <input
+              id="field-label"
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={form.label}
+              onChange={(event) => onLabelChange(event.target.value)}
+              placeholder="e.g. RAM Type"
+              required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="field-key">Key</Label>
+            <input
+              id="field-key"
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={form.key}
+              onChange={(event) => onKeyChange(event.target.value)}
+              placeholder="ram_type"
+            />
+            <p className="text-xs text-muted-foreground">
+              This becomes the attribute key stored on listings. Lowercase, alphanumeric, underscore only.
+            </p>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="field-type">Data type</Label>
+            <select
+              id="field-type"
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={form.data_type}
+              onChange={(event) => onChange("data_type", event.target.value)}
+            >
+              <option value="string">String</option>
+              <option value="number">Number</option>
+              <option value="boolean">Boolean</option>
+              <option value="enum">Single select</option>
+              <option value="multi_select">Multi select</option>
+              <option value="text">Long text</option>
+              <option value="json">JSON</option>
+            </select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="field-description">Description (optional)</Label>
+            <textarea
+              id="field-description"
+              className="min-h-[64px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={form.description}
+              onChange={(event) => onChange("description", event.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="field-required"
+              type="checkbox"
+              checked={form.required}
+              onChange={(event) => onChange("required", event.target.checked)}
+            />
+            <Label htmlFor="field-required" className="text-sm">
+              Required field
+            </Label>
+          </div>
+          {showOptions && (
+            <div className="grid gap-2">
+              <Label htmlFor="field-options">Options</Label>
+              <textarea
+                id="field-options"
+                className="min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={form.optionsText}
+                onChange={(event) => onChange("optionsText", event.target.value)}
+                placeholder="Enter one option per line"
+              />
+            </div>
+          )}
+          <div className="grid gap-2">
+            <Label htmlFor="field-default">Default value (optional)</Label>
+            <input
+              id="field-default"
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={form.defaultValue}
+              onChange={(event) => onChange("defaultValue", event.target.value)}
+            />
+          </div>
+          {showNumericValidation && (
+            <div className="grid gap-2 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="field-min">Minimum</Label>
+                <input
+                  id="field-min"
+                  className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={form.validationMin}
+                  onChange={(event) => onChange("validationMin", event.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="field-max">Maximum</Label>
+                <input
+                  id="field-max"
+                  className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={form.validationMax}
+                  onChange={(event) => onChange("validationMax", event.target.value)}
+                  placeholder="100"
+                />
+              </div>
+            </div>
+          )}
+          {!showNumericValidation && (
+            <div className="grid gap-2">
+              <Label htmlFor="field-pattern">Validation pattern (optional)</Label>
+              <input
+                id="field-pattern"
+                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={form.validationPattern}
+                onChange={(event) => onChange("validationPattern", event.target.value)}
+                placeholder="Regex pattern"
+              />
+            </div>
+          )}
+          <div className="grid gap-2">
+            <Label htmlFor="field-order">Display order</Label>
+            <input
+              id="field-order"
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={form.displayOrder}
+              onChange={(event) => onChange("displayOrder", event.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Lower values surface fields earlier in forms and tables.</p>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Creating…" : "Create field"}
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
