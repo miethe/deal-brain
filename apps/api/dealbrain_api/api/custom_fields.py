@@ -91,16 +91,18 @@ async def update_custom_field(
     return CustomFieldResponse.model_validate(record)
 
 
+
 @router.delete("/{field_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_custom_field(
     field_id: int,
     hard_delete: bool = Query(default=False, description="Permanently remove the field"),
     db: AsyncSession = Depends(session_dependency),
-) -> None:
+):
     try:
         await service.delete_field(db, field_id=field_id, hard_delete=hard_delete)
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return None
 
 
 __all__ = ["router"]
