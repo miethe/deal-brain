@@ -141,6 +141,14 @@ async def create_listing_endpoint(
     return ListingRead.model_validate(listing)
 
 
+
+@router.get("/schema", response_model=ListingSchemaResponse)
+async def get_listing_schema(session: AsyncSession = Depends(session_dependency)) -> ListingSchemaResponse:
+    custom_fields = await custom_field_service.list_fields(session, entity="listing")
+    custom_field_models = [CustomFieldResponse.model_validate(field) for field in custom_fields]
+    return ListingSchemaResponse(core_fields=CORE_LISTING_FIELDS, custom_fields=custom_field_models)
+
+
 @router.get("/{listing_id}", response_model=ListingRead)
 async def get_listing(listing_id: int, session: AsyncSession = Depends(session_dependency)) -> ListingRead:
     listing = await session.get(Listing, listing_id)
@@ -207,10 +215,3 @@ async def bulk_update_listings_endpoint(
         updated=[ListingRead.model_validate(listing) for listing in listings],
         updated_count=len(listings),
     )
-
-
-@router.get("/schema", response_model=ListingSchemaResponse)
-async def get_listing_schema(session: AsyncSession = Depends(session_dependency)) -> ListingSchemaResponse:
-    custom_fields = await custom_field_service.list_fields(session, entity="listing")
-    custom_field_models = [CustomFieldResponse.model_validate(field) for field in custom_fields]
-    return ListingSchemaResponse(core_fields=CORE_LISTING_FIELDS, custom_fields=custom_field_models)
