@@ -273,6 +273,10 @@ class CustomFieldDefinition(Base, TimestampMixin):
         Index("ix_custom_field_definition_order", "entity", "display_order"),
     )
 
+    audit_events: Mapped[list["CustomFieldAuditLog"]] = relationship(
+        back_populates="field", cascade="all, delete-orphan", lazy="selectin"
+    )
+
     @property
     def validation(self) -> dict[str, Any] | None:
         return self.validation_json or None
@@ -280,3 +284,17 @@ class CustomFieldDefinition(Base, TimestampMixin):
     @validation.setter
     def validation(self, value: dict[str, Any] | None) -> None:
         self.validation_json = value or None
+
+
+class CustomFieldAuditLog(Base, TimestampMixin):
+    __tablename__ = "custom_field_audit_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    field_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("custom_field_definition.id", ondelete="CASCADE"), nullable=False
+    )
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    actor: Mapped[str | None] = mapped_column(String(128))
+    payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+
+    field: Mapped[CustomFieldDefinition] = relationship(back_populates="audit_events")

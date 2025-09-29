@@ -1,6 +1,7 @@
 import pytest
 
 from apps.api.dealbrain_api.services.custom_fields import CustomFieldService
+from apps.api.dealbrain_api.services.custom_fields_backfill import infer_field_shape
 
 
 def test_normalize_key_strips_and_snake_cases():
@@ -50,3 +51,24 @@ def test_normalize_validation_allows_allowed_values():
     service = CustomFieldService()
     rules = service._normalize_validation("string", {"allowed_values": ["A", "B"]})
     assert rules == {"allowed_values": ["A", "B"]}
+
+
+def test_infer_field_shape_for_boolean_list():
+    data_type, validation, options = infer_field_shape([True, False, True])
+    assert data_type == "boolean"
+    assert validation is None
+    assert options is None
+
+
+def test_infer_field_shape_for_numeric_sample():
+    data_type, validation, options = infer_field_shape([10, 15, 11])
+    assert data_type == "number"
+    assert validation == {"min": 10.0, "max": 15.0}
+    assert options is None
+
+
+def test_infer_field_shape_for_enum_sample():
+    data_type, validation, options = infer_field_shape(["A", "B", "A"])
+    assert data_type == "enum"
+    assert validation is None
+    assert options == ["A", "B"]

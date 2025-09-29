@@ -2,14 +2,27 @@
 
 from __future__ import annotations
 
+import logging
 import re
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Iterable
+from typing import Any, Iterable, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models.core import CustomFieldDefinition
+from ..models.core import (
+    Cpu,
+    CustomFieldAuditLog,
+    CustomFieldDefinition,
+    Gpu,
+    Listing,
+    PortsProfile,
+    ValuationRule,
+)
+
+logger = logging.getLogger(__name__)
+analytics_logger = logging.getLogger("dealbrain.analytics")
 
 ALLOWED_FIELD_TYPES: tuple[str, ...] = (
     "string",
@@ -29,6 +42,32 @@ VALIDATION_KEYS: set[str] = {
     "allowed_values",
 }
 UNSET = object()
+
+ENTITY_MODEL_MAP = {
+    "listing": Listing,
+    "cpu": Cpu,
+    "gpu": Gpu,
+    "ports_profile": PortsProfile,
+    "valuation_rule": ValuationRule,
+}
+
+
+@dataclass
+class FieldUsageSummary:
+    field_id: int
+    entity: str
+    key: str
+    counts: dict[str, int]
+
+    @property
+    def total(self) -> int:
+        return sum(self.counts.values())
+
+
+class FieldDependencyError(RuntimeError):
+    def __init__(self, message: str, usage: FieldUsageSummary) -> None:
+        super().__init__(message)
+        self.usage = usage
 
 
 class CustomFieldService:
@@ -60,6 +99,12 @@ class CustomFieldService:
         result = await db.execute(query)
         return result.scalars().all()
 
+    async def get_field(self, db: AsyncSession, field_id: int) -> CustomFieldDefinition:
+        record = await db.get(CustomFieldDefinition, field_id)
+        if not record:
+            raise LookupError("Custom field not found")
+        return record
+
     async def create_field(
         self,
         db: AsyncSession,
@@ -77,6 +122,7 @@ class CustomFieldService:
         created_by: str | None = None,
         validation: dict | None = None,
         display_order: int | None = None,
+        actor: str | None = None,
     ) -> CustomFieldDefinition:
         normalized_key = self._normalize_key(key or label)
         normalized_type = data_type.lower()
@@ -111,6 +157,16 @@ class CustomFieldService:
         db.add(record)
         await db.flush()
         await db.refresh(record)
+
+        snapshot = self._snapshot(record)
+        self._write_audit_event(
+            db,
+            field_id=record.id,
+            action="created",
+            actor=actor or created_by,
+            payload={"after": snapshot},
+        )
+        self._emit_event("field_definition.created", {"field_id": record.id, "entity": record.entity})
         return record
 
     async def update_field(
@@ -129,10 +185,11 @@ class CustomFieldService:
         created_by: str | None = None,
         validation: dict | None = None,
         display_order: int | None = None,
+        force: bool = False,
+        actor: str | None = None,
     ) -> CustomFieldDefinition:
-        record = await db.get(CustomFieldDefinition, field_id)
-        if not record:
-            raise LookupError("Custom field not found")
+        record = await self.get_field(db, field_id)
+        before = self._snapshot(record)
 
         if label is not None:
             record.label = label
@@ -140,8 +197,14 @@ class CustomFieldService:
             normalized_type = data_type.lower()
             self._validate_field_type(normalized_type)
             record.data_type = normalized_type
-            record.options = self._normalize_options(normalized_type, options if options is not None else record.options)
-            record.validation_json = self._normalize_validation(normalized_type, validation if validation is not None else record.validation_json)
+            record.options = self._normalize_options(
+                normalized_type,
+                options if options is not None else record.options,
+            )
+            record.validation_json = self._normalize_validation(
+                normalized_type,
+                validation if validation is not None else record.validation_json,
+            )
         elif options is not None:
             record.options = self._normalize_options(record.data_type, options)
         if validation is not None:
@@ -153,6 +216,13 @@ class CustomFieldService:
         if default_value is not UNSET:
             record.default_value = default_value
         if is_active is not None:
+            if not is_active and not force:
+                usage = await self.field_usage(db, record)
+                if usage.total:
+                    raise FieldDependencyError(
+                        f"Field '{record.key}' is used {usage.total} time(s) and cannot be deactivated without force",
+                        usage,
+                    )
             record.is_active = is_active
         if visibility is not None:
             record.visibility = visibility
@@ -163,19 +233,128 @@ class CustomFieldService:
 
         await db.flush()
         await db.refresh(record)
+
+        after = self._snapshot(record)
+        diff = self._diff(before, after)
+        if diff:
+            self._write_audit_event(
+                db,
+                field_id=record.id,
+                action="updated",
+                actor=actor or created_by,
+                payload={
+                    "before": {key: before[key] for key in diff},
+                    "after": {key: after[key] for key in diff},
+                },
+            )
+            self._emit_event(
+                "field_definition.updated",
+                {"field_id": record.id, "entity": record.entity, "changes": sorted(diff)},
+            )
         return record
 
-    async def delete_field(self, db: AsyncSession, *, field_id: int, hard_delete: bool = False) -> None:
-        record = await db.get(CustomFieldDefinition, field_id)
-        if not record:
-            raise LookupError("Custom field not found")
+    async def delete_field(
+        self,
+        db: AsyncSession,
+        *,
+        field_id: int,
+        hard_delete: bool = False,
+        force: bool = False,
+        actor: str | None = None,
+    ) -> FieldUsageSummary:
+        record = await self.get_field(db, field_id)
+        usage = await self.field_usage(db, record)
+        if usage.total and not force:
+            raise FieldDependencyError(
+                f"Field '{record.key}' is still used {usage.total} time(s)",
+                usage,
+            )
+
+        snapshot = self._snapshot(record)
+        action = "hard_deleted" if hard_delete else "soft_deleted"
+        payload = {"before": snapshot, "usage": usage.counts}
+
         if hard_delete:
+            self._write_audit_event(
+                db,
+                field_id=record.id,
+                action=action,
+                actor=actor,
+                payload=payload,
+            )
             await db.delete(record)
-            await db.flush()
-            return
-        record.is_active = False
-        record.deleted_at = datetime.utcnow()
+        else:
+            record.is_active = False
+            record.deleted_at = datetime.utcnow()
+            self._write_audit_event(
+                db,
+                field_id=record.id,
+                action=action,
+                actor=actor,
+                payload=payload,
+            )
+
         await db.flush()
+        self._emit_event(
+            "field_definition.deleted",
+            {"field_id": field_id, "entity": record.entity, "hard": hard_delete, "usage": usage.counts},
+        )
+        return usage
+
+    async def field_usage(
+        self,
+        db: AsyncSession,
+        field: CustomFieldDefinition,
+    ) -> FieldUsageSummary:
+        model = ENTITY_MODEL_MAP.get(field.entity)
+        counts: dict[str, int] = {}
+        if model is None:
+            logger.debug("No usage mapping registered for entity '%s'", field.entity)
+            return FieldUsageSummary(field_id=field.id, entity=field.entity, key=field.key, counts=counts)
+
+        column = getattr(model, "attributes_json", None)
+        if column is not None:
+            stmt = select(func.count()).select_from(model).where(column.has_key(field.key))  # type: ignore[attr-defined]
+            result = await db.scalar(stmt)
+            counts[field.entity] = int(result or 0)
+        return FieldUsageSummary(field_id=field.id, entity=field.entity, key=field.key, counts=counts)
+
+    async def list_usage(
+        self,
+        db: AsyncSession,
+        *,
+        entity: str | None = None,
+        field_ids: Sequence[int] | None = None,
+    ) -> list[FieldUsageSummary]:
+        records = await self.list_fields(
+            db,
+            entity=entity,
+            include_inactive=True,
+            include_deleted=True,
+        )
+        if field_ids is not None:
+            id_filter = set(field_ids)
+            records = [record for record in records if record.id in id_filter]
+        usage: list[FieldUsageSummary] = []
+        for record in records:
+            usage.append(await self.field_usage(db, record))
+        return usage
+
+    async def history(
+        self,
+        db: AsyncSession,
+        *,
+        field_id: int,
+        limit: int = 200,
+    ) -> list[CustomFieldAuditLog]:
+        await self.get_field(db, field_id)
+        result = await db.execute(
+            select(CustomFieldAuditLog)
+            .where(CustomFieldAuditLog.field_id == field_id)
+            .order_by(CustomFieldAuditLog.created_at.desc())
+            .limit(limit)
+        )
+        return result.scalars().all()
 
     def _normalize_key(self, raw_key: str) -> str:
         key = raw_key.strip().lower().replace(" ", "_")
@@ -242,5 +421,57 @@ class CustomFieldService:
 
         return normalized or None
 
+    def _snapshot(self, record: CustomFieldDefinition) -> dict[str, Any]:
+        return {
+            "entity": record.entity,
+            "key": record.key,
+            "label": record.label,
+            "data_type": record.data_type,
+            "description": record.description,
+            "required": record.required,
+            "default_value": record.default_value,
+            "options": list(record.options or []) if record.options else None,
+            "is_active": record.is_active,
+            "visibility": record.visibility,
+            "created_by": record.created_by,
+            "validation": record.validation_json or None,
+            "display_order": record.display_order,
+            "deleted_at": record.deleted_at.isoformat() if record.deleted_at else None,
+        }
 
-__all__ = ["CustomFieldService", "ALLOWED_FIELD_TYPES", "UNSET"]
+    def _diff(self, before: dict[str, Any], after: dict[str, Any]) -> set[str]:
+        changed: set[str] = set()
+        for key, value in after.items():
+            if before.get(key) != value:
+                changed.add(key)
+        return changed
+
+    def _write_audit_event(
+        self,
+        db: AsyncSession,
+        *,
+        field_id: int,
+        action: str,
+        actor: str | None,
+        payload: dict[str, Any] | None = None,
+    ) -> None:
+        audit = CustomFieldAuditLog(
+            field_id=field_id,
+            action=action,
+            actor=actor,
+            payload_json=payload or None,
+        )
+        db.add(audit)
+
+    def _emit_event(self, name: str, payload: dict[str, Any]) -> None:
+        analytics_logger.info("event=%s payload=%s", name, payload)
+
+
+__all__ = [
+    "CustomFieldService",
+    "ALLOWED_FIELD_TYPES",
+    "UNSET",
+    "FieldDependencyError",
+    "FieldUsageSummary",
+    "ENTITY_MODEL_MAP",
+]

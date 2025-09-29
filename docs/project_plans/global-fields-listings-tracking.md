@@ -20,29 +20,29 @@ _Status as of 2025-09-27_
 | Task | Status | Notes |
 | --- | --- | --- |
 | Define `field_definition` table with expected columns | ✅ | Added `validation_json`, `display_order`, `deleted_at` plus indexes (`apps/api/dealbrain_api/models/core.py:252`; migration `apps/api/alembic/versions/0005_custom_field_enhancements.py:1`). |
-| Generate Alembic migration with data backfill for existing attribute keys | 🔄 | Migration adds new columns and defaults but no attribute backfill beyond setting `display_order` (`apps/api/alembic/versions/0005_custom_field_enhancements.py:15`). |
+| Generate Alembic migration with data backfill for existing attribute keys | ✅ | Added script-driven backfill utility for dev snapshots (`apps/api/dealbrain_api/services/custom_fields_backfill.py:1`) keeping migrations lightweight per greenfield guidance. |
 | Extend ORM models and repositories; expose typed accessors | ✅ | Model exposes `.validation` property and services updated (`apps/api/dealbrain_api/models/core.py:261`; `apps/api/dealbrain_api/services/custom_fields.py:34`). |
-| Add audit log table/entries for field changes | ⏳ | No new audit table or field-change entries implemented. |
+| Add audit log table/entries for field changes | ✅ | `custom_field_audit_log` table + service hooks (`apps/api/alembic/versions/0006_custom_field_audit.py:1`; `apps/api/dealbrain_api/services/custom_fields.py:1`). |
 | Unit tests for model constraints and validation helpers | ✅ | Added validation-focused tests (`tests/test_custom_fields_service.py:1`). |
 
 ## Phase 2 – Backend Services & APIs
 | Task | Status | Notes |
 | --- | --- | --- |
-| Build FieldDefinition service (CRUD, validation, dependency checks, audit emission) | 🔄 | CRUD & validation delivered (`apps/api/dealbrain_api/services/custom_fields.py:34`), but no dependency checks/audit emission. |
-| Expose REST endpoints `/v1/fields`, `/v1/schemas/listings` | 🔄 | Listing schema endpoint shipped (`apps/api/dealbrain_api/api/listings.py:191`); custom fields remain under existing `/v1/reference/custom-fields` namespace (no `/v1/fields`). |
+| Build FieldDefinition service (CRUD, validation, dependency checks, audit emission) | ✅ | Dependency checks, audit writes, analytics events, and usage summaries implemented (`apps/api/dealbrain_api/services/custom_fields.py:1`). |
+| Expose REST endpoints `/v1/fields`, `/v1/schemas/listings` | ✅ | `/v1/fields` router with CRUD, history, usage plus legacy proxy for compatibility (`apps/api/dealbrain_api/api/fields.py:1`). |
 | Update importer backend to consume definitions and refresh clients | ✅ | New `/sessions/{id}/fields` endpoint and mapping refresh (`apps/api/dealbrain_api/api/imports.py:192`; `apps/api/dealbrain_api/services/imports/service.py:640`). |
 | Implement CPU auto-creation workflow with dedupe heuristics & audit logging | ✅ | Auto-create logic with manufacturer guess + audit (`apps/api/dealbrain_api/services/imports/service.py:420`). |
 | Extend Listings bulk edit API for dynamic fields & multi-row transactions | ✅ | Added `/v1/listings/bulk-update` endpoint and service support (`apps/api/dealbrain_api/api/listings.py:191`; `apps/api/dealbrain_api/services/listings.py:120`). |
-| Integration tests (fields CRUD, importer field creation, CPU auto-create, bulk edit) | ⏳ | No integration test coverage added. |
+| Integration tests (fields CRUD, importer field creation, CPU auto-create, bulk edit) | 🔄 | Added async coverage for field guardrails; importer/listings scenarios still pending (`tests/test_custom_fields_integration.py:1`). |
 
 ## Phase 3 – Field Management Frontend
 | Task | Status | Notes |
 | --- | --- | --- |
-| Implement Global Fields tab UI (grid, filters, status chips, usage count) | 🔄 | Basic table and counts present (`apps/web/components/custom-fields/global-fields-table.tsx:31`); filtering/status chips minimal. |
-| Create field create/edit modal wizard with validation preview | ⏳ | No dedicated admin modal; creation occurs via importer only. |
-| Hook into APIs with optimistic updates and error handling | 🔄 | Simple fetch/refresh implemented; no optimistic state (`apps/web/components/custom-fields/global-fields-table.tsx:32`). |
-| Audit log drawer displaying change history | ⏳ | Not implemented. |
-| Instrument analytics events for field operations | ⏳ | No analytics wiring present. |
+| Implement Global Fields tab UI (grid, filters, status chips, usage count) | ✅ | React Table grid with filters, status toggles, usage badges (`apps/web/components/custom-fields/global-fields-table.tsx:1`). |
+| Create field create/edit modal wizard with validation preview | ✅ | Multi-step wizard with validation preview and JSON payload review (`apps/web/components/custom-fields/global-fields-table.tsx:347`). |
+| Hook into APIs with optimistic updates and error handling | ✅ | React Query mutations with optimistic cache updates and inline errors (`apps/web/components/custom-fields/global-fields-table.tsx:198`). |
+| Audit log drawer displaying change history | ✅ | Audit drawer backed by `/v1/fields/{id}/history` (`apps/web/components/custom-fields/global-fields-table.tsx:612`). |
+| Instrument analytics events for field operations | ✅ | Frontend analytics hooks + backend emission (`apps/web/components/custom-fields/global-fields-table.tsx:212`; `apps/api/dealbrain_api/services/custom_fields.py:72`). |
 | Frontend unit & storybook coverage | ⏳ | No new tests/stories committed. |
 
 ## Phase 4 – Importer Enhancements

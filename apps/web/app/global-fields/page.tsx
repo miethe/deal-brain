@@ -19,7 +19,7 @@ export default function GlobalFieldsPage() {
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p>
             During a mapping session, click <strong>Add field</strong> to launch the builder modal. Fields can also be
-            created via <code>POST /v1/reference/custom-fields</code> if you want to seed them programmatically.
+            created via <code>POST /v1/fields</code> if you want to seed them programmatically.
           </p>
           <p>
             Soft delete a field from the API when it should disappear from forms and grids. Historical data remains in

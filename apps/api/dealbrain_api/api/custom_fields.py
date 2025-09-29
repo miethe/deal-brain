@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import session_dependency
-from ..services.custom_fields import CustomFieldService, UNSET
+from ..services.custom_fields import CustomFieldService, FieldDependencyError, UNSET
 from .schemas.custom_fields import (
     CustomFieldCreateRequest,
     CustomFieldListResponse,
@@ -65,6 +65,7 @@ async def create_custom_field(
 async def update_custom_field(
     field_id: int,
     request: CustomFieldUpdateRequest,
+    force: bool = Query(default=False),
     db: AsyncSession = Depends(session_dependency),
 ) -> CustomFieldResponse:
     payload = request.model_dump(exclude_unset=True)
@@ -83,11 +84,20 @@ async def update_custom_field(
             created_by=payload.get("created_by"),
             validation=payload.get("validation"),
             display_order=payload.get("display_order"),
+            force=force,
         )
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except FieldDependencyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": str(exc),
+                "usage": {"total": exc.usage.total, "counts": exc.usage.counts},
+            },
+        ) from exc
     return CustomFieldResponse.model_validate(record)
 
 
@@ -96,12 +106,21 @@ async def update_custom_field(
 async def delete_custom_field(
     field_id: int,
     hard_delete: bool = Query(default=False, description="Permanently remove the field"),
+    force: bool = Query(default=False),
     db: AsyncSession = Depends(session_dependency),
 ):
     try:
-        await service.delete_field(db, field_id=field_id, hard_delete=hard_delete)
+        await service.delete_field(db, field_id=field_id, hard_delete=hard_delete, force=force)
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except FieldDependencyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": str(exc),
+                "usage": {"total": exc.usage.total, "counts": exc.usage.counts},
+            },
+        ) from exc
     return None
 
 
