@@ -16,7 +16,7 @@ import { ApiError, apiFetch, cn } from "../../lib/utils";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import { Dialog } from "../ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { ModalShell } from "../ui/modal-shell";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";

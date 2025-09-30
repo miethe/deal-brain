@@ -26,7 +26,7 @@ export function GlobalFieldsWorkspace() {
     queryFn: () => apiFetch<EntityListResponse>("/v1/fields-data/entities"),
   });
 
-  const entities = data?.entities ?? [];
+  const entities = useMemo(() => data?.entities ?? [], [data]);
   const defaultEntity = entities[0]?.entity ?? "listing";
   const [selectedEntity, setSelectedEntity] = useState<string>(defaultEntity);
   const [activeTab, setActiveTab] = useState<"fields" | "data">("fields");

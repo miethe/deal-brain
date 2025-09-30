@@ -1,12 +1,10 @@
 "use client";
 
 import {
-  type Column,
   type ColumnDef,
   type ColumnFiltersState,
   type GroupingState,
   type SortingState,
-  flexRender,
   getCoreRowModel,
   getExpandedRowModel,
   getFilteredRowModel,
@@ -22,9 +20,9 @@ import { apiFetch, cn } from "../../lib/utils";
 import { ListingFieldSchema, ListingRecord, ListingSchemaResponse } from "../../types/listings";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader } from "../ui/card";
+import { DataGrid } from "../ui/data-grid";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 
 interface ListingRow extends ListingRecord {
   cpu_name?: string | null;
@@ -46,16 +44,40 @@ const DEFAULT_BULK_STATE: BulkEditState = {
   value: ""
 };
 
+const STORAGE_KEY = "dealbrain_listings_table_state_v1";
+
 export function ListingsTable() {
   const queryClient = useQueryClient();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = useState<SortingState>([{ id: "created_at", desc: true }]);
   const [grouping, setGrouping] = useState<GroupingState>([]);
+  const [quickSearch, setQuickSearch] = useState("");
   const [rowSelection, setRowSelection] = useState({});
   const [bulkState, setBulkState] = useState<BulkEditState>({ ...DEFAULT_BULK_STATE });
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
+
+  useEffect(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+    if (!saved) return;
+    try {
+      const parsed = JSON.parse(saved);
+      setSorting(parsed.sorting ?? [{ id: "created_at", desc: true }]);
+      setColumnFilters(parsed.filters ?? []);
+      setGrouping(parsed.grouping ?? []);
+      setQuickSearch(parsed.search ?? "");
+    } catch (
+      // eslint-disable-next-line no-empty
+      _error
+    ) {}
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const payload = JSON.stringify({ sorting, filters: columnFilters, grouping, search: quickSearch });
+    localStorage.setItem(STORAGE_KEY, payload);
+  }, [sorting, columnFilters, grouping, quickSearch]);
 
   const { data: schema, isLoading: isSchemaLoading, error: schemaError } = useQuery<ListingSchemaResponse>({
     queryKey: ["listings", "schema"],
@@ -108,6 +130,19 @@ export function ListingsTable() {
       gpu_name: item.gpu?.name ?? null
     }));
   }, [listingsData]);
+
+  const filteredListings = useMemo(() => {
+    if (!quickSearch) return listings;
+    const term = quickSearch.toLowerCase();
+    return listings.filter((listing) => {
+      if (listing.title?.toLowerCase().includes(term)) return true;
+      if ((listing.cpu_name ?? "").toLowerCase().includes(term)) return true;
+      if ((listing.gpu_name ?? "").toLowerCase().includes(term)) return true;
+      return Object.values(listing.attributes ?? {}).some((value) =>
+        value !== null && value !== undefined && String(value).toLowerCase().includes(term)
+      );
+    });
+  }, [listings, quickSearch]);
 
   const inlineMutation = useMutation({
     mutationFn: async ({ listingId, field, value }: { listingId: number; field: FieldConfig; value: unknown }) => {
@@ -268,7 +303,7 @@ export function ListingsTable() {
   }, [fieldConfigs, fieldMap, inlineMutation.isPending, handleInlineSave]);
 
   const table = useReactTable({
-    data: listings,
+    data: filteredListings,
     columns,
     state: {
       columnFilters,
@@ -314,25 +349,47 @@ export function ListingsTable() {
 
   const groupedColumn = grouping[0] ?? "";
 
+  const resetView = () => {
+    setColumnFilters([]);
+    setSorting([{ id: "created_at", desc: true }]);
+    setGrouping([]);
+    setQuickSearch("");
+    setRowSelection({});
+    setBulkState({ ...DEFAULT_BULK_STATE });
+    setBulkMessage(null);
+  };
+
   return (
-    <Card>
-      <CardHeader className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="space-y-1 text-sm text-muted-foreground">
-            <span>Inline edit, bulk update, filter, sort, and group any field.</span>
+    <Card className="border-0 bg-background shadow-none">
+      <CardHeader className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold tracking-tight">Listings workspace</h2>
+            <p className="text-sm text-muted-foreground">Inline edits, bulk updates, filters, and grouping with a consistent data grid design.</p>
           </div>
           <Button asChild size="sm">
             <Link href="/listings/new">Add listing</Link>
           </Button>
         </div>
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex w-full max-w-xs items-center gap-2">
+            <Label htmlFor="listings-search" className="text-xs uppercase text-muted-foreground">
+              Search
+            </Label>
+            <Input
+              id="listings-search"
+              value={quickSearch}
+              onChange={(event) => setQuickSearch(event.target.value)}
+              placeholder="Title, CPU, custom fields…"
+            />
+          </div>
           <div className="flex items-center gap-2">
             <Label htmlFor="group-by" className="text-xs uppercase text-muted-foreground">
               Group by
             </Label>
             <select
               id="group-by"
-              className="rounded-md border border-input bg-background px-3 py-1 text-sm"
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
               value={groupedColumn}
               onChange={(event) => {
                 const value = event.target.value;
@@ -347,51 +404,14 @@ export function ListingsTable() {
               ))}
             </select>
           </div>
-          {inlineError && <span className="text-sm text-destructive">{inlineError}</span>}
+          <Button variant="ghost" size="sm" onClick={resetView}>
+            Reset view
+          </Button>
+          {inlineError ? <span className="text-sm text-destructive">{inlineError}</span> : null}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="overflow-auto rounded-md border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className="whitespace-nowrap">
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-              <TableRow>
-                {table.getHeaderGroups()[0]?.headers.map((header) => (
-                  <TableHead key={`${header.id}-filter`}>
-                    {header.column.getCanFilter() && header.column.id !== "select" ? (
-                      <ColumnFilter column={header.column} />
-                    ) : null}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center text-sm text-muted-foreground">
-                    No listings match the current filters.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        <DataGrid table={table} enableFilters className="border" />
 
         {Object.keys(rowSelection).length > 0 && (
           <BulkEditPanel
@@ -588,38 +608,6 @@ function BulkEditPanel({ fieldConfigs, state, onChange, onSubmit, isSubmitting, 
       </div>
       {message && <p className="mt-2 text-sm text-muted-foreground">{message}</p>}
     </div>
-  );
-}
-
-function ColumnFilter({ column }: { column: Column<ListingRow, unknown> }) {
-  const columnFilterValue = column.getFilterValue() as string;
-  const uniqueValues = Array.from(column.getFacetedUniqueValues().keys()) as string[];
-  const isBoolean = uniqueValues.every((value) => value === "true" || value === "false");
-
-  if (uniqueValues.length > 0 && uniqueValues.length <= 6 && !isBoolean) {
-    return (
-      <select
-        className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
-        value={columnFilterValue ?? ""}
-        onChange={(event) => column.setFilterValue(event.target.value || undefined)}
-      >
-        <option value="">All</option>
-        {uniqueValues.map((value) => (
-          <option key={value} value={value}>
-            {value || "(empty)"}
-          </option>
-        ))}
-      </select>
-    );
-  }
-
-  return (
-    <Input
-      value={columnFilterValue ?? ""}
-      onChange={(event) => column.setFilterValue(event.target.value)}
-      placeholder="Filter…"
-      className="h-8"
-    />
   );
 }
 

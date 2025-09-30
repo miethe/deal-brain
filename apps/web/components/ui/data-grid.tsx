@@ -4,6 +4,7 @@ import {
   type ColumnDef,
   type ColumnFiltersState,
   type SortingState,
+  type Table as TableInstance,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -17,21 +18,22 @@ import { Input } from "./input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
 
 interface DataGridProps<TData> {
-  columns: ColumnDef<TData, any>[];
-  data: TData[];
+  columns?: ColumnDef<TData, any>[];
+  data?: TData[];
+  table?: TableInstance<TData>;
   loading?: boolean;
   emptyLabel?: string;
   className?: string;
   enableFilters?: boolean;
 }
 
-export function DataGrid<TData>({ columns, data, loading, emptyLabel = "No records.", className, enableFilters }: DataGridProps<TData>) {
+export function DataGrid<TData>({ columns, data, table, loading, emptyLabel = "No records.", className, enableFilters }: DataGridProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-  const table = useReactTable({
-    data,
-    columns,
+  const internalTable = useReactTable({
+    data: data ?? [],
+    columns: columns ?? [],
     state: {
       sorting,
       columnFilters
@@ -43,14 +45,16 @@ export function DataGrid<TData>({ columns, data, loading, emptyLabel = "No recor
     getFilteredRowModel: enableFilters ? getFilteredRowModel() : undefined
   });
 
-  const headerGroups = table.getHeaderGroups();
-  const filterableHeaders = enableFilters ? headerGroups[0]?.headers ?? [] : [];
+  const resolvedTable = table ?? internalTable;
+  const headerGroups = resolvedTable.getHeaderGroups();
 
   const filterRow = useMemo(() => {
-    if (!enableFilters || !filterableHeaders.length) return null;
+    if (!enableFilters) return null;
+    const headers = headerGroups[0]?.headers ?? [];
+    if (!headers.length) return null;
     return (
       <TableRow>
-        {filterableHeaders.map((header) => (
+        {headers.map((header) => (
           <TableHead key={header.id} className="bg-muted/30">
             {header.column.getCanFilter() ? (
               <Input
@@ -64,7 +68,7 @@ export function DataGrid<TData>({ columns, data, loading, emptyLabel = "No recor
         ))}
       </TableRow>
     );
-  }, [enableFilters, filterableHeaders]);
+  }, [enableFilters, headerGroups]);
 
   return (
     <div className={cn("overflow-hidden rounded-xl border bg-background shadow-sm", className)}>
@@ -85,23 +89,54 @@ export function DataGrid<TData>({ columns, data, loading, emptyLabel = "No recor
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={resolvedTable.getAllLeafColumns().length || 1} className="h-24 text-center text-sm text-muted-foreground">
                   Loading…
                 </TableCell>
               </TableRow>
-            ) : table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="hover:bg-muted/40">
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="align-top text-sm">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
+            ) : resolvedTable.getRowModel().rows.length ? (
+              resolvedTable.getRowModel().rows.map((row) => (
+                <TableRow key={row.id} data-state={row.getIsSelected() ? "selected" : undefined} className="hover:bg-muted/40">
+                  {row.getVisibleCells().map((cell) => {
+                    if (cell.getIsPlaceholder()) {
+                      return null;
+                    }
+
+                    if (cell.getIsGrouped()) {
+                      return (
+                        <TableCell key={cell.id} className="align-top text-sm">
+                          <button
+                            type="button"
+                            className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded border border-input text-xs"
+                            onClick={row.getToggleExpandedHandler()}
+                            aria-label={row.getIsExpanded() ? "Collapse group" : "Expand group"}
+                          >
+                            {row.getIsExpanded() ? "−" : "+"}
+                          </button>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          <span className="ml-2 text-xs text-muted-foreground">({row.subRows?.length ?? 0})</span>
+                        </TableCell>
+                      );
+                    }
+
+                    if (cell.getIsAggregated()) {
+                      return (
+                        <TableCell key={cell.id} className="align-top text-sm font-medium">
+                          {flexRender(cell.column.columnDef.aggregatedCell ?? cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      );
+                    }
+
+                    return (
+                      <TableCell key={cell.id} className="align-top text-sm">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={resolvedTable.getAllLeafColumns().length || 1} className="h-24 text-center text-sm text-muted-foreground">
                   {emptyLabel}
                 </TableCell>
               </TableRow>
