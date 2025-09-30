@@ -19,7 +19,7 @@ async def list_entities() -> dict[str, list[dict[str, str]]]:
             "entity": meta.entity,
             "label": meta.label,
             "primary_key": meta.primary_key,
-            "supports_custom_fields": meta.supports_custom_fields,
+            "supports_custom_fields": str(meta.supports_custom_fields).lower(),
         }
         for meta in registry.get_entities()
     ]
