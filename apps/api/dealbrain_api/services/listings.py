@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dealbrain_core.enums import ComponentMetric, ComponentType, Condition
@@ -187,11 +187,35 @@ async def update_listing(session: AsyncSession, listing: Listing, payload: dict)
 
 
 async def sync_listing_components(
-    session: AsyncSession, listing: Listing, components_payload: list[dict] | None
+    session: AsyncSession,
+    listing: Listing,
+    components_payload: list[dict] | None,
 ) -> None:
+    """Replace listing components using explicit SQL to avoid lazy relationship access."""
+
     if components_payload is None:
         return
-    listing.components.clear()
+
+    await session.execute(delete(ListingComponent).where(ListingComponent.listing_id == listing.id))
+    await session.flush()
+
+    for component in components_payload:
+        payload = dict(component)
+        component_type = payload.get("component_type")
+        if not component_type:
+            fallback = getattr(ComponentType, "OTHER", None)
+            component_type = fallback.value if fallback else "misc"
+        session.add(
+            ListingComponent(
+                listing_id=listing.id,
+                rule_id=payload.get("rule_id"),
+                component_type=component_type,
+                name=payload.get("name"),
+                quantity=payload.get("quantity", 1),
+                metadata_json=payload.get("metadata_json"),
+                adjustment_value_usd=payload.get("adjustment_value_usd"),
+            )
+        )
     await session.flush()
 
 
@@ -257,20 +281,6 @@ async def bulk_update_listings(
     for listing in listings:
         await session.refresh(listing)
     return listings
-    for component in components_payload:
-        component_type = component.get("component_type")
-        component_type_enum = _coerce_component_type(component_type)
-        listing.components.append(
-            ListingComponent(
-                component_type=component_type_enum.value,
-                name=component.get("name"),
-                quantity=component.get("quantity") or 1,
-                metadata_json=component.get("metadata_json"),
-                adjustment_value_usd=component.get("adjustment_value_usd"),
-                rule_id=component.get("rule_id"),
-            )
-        )
-    await session.flush()
 
 
 def _coerce_component_type(value: Any) -> ComponentType:

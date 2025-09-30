@@ -16,7 +16,8 @@ import { ApiError, apiFetch, cn } from "../../lib/utils";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Dialog } from "../ui/dialog";
+import { ModalShell } from "../ui/modal-shell";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
@@ -64,6 +65,23 @@ interface FieldUsageItem {
 
 interface FieldUsageResponse {
   usage: FieldUsageItem[];
+}
+
+interface FieldSchemaDefinition {
+  key: string;
+  label: string;
+  data_type: string;
+  origin: string;
+  required?: boolean;
+  description?: string | null;
+  options?: string[] | null;
+}
+
+interface EntitySchemaResponse {
+  entity: string;
+  label: string;
+  primary_key: string;
+  fields: FieldSchemaDefinition[];
 }
 
 interface FieldAuditEntry {
@@ -158,9 +176,14 @@ const DEFAULT_FORM: FieldFormValues = {
   validationPattern: ""
 };
 
-export function GlobalFieldsTable() {
+interface GlobalFieldsTableProps {
+  entity?: string;
+  hideEntityPicker?: boolean;
+}
+
+export function GlobalFieldsTable({ entity, hideEntityPicker = false }: GlobalFieldsTableProps) {
   const queryClient = useQueryClient();
-  const [entityFilter, setEntityFilter] = useState<string>("all");
+  const [entityFilter, setEntityFilter] = useState<string>(entity ?? "all");
   const [statusFilter, setStatusFilter] = useState<Set<FieldStatus>>(new Set(["active" ]));
   const [searchTerm, setSearchTerm] = useState("");
   const [sorting, setSorting] = useState<SortingState>([{ id: "entity", desc: false }]);
@@ -188,6 +211,12 @@ export function GlobalFieldsTable() {
     staleTime: 15_000
   });
 
+  const { data: schemaResponse } = useQuery<EntitySchemaResponse>({
+    queryKey: ["fields-data", entity ?? entityFilter, "schema"],
+    queryFn: () => apiFetch<EntitySchemaResponse>(`/v1/fields-data/${entity ?? entityFilter}/schema`),
+    enabled: Boolean(entity ?? (entityFilter !== "all" && entityFilter !== "")),
+  });
+
   const usageMap: FieldUsageMap = useMemo(() => {
     if (!usageResponse) return {};
     return usageResponse.usage.reduce((acc, item) => {
@@ -198,11 +227,43 @@ export function GlobalFieldsTable() {
 
   const rows: FieldRow[] = useMemo(() => {
     const records = fieldResponse?.fields ?? [];
-    return records.map((field) => ({
+    const customRows = records.map((field) => ({
       ...field,
       status: resolveStatus(field)
     }));
-  }, [fieldResponse]);
+    if (!entity && (entityFilter === "all" || !schemaResponse)) {
+      return customRows;
+    }
+    const targetEntity = entity ?? entityFilter;
+    const coreRows = (schemaResponse?.fields ?? [])
+      .filter((field) => field.origin === "core")
+      .map((field, index) => ({
+        id: -1 - index,
+        entity: targetEntity,
+        key: field.key,
+        label: field.label,
+        data_type: field.data_type,
+        description: field.description ?? "",
+        required: Boolean(field.required),
+        default_value: null,
+        options: field.options ?? null,
+        is_active: true,
+        visibility: "system",
+        created_by: "system",
+        validation: null,
+        display_order: index,
+        created_at: new Date(0).toISOString(),
+        updated_at: new Date(0).toISOString(),
+        deleted_at: null,
+        status: "active" as FieldStatus
+      }) as FieldRow);
+    return [...coreRows, ...customRows];
+  }, [entity, entityFilter, fieldResponse, schemaResponse]);
+
+  useEffect(() => {
+    if (!entity) return;
+    setEntityFilter(entity);
+  }, [entity]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
@@ -234,8 +295,11 @@ export function GlobalFieldsTable() {
         accessorKey: "label",
         header: "Label",
         cell: ({ row }) => (
-          <div className="flex flex-col">
-            <span className="font-medium">{row.original.label}</span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{row.original.label}</span>
+              {row.original.id < 0 ? <Badge variant="outline" className="text-[10px] uppercase">System</Badge> : null}
+            </div>
             <span className="text-xs text-muted-foreground">{row.original.description || "No description"}</span>
           </div>
         )
@@ -264,6 +328,9 @@ export function GlobalFieldsTable() {
         id: "usage",
         header: "Usage",
         cell: ({ row }) => {
+          if (row.original.id < 0) {
+            return <span className="text-xs text-muted-foreground">—</span>;
+          }
           const usage = usageMap[row.original.id]?.total ?? 0;
           return <Badge className="bg-secondary text-secondary-foreground">{usage}</Badge>;
         }
@@ -272,26 +339,30 @@ export function GlobalFieldsTable() {
         id: "actions",
         header: "",
         cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setWizardState({ mode: "edit", field: row.original })}>
-              Edit
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setAuditField(row.original)}>
-              Audit
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive"
-              onClick={() => {
-                setDeleteField(row.original);
-                setDeleteError(null);
-                setForceDelete(false);
-              }}
-            >
-              Delete
-            </Button>
-          </div>
+          row.original.id < 0 ? (
+            <span className="text-xs text-muted-foreground">Managed via schema</span>
+          ) : (
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setWizardState({ mode: "edit", field: row.original })}>
+                Edit
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setAuditField(row.original)}>
+                Audit
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive"
+                onClick={() => {
+                  setDeleteField(row.original);
+                  setDeleteError(null);
+                  setForceDelete(false);
+                }}
+              >
+                Delete
+              </Button>
+            </div>
+          )
         )
       }
     ];
@@ -388,8 +459,12 @@ export function GlobalFieldsTable() {
       <CardHeader className="gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <CardTitle>Global fields</CardTitle>
-            <CardDescription>Manage dynamic attributes and audit change history across catalog entities.</CardDescription>
+            <CardTitle>
+              {hideEntityPicker && entity ? `${ENTITY_LABELS[entity] ?? entity} fields` : "Global fields"}
+            </CardTitle>
+            <CardDescription>
+              Manage dynamic attributes and audit change history across catalog entities.
+            </CardDescription>
           </div>
           <Button onClick={() => setWizardState({ mode: "create" })}>New field</Button>
         </div>
@@ -402,6 +477,7 @@ export function GlobalFieldsTable() {
           onSearchTermChange={setSearchTerm}
           totalCount={rows.length}
           filteredCount={filteredRows.length}
+          showEntityFilter={!hideEntityPicker}
         />
       </CardHeader>
       <CardContent className="space-y-4">
@@ -458,6 +534,7 @@ export function GlobalFieldsTable() {
         open={Boolean(wizardState)}
         mode={wizardState?.mode ?? "create"}
         field={wizardState?.field}
+        lockedEntity={hideEntityPicker ? entity ?? null : null}
         onOpenChange={(open) => {
           if (!open) {
             setWizardState(null);
@@ -543,7 +620,8 @@ function FilterBar({
   searchTerm,
   onSearchTermChange,
   totalCount,
-  filteredCount
+  filteredCount,
+  showEntityFilter
 }: {
   entityFilter: string;
   onEntityFilterChange: (value: string) => void;
@@ -553,6 +631,7 @@ function FilterBar({
   onSearchTermChange: (value: string) => void;
   totalCount: number;
   filteredCount: number;
+  showEntityFilter: boolean;
 }) {
   const toggleStatus = (status: FieldStatus) => {
     const next = new Set(statusFilter);
@@ -566,24 +645,26 @@ function FilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="flex items-center gap-2">
-        <Label htmlFor="entity-filter" className="text-xs uppercase text-muted-foreground">
-          Entity
-        </Label>
-        <select
-          id="entity-filter"
-          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-          value={entityFilter}
-          onChange={(event) => onEntityFilterChange(event.target.value)}
-        >
-          <option value="all">All</option>
-          {ENTITY_OPTIONS.map((entity) => (
-            <option key={entity} value={entity}>
-              {ENTITY_LABELS[entity] ?? entity}
-            </option>
-          ))}
-        </select>
-      </div>
+      {showEntityFilter ? (
+        <div className="flex items-center gap-2">
+          <Label htmlFor="entity-filter" className="text-xs uppercase text-muted-foreground">
+            Entity
+          </Label>
+          <select
+            id="entity-filter"
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={entityFilter}
+            onChange={(event) => onEntityFilterChange(event.target.value)}
+          >
+            <option value="all">All</option>
+            {ENTITY_OPTIONS.map((entity) => (
+              <option key={entity} value={entity}>
+                {ENTITY_LABELS[entity] ?? entity}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
 
       <div className="flex items-center gap-2">
         <span className="text-xs uppercase text-muted-foreground">Status</span>
@@ -658,13 +739,14 @@ interface WizardProps {
   open: boolean;
   mode: WizardMode;
   field?: FieldRow;
+  lockedEntity?: string | null;
   onOpenChange: (open: boolean) => void;
   onSubmit: (payload: FieldCreatePayload | FieldUpdatePayload, options: { force: boolean }) => Promise<void>;
   isSubmitting: boolean;
   error: string | null;
 }
 
-function FieldWizard({ title, open, mode, field, onOpenChange, onSubmit, isSubmitting, error }: WizardProps) {
+function FieldWizard({ title, open, mode, field, lockedEntity, onOpenChange, onSubmit, isSubmitting, error }: WizardProps) {
   const [step, setStep] = useState(0);
   const [values, setValues] = useState<FieldFormValues>({ ...DEFAULT_FORM });
   const [forceUpdate, setForceUpdate] = useState(false);
@@ -675,11 +757,15 @@ function FieldWizard({ title, open, mode, field, onOpenChange, onSubmit, isSubmi
       setStep(0);
       setForceUpdate(false);
     } else if (open) {
-      setValues({ ...DEFAULT_FORM });
+      const base = { ...DEFAULT_FORM };
+      if (lockedEntity) {
+        base.entity = lockedEntity;
+      }
+      setValues(base);
       setStep(0);
       setForceUpdate(false);
     }
-  }, [field, open]);
+  }, [field, open, lockedEntity]);
 
   const isEdit = mode === "edit" && Boolean(field);
 
@@ -697,29 +783,11 @@ function FieldWizard({ title, open, mode, field, onOpenChange, onSubmit, isSubmi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <StepIndicator currentStep={step} />
-          {step === 0 && <WizardBasics values={values} onChange={setValues} isEdit={isEdit} />}
-          {step === 1 && <WizardValidation values={values} onChange={setValues} />}
-          {step === 2 && <WizardReview values={values} />}
-          {error && <ErrorBanner error={new Error(error)} />}
-          {isEdit && (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={forceUpdate}
-                onChange={(event) => setForceUpdate(event.target.checked)}
-              />
-              Force update (override dependency guardrails)
-            </label>
-          )}
-        </div>
-        <DialogFooter>
-          <div className="flex items-center gap-2">
+      <ModalShell
+        title={title}
+        description={mode === "create" ? "Define label, type, and validation for the new field." : "Edit metadata and validation."}
+        footer={
+          <div className="flex w-full items-center justify-end gap-2">
             {step > 0 && (
               <Button variant="ghost" type="button" onClick={handlePrev}>
                 Back
@@ -735,21 +803,49 @@ function FieldWizard({ title, open, mode, field, onOpenChange, onSubmit, isSubmi
               </Button>
             )}
           </div>
-        </DialogFooter>
-      </DialogContent>
+        }
+      >
+        <div className="space-y-4">
+          <StepIndicator currentStep={step} />
+          {step === 0 && <WizardBasics values={values} onChange={setValues} isEdit={isEdit} lockedEntity={lockedEntity ?? null} />}
+          {step === 1 && <WizardValidation values={values} onChange={setValues} />}
+          {step === 2 && <WizardReview values={values} />}
+          {error && <ErrorBanner error={new Error(error)} />}
+          {isEdit && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={forceUpdate}
+                onChange={(event) => setForceUpdate(event.target.checked)}
+              />
+              Force update (override dependency guardrails)
+            </label>
+          )}
+        </div>
+      </ModalShell>
     </Dialog>
   );
 }
 
-function WizardBasics({ values, onChange, isEdit }: { values: FieldFormValues; onChange: (value: FieldFormValues) => void; isEdit: boolean }) {
+function WizardBasics({
+  values,
+  onChange,
+  isEdit,
+  lockedEntity
+}: {
+  values: FieldFormValues;
+  onChange: (value: FieldFormValues) => void;
+  isEdit: boolean;
+  lockedEntity: string | null;
+}) {
   return (
     <div className="grid gap-4">
       <div className="grid gap-2">
         <Label>Entity</Label>
         <select
           className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-          value={values.entity}
-          disabled={isEdit}
+          value={lockedEntity ?? values.entity}
+          disabled={isEdit || Boolean(lockedEntity)}
           onChange={(event) => onChange({ ...values, entity: event.target.value })}
         >
           {ENTITY_OPTIONS.map((entity) => (
