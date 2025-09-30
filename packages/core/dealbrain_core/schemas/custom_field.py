@@ -18,6 +18,7 @@ class CustomFieldDefinitionBase(DealBrainModel):
     default_value: Any | None = None
     options: list[str] | None = None
     is_active: bool = True
+    is_locked: bool = False
     visibility: str = "public"
     created_by: str | None = None
     validation: dict[str, Any] | None = None
@@ -36,6 +37,7 @@ class CustomFieldDefinitionUpdate(DealBrainModel):
     default_value: Any | None = None
     options: list[str] | None = None
     is_active: bool | None = None
+    is_locked: bool | None = None
     visibility: str | None = None
     created_by: str | None = None
     validation: dict[str, Any] | None = None

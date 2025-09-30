@@ -3,6 +3,8 @@
 import {
   type ColumnDef,
   type ColumnFiltersState,
+  type ColumnSizingState,
+  type FilterFn,
   type GroupingState,
   type SortingState,
   getCoreRowModel,
@@ -16,11 +18,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { apiFetch, cn } from "../../lib/utils";
+import { apiFetch, ApiError } from "../../lib/utils";
 import { ListingFieldSchema, ListingRecord, ListingSchemaResponse } from "../../types/listings";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader } from "../ui/card";
-import { DataGrid } from "../ui/data-grid";
+import { DataGrid, type ColumnMetaConfig } from "../ui/data-grid";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 
@@ -46,11 +48,75 @@ const DEFAULT_BULK_STATE: BulkEditState = {
 
 const STORAGE_KEY = "dealbrain_listings_table_state_v1";
 
+function deriveListingFilterType(field: FieldConfig | undefined): ColumnMetaConfig["filterType"] {
+  if (!field) return "text";
+  if (field.data_type === "boolean") return "boolean";
+  if (field.data_type === "number") return "number";
+  if (field.data_type === "enum" || field.data_type === "multi_select" || (field.options?.length ?? 0) > 0) {
+    return "multi-select";
+  }
+  return "text";
+}
+
+function buildListingMeta(field: FieldConfig): ColumnMetaConfig {
+  const filterType = deriveListingFilterType(field);
+  return {
+    tooltip: field.description ?? undefined,
+    filterType,
+    options: field.options?.map((option) => ({ label: option, value: option })),
+  };
+}
+
+function buildListingFilterFn(field: FieldConfig | undefined): FilterFn<ListingRow> | undefined {
+  const filterType = deriveListingFilterType(field);
+  if (filterType === "multi-select") {
+    return (row, columnId, filterValue) => {
+      const selections = Array.isArray(filterValue) ? (filterValue as string[]) : [];
+      if (!selections.length) return true;
+      const raw = row.getValue<unknown>(columnId);
+      if (Array.isArray(raw)) {
+        return raw.some((item) => selections.includes(String(item)));
+      }
+      if (raw === null || raw === undefined) return false;
+      return selections.includes(String(raw));
+    };
+  }
+  if (filterType === "boolean") {
+    return (row, columnId, filterValue) => {
+      if (filterValue === undefined || filterValue === null || filterValue === "") return true;
+      const raw = row.getValue<unknown>(columnId);
+      if (raw === null || raw === undefined) return false;
+      return Boolean(raw) === Boolean(filterValue);
+    };
+  }
+  if (filterType === "number") {
+    return (row, columnId, filterValue) => {
+      if (filterValue === undefined || filterValue === null || filterValue === "") return true;
+      const raw = row.getValue<unknown>(columnId);
+      if (raw === null || raw === undefined) return false;
+      const numeric = Number(filterValue);
+      if (Number.isNaN(numeric)) return true;
+      return Number(raw) === numeric;
+    };
+  }
+  return undefined;
+}
+
+const numericFilterFn: FilterFn<ListingRow> = (row, columnId, filterValue) => {
+  if (filterValue === undefined || filterValue === null || filterValue === "") return true;
+  const raw = row.getValue<unknown>(columnId);
+  if (raw === null || raw === undefined) return false;
+  const numeric = Number(filterValue);
+  if (Number.isNaN(numeric)) return true;
+  return Number(raw) === numeric;
+};
+
 export function ListingsTable() {
   const queryClient = useQueryClient();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = useState<SortingState>([{ id: "created_at", desc: true }]);
   const [grouping, setGrouping] = useState<GroupingState>([]);
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const [quickSearch, setQuickSearch] = useState("");
   const [rowSelection, setRowSelection] = useState({});
   const [bulkState, setBulkState] = useState<BulkEditState>({ ...DEFAULT_BULK_STATE });
@@ -157,6 +223,11 @@ export function ListingsTable() {
       setInlineError(null);
     },
     onError: (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        setInlineError("Another change landed first. Reloaded the latest data.");
+        queryClient.invalidateQueries({ queryKey: ["listings", "records"] });
+        return;
+      }
       const message = error instanceof Error ? error.message : "Unable to save changes";
       setInlineError(message);
     }
@@ -201,8 +272,17 @@ export function ListingsTable() {
     }
   };
 
+  const cpuOptions = useMemo(() => {
+    const unique = new Set<string>();
+    listings.forEach((listing) => {
+      if (listing.cpu_name) unique.add(listing.cpu_name);
+    });
+    return Array.from(unique).map((value) => ({ label: value, value }));
+  }, [listings]);
+
   const columns = useMemo<ColumnDef<ListingRow>[]>(() => {
     const titleConfig = fieldMap.get("title");
+    const titleMeta = titleConfig ? buildListingMeta(titleConfig) : undefined;
 
     const baseColumns: ColumnDef<ListingRow>[] = [
       {
@@ -226,7 +306,8 @@ export function ListingsTable() {
         ),
         enableSorting: false,
         enableColumnFilter: false,
-        size: 32
+        enableResizing: false,
+        size: 36,
       },
       {
         header: "Title",
@@ -247,60 +328,93 @@ export function ListingsTable() {
             <span className="text-xs text-muted-foreground">{row.original.gpu_name ?? "No dedicated GPU"}</span>
           </div>
         ),
-        size: 240
+        meta: titleMeta,
+        enableResizing: true,
+        enableColumnFilter: true,
+        size: 260,
       },
       {
         header: "CPU",
         accessorKey: "cpu_name",
         enableSorting: true,
-        size: 150
+        enableResizing: true,
+        enableColumnFilter: true,
+        meta: {
+          filterType: "multi-select",
+          options: cpuOptions,
+          tooltip: "CPU associated with the listing",
+        },
+        filterFn: (row, columnId, filterValue) => {
+          const selections = Array.isArray(filterValue) ? (filterValue as string[]) : [];
+          if (!selections.length) return true;
+          const name = row.getValue<string | null | undefined>(columnId);
+          if (!name) return false;
+          return selections.includes(name);
+        },
+        size: 180,
       },
       {
         header: "Adjusted",
         accessorKey: "adjusted_price_usd",
         cell: ({ getValue }) => formatCurrency(Number(getValue() ?? 0)),
-        meta: { isNumeric: true },
-        size: 120
+        enableResizing: true,
+        enableColumnFilter: true,
+        meta: { filterType: "number", tooltip: "Adjusted price in USD" },
+        filterFn: numericFilterFn,
+        size: 140,
       },
       {
         header: "$/CPU Mark",
         accessorKey: "dollar_per_cpu_mark",
         cell: ({ getValue }) => formatNumber(getValue() as number | null | undefined),
-        meta: { isNumeric: true },
-        size: 120
+        enableResizing: true,
+        enableColumnFilter: true,
+        meta: { filterType: "number", tooltip: "Dollars per CPU mark" },
+        filterFn: numericFilterFn,
+        size: 140,
       },
       {
         header: "Composite",
         accessorKey: "score_composite",
         cell: ({ getValue }) => formatNumber(getValue() as number | null | undefined),
-        meta: { isNumeric: true },
-        size: 120
-      }
+        enableResizing: true,
+        enableColumnFilter: true,
+        meta: { filterType: "number", tooltip: "Composite performance score" },
+        filterFn: numericFilterFn,
+        size: 140,
+      },
     ];
 
     const hiddenEditableKeys = new Set(["title"]);
 
     const editableColumns: ColumnDef<ListingRow>[] = fieldConfigs
       .filter((config) => config.editable && !hiddenEditableKeys.has(config.key))
-      .map((config) => ({
-        id: config.key,
-        header: config.label,
-        accessorFn: (row) => (config.origin === "core" ? (row as any)[config.key] : row.attributes?.[config.key]),
-        cell: ({ row, getValue }) => (
-          <EditableCell
-            listingId={row.original.id}
-            field={config}
-            value={getValue() as unknown}
-            onSave={handleInlineSave}
-            isSaving={inlineMutation.isPending}
-          />
-        ),
-        meta: { origin: config.origin, dataType: config.data_type },
-        size: 160
-      }));
+      .map((config) => {
+        const meta = buildListingMeta(config);
+        return {
+          id: config.key,
+          header: config.label,
+          accessorFn: (row) => (config.origin === "core" ? (row as any)[config.key] : row.attributes?.[config.key]),
+          cell: ({ row, getValue }) => (
+            <EditableCell
+              listingId={row.original.id}
+              field={config}
+              value={getValue() as unknown}
+              onSave={handleInlineSave}
+              isSaving={inlineMutation.isPending}
+            />
+          ),
+          meta,
+          enableResizing: true,
+          enableSorting: true,
+          enableColumnFilter: true,
+          filterFn: buildListingFilterFn(config),
+          size: config.data_type === "text" ? 220 : 170,
+        };
+      });
 
     return [...baseColumns, ...editableColumns];
-  }, [fieldConfigs, fieldMap, inlineMutation.isPending, handleInlineSave]);
+  }, [cpuOptions, fieldConfigs, fieldMap, handleInlineSave, inlineMutation.isPending]);
 
   const table = useReactTable({
     data: filteredListings,
@@ -309,13 +423,16 @@ export function ListingsTable() {
       columnFilters,
       sorting,
       grouping,
+      columnSizing,
       rowSelection
     },
     enableRowSelection: true,
+    columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
     onColumnFiltersChange: setColumnFilters,
     onSortingChange: setSorting,
     onGroupingChange: setGrouping,
+    onColumnSizingChange: setColumnSizing,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -411,7 +528,7 @@ export function ListingsTable() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <DataGrid table={table} enableFilters className="border" />
+        <DataGrid table={table} enableFilters className="border" storageKey="listings-grid" />
 
         {Object.keys(rowSelection).length > 0 && (
           <BulkEditPanel

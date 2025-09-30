@@ -24,6 +24,7 @@ class FieldMeta:
     origin: str
     required: bool = False
     editable: bool = True
+    locked: bool = False
     description: str | None = None
     options: Sequence[str] | None = None
 
@@ -77,6 +78,8 @@ class FieldRegistry:
                     "label": record.label,
                     "data_type": record.data_type,
                     "required": record.required,
+                    "locked": record.is_locked,
+                    "editable": not record.is_locked,
                     "origin": "custom",
                     "description": record.description,
                     "options": record.options,
@@ -216,6 +219,7 @@ class FieldRegistry:
                     description=field_schema.description,
                     origin="core",
                     editable=getattr(field_schema, "editable", True),
+                    locked=True,
                     options=field_schema.options,
                 )
             )
@@ -223,13 +227,13 @@ class FieldRegistry:
 
     def _cpu_core_fields(self) -> list[FieldMeta]:
         return [
-            FieldMeta(key="name", label="Name", data_type="string", required=True, origin="core"),
-            FieldMeta(key="manufacturer", label="Manufacturer", data_type="string", origin="core"),
-            FieldMeta(key="series", label="Series", data_type="string", origin="core"),
-            FieldMeta(key="cores", label="Cores", data_type="number", origin="core"),
-            FieldMeta(key="threads", label="Threads", data_type="number", origin="core"),
-            FieldMeta(key="base_clock_ghz", label="Base Clock (GHz)", data_type="number", origin="core"),
-            FieldMeta(key="max_clock_ghz", label="Max Clock (GHz)", data_type="number", origin="core"),
+            FieldMeta(key="name", label="Name", data_type="string", required=True, origin="core", locked=True),
+            FieldMeta(key="manufacturer", label="Manufacturer", data_type="string", origin="core", locked=True),
+            FieldMeta(key="series", label="Series", data_type="string", origin="core", locked=True),
+            FieldMeta(key="cores", label="Cores", data_type="number", origin="core", locked=True),
+            FieldMeta(key="threads", label="Threads", data_type="number", origin="core", locked=True),
+            FieldMeta(key="base_clock_ghz", label="Base Clock (GHz)", data_type="number", origin="core", locked=True),
+            FieldMeta(key="max_clock_ghz", label="Max Clock (GHz)", data_type="number", origin="core", locked=True),
         ]
 
     def _serialize_listing(self, listing: Listing) -> dict[str, Any]:

@@ -6,7 +6,7 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Iterable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.core import (
     Cpu,
     CustomFieldAuditLog,
+    CustomFieldAttributeHistory,
     CustomFieldDefinition,
     Gpu,
     Listing,
@@ -118,6 +119,7 @@ class CustomFieldService:
         default_value: object | None = None,
         options: list[str] | None = None,
         is_active: bool = True,
+        is_locked: bool = False,
         visibility: str = "public",
         created_by: str | None = None,
         validation: dict | None = None,
@@ -149,6 +151,7 @@ class CustomFieldService:
             default_value=default_value,
             options=normalized_options,
             is_active=is_active,
+            is_locked=is_locked,
             visibility=visibility,
             created_by=created_by,
             validation_json=normalized_validation,
@@ -181,6 +184,7 @@ class CustomFieldService:
         default_value: object | None = UNSET,
         options: list[str] | None = None,
         is_active: bool | None = None,
+        is_locked: bool | None = None,
         visibility: str | None = None,
         created_by: str | None = None,
         validation: dict | None = None,
@@ -190,6 +194,14 @@ class CustomFieldService:
     ) -> CustomFieldDefinition:
         record = await self.get_field(db, field_id)
         before = self._snapshot(record)
+        previous_options = list(record.options or []) if record.options else []
+        previous_type = record.data_type
+
+        if record.is_locked:
+            if data_type is not None and data_type.lower() != record.data_type:
+                raise ValueError(f"Locked field '{record.key}' cannot change type")
+            if is_locked is not None and is_locked is False:
+                raise ValueError(f"Locked field '{record.key}' cannot be unlocked")
 
         if label is not None:
             record.label = label
@@ -230,9 +242,38 @@ class CustomFieldService:
             record.created_by = created_by
         if display_order is not None:
             record.display_order = display_order
+        if is_locked and not record.is_locked:
+            record.is_locked = True
 
         await db.flush()
         await db.refresh(record)
+
+        current_options = list(record.options or []) if record.options else []
+        removed_options: set[str] = set()
+        if previous_options and previous_type in {"enum", "multi_select"}:
+            removed_options = set(previous_options) - set(current_options)
+
+        for option in sorted(removed_options):
+            def _matches(value: Any, *, option_value: str = option, value_kind: str = previous_type) -> bool:
+                if value is None:
+                    return False
+                if value_kind == "multi_select":
+                    if isinstance(value, list):
+                        return option_value in value
+                    return False
+                return value == option_value
+
+            await self._archive_field_attributes(
+                db,
+                record,
+                reason=f"option_retired:{option}",
+                remove_from_record=False,
+                value_filter=_matches,
+            )
+            self._emit_event(
+                "field_definition.option_retired",
+                {"field_id": record.id, "entity": record.entity, "option": option},
+            )
 
         after = self._snapshot(record)
         diff = self._diff(before, after)
@@ -263,12 +304,16 @@ class CustomFieldService:
         actor: str | None = None,
     ) -> FieldUsageSummary:
         record = await self.get_field(db, field_id)
+        if record.is_locked:
+            raise ValueError(f"Locked field '{record.key}' cannot be deleted")
         usage = await self.field_usage(db, record)
         if usage.total and not force:
             raise FieldDependencyError(
                 f"Field '{record.key}' is still used {usage.total} time(s)",
                 usage,
             )
+
+        await self._archive_field_attributes(db, record, reason="field_deleted")
 
         snapshot = self._snapshot(record)
         action = "hard_deleted" if hard_delete else "soft_deleted"
@@ -356,6 +401,44 @@ class CustomFieldService:
         )
         return result.scalars().all()
 
+    async def _archive_field_attributes(
+        self,
+        db: AsyncSession,
+        field: CustomFieldDefinition,
+        *,
+        reason: str,
+        remove_from_record: bool = True,
+        value_filter: Callable[[Any], bool] | None = None,
+    ) -> None:
+        model = ENTITY_MODEL_MAP.get(field.entity)
+        if model is None:
+            return
+        column = getattr(model, "attributes_json", None)
+        if column is None:
+            return
+
+        result = await db.execute(select(model).where(column.has_key(field.key)))  # type: ignore[attr-defined]
+        records = result.scalars().all()
+        for record_instance in records:
+            attributes = dict(getattr(record_instance, "attributes_json", {}) or {})
+            if field.key not in attributes:
+                continue
+            value = attributes[field.key]
+            if value_filter and not value_filter(value):
+                continue
+            history = CustomFieldAttributeHistory(
+                field_id=field.id,
+                entity=field.entity,
+                record_id=getattr(record_instance, "id"),
+                attribute_key=field.key,
+                previous_value=value,
+                reason=reason,
+            )
+            db.add(history)
+            if remove_from_record:
+                attributes.pop(field.key, None)
+                record_instance.attributes_json = attributes
+
     def _normalize_key(self, raw_key: str) -> str:
         key = raw_key.strip().lower().replace(" ", "_")
         key = re.sub(r"[^a-z0-9_]+", "_", key)
@@ -432,6 +515,7 @@ class CustomFieldService:
             "default_value": record.default_value,
             "options": list(record.options or []) if record.options else None,
             "is_active": record.is_active,
+            "is_locked": record.is_locked,
             "visibility": record.visibility,
             "created_by": record.created_by,
             "validation": record.validation_json or None,

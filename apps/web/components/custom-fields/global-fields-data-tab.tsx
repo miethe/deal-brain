@@ -3,15 +3,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
-import { apiFetch } from "../../lib/utils";
+import { apiFetch, cn } from "../../lib/utils";
 import { Button } from "../ui/button";
-import { DataGrid } from "../ui/data-grid";
+import { DataGrid, type ColumnMetaConfig } from "../ui/data-grid";
 import { Dialog, DialogTrigger } from "../ui/dialog";
 import { Badge } from "../ui/badge";
 import { ModalShell } from "../ui/modal-shell";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, type FilterFn } from "@tanstack/react-table";
 
 interface FieldDefinition {
   key: string;
@@ -22,6 +22,8 @@ interface FieldDefinition {
   description?: string | null;
   options?: string[] | null;
   is_active?: boolean;
+  locked?: boolean;
+  editable?: boolean;
 }
 
 interface EntitySchemaResponse {
@@ -50,6 +52,59 @@ interface RecordsListResponse {
 
 interface GlobalFieldsDataTabProps {
   entity: string;
+}
+
+function deriveFilterType(field: FieldDefinition): ColumnMetaConfig["filterType"] {
+  if (field.data_type === "boolean") return "boolean";
+  if (field.data_type === "number") return "number";
+  if (field.data_type === "enum" || field.data_type === "multi_select" || (field.options?.length ?? 0) > 0) {
+    return "multi-select";
+  }
+  return "text";
+}
+
+function buildColumnMeta(field: FieldDefinition): ColumnMetaConfig {
+  const filterType = deriveFilterType(field);
+  return {
+    tooltip: field.description ?? undefined,
+    filterType,
+    options: field.options?.map((option) => ({ label: option, value: option })),
+  };
+}
+
+function buildFilterFn(field: FieldDefinition): FilterFn<RecordResponse> | undefined {
+  const filterType = deriveFilterType(field);
+  if (filterType === "multi-select") {
+    return (row, columnId, filterValue) => {
+      const selections = Array.isArray(filterValue) ? (filterValue as string[]) : [];
+      if (!selections.length) return true;
+      const raw = row.getValue<unknown>(columnId);
+      if (Array.isArray(raw)) {
+        return raw.some((item) => selections.includes(String(item)));
+      }
+      if (raw === null || raw === undefined) return false;
+      return selections.includes(String(raw));
+    };
+  }
+  if (filterType === "boolean") {
+    return (row, columnId, filterValue) => {
+      if (filterValue === undefined || filterValue === null || filterValue === "") return true;
+      const raw = row.getValue<unknown>(columnId);
+      if (raw === null || raw === undefined) return false;
+      return Boolean(raw) === Boolean(filterValue);
+    };
+  }
+  if (filterType === "number") {
+    return (row, columnId, filterValue) => {
+      if (filterValue === undefined || filterValue === null || filterValue === "") return true;
+      const raw = row.getValue<unknown>(columnId);
+      if (raw === null || raw === undefined) return false;
+      const numeric = Number(filterValue);
+      if (Number.isNaN(numeric)) return true;
+      return Number(raw) === numeric;
+    };
+  }
+  return undefined;
 }
 
 export function GlobalFieldsDataTab({ entity }: GlobalFieldsDataTabProps) {
@@ -102,11 +157,14 @@ export function GlobalFieldsDataTab({ entity }: GlobalFieldsDataTabProps) {
         header: "ID",
         accessorKey: "id",
         size: 60,
+        enableSorting: true,
+        enableResizing: false,
+        enableColumnFilter: false,
         cell: ({ row }) => <span className="font-mono text-xs text-muted-foreground">{row.original.id}</span>,
       },
     ];
 
-    const dataColumns = defs.map((field) => ({
+    const dataColumns = defs.map((field): ColumnDef<RecordResponse> => ({
       id: field.key,
       header: () => (
         <div className="flex flex-col">
@@ -118,6 +176,12 @@ export function GlobalFieldsDataTab({ entity }: GlobalFieldsDataTabProps) {
         return field.origin === "core" ? row.fields?.[field.key] ?? null : row.attributes?.[field.key] ?? null;
       },
       cell: ({ getValue }) => renderCellValue(getValue(), field),
+      size: field.data_type === "text" ? 260 : 200,
+      enableResizing: true,
+      enableSorting: true,
+      enableColumnFilter: true,
+      filterFn: buildFilterFn(field),
+      meta: buildColumnMeta(field),
     }));
 
     const actionColumn: ColumnDef<RecordResponse> = {
@@ -178,7 +242,13 @@ export function GlobalFieldsDataTab({ entity }: GlobalFieldsDataTabProps) {
           ) : null}
         </Dialog>
       </div>
-      <DataGrid columns={columns} data={records?.records ?? []} loading={schemaLoading || recordsLoading} enableFilters />
+      <DataGrid
+        columns={columns}
+        data={records?.records ?? []}
+        loading={schemaLoading || recordsLoading}
+        enableFilters
+        storageKey={`fields-data:${entity}`}
+      />
     </div>
   );
 }
@@ -330,19 +400,58 @@ function renderCellValue(value: unknown, field: FieldDefinition) {
   if (value === null || value === undefined || value === "") {
     return <span className="text-muted-foreground">—</span>;
   }
+
+  const options = field.options ?? undefined;
+  const optionSet = options ? new Set(options.map((item) => String(item))) : undefined;
+
   if (Array.isArray(value)) {
-    return <span>{value.join(", ")}</span>;
+    if (!value.length) {
+      return <span className="text-muted-foreground">—</span>;
+    }
+    return (
+      <div className="flex flex-wrap gap-1">
+        {value.map((item) => {
+          const label = String(item);
+          const retired = optionSet ? !optionSet.has(label) : false;
+          return (
+            <Badge
+              key={label}
+              variant="outline"
+              className={cn("px-2 py-0", retired ? "opacity-60" : undefined)}
+              title={retired ? "Option no longer available" : undefined}
+            >
+              {label}
+            </Badge>
+          );
+        })}
+      </div>
+    );
   }
+
   if (field.data_type === "boolean") {
     return <Badge variant={value ? "default" : "secondary"}>{value ? "True" : "False"}</Badge>;
   }
-  if (field.data_type === "enum" && typeof value === "string") {
-    return <Badge variant="outline">{value}</Badge>;
-  }
+
   if (typeof value === "number") {
     return <span>{value}</span>;
   }
-  return <span>{String(value)}</span>;
+
+  const label = String(value);
+  const retired = optionSet ? !optionSet.has(label) : false;
+
+  if (options && options.length) {
+    return (
+      <Badge
+        variant="outline"
+        className={cn("px-2 py-0", retired ? "opacity-60" : undefined)}
+        title={retired ? "Option no longer available" : undefined}
+      >
+        {label}
+      </Badge>
+    );
+  }
+
+  return <span>{label}</span>;
 }
 
 function parseFieldValue(field: FieldDefinition, value: string): unknown {

@@ -3,6 +3,7 @@
 from .core import (
     Cpu,
     CustomFieldDefinition,
+    CustomFieldAttributeHistory,
     Gpu,
     Listing,
     ListingComponent,
@@ -20,6 +21,7 @@ from .core import (
 __all__ = [
     "Cpu",
     "CustomFieldDefinition",
+    "CustomFieldAttributeHistory",
     "Gpu",
     "Listing",
     "ListingComponent",

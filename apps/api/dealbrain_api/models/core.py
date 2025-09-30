@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, ForeignKey, Integer, String, Text, UniqueConstraint, func, Index
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text, UniqueConstraint, func, Index
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -261,6 +261,7 @@ class CustomFieldDefinition(Base, TimestampMixin):
     default_value: Mapped[Any | None] = mapped_column(JSON)
     options: Mapped[list[str] | None] = mapped_column(JSON)
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    is_locked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     visibility: Mapped[str] = mapped_column(String(32), nullable=False, default="public")
     created_by: Mapped[str | None] = mapped_column(String(128))
     validation_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=dict)
@@ -298,3 +299,22 @@ class CustomFieldAuditLog(Base, TimestampMixin):
     payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     field: Mapped[CustomFieldDefinition] = relationship(back_populates="audit_events")
+
+
+class CustomFieldAttributeHistory(Base, TimestampMixin):
+    __tablename__ = "custom_field_attribute_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    field_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("custom_field_definition.id", ondelete="CASCADE"), nullable=False
+    )
+    entity: Mapped[str] = mapped_column(String(64), nullable=False)
+    record_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    attribute_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    previous_value: Mapped[Any | None] = mapped_column(JSON)
+    reason: Mapped[str] = mapped_column(String(64), nullable=False, default="archived")
+
+    __table_args__ = (
+        Index("ix_custom_field_attribute_history_field", "field_id", "created_at"),
+        Index("ix_custom_field_attribute_history_entity_record", "entity", "record_id"),
+    )

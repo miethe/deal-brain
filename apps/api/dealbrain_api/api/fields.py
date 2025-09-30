@@ -67,6 +67,7 @@ async def create_field(
             default_value=request.default_value,
             options=request.options,
             is_active=request.is_active,
+            is_locked=request.is_locked,
             visibility=request.visibility,
             created_by=request.created_by,
             validation=request.validation,
@@ -98,6 +99,7 @@ async def update_field(
             default_value=payload.get("default_value", UNSET),
             options=payload.get("options"),
             is_active=payload.get("is_active"),
+            is_locked=payload.get("is_locked"),
             visibility=payload.get("visibility"),
             created_by=payload.get("created_by"),
             validation=payload.get("validation"),
@@ -138,6 +140,8 @@ async def delete_field(
         )
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except FieldDependencyError as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
