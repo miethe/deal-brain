@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, Iterable, List, Mapping, Sequence
 
 from sqlalchemy import Select, func, select
@@ -88,7 +88,7 @@ class FieldRegistry:
             "entity": entity,
             "label": meta.label,
             "primary_key": meta.primary_key,
-            "fields": [field.__dict__ for field in meta.core_fields] + custom,
+            "fields": [asdict(field) for field in meta.core_fields] + custom,
         }
 
     async def list_records(
