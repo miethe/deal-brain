@@ -1,6 +1,6 @@
 # Implementation Plan: Advanced Valuation Rules System
 
-**Version:** 1.0
+**Version:** 2.0
 **Date:** October 1, 2025
 **Status:** Ready for Development
 **PRD Reference:** [valuation-rules-enhancement-prd.md](../prd/valuation-rules-enhancement-prd.md)
@@ -9,10 +9,10 @@
 
 ## Executive Summary
 
-This implementation plan provides detailed technical specifications, sprint breakdowns, and development tasks for building the Advanced Valuation Rules System. The plan is structured to deliver incrementally over 14 weeks, with each phase building on the previous one to minimize risk and enable early feedback.
+This implementation plan provides detailed technical specifications and development tasks for building the Advanced Valuation Rules System. As the lead architect and sole developer in active development with no existing users or data, we can move rapidly without migration concerns or staged rollouts.
 
 **Key Deliverables:**
-- Enhanced database schema with 7 new tables
+- Enhanced database schema with 7 new tables (direct replacement of existing ValuationRule)
 - Core domain logic for rule evaluation (conditions, actions, formulas)
 - Services layer for CRUD and evaluation orchestration
 - RESTful API with 15+ endpoints
@@ -22,8 +22,7 @@ This implementation plan provides detailed technical specifications, sprint brea
 - Ruleset packaging and sharing
 - Complete test coverage (unit, integration, E2E)
 
-**Timeline:** 14 weeks (3.5 months)
-**Team Size:** 2-3 full-stack engineers + 1 QA engineer
+**Development Approach:** Rapid iteration with direct implementation. No backward compatibility or migration planning needed.
 
 ---
 
@@ -74,7 +73,7 @@ This implementation plan provides detailed technical specifications, sprint brea
 ### Design Principles
 
 1. **Separation of Concerns**: Domain logic in `packages/core`, orchestration in services
-2. **Backward Compatibility**: Maintain existing `ValuationRule` model during migration
+2. **Direct Replacement**: Replace existing `ValuationRule` with new v2 system immediately
 3. **Performance First**: Caching, indexing, async operations throughout
 4. **Extensibility**: Plugin architecture for custom operators and actions
 
@@ -238,8 +237,10 @@ CREATE INDEX idx_audit_created ON valuation_rule_audit(created_at);
 
 **Location:** `apps/api/alembic/versions/xxx_add_valuation_rules_v2.py`
 
+**Note:** This migration will DROP the existing `valuation_rule` table and replace it with the new system. No data migration needed since we're in active development.
+
 ```python
-"""Add valuation rules v2 schema
+"""Replace valuation rules with v2 system
 
 Revision ID: xxx
 Revises: yyy
@@ -250,7 +251,10 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 def upgrade():
-    # Create tables in dependency order
+    # Drop old table
+    op.drop_table('valuation_rule')
+
+    # Create new tables
     op.create_table('valuation_ruleset', ...)
     op.create_table('valuation_rule_group', ...)
     op.create_table('valuation_rule_v2', ...)
@@ -260,7 +264,7 @@ def upgrade():
     op.create_table('valuation_rule_audit', ...)
 
 def downgrade():
-    # Drop in reverse order
+    # Drop new tables
     op.drop_table('valuation_rule_audit')
     op.drop_table('valuation_rule_version')
     op.drop_table('valuation_rule_action')
@@ -268,83 +272,43 @@ def downgrade():
     op.drop_table('valuation_rule_v2')
     op.drop_table('valuation_rule_group')
     op.drop_table('valuation_ruleset')
+
+    # Recreate old table
+    op.create_table('valuation_rule', ...)
 ```
 
 ---
 
-## Phase Breakdown
+## Implementation Phases
 
-### Phase 1: Core Infrastructure (Weeks 1-4)
+### Phase 1: Core Infrastructure
 
-#### Sprint 1: Database & Models (Week 1)
+**Goal:** Database, domain logic, services, and API foundation
 
-**Goals:**
-- Create database schema and migrations
-- Implement SQLAlchemy models
-- Write seed data script
+#### 1.1 Database & Models
 
 **Tasks:**
+- Write Alembic migration (drop old, create new schema)
+- Implement SQLAlchemy models in [models/core.py](../../apps/api/dealbrain_api/models/core.py)
+- Create seed script with example rulesets
 
-1. **Design Schema Review (1 day)**
-   - Review ERD with team
-   - Validate relationships and constraints
-   - Finalize field types and indexes
-
-2. **Create Migration (2 days)**
-   - Write Alembic migration file
-   - Test upgrade/downgrade
-   - Validate on clean database
-
-3. **Implement Models (1 day)**
-   - Add models to [models/core.py](../../apps/api/dealbrain_api/models/core.py)
-   - Define relationships
-   - Add validation
-
-4. **Seed Script (1 day)**
-   - Create example ruleset
-   - Add rules for CPU, RAM, Storage
-   - Test data completeness
-
-**Deliverables:**
-- ✅ Migration file
-- ✅ SQLAlchemy models
-- ✅ Seed script
-- ✅ Database tests
+**Files:**
+- `apps/api/alembic/versions/xxx_replace_valuation_rules.py`
+- `apps/api/dealbrain_api/models/core.py` (add 7 new models)
+- `apps/api/dealbrain_api/seeds/valuation_rules_v2.py`
 
 **Acceptance Criteria:**
-- Migration runs without errors
-- Rollback restores previous state
+- Migration runs cleanly
+- Models have proper relationships
 - Seed data creates complete example
-- All tests pass
 
----
-
-#### Sprint 2: Core Domain Logic (Week 2)
-
-**Goals:**
-- Implement condition parser and evaluator
-- Create action engine
-- Build rule evaluation orchestrator
+#### 1.2 Core Domain Logic
 
 **Tasks:**
-
-1. **Condition System (2 days)**
-   - Create `packages/core/dealbrain_core/rules/conditions.py`
-   - Implement all operators (equals, greater_than, between, contains, etc.)
-   - Support nested conditions (AND/OR groups)
-   - Write unit tests
-
-2. **Action System (2 days)**
-   - Create `packages/core/dealbrain_core/rules/actions.py`
-   - Implement all action types (fixed, per_unit, benchmark, formula)
-   - Add modifier support (condition, age)
-   - Write unit tests
-
-3. **Formula Engine (1 day)**
-   - Create `packages/core/dealbrain_core/rules/formula.py`
-   - Implement safe expression evaluator
-   - Add math functions (min, max, avg, etc.)
-   - Write unit tests
+- Implement condition system (all operators, nested groups)
+- Create action engine (6 action types + modifiers)
+- Build formula parser (safe evaluation)
+- Write rule evaluator (orchestration)
 
 **Files to Create:**
 - `packages/core/dealbrain_core/rules/__init__.py`
@@ -356,41 +320,35 @@ def downgrade():
 - `tests/core/test_actions.py`
 - `tests/core/test_evaluator.py`
 
+**Condition Operators:**
+- Equality: `equals`, `not_equals`
+- Comparison: `greater_than`, `less_than`, `between`, `>=`, `<=`
+- String: `contains`, `starts_with`, `ends_with`, `regex`
+- Set: `in`, `not_in`
+- Logical: `and`, `or`, `not`
+
+**Action Types:**
+1. `fixed_value`: Set specific dollar amount
+2. `per_unit`: Value based on quantity (per-GB, per-core, etc.)
+3. `benchmark_based`: Value proportional to performance score
+4. `multiplier`: Apply percentage to base value
+5. `additive`: Add/subtract fixed amount
+6. `formula`: Custom calculation with safe eval
+
 **Acceptance Criteria:**
-- All condition operators functional
-- All action types functional
-- Nested conditions evaluate correctly
-- Formula parser handles edge cases
+- All operators functional with proper type handling
+- Nested conditions (AND/OR groups) work correctly
+- All action types calculate accurately
+- Formula engine prevents code injection
 - 90%+ test coverage
 
----
-
-#### Sprint 3: Services Layer (Week 3)
-
-**Goals:**
-- Create services for CRUD operations
-- Implement evaluation service
-- Build preview service
+#### 1.3 Services Layer
 
 **Tasks:**
-
-1. **RulesService (2 days)**
-   - Create `apps/api/dealbrain_api/services/rules.py`
-   - Implement CRUD for rulesets, groups, rules
-   - Add validation layer
-   - Write integration tests
-
-2. **EvaluationService (2 days)**
-   - Create `apps/api/dealbrain_api/services/rule_evaluation.py`
-   - Integrate with core evaluator
-   - Add caching for performance
-   - Write integration tests
-
-3. **PreviewService (1 day)**
-   - Create `apps/api/dealbrain_api/services/rule_preview.py`
-   - Generate sample affected listings
-   - Calculate impact statistics
-   - Write integration tests
+- Create `RulesService` for CRUD operations
+- Implement `RuleEvaluationService` with caching
+- Build `RulePreviewService` for impact analysis
+- Integrate with existing `ListingsService`
 
 **Files to Create:**
 - `apps/api/dealbrain_api/services/rules.py`
@@ -399,97 +357,88 @@ def downgrade():
 - `tests/services/test_rules_service.py`
 - `tests/services/test_evaluation_service.py`
 
+**RulesService Methods:**
+- `create_ruleset()`, `get_ruleset()`, `list_rulesets()`, `update_ruleset()`, `delete_ruleset()`
+- `create_rule_group()`, `get_rule_group()`, etc.
+- `create_rule()`, `get_rule()`, `list_rules()`, `update_rule()`, `delete_rule()`
+- Validation layer to prevent invalid rules
+
 **Acceptance Criteria:**
-- CRUD operations work with error handling
-- Evaluation integrates with domain logic
-- Preview generates accurate samples
-- All tests pass
+- CRUD operations work with proper error handling
+- Validation prevents invalid configurations
+- Integration tests pass
+- Caching improves performance
 
----
-
-#### Sprint 4: API Endpoints (Week 4)
-
-**Goals:**
-- Create REST endpoints
-- Implement schemas and validation
-- Write API tests
+#### 1.4 API Endpoints
 
 **Tasks:**
+- Create Pydantic schemas for requests/responses
+- Implement REST endpoints
+- Add filtering, search, pagination
+- Generate OpenAPI documentation
 
-1. **Schemas (1 day)**
-   - Create `apps/api/dealbrain_api/schemas/rules.py`
-   - Define request/response models
-   - Add validation rules
+**Files to Create:**
+- `apps/api/dealbrain_api/schemas/rules.py`
+- `apps/api/dealbrain_api/api/rules.py`
+- `tests/api/test_rules_api.py`
 
-2. **Endpoints (3 days)**
-   - Create `apps/api/dealbrain_api/api/rules.py`
-   - Implement all CRUD endpoints
-   - Add filtering, search, pagination
-   - Write API tests
-
-3. **Documentation (1 day)**
-   - Generate OpenAPI docs
-   - Add endpoint descriptions
-   - Include example requests/responses
-
-**Endpoints to Implement:**
+**Endpoints:**
 ```
+# Rulesets
 POST   /api/v1/rulesets
 GET    /api/v1/rulesets
 GET    /api/v1/rulesets/{id}
 PUT    /api/v1/rulesets/{id}
 DELETE /api/v1/rulesets/{id}
 
+# Rule Groups
 POST   /api/v1/rule-groups
 GET    /api/v1/rule-groups
 GET    /api/v1/rule-groups/{id}
 
+# Rules
 POST   /api/v1/valuation-rules
 GET    /api/v1/valuation-rules
 GET    /api/v1/valuation-rules/{id}
 PUT    /api/v1/valuation-rules/{id}
 DELETE /api/v1/valuation-rules/{id}
 POST   /api/v1/valuation-rules/preview
+
+# Import/Export
+POST   /api/v1/valuation-rules/import
+GET    /api/v1/valuation-rules/export
 ```
 
 **Acceptance Criteria:**
 - All endpoints return correct status codes
-- Schemas validated
-- Error handling returns clear messages
-- API tests pass
-- Documentation complete
+- Request/response schemas validated
+- Error handling with clear messages
+- API documentation complete
 
 ---
 
-### Phase 2: UI Development (Weeks 5-8)
+### Phase 2: UI Development
 
-#### Sprint 5: Rules Management Page (Week 5)
+**Goal:** Complete user interface for rule management
 
-**Goals:**
-- Create rules list view with hierarchy
-- Implement expand/collapse
-- Add filtering and search
+#### 2.1 Rules Management Page
 
 **Tasks:**
+- Create hierarchical list view (Ruleset → Group → Rule)
+- Implement expand/collapse functionality
+- Add search and filtering
+- Quick actions (edit, duplicate, delete)
 
-1. **Page Layout (1 day)**
-   - Create `apps/web/app/valuation-rules/page.tsx`
-   - Add header with search and filters
-   - Implement responsive grid
-
-2. **Components (3 days)**
-   - Create `apps/web/components/rules/rules-list.tsx`
-   - Create `apps/web/components/rules/ruleset-card.tsx`
-   - Create `apps/web/components/rules/rule-group-card.tsx`
-   - Create `apps/web/components/rules/rule-item.tsx`
-
-3. **State Management (1 day)**
-   - Set up React Query hooks
-   - Create `apps/web/lib/api/rules.ts`
-   - Add optimistic updates
+**Files to Create:**
+- `apps/web/app/valuation-rules/page.tsx`
+- `apps/web/components/rules/rules-list.tsx`
+- `apps/web/components/rules/ruleset-card.tsx`
+- `apps/web/components/rules/rule-group-card.tsx`
+- `apps/web/components/rules/rule-item.tsx`
+- `apps/web/lib/api/rules.ts`
 
 **Component Hierarchy:**
-```
+```tsx
 <RulesPage>
   <RulesHeader>
     <SearchBar />
@@ -512,156 +461,142 @@ POST   /api/v1/valuation-rules/preview
 ```
 
 **Acceptance Criteria:**
-- Responsive on mobile/tablet/desktop
+- Responsive design (mobile/tablet/desktop)
 - Keyboard navigation works
-- Loading states smooth
-- Empty states helpful
+- Loading and empty states
+- Optimistic updates with React Query
 
----
-
-#### Sprint 6: Rule Builder Modal (Week 6)
-
-**Goals:**
-- Create multi-step modal
-- Build condition builder
-- Add live preview
+#### 2.2 Rule Builder Modal
 
 **Tasks:**
+- Create multi-step wizard modal
+- Build condition builder with field selector
+- Implement action configuration UI
+- Add live preview panel
 
-1. **Modal Structure (1 day)**
-   - Create `apps/web/components/rules/rule-modal.tsx`
-   - Implement multi-step wizard
-   - Add progress indicator
-
-2. **Condition Builder (2 days)**
-   - Create `apps/web/components/rules/condition-builder.tsx`
-   - Create `apps/web/components/rules/field-selector.tsx`
-   - Add operator selector
-   - Support nested conditions (AND/OR)
-
-3. **Action Builder (1 day)**
-   - Create `apps/web/components/rules/action-builder.tsx`
-   - Support all action types
-   - Add modifier configuration
-
-4. **Preview Panel (1 day)**
-   - Create `apps/web/components/rules/rule-preview.tsx`
-   - Show affected listings
-   - Display impact statistics
-   - Update in real-time
+**Files to Create:**
+- `apps/web/components/rules/rule-modal.tsx`
+- `apps/web/components/rules/condition-builder.tsx`
+- `apps/web/components/rules/field-selector.tsx`
+- `apps/web/components/rules/action-builder.tsx`
+- `apps/web/components/rules/rule-preview.tsx`
 
 **Modal Steps:**
-1. Basic Info (name, description, category)
-2. Conditions (field + operator + value)
-3. Actions (type + configuration)
-4. Preview (impact summary)
+1. **Basic Info**: Name, description, category, priority
+2. **Conditions**: Field + operator + value (with nested AND/OR)
+3. **Actions**: Type selection + configuration + modifiers
+4. **Preview**: Affected listings + impact stats
+
+**Condition Builder Features:**
+- Searchable field selector (core + custom fields)
+- Context-aware operator dropdown
+- Type-appropriate value inputs
+- Add nested condition groups
+- Visual grouping (indentation, brackets)
+
+**Action Builder Features:**
+- Action type selector with descriptions
+- Dynamic form based on type
+- Modifier configuration (condition multipliers, age curves)
+- Formula editor with syntax highlighting
+
+**Preview Panel Features:**
+- Real-time updates as conditions change
+- Sample of 5-10 affected listings
+- Before/after valuation comparison
+- Impact statistics (count, avg change, min/max)
 
 **Acceptance Criteria:**
 - Form validation prevents invalid rules
-- Field selector shows relevant fields
-- Preview updates in real-time
-- Keyboard shortcuts work
+- Field selector shows only relevant fields
+- Preview updates without saving
+- Keyboard shortcuts functional
 
----
+#### 2.3 Import/Export UI
 
-#### Sprint 7: Import/Export UI (Week 7)
-
-**Goals:**
-- Create import wizard
-- Build export dialog
+**Tasks:**
+- Create import wizard (upload → map → preview → confirm)
+- Build export dialog with format selection
 - Add progress indicators
 
-**Tasks:**
-
-1. **Import Wizard (3 days)**
-   - Create `apps/web/components/rules/import-wizard.tsx`
-   - Create `apps/web/components/rules/import-mapping.tsx`
-   - Create `apps/web/components/rules/import-preview.tsx`
-   - Support CSV, JSON, YAML
-
-2. **Export Dialog (1 day)**
-   - Create `apps/web/components/rules/export-dialog.tsx`
-   - Add format selection
-   - Implement download
-
-3. **Progress Indicators (1 day)**
-   - Add upload progress
-   - Add parsing progress
-   - Add import progress
+**Files to Create:**
+- `apps/web/components/rules/import-wizard.tsx`
+- `apps/web/components/rules/import-mapping.tsx`
+- `apps/web/components/rules/import-preview.tsx`
+- `apps/web/components/rules/export-dialog.tsx`
 
 **Import Flow:**
-1. Upload file
-2. Parse and validate
-3. Map fields
-4. Preview impact
-5. Confirm and import
-6. Show results
+1. Upload file (CSV, JSON, YAML, Excel)
+2. Parse and validate structure
+3. Map fields to schema
+4. Preview affected data
+5. Confirm and execute import
+6. Show results summary
+
+**Export Features:**
+- Format selection (CSV, JSON, YAML, Excel, PDF docs)
+- Filter selection (export subset of rules)
+- Include dependencies checkbox
+- Download as file or copy to clipboard
 
 **Acceptance Criteria:**
-- Supports multiple formats
+- Supports all listed formats
 - Field mapping intuitive
-- Preview shows affected listings
-- Error handling clear
+- Validation provides clear errors
+- Progress indicators accurate
 
----
-
-#### Sprint 8: Ruleset Management (Week 8)
-
-**Goals:**
-- Build ruleset packaging UI
-- Add version comparison
-- Create audit log viewer
+#### 2.4 Ruleset Management
 
 **Tasks:**
+- Build ruleset packaging UI
+- Create version comparison view
+- Implement audit log viewer
 
-1. **Packaging UI (2 days)**
-   - Create `apps/web/components/rules/ruleset-package.tsx`
-   - Add metadata editor
-   - Implement export to .dbrs
+**Files to Create:**
+- `apps/web/components/rules/ruleset-package.tsx`
+- `apps/web/components/rules/ruleset-apply.tsx`
+- `apps/web/components/rules/version-compare.tsx`
+- `apps/web/components/rules/audit-log.tsx`
 
-2. **Version Comparison (2 days)**
-   - Create `apps/web/components/rules/version-compare.tsx`
-   - Show side-by-side diff
-   - Highlight changes
+**Ruleset Package Features:**
+- Metadata editor (name, version, author, description)
+- Include custom field definitions
+- Dependency detection and inclusion
+- Export as `.dbrs` file
 
-3. **Audit Log (1 day)**
-   - Create `apps/web/components/rules/audit-log.tsx`
-   - Add filtering
-   - Make searchable
+**Version Comparison:**
+- Side-by-side diff view
+- Highlight added/changed/removed rules
+- Show field-level changes
+- Rollback capability
+
+**Audit Log:**
+- Filterable by action, actor, date
+- Searchable by rule name
+- Export to CSV
+- Impact summary per change
 
 **Acceptance Criteria:**
-- Package export includes dependencies
-- Version comparison highlights diffs
-- Audit log filterable
+- Package export is self-contained
+- Version comparison highlights all diffs
+- Audit log searchable and exportable
 
 ---
 
-### Phase 3: Advanced Features (Weeks 9-11)
+### Phase 3: Advanced Features
 
-#### Sprint 9: Ruleset Packaging (Week 9)
+**Goal:** CLI, packaging, and scoring integration
 
-**Goals:**
-- Implement .dbrs format
-- Add dependency resolution
-- Version compatibility checking
+#### 3.1 Ruleset Packaging
 
 **Tasks:**
+- Define `.dbrs` package format (JSON-based)
+- Implement export logic with dependency resolution
+- Create import validation and compatibility checking
 
-1. **Packaging Service (3 days)**
-   - Create `packages/core/dealbrain_core/rules/packaging.py`
-   - Define .dbrs format (JSON-based)
-   - Implement export logic
-   - Implement import logic
-
-2. **API Integration (1 day)**
-   - Add package endpoints
-   - Validate on import
-   - Resolve dependencies
-
-3. **Testing (1 day)**
-   - Test export/import roundtrip
-   - Test version compatibility
-   - Test missing dependencies
+**Files to Create:**
+- `packages/core/dealbrain_core/rules/packaging.py`
+- `apps/api/dealbrain_api/services/ruleset_packaging.py`
 
 **Package Format:**
 ```json
@@ -671,205 +606,183 @@ POST   /api/v1/valuation-rules/preview
     "name": "Gaming PC Ruleset",
     "version": "1.2.0",
     "author": "User Name",
+    "description": "Optimized for gaming PC valuations",
+    "created_at": "2025-10-01T10:00:00Z",
     "compatibility": {
-      "min_app_version": "1.0.0"
+      "min_app_version": "1.0.0",
+      "required_custom_fields": ["ram_generation", "storage_gen"]
     }
   },
   "rulesets": [...],
-  "custom_fields": [...]
+  "rule_groups": [...],
+  "rules": [...],
+  "custom_field_definitions": [...],
+  "examples": [...]
 }
 ```
 
 **Acceptance Criteria:**
-- Package is self-contained
+- Package is portable and self-contained
 - Import validates compatibility
-- Dependencies resolved
+- Missing dependencies detected and reported
+- Roundtrip (export → import) preserves data
 
----
-
-#### Sprint 10: CLI Implementation (Week 10)
-
-**Goals:**
-- Add CLI commands
-- Support import/export
-- Enable automation
+#### 3.2 CLI Implementation
 
 **Tasks:**
+- Add CLI commands for rule management
+- Support import/export operations
+- Enable preview and apply workflows
 
-1. **CLI Commands (3 days)**
-   - Create `apps/cli/dealbrain_cli/commands/rules.py`
-   - Implement list, create, update, delete
-   - Add import/export commands
-   - Add preview and apply commands
-
-2. **Documentation (1 day)**
-   - Write CLI reference
-   - Add examples
-   - Create man pages
-
-3. **Testing (1 day)**
-   - Test all commands
-   - Test error handling
-   - Test output formatting
+**Files to Create:**
+- `apps/cli/dealbrain_cli/commands/rules.py`
 
 **Commands:**
 ```bash
-dealbrain-cli rules list
+# List and view
+dealbrain-cli rules list [--category CPU] [--ruleset "Gaming PC"]
+dealbrain-cli rules show <rule-id>
+
+# Create and edit
 dealbrain-cli rules create --from-file rule.yaml
-dealbrain-cli rules import rules.csv
-dealbrain-cli rules export --format json
-dealbrain-cli rules apply "Gaming PC" --preview
-dealbrain-cli rules package "Gaming PC" --output gaming.dbrs
+dealbrain-cli rules update <rule-id> --file changes.yaml
+
+# Import/Export
+dealbrain-cli rules import rules.csv --mapping mappings.json
+dealbrain-cli rules export --format json --output rules.json
+
+# Preview and apply
+dealbrain-cli rules preview <rule-id>
+dealbrain-cli rules apply <ruleset-name> --category listings
+
+# Package management
+dealbrain-cli rules package <ruleset-name> --output gaming-v1.dbrs
+dealbrain-cli rules install gaming-v1.dbrs
 ```
 
 **Acceptance Criteria:**
-- All commands functional
+- All commands functional with proper error handling
 - Help text comprehensive
-- Error messages clear
+- Output formatted for readability
+- Progress indicators for long operations
 
----
-
-#### Sprint 11: Weighted Scoring (Week 11)
-
-**Goals:**
-- Integrate with Profile system
-- Add weight configuration
-- Update scoring engine
+#### 3.3 Weighted Scoring Integration
 
 **Tasks:**
+- Enhance Profile model with rule group weights
+- Update scoring engine to apply weights
+- Create weight configuration UI
 
-1. **Domain Logic (2 days)**
-   - Update `packages/core/dealbrain_core/scoring.py`
-   - Add weight support
-   - Update composite calculation
+**Files to Modify:**
+- `packages/core/dealbrain_core/scoring.py`
+- `apps/api/dealbrain_api/services/scoring.py`
+- `apps/api/dealbrain_api/models/core.py` (Profile model)
 
-2. **Services (1 day)**
-   - Update `apps/api/dealbrain_api/services/scoring.py`
-   - Integrate with rules evaluation
-   - Add weight validation
+**Files to Create:**
+- `apps/web/components/profiles/weight-config.tsx`
 
-3. **UI (2 days)**
-   - Create `apps/web/components/profiles/weight-config.tsx`
-   - Add weight sliders
-   - Show weight distribution chart
-   - Add profile comparison
+**Weight Configuration:**
+```json
+{
+  "profile_id": 1,
+  "profile_name": "Gaming Focus",
+  "rule_group_weights": {
+    "cpu_valuation": 0.25,
+    "gpu_valuation": 0.45,  // Higher for gaming
+    "ram_valuation": 0.15,
+    "storage_valuation": 0.10,
+    "chassis_valuation": 0.05
+  }
+}
+```
 
 **Acceptance Criteria:**
-- Weights sum to 1.0
+- Weights sum to 1.0 (validated)
 - Score recalculation accurate
-- Profile comparison works
+- Profile comparison shows weight differences
+- UI includes weight sliders and distribution chart
 
 ---
 
-### Phase 4: Testing & Refinement (Weeks 12-14)
+### Phase 4: Testing & Optimization
 
-#### Sprint 12: Performance Optimization (Week 12)
+**Goal:** Ensure quality and performance
 
-**Goals:**
-- Profile performance
-- Add caching
-- Optimize queries
+#### 4.1 Performance Optimization
 
 **Tasks:**
-
-1. **Profiling (2 days)**
-   - Profile rule evaluation
-   - Profile database queries
-   - Identify bottlenecks
-
-2. **Optimization (2 days)**
-   - Add Redis caching for rules
-   - Optimize query joins
-   - Add database indexes
-   - Implement batch processing
-
-3. **Load Testing (1 day)**
-   - Create load test scenarios
-   - Run with realistic data
-   - Validate performance targets
+- Profile rule evaluation performance
+- Add Redis caching for rule definitions
+- Optimize database queries
+- Implement batch processing for bulk operations
 
 **Performance Targets:**
 - Single listing evaluation: <100ms
-- Bulk (1000 listings): <5s
+- Bulk evaluation (1000 listings): <5s
 - Rule list loading: <500ms
 - Preview generation: <2s
 
+**Optimization Strategies:**
+- Cache compiled rule definitions
+- Use database query optimization (proper joins, indexes)
+- Batch database operations
+- Implement request coalescing
+
 **Acceptance Criteria:**
-- All targets met
-- No N+1 queries
-- Caching effective
+- All performance targets met
+- No N+1 query problems
+- Caching reduces evaluation time by 60%+
+- Load test passes at 50 concurrent users
 
----
+#### 4.2 Testing
 
-#### Sprint 13: User Acceptance Testing (Week 13)
+**Unit Tests (90%+ coverage):**
+- Core domain logic (conditions, actions, evaluator)
+- Formula parser edge cases
+- All operators and action types
 
-**Goals:**
-- Conduct UAT with beta users
-- Fix bugs
-- Refine UX
+**Integration Tests:**
+- Services layer (CRUD, evaluation, preview)
+- Database operations
+- API endpoints
+
+**E2E Tests:**
+- Create ruleset → Add rules → Apply to listings
+- Import rules → Preview → Confirm
+- Package ruleset → Export → Import
+
+**Tools:**
+- pytest + pytest-asyncio (backend)
+- Playwright or Cypress (E2E)
+- Locust or k6 (load testing)
+
+**Acceptance Criteria:**
+- All test suites pass
+- Code coverage >90%
+- E2E tests cover critical paths
+- Load tests validate performance
+
+#### 4.3 Documentation
 
 **Tasks:**
+- Write user guide with screenshots
+- Create API documentation (OpenAPI)
+- Document CLI commands
+- Create example rule definitions
+- Write FAQ and troubleshooting guide
 
-1. **UAT Planning (1 day)**
-   - Recruit beta users
-   - Create test scenarios
-   - Prepare environment
-
-2. **UAT Execution (2 days)**
-   - Guide users through scenarios
-   - Collect feedback
-   - Document issues
-
-3. **Bug Fixes (2 days)**
-   - Fix critical bugs
-   - Refine UI based on feedback
-   - Update documentation
-
-**UAT Scenarios:**
-1. Create simple rule
-2. Create complex rule with nested conditions
-3. Import rules from CSV
-4. Package and export ruleset
-5. Apply ruleset to listings
+**Deliverables:**
+- User guide (Markdown)
+- API reference (auto-generated)
+- CLI reference (auto-generated)
+- Example library (10+ rule templates)
+- Video tutorial (optional)
 
 **Acceptance Criteria:**
-- 90%+ task completion
-- <3 critical bugs
-- User satisfaction >4/5
-
----
-
-#### Sprint 14: Launch Preparation (Week 14)
-
-**Goals:**
-- Complete documentation
-- Final QA pass
-- Prepare deployment
-
-**Tasks:**
-
-1. **Documentation (2 days)**
-   - Write user guide
-   - Create video tutorials
-   - Update API docs
-   - Write FAQ
-
-2. **QA (2 days)**
-   - Final regression testing
-   - Test on production-like data
-   - Validate all user flows
-
-3. **Deployment Prep (1 day)**
-   - Create deployment checklist
-   - Test rollback procedure
-   - Prepare release notes
-   - Train support team
-
-**Acceptance Criteria:**
-- All docs complete
-- No critical bugs
-- Deployment plan approved
-- Rollback tested
+- All features documented
+- Examples for common use cases
+- Troubleshooting covers known issues
+- API docs complete with examples
 
 ---
 
@@ -880,13 +793,8 @@ dealbrain-cli rules package "Gaming PC" --output gaming.dbrs
 **Coverage Target:** 90%+
 
 **Core Domain Logic:**
-- `tests/core/test_conditions.py`: Test all operators
-- `tests/core/test_actions.py`: Test all action types
-- `tests/core/test_evaluator.py`: Test rule evaluation
-- `tests/core/test_formula.py`: Test formula parser
-
-**Example Test:**
 ```python
+# tests/core/test_conditions.py
 def test_condition_greater_than():
     condition = Condition(
         field_name="cpu.cpu_mark_multi",
@@ -900,17 +808,24 @@ def test_condition_greater_than():
 
     context = {"cpu": {"cpu_mark_multi": 15000}}
     assert condition.evaluate(context) == False
+
+def test_nested_conditions():
+    # AND group
+    group = ConditionGroup(
+        conditions=[
+            Condition(...),
+            Condition(...)
+        ],
+        logical_operator=LogicalOperator.AND
+    )
+    assert group.evaluate(context) == True
 ```
 
 ### Integration Tests
 
 **Services Layer:**
-- `tests/services/test_rules_service.py`: Test CRUD operations
-- `tests/services/test_evaluation_service.py`: Test rule evaluation
-- `tests/services/test_preview_service.py`: Test preview generation
-
-**Example Test:**
 ```python
+# tests/services/test_rules_service.py
 @pytest.mark.asyncio
 async def test_create_rule(db_session):
     service = RulesService()
@@ -919,8 +834,16 @@ async def test_create_rule(db_session):
         session=db_session,
         group_id=1,
         name="Test Rule",
-        conditions=[...],
-        actions=[...]
+        conditions=[{
+            "field_name": "ram_gb",
+            "operator": "greater_than",
+            "value": 16
+        }],
+        actions=[{
+            "action_type": "per_unit",
+            "metric": "per_gb",
+            "value_usd": 3.50
+        }]
     )
 
     assert rule.id is not None
@@ -930,11 +853,8 @@ async def test_create_rule(db_session):
 ### API Tests
 
 **Endpoints:**
-- `tests/api/test_rules_api.py`: Test all endpoints
-- `tests/api/test_preview_api.py`: Test preview endpoint
-
-**Example Test:**
 ```python
+# tests/api/test_rules_api.py
 def test_create_rule_api(client):
     response = client.post("/api/v1/valuation-rules", json={
         "group_id": 1,
@@ -946,80 +866,42 @@ def test_create_rule_api(client):
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "Test Rule"
+
+def test_preview_rule(client):
+    response = client.post("/api/v1/valuation-rules/preview", json={
+        "conditions": [...],
+        "actions": [...],
+        "sample_size": 10
+    })
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["sample_listings"]) <= 10
+    assert "impact_stats" in data
 ```
 
 ### E2E Tests
 
-**User Flows:**
-- Create ruleset → Add rules → Apply to listings
-- Import rules from CSV → Preview → Confirm
-- Package ruleset → Export → Import in clean instance
+**User Flows (Playwright):**
+```typescript
+// tests/e2e/rules.spec.ts
+test('create and apply ruleset', async ({ page }) => {
+  // Navigate to rules page
+  await page.goto('/valuation-rules');
 
-**Tools:** Playwright or Cypress
+  // Create ruleset
+  await page.click('button:has-text("New Ruleset")');
+  await page.fill('input[name="name"]', 'Test Ruleset');
+  await page.click('button:has-text("Create")');
 
----
+  // Add rule
+  await page.click('button:has-text("Add Rule")');
+  // ... configure rule ...
 
-## Migration Strategy
-
-### Backward Compatibility
-
-**Approach:** Run v1 and v2 systems in parallel during transition.
-
-**Steps:**
-
-1. **Deploy v2 Schema (Week 1)**
-   - Add new tables alongside existing `valuation_rule`
-   - No breaking changes to existing API
-
-2. **Feature Flag (Week 2)**
-   - Add `ENABLE_RULES_V2` flag
-   - Default to `false` in production
-
-3. **Gradual Migration (Weeks 3-8)**
-   - Migrate existing rules to v2 format
-   - Test v2 evaluation matches v1 results
-   - Enable v2 for beta users
-
-4. **Full Cutover (Week 9)**
-   - Enable v2 for all users
-   - Deprecate v1 endpoints (still functional)
-
-5. **Cleanup (Week 14)**
-   - Remove v1 code and tables
-   - Update documentation
-
-### Data Migration Script
-
-```python
-# apps/api/dealbrain_api/migrations/migrate_rules_v1_to_v2.py
-
-async def migrate_rules():
-    """Migrate existing rules to v2 format."""
-
-    # Create default ruleset
-    ruleset = await create_ruleset(
-        name="Legacy Rules",
-        description="Migrated from v1 system"
-    )
-
-    # Group rules by component type
-    groups = {}
-    for rule_v1 in get_all_v1_rules():
-        category = rule_v1.component_type
-        if category not in groups:
-            groups[category] = await create_rule_group(
-                ruleset_id=ruleset.id,
-                name=f"{category.capitalize()} Rules",
-                category=category
-            )
-
-        # Convert v1 rule to v2 format
-        await create_rule_v2(
-            group_id=groups[category].id,
-            name=rule_v1.name,
-            conditions=[...],  # Convert simple conditions
-            actions=[...]      # Convert to per_unit action
-        )
+  // Apply to listings
+  await page.click('button:has-text("Apply to Listings")');
+  await expect(page.locator('.success-message')).toBeVisible();
+});
 ```
 
 ---
@@ -1030,54 +912,51 @@ async def migrate_rules():
 
 - [ ] All tests pass (unit, integration, E2E)
 - [ ] Performance targets met
-- [ ] Security audit complete
-- [ ] Documentation updated
-- [ ] Release notes prepared
-- [ ] Rollback plan tested
-- [ ] Database backup created
-- [ ] Monitoring alerts configured
+- [ ] Code review complete
+- [ ] Database migration tested
+- [ ] Documentation complete
+- [ ] Seed data prepared
 
 ### Deployment Steps
 
-1. **Staging Deployment (Day 1)**
-   - Deploy to staging environment
-   - Run smoke tests
-   - Validate migrations
-   - Test rollback
+1. **Database Migration**
+   - Backup database (just in case)
+   - Run migration: `alembic upgrade head`
+   - Verify new tables created
+   - Run seed script for example data
 
-2. **Production Deployment (Day 2)**
-   - Create database backup
-   - Deploy during low-traffic window
-   - Run migrations
-   - Deploy API changes
-   - Deploy frontend changes
-   - Validate deployment
+2. **API Deployment**
+   - Deploy updated API code
+   - Restart API service
+   - Verify endpoints responding
 
-3. **Post-Deployment (Day 3)**
-   - Monitor error rates
-   - Monitor performance metrics
-   - Gather user feedback
-   - Fix critical issues
+3. **Frontend Deployment**
+   - Build frontend: `pnpm build`
+   - Deploy static assets
+   - Verify UI loads
+
+4. **Validation**
+   - Smoke test critical paths
+   - Check monitoring dashboards
+   - Verify no errors in logs
 
 ### Rollback Procedure
 
 **If deployment fails:**
 
-1. **Immediate Rollback**
-   - Revert frontend deployment
-   - Revert API deployment
-   - Run migration rollback: `alembic downgrade -1`
-   - Restore database from backup (if needed)
+1. **Database Rollback**
+   - Run: `alembic downgrade -1`
+   - Verify old schema restored
 
-2. **Validation**
+2. **Code Rollback**
+   - Revert API deployment
+   - Revert frontend deployment
+   - Restart services
+
+3. **Validation**
    - Test existing functionality
    - Verify data integrity
-   - Notify users of rollback
-
-3. **Post-Mortem**
-   - Document failure cause
-   - Update deployment checklist
-   - Plan re-deployment
+   - Check error logs
 
 ---
 
@@ -1095,13 +974,14 @@ async def migrate_rules():
 - Rules created per day
 - Rulesets exported/imported
 - Preview usage rate
-- Error rate during import
+- Most used condition operators
+- Most used action types
 
 **Health:**
 - API uptime
 - Database connection pool usage
-- Background job queue depth
-- Error logs
+- Error rate by endpoint
+- Background job failures
 
 ### Alerts
 
@@ -1113,7 +993,7 @@ async def migrate_rules():
 **Warning:**
 - Cache hit rate <80%
 - Import job failures
-- High memory usage
+- High memory usage (>80%)
 
 ### Dashboards
 
@@ -1121,75 +1001,44 @@ async def migrate_rules():
 1. **Rules Overview**: Rules created, active rulesets, evaluation time
 2. **API Performance**: Request rate, response time, error rate
 3. **Database Health**: Query time, connection pool, slow queries
-4. **User Activity**: Rules created by user, import volume, preview usage
+4. **User Activity**: Rules created, imports, exports, preview usage
 
 ---
 
 ## Success Criteria
 
 ### Phase 1 Complete When:
-- [x] Database schema deployed
-- [x] Core domain logic functional
-- [x] API endpoints operational
-- [x] All tests passing
+- ✅ Database schema deployed
+- ✅ Core domain logic functional (all operators/actions)
+- ✅ Services layer operational
+- ✅ API endpoints responding
+- ✅ Unit tests passing (90%+ coverage)
 
 ### Phase 2 Complete When:
-- [x] Rules management UI functional
-- [x] Rule builder modal operational
-- [x] Import/export UI complete
-- [x] Ruleset management UI functional
+- ✅ Rules management UI functional
+- ✅ Rule builder modal operational
+- ✅ Import/export working
+- ✅ Ruleset management complete
 
 ### Phase 3 Complete When:
-- [x] Ruleset packaging working
-- [x] CLI commands functional
-- [x] Weighted scoring integrated
-- [x] All features complete
+- ✅ Ruleset packaging working
+- ✅ CLI commands functional
+- ✅ Weighted scoring integrated
 
 ### Phase 4 Complete When:
-- [x] Performance targets met
-- [x] UAT completed successfully
-- [x] Documentation complete
-- [x] Deployed to production
-
----
-
-## Risk Mitigation
-
-### Technical Risks
-
-**R1: Performance degradation with complex rules**
-- Mitigation: Early profiling, caching, load testing
-
-**R2: Data migration complexity**
-- Mitigation: Parallel systems, gradual rollout, extensive testing
-
-**R3: Formula engine security**
-- Mitigation: Restricted context, input validation, sandboxed execution
-
-### Product Risks
-
-**R4: Feature complexity overwhelms users**
-- Mitigation: Progressive disclosure, templates, onboarding
-
-**R5: Import format incompatibilities**
-- Mitigation: Strict validation, clear error messages, examples
-
-### Operational Risks
-
-**R6: Database migration failure**
-- Mitigation: Tested rollback, database backups, staging validation
-
-**R7: Performance impact on existing features**
-- Mitigation: Feature flag, gradual rollout, monitoring
+- ✅ Performance targets met
+- ✅ All tests passing
+- ✅ Documentation complete
+- ✅ Ready for production use
 
 ---
 
 ## Appendix
 
-### Example Rule Definitions (YAML)
+### Example Rule Definitions
 
+#### DDR5 RAM Premium Pricing (YAML)
 ```yaml
-# DDR5 RAM Premium Pricing
 name: "DDR5 RAM Premium"
 category: ram
 priority: 10
@@ -1205,10 +1054,10 @@ action:
     condition_new: 1.0
     condition_refurb: 0.80
     condition_used: 0.65
+```
 
----
-
-# High-End CPU (Benchmark-Based)
+#### High-End CPU (Benchmark-Based)
+```yaml
 name: "High-End CPU (Passmark 20K+)"
 category: cpu
 priority: 5
@@ -1227,10 +1076,10 @@ action:
   unit_type: per_1000_points
   value: 5.00
   base_value: 50.00
+```
 
----
-
-# NVMe Gen4 Storage Premium
+#### NVMe Gen4 Storage Premium
+```yaml
 name: "NVMe Gen4 Storage Premium"
 category: storage
 priority: 8
@@ -1250,7 +1099,7 @@ action:
   multiplier: 1.5
 ```
 
-### Tech Stack Summary
+### Tech Stack
 
 **Backend:**
 - Python 3.11+
@@ -1264,70 +1113,19 @@ action:
 - Next.js 14 (App Router)
 - React 18
 - TypeScript
-- TanStack Query (React Query)
+- TanStack Query
 - Tailwind CSS
-- shadcn/ui components
+- shadcn/ui
 
 **Testing:**
-- pytest (backend)
-- pytest-asyncio
-- Playwright or Cypress (E2E)
-- Locust or k6 (load testing)
+- pytest + pytest-asyncio
+- Playwright or Cypress
+- Locust or k6
 
 **DevOps:**
 - Docker & Docker Compose
-- Prometheus (metrics)
-- Grafana (dashboards)
-- OpenTelemetry (tracing)
-
----
-
-## Team Responsibilities
-
-### Backend Engineer 1
-- Database schema and migrations
-- Core domain logic (conditions, actions)
-- Services layer
-- API endpoints
-
-### Backend Engineer 2 (if available)
-- Import/Export services
-- CLI implementation
-- Ruleset packaging
-- Performance optimization
-
-### Frontend Engineer
-- Rules management UI
-- Rule builder modal
-- Import/Export UI
-- Ruleset management UI
-
-### QA Engineer
-- Test planning
-- Integration tests
-- E2E tests
-- UAT coordination
-- Load testing
-
----
-
-## Glossary
-
-**Ruleset**: Container for related rules (e.g., "Gaming PC Valuation")
-
-**Rule Group**: Organizes rules by component category (CPU, RAM, etc.)
-
-**Rule**: Individual valuation logic with conditions and actions
-
-**Condition**: Logical expression that determines if a rule applies
-
-**Action**: Pricing calculation performed when conditions match
-
-**Modifier**: Adjustment factor (condition, age, brand)
-
-**Preview**: Sample of affected listings before saving rule
-
-**Package (.dbrs)**: Portable ruleset file for sharing
+- Prometheus + Grafana
+- OpenTelemetry
 
 ---
 
