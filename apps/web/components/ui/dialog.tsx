@@ -11,33 +11,41 @@ const DialogTrigger = DialogPrimitive.Trigger;
 
 const DialogPortal = DialogPrimitive.Portal;
 
-const DialogOverlay = ({ className, ...props }: DialogPrimitive.DialogOverlayProps) => (
-  <DialogPrimitive.Overlay
-    className={cn("fixed inset-0 z-50 bg-black/60 backdrop-blur-sm", className)}
-    {...props}
-  />
+
+const DialogOverlay = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Overlay>, DialogPrimitive.DialogOverlayProps>(
+  ({ className, ...props }, ref) => (
+    <DialogPrimitive.Overlay
+      ref={ref}
+      className={cn("fixed inset-0 z-50 bg-black/60 backdrop-blur-sm", className)}
+      {...props}
+    />
+  )
 );
 
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
-const DialogContent = ({ className, children, ...props }: DialogPrimitive.DialogContentProps) => (
-  <DialogPortal>
-    <DialogOverlay />
-    <DialogPrimitive.Content
-      className={cn(
-        "fixed inset-x-4 top-16 z-50 mx-auto w-full max-w-3xl rounded-lg border border-border bg-background shadow-xl outline-none",
-        "animate-in fade-in-90 slide-in-from-top-10",
-        className
-      )}
-      {...props}
-    >
-      {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground hover:bg-muted">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
-  </DialogPortal>
+
+const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Content>, DialogPrimitive.DialogContentProps>(
+  ({ className, children, ...props }, ref) => (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        ref={ref}
+        className={cn(
+          "fixed inset-x-4 top-16 z-50 mx-auto w-full max-w-3xl rounded-lg border border-border bg-background shadow-xl outline-none",
+          "animate-in fade-in-90 slide-in-from-top-10",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground hover:bg-muted">
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  )
 );
 
 DialogContent.displayName = DialogPrimitive.Content.displayName;
