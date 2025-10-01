@@ -11,7 +11,7 @@ from dealbrain_core.schemas import SpreadsheetSeed
 
 from .db import Base, get_engine, session_scope
 from .importers import SpreadsheetImporter
-from .models import Cpu, Gpu, Listing, ListingComponent, PortsProfile, Port, Profile, ValuationRule
+from .models import Cpu, Gpu, Listing, ListingComponent, PortsProfile, Port, Profile
 from .settings import get_settings
 
 
@@ -38,14 +38,10 @@ async def apply_seed(seed: SpreadsheetSeed) -> None:
             else:
                 session.add(Gpu(**data))
 
-        for rule in seed.valuation_rules:
-            existing = await session.scalar(select(ValuationRule).where(ValuationRule.name == rule.name))
-            data = rule.model_dump(exclude_none=True)
-            if existing:
-                for field, value in data.items():
-                    setattr(existing, field, value)
-            else:
-                session.add(ValuationRule(**data))
+        # Note: Old valuation_rules have been replaced with v2 system
+        # Use apps/api/dealbrain_api/seeds/valuation_rules_v2.py instead
+        # for rule in seed.valuation_rules:
+        #     ...  (old code commented out)
 
         for profile in seed.profiles:
             existing = await session.scalar(select(Profile).where(Profile.name == profile.name))

@@ -91,22 +91,139 @@ class Profile(Base, TimestampMixin):
     listings: Mapped[list["Listing"]] = relationship(back_populates="active_profile", lazy="selectin")
 
 
-class ValuationRule(Base, TimestampMixin):
-    __tablename__ = "valuation_rule"
+class ValuationRuleset(Base, TimestampMixin):
+    __tablename__ = "valuation_ruleset"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
-    component_type: Mapped[str] = mapped_column(String(32), nullable=False)
-    metric: Mapped[str] = mapped_column(String(16), nullable=False)
-    unit_value_usd: Mapped[float] = mapped_column(nullable=False)
-    condition_new: Mapped[float] = mapped_column(nullable=False, default=1.0)
-    condition_refurb: Mapped[float] = mapped_column(nullable=False, default=0.75)
-    condition_used: Mapped[float] = mapped_column(nullable=False, default=0.6)
-    age_curve_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
-    notes: Mapped[str | None] = mapped_column(Text)
-    attributes_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    description: Mapped[str | None] = mapped_column(Text)
+    version: Mapped[str] = mapped_column(String(32), nullable=False, default="1.0.0")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_by: Mapped[str | None] = mapped_column(String(128))
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
-    listing_components: Mapped[list["ListingComponent"]] = relationship(back_populates="rule")
+    rule_groups: Mapped[list["ValuationRuleGroup"]] = relationship(
+        back_populates="ruleset", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class ValuationRuleGroup(Base, TimestampMixin):
+    __tablename__ = "valuation_rule_group"
+    __table_args__ = (UniqueConstraint("ruleset_id", "name", name="uq_rule_group_ruleset_name"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ruleset_id: Mapped[int] = mapped_column(ForeignKey("valuation_ruleset.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    category: Mapped[str] = mapped_column(String(64), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    weight: Mapped[float] = mapped_column(nullable=True, default=1.0)
+
+    ruleset: Mapped[ValuationRuleset] = relationship(back_populates="rule_groups")
+    rules: Mapped[list["ValuationRuleV2"]] = relationship(
+        back_populates="group", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class ValuationRuleV2(Base, TimestampMixin):
+    __tablename__ = "valuation_rule_v2"
+    __table_args__ = (UniqueConstraint("group_id", "name", name="uq_rule_v2_group_name"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("valuation_rule_group.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    evaluation_order: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    created_by: Mapped[str | None] = mapped_column(String(128))
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+    group: Mapped[ValuationRuleGroup] = relationship(back_populates="rules")
+    conditions: Mapped[list["ValuationRuleCondition"]] = relationship(
+        back_populates="rule", cascade="all, delete-orphan", lazy="selectin"
+    )
+    actions: Mapped[list["ValuationRuleAction"]] = relationship(
+        back_populates="rule", cascade="all, delete-orphan", lazy="selectin"
+    )
+    versions: Mapped[list["ValuationRuleVersion"]] = relationship(
+        back_populates="rule", cascade="all, delete-orphan", lazy="selectin"
+    )
+    audit_logs: Mapped[list["ValuationRuleAudit"]] = relationship(
+        back_populates="rule", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class ValuationRuleCondition(Base):
+    __tablename__ = "valuation_rule_condition"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    rule_id: Mapped[int] = mapped_column(ForeignKey("valuation_rule_v2.id", ondelete="CASCADE"), nullable=False)
+    parent_condition_id: Mapped[int | None] = mapped_column(
+        ForeignKey("valuation_rule_condition.id", ondelete="CASCADE")
+    )
+    field_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    field_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    operator: Mapped[str] = mapped_column(String(32), nullable=False)
+    value_json: Mapped[dict[str, Any] | list[Any] | str | int | float] = mapped_column(JSON, nullable=False)
+    logical_operator: Mapped[str | None] = mapped_column(String(8))
+    group_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
+
+    rule: Mapped[ValuationRuleV2] = relationship(back_populates="conditions")
+    parent: Mapped["ValuationRuleCondition | None"] = relationship(
+        remote_side=[id], back_populates="children"
+    )
+    children: Mapped[list["ValuationRuleCondition"]] = relationship(
+        back_populates="parent", cascade="all, delete-orphan"
+    )
+
+
+class ValuationRuleAction(Base):
+    __tablename__ = "valuation_rule_action"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    rule_id: Mapped[int] = mapped_column(ForeignKey("valuation_rule_v2.id", ondelete="CASCADE"), nullable=False)
+    action_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    metric: Mapped[str | None] = mapped_column(String(32))
+    value_usd: Mapped[float | None]
+    unit_type: Mapped[str | None] = mapped_column(String(32))
+    formula: Mapped[str | None] = mapped_column(Text)
+    modifiers_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
+
+    rule: Mapped[ValuationRuleV2] = relationship(back_populates="actions")
+
+
+class ValuationRuleVersion(Base):
+    __tablename__ = "valuation_rule_version"
+    __table_args__ = (UniqueConstraint("rule_id", "version_number", name="uq_rule_version"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    rule_id: Mapped[int] = mapped_column(ForeignKey("valuation_rule_v2.id", ondelete="CASCADE"), nullable=False)
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    change_summary: Mapped[str | None] = mapped_column(Text)
+    changed_by: Mapped[str | None] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
+
+    rule: Mapped[ValuationRuleV2] = relationship(back_populates="versions")
+
+
+class ValuationRuleAudit(Base):
+    __tablename__ = "valuation_rule_audit"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    rule_id: Mapped[int | None] = mapped_column(ForeignKey("valuation_rule_v2.id", ondelete="SET NULL"))
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    actor: Mapped[str | None] = mapped_column(String(128))
+    changes_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    impact_summary: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
+
+    rule: Mapped[ValuationRuleV2 | None] = relationship(back_populates="audit_logs")
 
 
 class Listing(Base, TimestampMixin):
@@ -160,7 +277,6 @@ class ListingComponent(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     listing_id: Mapped[int] = mapped_column(ForeignKey("listing.id", ondelete="CASCADE"), nullable=False)
-    rule_id: Mapped[int | None] = mapped_column(ForeignKey("valuation_rule.id"))
     component_type: Mapped[str] = mapped_column(String(32), nullable=False)
     name: Mapped[str | None] = mapped_column(String(255))
     quantity: Mapped[int] = mapped_column(default=1)
@@ -168,7 +284,6 @@ class ListingComponent(Base, TimestampMixin):
     adjustment_value_usd: Mapped[float | None]
 
     listing: Mapped[Listing] = relationship(back_populates="components")
-    rule: Mapped[ValuationRule | None] = relationship(back_populates="listing_components")
 
 
 class ListingScoreSnapshot(Base, TimestampMixin):
