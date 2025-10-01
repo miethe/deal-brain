@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">MVP build</span>
           </div>
         </header>
-        <main className="flex-1 space-y-6 p-6">{children}</main>
+        <main className="flex-1 space-y-6 p-6 overflow-x-hidden">{children}</main>
       </div>
     </div>
   );

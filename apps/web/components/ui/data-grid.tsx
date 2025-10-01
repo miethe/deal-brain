@@ -351,10 +351,10 @@ export function DataGrid<TData>({
     <div className={gridClassName}>
       <div
         ref={containerRef}
-        className="relative overflow-auto"
+        className="relative overflow-x-auto overflow-y-auto"
         style={{ maxHeight: containerHeight }}
       >
-        <Table style={{ width: resolvedTable.getTotalSize() || "100%" }}>
+        <Table style={{ width: resolvedTable.getTotalSize(), minWidth: "100%" }}>
           <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
             {headerGroups.map((headerGroup) => (
               <TableRow key={headerGroup.id} className="border-0">
@@ -397,7 +397,7 @@ export function DataGrid<TData>({
                             role="separator"
                             onMouseDown={header.getResizeHandler()}
                             onTouchStart={header.getResizeHandler()}
-                            className="ml-auto h-6 w-[2px] cursor-col-resize rounded bg-transparent transition-colors hover:bg-muted"
+                            className="ml-auto h-6 w-[3px] cursor-col-resize rounded bg-border/30 transition-colors hover:bg-border"
                           />
                         ) : null}
                       </div>

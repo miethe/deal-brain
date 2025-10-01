@@ -114,7 +114,7 @@ const numericFilterFn: FilterFn<ListingRow> = (row, columnId, filterValue) => {
 export function ListingsTable() {
   const queryClient = useQueryClient();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [sorting, setSorting] = useState<SortingState>([{ id: "created_at", desc: true }]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "title", desc: false }]);
   const [grouping, setGrouping] = useState<GroupingState>([]);
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const [quickSearch, setQuickSearch] = useState("");
@@ -129,7 +129,7 @@ export function ListingsTable() {
     if (!saved) return;
     try {
       const parsed = JSON.parse(saved);
-      setSorting(parsed.sorting ?? [{ id: "created_at", desc: true }]);
+      setSorting(parsed.sorting ?? [{ id: "title", desc: false }]);
       setColumnFilters(parsed.filters ?? []);
       setGrouping(parsed.grouping ?? []);
       setQuickSearch(parsed.search ?? "");
@@ -468,7 +468,7 @@ export function ListingsTable() {
 
   const resetView = () => {
     setColumnFilters([]);
-    setSorting([{ id: "created_at", desc: true }]);
+    setSorting([{ id: "title", desc: false }]);
     setGrouping([]);
     setQuickSearch("");
     setRowSelection({});
