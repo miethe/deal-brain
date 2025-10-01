@@ -20,7 +20,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
+    <div className="flex min-h-screen w-full overflow-x-hidden bg-muted/40">
       <aside className="hidden w-64 flex-col border-r bg-background p-4 md:flex">
         <div className="flex items-center gap-2 px-2 text-lg font-semibold">
           <Package2 className="h-6 w-6" />
@@ -54,7 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Button>
         </div>
       </aside>
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col overflow-x-hidden">
         <header className="flex h-14 items-center justify-between border-b bg-background px-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className="hidden text-sm font-medium text-foreground md:inline">Deal Brain</span>

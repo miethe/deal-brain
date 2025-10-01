@@ -221,7 +221,7 @@ export function GlobalFieldsDataTab({ entity }: GlobalFieldsDataTabProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold tracking-tight">{schema?.label ?? "Fields"} data</h2>

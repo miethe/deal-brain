@@ -51,7 +51,7 @@ export function GlobalFieldsWorkspace() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+    <div className="grid w-full gap-6 lg:grid-cols-[240px_1fr]">
       <aside className="space-y-4">
         <div>
           <h2 className="text-xs font-semibold uppercase text-muted-foreground">Entities</h2>
@@ -73,7 +73,7 @@ export function GlobalFieldsWorkspace() {
           mapping and manual entry forms.
         </Card>
       </aside>
-      <section className="space-y-6">
+      <section className="min-w-0 space-y-6">
         <div className="space-y-1">
           <h1 className="text-3xl font-semibold tracking-tight">{activeLabel}</h1>
           <p className="text-sm text-muted-foreground">

@@ -455,7 +455,7 @@ export function GlobalFieldsTable({ entity, hideEntityPicker = false }: GlobalFi
   }, [fieldsError]);
 
   return (
-    <Card className="border-0 shadow-none">
+    <Card className="w-full border-0 shadow-none">
       <CardHeader className="gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

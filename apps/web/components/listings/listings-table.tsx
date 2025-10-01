@@ -477,7 +477,7 @@ export function ListingsTable() {
   };
 
   return (
-    <Card className="border-0 bg-background shadow-none">
+    <Card className="w-full border-0 bg-background shadow-none">
       <CardHeader className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">

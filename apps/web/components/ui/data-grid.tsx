@@ -333,7 +333,7 @@ export function DataGrid<TData>({
 
   useColumnSizingPersistence(resolvedTable, columnSizingState, storageKey);
 
-  const gridClassName = cn("flex h-full flex-col overflow-hidden rounded-xl border bg-background shadow-sm", className);
+  const gridClassName = cn("flex h-full w-full flex-col overflow-hidden rounded-xl border bg-background shadow-sm", className);
   const headerGroups = resolvedTable.getHeaderGroups();
 
   const renderFilterRow = enableFilters && headerGroups.length > 0;
