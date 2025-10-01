@@ -360,7 +360,7 @@ class CustomFieldService:
 
         column = getattr(model, "attributes_json", None)
         if column is not None:
-            stmt = select(func.count()).select_from(model).where(column.has_key(field.key))  # type: ignore[attr-defined]
+            stmt = select(func.count()).select_from(model).where(column[field.key].isnot(None))
             result = await db.scalar(stmt)
             counts[field.entity] = int(result or 0)
         return FieldUsageSummary(field_id=field.id, entity=field.entity, key=field.key, counts=counts)
@@ -418,7 +418,7 @@ class CustomFieldService:
         if column is None:
             return
 
-        result = await db.execute(select(model).where(column.has_key(field.key)))  # type: ignore[attr-defined]
+        result = await db.execute(select(model).where(column[field.key].isnot(None)))
         records = result.scalars().all()
         for record_instance in records:
             attributes = dict(getattr(record_instance, "attributes_json", {}) or {})
