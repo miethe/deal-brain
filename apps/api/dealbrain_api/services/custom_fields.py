@@ -21,6 +21,7 @@ from ..models.core import (
     PortsProfile,
     ValuationRule,
 )
+from ..settings import get_settings
 
 logger = logging.getLogger(__name__)
 analytics_logger = logging.getLogger("dealbrain.analytics")
@@ -548,7 +549,9 @@ class CustomFieldService:
         db.add(audit)
 
     def _emit_event(self, name: str, payload: dict[str, Any]) -> None:
-        analytics_logger.info("event=%s payload=%s", name, payload)
+        settings = get_settings()
+        if settings.analytics_enabled:
+            analytics_logger.info("event=%s payload=%s", name, payload)
 
 
 __all__ = [

@@ -51,6 +51,10 @@ interface DataGridProps<TData> {
   estimatedRowHeight?: number;
   virtualizationThreshold?: number;
   density?: "comfortable" | "compact";
+  enableInlineEdit?: boolean;
+  onCellEdit?: (rowId: string | number, columnId: string, value: any) => Promise<void>;
+  enableRowSelection?: boolean;
+  onRowSelectionChange?: (selectedRows: TData[]) => void;
 }
 
 interface VirtualizationState<TData> {

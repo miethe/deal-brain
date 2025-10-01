@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     prometheus_enabled: bool = True
     otel_exporter_otlp_endpoint: str | None = None
 
+    analytics_enabled: bool = True
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

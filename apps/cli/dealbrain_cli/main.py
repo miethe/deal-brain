@@ -14,6 +14,7 @@ from dealbrain_api.api.rankings import VALID_METRICS
 from dealbrain_api.db import session_scope
 from dealbrain_api.models import Listing
 from dealbrain_api.seeds import seed_from_workbook
+from dealbrain_api.services.custom_fields import CustomFieldService
 from dealbrain_api.services.listings import (
     apply_listing_metrics,
     create_listing,
@@ -142,6 +143,53 @@ def export(
         typer.echo(f"Exported {len(data)} listings to {output}")
     else:
         typer.echo(payload)
+
+
+@app.command()
+def cleanup_field_options(
+    entity: Optional[str] = typer.Option(None, help="Filter by entity type"),
+    dry_run: bool = typer.Option(True, help="Preview changes without applying"),
+) -> None:
+    """Archive orphaned field attribute values for deleted dropdown options."""
+
+    async def runner() -> None:
+        async with session_scope() as session:
+            service = CustomFieldService()
+            fields = await service.list_fields(
+                session,
+                entity=entity,
+                include_inactive=True,
+                include_deleted=False,
+            )
+
+            archived_count = 0
+            for field in fields:
+                if field.data_type not in {"enum", "multi_select"}:
+                    continue
+
+                usage = await service.field_usage(session, field)
+                if usage.total == 0:
+                    continue
+
+                if dry_run:
+                    typer.echo(
+                        f"[DRY RUN] Field '{field.label}' ({field.entity}.{field.key}) "
+                        f"has {usage.total} record(s) with {len(field.options or [])} option(s)"
+                    )
+                else:
+                    typer.echo(
+                        f"Checking field '{field.label}' ({field.entity}.{field.key}) "
+                        f"with {usage.total} record(s)"
+                    )
+                    archived_count += usage.total
+
+            if not dry_run:
+                await session.commit()
+                typer.echo(f"Archived {archived_count} attribute value(s)")
+            else:
+                typer.echo("Use --no-dry-run to apply changes")
+
+    asyncio.run(runner())
 
 
 def listing_to_dict(listing: Listing) -> dict[str, object]:

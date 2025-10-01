@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { apiFetch } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -21,6 +23,7 @@ interface EntityListResponse {
 }
 
 export function GlobalFieldsWorkspace() {
+  const router = useRouter();
   const { data, isLoading } = useQuery<EntityListResponse>({
     queryKey: ["fields-data", "entities"],
     queryFn: () => apiFetch<EntityListResponse>("/v1/fields-data/entities"),
@@ -77,7 +80,7 @@ export function GlobalFieldsWorkspace() {
             Configure metadata and data entries for the selected entity.
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center justify-between gap-4">
           <div className="inline-flex rounded-md border bg-muted p-1">
             <Button
               variant={activeTab === "fields" ? "secondary" : "ghost"}
@@ -94,6 +97,17 @@ export function GlobalFieldsWorkspace() {
               Data
             </Button>
           </div>
+          {activeTab === "data" && (
+            <Button
+              variant="default"
+              onClick={() => {
+                router.push(`/import?entity=${selectedEntity}&return=/global-fields`);
+              }}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Import Data
+            </Button>
+          )}
         </div>
         <div className="mt-6">
           {activeTab === "fields" ? (
