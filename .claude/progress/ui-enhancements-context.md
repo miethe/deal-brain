@@ -9,13 +9,16 @@
 
 ## Key Locations
 - UI Components: `apps/web/components/ui/`
-- Forms: `apps/web/components/forms/` (to create)
+- Forms: `apps/web/components/forms/`
 - Tables: `apps/web/components/ui/data-grid.tsx`
+- Valuation: `apps/web/components/valuation/`
+- Listings: `apps/web/components/listings/`
 - Hooks: `apps/web/hooks/`
 - API Utils: `apps/web/lib/utils.ts` (API_URL)
+- API Client: `apps/web/lib/api/rules.ts`
 
-## Current Phase: Phase 1 & 2 Foundation
-Focus: Modal system + Form components + Table optimizations
+## Current Phase: Phases 5-6 Complete ✅
+Focus: Valuation Rules UI + Listings Valuation Column
 
 ## Completed Tasks
 Phase 1 - Modal & Form System:
@@ -73,8 +76,37 @@ Phase 4 - Global Fields UI Enhancements:
 - Added Lock icon indicator for core/locked fields
 - Replaced textarea with visual options builder
 
+Phase 5 - Valuation Rules UI ✅
+- Enhanced RulesetCard with expandable rule details
+- Added rule-level expand/collapse with conditions/actions display
+- Created RuleGroupFormModal for group CRUD
+- Updated RuleBuilderModal to support editing existing rules
+- Added edit buttons for both rule groups and individual rules
+- Implemented formatCondition and formatAction helpers
+- Added onEditGroup and onEditRule callbacks to page
+- Added "Add Group" button to page header
+- All CRUD operations now working for rulesets, groups, and rules
+
+Phase 6 - Listings Valuation Column ✅
+- Enhanced "Adjusted" column to "Valuation" with breakdown modal
+- Added delta badges showing savings (green) or premium (red)
+- Created ValuationBreakdownModal component
+- Modal shows pricing summary with base/adjusted/delta
+- Displays applied rules in expandable cards
+- Each rule shows group, conditions met, and actions applied
+- Clickable valuation cell opens breakdown modal
+- Integrated with existing listings table
+
+## Files Created (Phases 5-6)
+- `apps/web/components/valuation/rule-group-form-modal.tsx`
+- `apps/web/components/listings/valuation-breakdown-modal.tsx`
+
+## Files Modified (Phases 5-6)
+- `apps/web/components/valuation/ruleset-card.tsx`
+- `apps/web/components/valuation/rule-builder-modal.tsx`
+- `apps/web/app/valuation-rules/page.tsx`
+- `apps/web/components/listings/listings-table.tsx`
+
 ## Next Actions
-1. Phase 5: Valuation Rules UI Implementation
-2. Phase 6: Listings Valuation Column
-3. Test and validate all features
-4. Create comprehensive completion summary
+1. Commit Phase 5-6 changes with summary
+2. Create Phase 5-6 completion summary document

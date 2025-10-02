@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 
@@ -26,12 +26,13 @@ import {
 import { Badge } from "../ui/badge";
 import { useToast } from "../ui/use-toast";
 
-import { createRule, type Condition, type Action } from "../../lib/api/rules";
+import { createRule, updateRule, type Rule, type Condition, type Action } from "../../lib/api/rules";
 
 interface RuleBuilderModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   groupId: number | null;
+  rule?: Rule | null; // For editing
   onSuccess: () => void;
 }
 
@@ -55,7 +56,7 @@ const ACTION_TYPES = [
   { value: "formula", label: "Formula" },
 ];
 
-export function RuleBuilderModal({ open, onOpenChange, groupId, onSuccess }: RuleBuilderModalProps) {
+export function RuleBuilderModal({ open, onOpenChange, groupId, rule, onSuccess }: RuleBuilderModalProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState(100);
@@ -65,22 +66,47 @@ export function RuleBuilderModal({ open, onOpenChange, groupId, onSuccess }: Rul
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const createMutation = useMutation({
+  const isEditing = !!rule;
+
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (rule) {
+      setName(rule.name);
+      setDescription(rule.description || "");
+      setPriority(rule.priority);
+      setConditions(rule.conditions || []);
+      setActions(rule.actions || []);
+    } else {
+      resetForm();
+    }
+  }, [rule, open]);
+
+  const saveMutation = useMutation({
     mutationFn: () => {
-      if (!groupId) throw new Error("No group selected");
-      return createRule({
-        group_id: groupId,
-        name,
-        description,
-        priority,
-        conditions,
-        actions,
-      });
+      if (isEditing && rule) {
+        return updateRule(rule.id, {
+          name,
+          description,
+          priority,
+          conditions,
+          actions,
+        });
+      } else {
+        if (!groupId) throw new Error("No group selected");
+        return createRule({
+          group_id: groupId,
+          name,
+          description,
+          priority,
+          conditions,
+          actions,
+        });
+      }
     },
     onSuccess: () => {
       toast({
-        title: "Rule created",
-        description: "The rule has been created successfully",
+        title: isEditing ? "Rule updated" : "Rule created",
+        description: `The rule has been ${isEditing ? "updated" : "created"} successfully`,
       });
       resetForm();
       onOpenChange(false);
@@ -147,16 +173,16 @@ export function RuleBuilderModal({ open, onOpenChange, groupId, onSuccess }: Rul
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate();
+    saveMutation.mutate();
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Rule</DialogTitle>
+          <DialogTitle>{isEditing ? "Edit" : "Create New"} Rule</DialogTitle>
           <DialogDescription>
-            Define conditions and actions for this valuation rule
+            {isEditing ? "Update" : "Define"} conditions and actions for this valuation rule
           </DialogDescription>
         </DialogHeader>
 
@@ -360,8 +386,10 @@ export function RuleBuilderModal({ open, onOpenChange, groupId, onSuccess }: Rul
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!name || !groupId}>
-              Create Rule
+            <Button type="submit" disabled={!name || (!groupId && !isEditing) || saveMutation.isPending}>
+              {saveMutation.isPending
+                ? (isEditing ? "Updating..." : "Creating...")
+                : (isEditing ? "Update Rule" : "Create Rule")}
             </Button>
           </DialogFooter>
         </form>

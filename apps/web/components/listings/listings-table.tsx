@@ -25,6 +25,8 @@ import { Card, CardContent, CardHeader } from "../ui/card";
 import { DataGrid, type ColumnMetaConfig } from "../ui/data-grid";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Badge } from "../ui/badge";
+import { ValuationBreakdownModal } from "./valuation-breakdown-modal";
 
 interface ListingRow extends ListingRecord {
   cpu_name?: string | null;
@@ -123,6 +125,11 @@ export function ListingsTable() {
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
+  const [breakdownModalOpen, setBreakdownModalOpen] = useState(false);
+  const [selectedListingForBreakdown, setSelectedListingForBreakdown] = useState<{
+    id: number;
+    title: string;
+  } | null>(null);
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
@@ -354,14 +361,49 @@ export function ListingsTable() {
         size: 180,
       },
       {
-        header: "Adjusted",
+        header: "Valuation",
         accessorKey: "adjusted_price_usd",
-        cell: ({ getValue }) => formatCurrency(Number(getValue() ?? 0)),
+        cell: ({ row }) => {
+          const adjustedPrice = Number(row.original.adjusted_price_usd ?? 0);
+          const listPrice = Number(row.original.list_price_usd ?? 0);
+          const delta = adjustedPrice - listPrice;
+          const hasDelta = Math.abs(delta) > 0.01;
+
+          return (
+            <div
+              className="flex flex-col gap-1 cursor-pointer hover:underline"
+              onClick={() => {
+                setSelectedListingForBreakdown({
+                  id: row.original.id,
+                  title: row.original.title || "Untitled",
+                });
+                setBreakdownModalOpen(true);
+              }}
+              title="Click to view valuation breakdown"
+            >
+              <span className="font-medium">{formatCurrency(adjustedPrice)}</span>
+              {hasDelta && (
+                <Badge
+                  variant={delta < 0 ? "default" : "destructive"}
+                  className="text-xs w-fit"
+                >
+                  {delta < 0 ? "-" : "+"}
+                  {formatCurrency(Math.abs(delta))}
+                  {delta < 0 ? " (savings)" : " (premium)"}
+                </Badge>
+              )}
+            </div>
+          );
+        },
+        enableSorting: true,
         enableResizing: true,
         enableColumnFilter: true,
-        meta: { filterType: "number", tooltip: "Adjusted price in USD" },
+        meta: {
+          filterType: "number",
+          tooltip: "Adjusted price based on active ruleset (click for breakdown)",
+        },
         filterFn: numericFilterFn,
-        size: 140,
+        size: 160,
       },
       {
         header: "$/CPU Mark",
@@ -542,6 +584,16 @@ export function ListingsTable() {
           />
         )}
       </CardContent>
+
+      {/* Valuation Breakdown Modal */}
+      {selectedListingForBreakdown && (
+        <ValuationBreakdownModal
+          open={breakdownModalOpen}
+          onOpenChange={setBreakdownModalOpen}
+          listingId={selectedListingForBreakdown.id}
+          listingTitle={selectedListingForBreakdown.title}
+        />
+      )}
     </Card>
   );
 }

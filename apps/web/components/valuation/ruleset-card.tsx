@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Plus, Edit, Copy, Trash2, Power, PowerOff } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tantml:react-query";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -24,11 +24,14 @@ import { type RuleGroup, type Rule, deleteRule, duplicateRule, updateRule } from
 interface RulesetCardProps {
   ruleGroup: RuleGroup;
   onCreateRule: () => void;
+  onEditGroup: (group: RuleGroup) => void;
+  onEditRule: (rule: Rule) => void;
   onRefresh: () => void;
 }
 
-export function RulesetCard({ ruleGroup, onCreateRule, onRefresh }: RulesetCardProps) {
+export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, onRefresh }: RulesetCardProps) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [expandedRules, setExpandedRules] = useState<Set<number>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [ruleToDelete, setRuleToDelete] = useState<Rule | null>(null);
 
@@ -102,6 +105,36 @@ export function RulesetCard({ ruleGroup, onCreateRule, onRefresh }: RulesetCardP
     }
   };
 
+  const toggleRuleExpansion = (ruleId: number) => {
+    const newExpanded = new Set(expandedRules);
+    if (newExpanded.has(ruleId)) {
+      newExpanded.delete(ruleId);
+    } else {
+      newExpanded.add(ruleId);
+    }
+    setExpandedRules(newExpanded);
+  };
+
+  const formatCondition = (condition: any) => {
+    const value = typeof condition.value === 'object'
+      ? JSON.stringify(condition.value)
+      : condition.value;
+    return `${condition.field_name} ${condition.operator} ${value}`;
+  };
+
+  const formatAction = (action: any) => {
+    if (action.action_type === 'fixed_value') {
+      return `Fixed adjustment: $${action.value_usd}`;
+    }
+    if (action.action_type === 'per_unit') {
+      return `${action.metric}: $${action.value_usd} per unit`;
+    }
+    if (action.action_type === 'formula') {
+      return `Formula: ${action.formula}`;
+    }
+    return `${action.action_type}: ${action.metric || 'N/A'}`;
+  };
+
   const categoryColors: Record<string, string> = {
     cpu: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
     ram: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
@@ -136,17 +169,30 @@ export function RulesetCard({ ruleGroup, onCreateRule, onRefresh }: RulesetCardP
                 )}
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCreateRule();
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Rule
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditGroup(ruleGroup);
+                }}
+                title="Edit Group"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateRule();
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Rule
+              </Button>
+            </div>
           </div>
         </CardHeader>
 
@@ -159,70 +205,148 @@ export function RulesetCard({ ruleGroup, onCreateRule, onRefresh }: RulesetCardP
             ) : (
               ruleGroup.rules
                 .sort((a, b) => a.evaluation_order - b.evaluation_order)
-                .map((rule) => (
-                  <div
-                    key={rule.id}
-                    className="group flex items-center justify-between rounded-lg border bg-card p-4 transition-colors hover:bg-accent"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{rule.name}</span>
-                        {!rule.is_active && (
-                          <Badge variant="secondary" className="text-xs">
-                            Inactive
-                          </Badge>
-                        )}
-                        <Badge variant="outline" className="text-xs">
-                          Priority: {rule.priority}
-                        </Badge>
-                      </div>
-                      {rule.description && (
-                        <p className="mt-1 text-sm text-muted-foreground">{rule.description}</p>
-                      )}
-                      <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>{rule.conditions.length} conditions</span>
-                        <span>{rule.actions.length} actions</span>
-                        <span>Version {rule.version}</span>
-                      </div>
-                    </div>
+                .map((rule) => {
+                  const isRuleExpanded = expandedRules.has(rule.id);
+                  return (
+                    <div
+                      key={rule.id}
+                      className="rounded-lg border bg-card transition-colors hover:bg-accent/50"
+                    >
+                      <div className="group flex items-center justify-between p-4">
+                        <div className="flex flex-1 items-start gap-3">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => toggleRuleExpansion(rule.id)}
+                          >
+                            {isRuleExpanded ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{rule.name}</span>
+                              {!rule.is_active && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Inactive
+                                </Badge>
+                              )}
+                              <Badge variant="outline" className="text-xs">
+                                Priority: {rule.priority}
+                              </Badge>
+                            </div>
+                            {rule.description && (
+                              <p className="mt-1 text-sm text-muted-foreground">{rule.description}</p>
+                            )}
+                            <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
+                              <span>{rule.conditions.length} conditions</span>
+                              <span>{rule.actions.length} actions</span>
+                              <span>Version {rule.version}</span>
+                            </div>
+                          </div>
+                        </div>
 
-                    <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          toggleActiveMutation.mutate({
-                            id: rule.id,
-                            isActive: !rule.is_active,
-                          })
-                        }
-                        title={rule.is_active ? "Deactivate" : "Activate"}
-                      >
-                        {rule.is_active ? (
-                          <PowerOff className="h-4 w-4" />
-                        ) : (
-                          <Power className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => duplicateMutation.mutate(rule.id)}
-                        title="Duplicate"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteClick(rule)}
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEditRule(rule)}
+                            title="Edit"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              toggleActiveMutation.mutate({
+                                id: rule.id,
+                                isActive: !rule.is_active,
+                              })
+                            }
+                            title={rule.is_active ? "Deactivate" : "Activate"}
+                          >
+                            {rule.is_active ? (
+                              <PowerOff className="h-4 w-4" />
+                            ) : (
+                              <Power className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => duplicateMutation.mutate(rule.id)}
+                            title="Duplicate"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteClick(rule)}
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Expanded Rule Details */}
+                      {isRuleExpanded && (
+                        <div className="border-t px-4 py-3 space-y-3 text-sm bg-muted/30">
+                          {/* Conditions */}
+                          <div>
+                            <h5 className="font-medium text-xs uppercase text-muted-foreground mb-2">
+                              Conditions
+                            </h5>
+                            {rule.conditions.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">No conditions</p>
+                            ) : (
+                              <div className="space-y-1">
+                                {rule.conditions.map((condition, index) => (
+                                  <div key={index} className="flex items-center gap-2">
+                                    {index > 0 && condition.logical_operator && (
+                                      <span className="text-xs font-medium text-muted-foreground">
+                                        {condition.logical_operator}
+                                      </span>
+                                    )}
+                                    <code className="text-xs bg-background px-2 py-1 rounded border">
+                                      {formatCondition(condition)}
+                                    </code>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div>
+                            <h5 className="font-medium text-xs uppercase text-muted-foreground mb-2">
+                              Actions
+                            </h5>
+                            {rule.actions.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">No actions</p>
+                            ) : (
+                              <div className="space-y-1">
+                                {rule.actions.map((action, index) => (
+                                  <code
+                                    key={index}
+                                    className="text-xs bg-background px-2 py-1 rounded border block"
+                                  >
+                                    {formatAction(action)}
+                                  </code>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
             )}
           </CardContent>
         )}

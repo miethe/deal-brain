@@ -17,17 +17,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Badge } from "../../components/ui/badge";
 import { useToast } from "../../components/ui/use-toast";
 
-import { fetchRulesets, fetchRuleset, type Ruleset } from "../../lib/api/rules";
+import { fetchRulesets, fetchRuleset, type Ruleset, type RuleGroup, type Rule } from "../../lib/api/rules";
 import { RulesetCard } from "../../components/valuation/ruleset-card";
 import { RuleBuilderModal } from "../../components/valuation/rule-builder-modal";
 import { RulesetBuilderModal } from "../../components/valuation/ruleset-builder-modal";
+import { RuleGroupFormModal } from "../../components/valuation/rule-group-form-modal";
 
 export default function ValuationRulesPage() {
   const [selectedRulesetId, setSelectedRulesetId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isRuleBuilderOpen, setIsRuleBuilderOpen] = useState(false);
   const [isRulesetBuilderOpen, setIsRulesetBuilderOpen] = useState(false);
+  const [isGroupFormOpen, setIsGroupFormOpen] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
+  const [editingGroup, setEditingGroup] = useState<RuleGroup | null>(null);
+  const [editingRule, setEditingRule] = useState<Rule | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -55,7 +59,19 @@ export default function ValuationRulesPage() {
 
   const handleCreateRule = (groupId: number) => {
     setEditingGroupId(groupId);
+    setEditingRule(null);
     setIsRuleBuilderOpen(true);
+  };
+
+  const handleEditRule = (rule: Rule) => {
+    setEditingRule(rule);
+    setEditingGroupId(null);
+    setIsRuleBuilderOpen(true);
+  };
+
+  const handleEditGroup = (group: RuleGroup) => {
+    setEditingGroup(group);
+    setIsGroupFormOpen(true);
   };
 
   const handleRefresh = () => {
@@ -178,7 +194,7 @@ export default function ValuationRulesPage() {
         )}
       </Card>
 
-      {/* Search */}
+      {/* Search and Actions */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -189,6 +205,18 @@ export default function ValuationRulesPage() {
             className="pl-9"
           />
         </div>
+        {selectedRulesetId && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              setEditingGroup(null);
+              setIsGroupFormOpen(true);
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Group
+          </Button>
+        )}
       </div>
 
       {/* Rule Groups */}
@@ -205,6 +233,8 @@ export default function ValuationRulesPage() {
               key={group.id}
               ruleGroup={group}
               onCreateRule={() => handleCreateRule(group.id)}
+              onEditGroup={handleEditGroup}
+              onEditRule={handleEditRule}
               onRefresh={handleRefresh}
             />
           ))}
@@ -234,8 +264,26 @@ export default function ValuationRulesPage() {
       {/* Modals */}
       <RuleBuilderModal
         open={isRuleBuilderOpen}
-        onOpenChange={setIsRuleBuilderOpen}
+        onOpenChange={(open) => {
+          setIsRuleBuilderOpen(open);
+          if (!open) {
+            setEditingRule(null);
+            setEditingGroupId(null);
+          }
+        }}
         groupId={editingGroupId}
+        rule={editingRule}
+        onSuccess={handleRefresh}
+      />
+
+      <RuleGroupFormModal
+        open={isGroupFormOpen}
+        onOpenChange={(open) => {
+          setIsGroupFormOpen(open);
+          if (!open) setEditingGroup(null);
+        }}
+        rulesetId={selectedRulesetId!}
+        ruleGroup={editingGroup}
         onSuccess={handleRefresh}
       />
 
