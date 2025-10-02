@@ -124,7 +124,7 @@ export default function ValuationRulesPage() {
               <CardTitle className="flex items-center gap-2">
                 Active Ruleset
                 {selectedRuleset?.is_active && (
-                  <Badge variant="default" className="ml-2">
+                  <Badge className="ml-2">
                     Active
                   </Badge>
                 )}
@@ -146,7 +146,7 @@ export default function ValuationRulesPage() {
                     <div className="flex items-center gap-2">
                       {ruleset.name}
                       {ruleset.is_active && (
-                        <Badge variant="outline" className="ml-2">
+                        <Badge className="ml-2">
                           Active
                         </Badge>
                       )}

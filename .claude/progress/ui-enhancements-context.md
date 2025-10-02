@@ -17,8 +17,8 @@
 - API Utils: `apps/web/lib/utils.ts` (API_URL)
 - API Client: `apps/web/lib/api/rules.ts`
 
-## Current Phase: Phases 5-6 Complete ✅
-Focus: Valuation Rules UI + Listings Valuation Column
+## Current Phase: Phase 7 Complete ✅
+Focus: Multi-Pane Layout & Static Navigation
 
 ## Completed Tasks
 Phase 1 - Modal & Form System:
@@ -97,6 +97,18 @@ Phase 6 - Listings Valuation Column ✅
 - Clickable valuation cell opens breakdown modal
 - Integrated with existing listings table
 
+Phase 7 - Multi-Pane Layout & Static Nav ✅
+- Created ResizablePane component with mouse-driven resize
+- Added localStorage persistence for pane heights per ID
+- Implemented min/max height constraints (300-800px default)
+- Visual resize handle with hover/active states
+- Updated AppShell to fixed navbar and sidebar positioning
+- Navbar: fixed top with backdrop-blur, z-100
+- Sidebar: fixed left with top offset, z-90
+- Main content: proper spacing (pt-14 lg:ml-64)
+- Mobile: hamburger toggle, slide-in sidebar, overlay backdrop
+- Enhanced Badge component with variant support (default/secondary/outline/destructive)
+
 ## Files Created (Phases 5-6)
 - `apps/web/components/valuation/rule-group-form-modal.tsx`
 - `apps/web/components/listings/valuation-breakdown-modal.tsx`
@@ -107,6 +119,16 @@ Phase 6 - Listings Valuation Column ✅
 - `apps/web/app/valuation-rules/page.tsx`
 - `apps/web/components/listings/listings-table.tsx`
 
+## Files Created (Phase 7)
+- `apps/web/components/ui/resizable-pane.tsx`
+
+## Files Modified (Phase 7)
+- `apps/web/components/app-shell.tsx`
+- `apps/web/components/ui/badge.tsx`
+- `apps/web/package.json`
+- `apps/web/app/valuation-rules/page.tsx`
+
 ## Next Actions
-1. Commit Phase 5-6 changes with summary
-2. Create Phase 5-6 completion summary document
+1. Install @dnd-kit/utilities dependency (requires resolving permission issue)
+2. Commit Phase 7 changes with summary
+3. Create Phase 7 completion summary document
