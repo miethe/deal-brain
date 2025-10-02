@@ -186,9 +186,10 @@ export function RuleBuilderModal({ open, onOpenChange, groupId, rule, onSuccess 
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Info */}
-          <div className="space-y-4">
+        <div className="px-6 py-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Info */}
+            <div className="space-y-4">
             <div>
               <Label htmlFor="name">Rule Name</Label>
               <Input
@@ -382,17 +383,18 @@ export function RuleBuilderModal({ open, onOpenChange, groupId, rule, onSuccess 
             )}
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!name || (!groupId && !isEditing) || saveMutation.isPending}>
-              {saveMutation.isPending
-                ? (isEditing ? "Updating..." : "Creating...")
-                : (isEditing ? "Update Rule" : "Create Rule")}
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter className="px-6 py-4">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!name || (!groupId && !isEditing) || saveMutation.isPending}>
+                {saveMutation.isPending
+                  ? (isEditing ? "Updating..." : "Creating...")
+                  : (isEditing ? "Update Rule" : "Create Rule")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

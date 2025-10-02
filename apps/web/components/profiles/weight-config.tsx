@@ -170,7 +170,7 @@ export function WeightConfig({
               <AlertDescription>
                 Weights currently sum to {totalWeight.toFixed(3)}. They must sum to 1.0.
                 <Button
-                  variant="link"
+                  variant="ghost"
                   size="sm"
                   onClick={handleNormalize}
                   className="ml-2 h-auto p-0"

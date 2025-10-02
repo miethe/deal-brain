@@ -27,6 +27,8 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
 import { ValuationBreakdownModal } from "./valuation-breakdown-modal";
+import { ComboBox } from "../forms/combobox";
+import { useConfirmation } from "../ui/confirmation-dialog";
 
 interface ListingRow extends ListingRecord {
   cpu_name?: string | null;
@@ -41,6 +43,7 @@ interface BulkEditState {
 interface FieldConfig extends ListingFieldSchema {
   origin: "core" | "custom";
   options: string[] | null | undefined;
+  id?: number; // Only present for custom fields
 }
 
 const DEFAULT_BULK_STATE: BulkEditState = {
@@ -49,6 +52,13 @@ const DEFAULT_BULK_STATE: BulkEditState = {
 };
 
 const STORAGE_KEY = "dealbrain_listings_table_state_v1";
+
+// Dropdown field configurations
+const DROPDOWN_FIELD_CONFIGS: Record<string, string[]> = {
+  'ram_gb': ['4', '8', '16', '24', '32', '48', '64', '96', '128'],
+  'primary_storage_gb': ['128', '256', '512', '1024', '2048', '4096'],
+  'storage_type': ['SSD', 'HDD', 'NVMe', 'eMMC'],
+};
 
 function deriveListingFilterType(field: FieldConfig | undefined): ColumnMetaConfig["filterType"] {
   if (!field) return "text";
@@ -115,6 +125,7 @@ const numericFilterFn: FilterFn<ListingRow> = (row, columnId, filterValue) => {
 
 export function ListingsTable() {
   const queryClient = useQueryClient();
+  const { confirm, dialog: confirmationDialog } = useConfirmation();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = useState<SortingState>([{ id: "title", desc: false }]);
   const [grouping, setGrouping] = useState<GroupingState>([]);
@@ -175,7 +186,8 @@ export function ListingsTable() {
         description: field.description,
         options: field.options ?? null,
         validation: field.validation ?? null,
-        origin: "custom" as const
+        origin: "custom" as const,
+        id: field.id
       }));
     return [...core, ...custom];
   }, [schema]);
@@ -246,6 +258,42 @@ export function ListingsTable() {
       inlineMutation.mutate({ listingId, field, value: parsed });
     },
     [inlineMutation]
+  );
+
+  const handleCreateOption = useCallback(
+    async (fieldKey: string, value: string) => {
+      const field = fieldConfigs.find(f => f.key === fieldKey);
+      if (!field?.id) {
+        throw new Error("Field not found");
+      }
+
+      // Show confirmation dialog
+      const confirmed = await confirm({
+        title: `Add "${value}" to ${field.label}?`,
+        message: 'This will add the option globally for all listings.',
+        confirmLabel: 'Add Option',
+        onConfirm: () => {},
+      });
+
+      if (!confirmed) {
+        throw new Error("Cancelled");
+      }
+
+      try {
+        await apiFetch(`/v1/reference/custom-fields/${field.id}/options`, {
+          method: 'POST',
+          body: JSON.stringify({ value })
+        });
+
+        // Invalidate queries to refresh options
+        queryClient.invalidateQueries({ queryKey: ['listings', 'schema'] });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to add option";
+        setInlineError(message);
+        throw error;
+      }
+    },
+    [fieldConfigs, confirm, queryClient]
   );
 
   const handleBulkSubmit = async () => {
@@ -328,6 +376,7 @@ export function ListingsTable() {
                 value={row.original.title}
                 onSave={handleInlineSave}
                 isSaving={inlineMutation.isPending}
+                onCreateOption={handleCreateOption}
               />
             ) : (
               <span className="font-medium text-foreground">{row.original.title}</span>
@@ -335,7 +384,11 @@ export function ListingsTable() {
             <span className="text-xs text-muted-foreground">{row.original.gpu_name ?? "No dedicated GPU"}</span>
           </div>
         ),
-        meta: titleMeta,
+        meta: {
+          ...titleMeta,
+          minWidth: 200,
+          enableTextWrap: true,
+        },
         enableResizing: true,
         enableColumnFilter: true,
         size: 260,
@@ -365,7 +418,7 @@ export function ListingsTable() {
         accessorKey: "adjusted_price_usd",
         cell: ({ row }) => {
           const adjustedPrice = Number(row.original.adjusted_price_usd ?? 0);
-          const listPrice = Number(row.original.list_price_usd ?? 0);
+          const listPrice = Number(row.original.price_usd ?? 0);
           const delta = adjustedPrice - listPrice;
           const hasDelta = Math.abs(delta) > 0.01;
 
@@ -444,6 +497,7 @@ export function ListingsTable() {
               value={getValue() as unknown}
               onSave={handleInlineSave}
               isSaving={inlineMutation.isPending}
+              onCreateOption={handleCreateOption}
             />
           ),
           meta,
@@ -456,7 +510,7 @@ export function ListingsTable() {
       });
 
     return [...baseColumns, ...editableColumns];
-  }, [cpuOptions, fieldConfigs, fieldMap, handleInlineSave, inlineMutation.isPending]);
+  }, [cpuOptions, fieldConfigs, fieldMap, handleInlineSave, handleCreateOption, inlineMutation.isPending]);
 
   const table = useReactTable({
     data: filteredListings,
@@ -594,6 +648,9 @@ export function ListingsTable() {
           listingTitle={selectedListingForBreakdown.title}
         />
       )}
+
+      {/* Confirmation Dialog */}
+      {confirmationDialog}
     </Card>
   );
 }
@@ -604,9 +661,10 @@ interface EditableCellProps {
   value: unknown;
   isSaving: boolean;
   onSave: (listingId: number, field: FieldConfig, value: string | string[] | boolean | null) => void;
+  onCreateOption?: (fieldKey: string, value: string) => Promise<void>;
 }
 
-function EditableCell({ listingId, field, value, isSaving, onSave }: EditableCellProps) {
+function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOption }: EditableCellProps) {
   const [draft, setDraft] = useState<string>(() => toEditableString(field, value));
 
   useEffect(() => {
@@ -631,6 +689,10 @@ function EditableCell({ listingId, field, value, isSaving, onSave }: EditableCel
   if (!field.editable) {
     return <span className="text-sm">{toDisplayValue(value)}</span>;
   }
+
+  // Check if this field should use a dropdown (either in DROPDOWN_FIELD_CONFIGS or has options)
+  const dropdownOptions = DROPDOWN_FIELD_CONFIGS[field.key] || field.options;
+  const useDropdown = dropdownOptions && dropdownOptions.length > 0;
 
   if (field.data_type === "boolean") {
     return (
@@ -658,6 +720,19 @@ function EditableCell({ listingId, field, value, isSaving, onSave }: EditableCel
         disabled={isSaving}
         placeholder="Comma-separated values"
       />
+    ) : onCreateOption ? (
+      <ComboBox
+        options={options.map(v => ({ label: v, value: v }))}
+        value={String(value || '')}
+        onChange={(newValue) => onSave(listingId, field, newValue)}
+        onCreateOption={async (customValue) => {
+          await onCreateOption(field.key, customValue);
+          onSave(listingId, field, customValue);
+        }}
+        allowCustom={true}
+        disabled={isSaving}
+        className="text-sm"
+      />
     ) : (
       <select
         className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
@@ -672,6 +747,25 @@ function EditableCell({ listingId, field, value, isSaving, onSave }: EditableCel
           </option>
         ))}
       </select>
+    );
+  }
+
+  // Use ComboBox for number fields with dropdown configs (RAM, Storage)
+  if (field.data_type === "number" && useDropdown && onCreateOption) {
+    const options = dropdownOptions.map(v => ({ label: v, value: v }));
+    return (
+      <ComboBox
+        options={options}
+        value={String(value || '')}
+        onChange={(newValue) => onSave(listingId, field, newValue)}
+        onCreateOption={async (customValue) => {
+          await onCreateOption(field.key, customValue);
+          onSave(listingId, field, customValue);
+        }}
+        allowCustom={true}
+        disabled={isSaving}
+        className="text-sm"
+      />
     );
   }
 

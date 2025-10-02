@@ -66,6 +66,8 @@ const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
   <div className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)} {...props} />
 );
 
+const DialogClose = DialogPrimitive.Close;
+
 export {
   Dialog,
   DialogTrigger,
@@ -74,4 +76,5 @@ export {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  DialogClose,
 };

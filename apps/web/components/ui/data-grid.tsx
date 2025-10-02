@@ -45,6 +45,8 @@ interface ColumnMetaConfig {
   tooltip?: string;
   filterType?: "text" | "number" | "select" | "multi-select" | "boolean";
   options?: ColumnOption[];
+  minWidth?: number;
+  enableTextWrap?: boolean;
 }
 
 interface PaginationConfig {
@@ -237,7 +239,7 @@ function renderFilterControl<TData>(
         <Input
           type="number"
           inputMode="decimal"
-          value={value ?? ""}
+          value={value !== null && value !== undefined ? String(value) : ""}
           onChange={(event) => {
             const raw = event.target.value;
             setValue(raw ? Number(raw) : undefined);
@@ -250,7 +252,7 @@ function renderFilterControl<TData>(
       return (
         <select
           className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
-          value={value ?? ""}
+          value={value !== null && value !== undefined ? String(value) : ""}
           onChange={(event) => {
             const raw = event.target.value;
             if (!raw) {
@@ -269,7 +271,7 @@ function renderFilterControl<TData>(
       return (
         <select
           className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
-          value={value ?? ""}
+          value={value !== null && value !== undefined ? String(value) : ""}
           onChange={(event) => {
             const raw = event.target.value;
             setValue(raw || undefined);
@@ -362,12 +364,37 @@ export function DataGrid<TData>({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const [filterSearch, setFilterSearch] = useState<Record<string, string>>({});
+  const [constrainedColumns, setConstrainedColumns] = useState<Set<string>>(new Set());
 
   const paginationConfig = pagination === false ? null : pagination;
   const [paginationState, setPaginationState] = useState<PaginationState>({
     pageIndex: paginationConfig?.defaultPageIndex ?? 0,
     pageSize: paginationConfig?.pageSize ?? DEFAULT_PAGE_SIZE,
   });
+
+  // Constrained column sizing handler
+  const handleColumnSizingChange = useCallback((updater: any) => {
+    setColumnSizing((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      const constrainedSizing = { ...next };
+      const newConstrainedCols = new Set<string>();
+
+      Object.entries(constrainedSizing).forEach(([colId, size]) => {
+        const column = (table ?? internalTable)?.getColumn(colId);
+        const meta = column?.columnDef.meta as ColumnMetaConfig | undefined;
+        const minWidth = meta?.minWidth || MIN_COLUMN_WIDTH;
+
+        if ((size as number) < minWidth) {
+          constrainedSizing[colId] = minWidth;
+          newConstrainedCols.add(colId);
+        }
+      });
+
+      setConstrainedColumns(newConstrainedCols);
+      return constrainedSizing;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const internalTable = useReactTable({
     data: data ?? [],
@@ -383,7 +410,7 @@ export function DataGrid<TData>({
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onColumnSizingChange: setColumnSizing,
+    onColumnSizingChange: handleColumnSizingChange,
     ...(paginationConfig && { onPaginationChange: setPaginationState }),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -439,11 +466,17 @@ export function DataGrid<TData>({
                     ? header.column.columnDef.header
                     : undefined);
                   const stickyStyles = getStickyColumnStyles(header.column.id, stickyColumns, columnSizingState);
+                  const minWidth = meta?.minWidth || MIN_COLUMN_WIDTH;
+                  const isConstrained = constrainedColumns.has(header.column.id);
+
                   return (
                     <TableHead
                       key={header.id}
-                      className="whitespace-nowrap border-b border-border bg-background px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                      style={{ width: header.getSize(), ...stickyStyles }}
+                      className={cn(
+                        "whitespace-nowrap border-b border-border bg-background px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground",
+                        isConstrained && "border-r-2 border-dashed border-amber-400"
+                      )}
+                      style={{ width: header.getSize(), minWidth, ...stickyStyles }}
                       title={tooltipContent}
                     >
                       <div className="flex items-center gap-2">
@@ -529,11 +562,19 @@ export function DataGrid<TData>({
                   >
                     {row.getVisibleCells().map((cell) => {
                       const stickyStyles = getStickyColumnStyles(cell.column.id, stickyColumns, columnSizingState);
+                      const meta = cell.column.columnDef.meta as ColumnMetaConfig | undefined;
+                      const minWidth = meta?.minWidth || MIN_COLUMN_WIDTH;
+                      const isConstrained = constrainedColumns.has(cell.column.id);
+
                       return (
                         <TableCell
                           key={cell.id}
-                          style={{ width: cell.column.getSize(), ...stickyStyles }}
-                          className="align-top text-sm"
+                          style={{ width: cell.column.getSize(), minWidth, ...stickyStyles }}
+                          className={cn(
+                            "align-top text-sm",
+                            meta?.enableTextWrap && "whitespace-normal break-words",
+                            isConstrained && "border-r-2 border-dashed border-amber-400"
+                          )}
                         >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>

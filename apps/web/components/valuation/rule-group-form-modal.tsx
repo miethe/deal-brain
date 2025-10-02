@@ -130,7 +130,8 @@ export function RuleGroupFormModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="px-6 py-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="name">Group Name</Label>
             <Input
@@ -202,19 +203,20 @@ export function RuleGroupFormModal({
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!name || createMutation.isPending}>
-              {createMutation.isPending
-                ? "Creating..."
-                : isEditing
-                ? "Update Group"
-                : "Create Group"}
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter className="px-6 py-4">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!name || createMutation.isPending}>
+                {createMutation.isPending
+                  ? "Creating..."
+                  : isEditing
+                  ? "Update Group"
+                  : "Create Group"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -79,7 +79,8 @@ export function RulesetBuilderModal({ open, onOpenChange, onSuccess }: RulesetBu
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="px-6 py-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="name">Ruleset Name</Label>
             <Input
@@ -112,15 +113,16 @@ export function RulesetBuilderModal({ open, onOpenChange, onSuccess }: RulesetBu
             />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!name}>
-              Create Ruleset
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter className="px-6 py-4">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!name}>
+                Create Ruleset
+              </Button>
+            </DialogFooter>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
