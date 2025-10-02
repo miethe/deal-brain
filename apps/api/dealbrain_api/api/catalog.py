@@ -15,12 +15,10 @@ from dealbrain_core.schemas import (
     PortsProfileRead,
     ProfileCreate,
     ProfileRead,
-    ValuationRuleCreate,
-    ValuationRuleRead,
 )
 
 from ..db import session_dependency
-from ..models import Cpu, Gpu, PortsProfile, Port, Profile, ValuationRule
+from ..models import Cpu, Gpu, PortsProfile, Port, Profile
 
 router = APIRouter(prefix="/v1/catalog", tags=["catalog"])
 
@@ -57,26 +55,6 @@ async def create_gpu(payload: GpuCreate, session: AsyncSession = Depends(session
     session.add(gpu)
     await session.flush()
     return GpuRead.model_validate(gpu)
-
-
-@router.get("/valuation-rules", response_model=list[ValuationRuleRead])
-async def list_valuation_rules(session: AsyncSession = Depends(session_dependency)) -> Sequence[ValuationRuleRead]:
-    result = await session.execute(select(ValuationRule).order_by(ValuationRule.component_type))
-    return [ValuationRuleRead.model_validate(row) for row in result.scalars().all()]
-
-
-@router.post("/valuation-rules", response_model=ValuationRuleRead, status_code=status.HTTP_201_CREATED)
-async def create_rule(
-    payload: ValuationRuleCreate,
-    session: AsyncSession = Depends(session_dependency),
-) -> ValuationRuleRead:
-    existing = await session.scalar(select(ValuationRule).where(ValuationRule.name == payload.name))
-    if existing:
-        raise HTTPException(status_code=400, detail="Rule already exists")
-    rule = ValuationRule(**payload.model_dump(exclude_none=True))
-    session.add(rule)
-    await session.flush()
-    return ValuationRuleRead.model_validate(rule)
 
 
 @router.get("/profiles", response_model=list[ProfileRead])

@@ -10,7 +10,7 @@ from dealbrain_core.gpu import compute_gpu_score
 from dealbrain_core.scoring import ListingMetrics, compute_composite_score, dollar_per_metric
 from dealbrain_core.valuation import ComponentValuationInput, ValuationRuleData, compute_adjusted_price
 
-from ..models import Cpu, Gpu, Listing, ListingComponent, Profile, ValuationRule
+from ..models import Cpu, Gpu, Listing, ListingComponent, Profile
 
 
 MUTABLE_LISTING_FIELDS: set[str] = {
@@ -37,18 +37,9 @@ MUTABLE_LISTING_FIELDS: set[str] = {
 
 
 async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None:
-    rules = await session.execute(select(ValuationRule))
-    rule_data = [
-        ValuationRuleData(
-            component_type=_coerce_component_type(row.component_type),
-            metric=_coerce_component_metric(row.metric),
-            unit_value_usd=float(row.unit_value_usd or 0),
-            condition_new=row.condition_new,
-            condition_refurb=row.condition_refurb,
-            condition_used=row.condition_used,
-        )
-        for row in rules.scalars().all()
-    ]
+    # TODO: Update to use new ValuationRuleV2 system
+    # For now, use empty rules list
+    rule_data: list[ValuationRuleData] = []
 
     components: list[ComponentValuationInput] = list(build_component_inputs(listing))
     valuation = compute_adjusted_price(

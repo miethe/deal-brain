@@ -19,7 +19,6 @@ from ..models.core import (
     Gpu,
     Listing,
     PortsProfile,
-    ValuationRule,
 )
 from ..settings import get_settings
 
@@ -50,7 +49,7 @@ ENTITY_MODEL_MAP = {
     "cpu": Cpu,
     "gpu": Gpu,
     "ports_profile": PortsProfile,
-    "valuation_rule": ValuationRule,
+    # Note: valuation_rule removed - now using ValuationRuleV2, ValuationRuleset, etc.
 }
 
 

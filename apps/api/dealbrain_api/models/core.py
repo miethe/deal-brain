@@ -86,6 +86,7 @@ class Profile(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     weights_json: Mapped[dict[str, float]] = mapped_column(JSON, nullable=False, default=dict)
+    rule_group_weights: Mapped[dict[str, float]] = mapped_column(JSON, nullable=False, default=dict)
     is_default: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     listings: Mapped[list["Listing"]] = relationship(back_populates="active_profile", lazy="selectin")

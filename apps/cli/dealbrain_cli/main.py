@@ -21,8 +21,12 @@ from dealbrain_api.services.listings import (
     sync_listing_components,
 )
 from dealbrain_core.schemas import ListingCreate
+from dealbrain_cli.commands.rules import rules_app
 
 app = typer.Typer(help="Deal Brain CLI utilities")
+
+# Register sub-commands
+app.add_typer(rules_app, name="rules")
 
 
 @app.command()

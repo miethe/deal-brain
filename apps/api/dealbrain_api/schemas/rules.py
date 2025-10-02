@@ -226,3 +226,41 @@ class RuleImportRequest(BaseModel):
     data: dict[str, Any] | list[dict[str, Any]]
     target_ruleset_id: int | None = None  # If None, creates new ruleset
     overwrite_existing: bool = Field(False)
+
+
+# --- Package Schemas ---
+
+class PackageMetadataRequest(BaseModel):
+    """Request schema for package metadata"""
+    name: str = Field(..., min_length=1, description="Package name")
+    version: str = Field(..., description="Semantic version (e.g., '1.0.0')")
+    author: str | None = Field(None, description="Package author")
+    description: str | None = Field(None, description="Package description")
+    min_app_version: str | None = Field(None, description="Minimum app version required")
+    required_custom_fields: list[str] | None = Field(None, description="Required custom field names")
+    tags: list[str] | None = Field(None, description="Package tags")
+    include_examples: bool = Field(False, description="Include example listings")
+
+
+class PackageExportResponse(BaseModel):
+    """Response schema for package export preview"""
+    package_name: str
+    package_version: str
+    rulesets_count: int
+    rule_groups_count: int
+    rules_count: int
+    custom_fields_count: int
+    dependencies: dict[str, Any]
+    estimated_size_kb: float
+    readme: str
+
+
+class PackageInstallResponse(BaseModel):
+    """Response schema for package installation"""
+    success: bool
+    message: str
+    rulesets_created: int
+    rulesets_updated: int
+    rule_groups_created: int
+    rules_created: int
+    warnings: list[str] = Field(default_factory=list)
