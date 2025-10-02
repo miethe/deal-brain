@@ -1,0 +1,447 @@
+# Budget Value PC Rules
+# Focus on value-for-money and essential features
+# Import via: poetry run dealbrain-cli rules import budget-value-rules.yaml
+
+ruleset:
+  name: Budget Value Optimization
+  version: 1.0.0
+  description: Value-focused rules for budget-conscious buyers prioritizing cost-effectiveness
+  is_active: true
+  metadata:
+    author: Deal Brain Team
+    category: budget
+    target_market: value
+    price_range: [200, 800]
+    last_updated: 2025-10-02
+
+rule_groups:
+  # Essential Performance
+  - name: Essential Performance
+    category: cpu
+    description: Minimum viable performance for daily tasks
+    weight: 0.20
+    display_order: 1
+    rules:
+      - name: Modern CPU Bonus
+        description: Bonus for recent generation CPUs
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: cpu.release_year
+          operator: greater_than_or_equal
+          value: 2020
+        actions:
+          - action_type: fixed_value
+            value_usd: 40.00
+            description: Modern CPU architecture
+
+      - name: Quad Core Minimum
+        description: Baseline for 4+ core CPUs
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: cpu.cores
+          operator: greater_than_or_equal
+          value: 4
+        actions:
+          - action_type: fixed_value
+            value_usd: 20.00
+            description: Adequate multitasking
+
+      - name: Dual Core Penalty
+        description: Penalty for outdated dual-core CPUs
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: cpu.cores
+          operator: less_than
+          value: 4
+        actions:
+          - action_type: fixed_value
+            value_usd: -50.00
+            description: Limited multitasking capability
+
+  # Graphics Capability
+  - name: Graphics Value
+    category: gpu
+    description: Graphics performance for casual gaming/media
+    weight: 0.18
+    display_order: 2
+    rules:
+      - name: Dedicated GPU Bonus
+        description: Bonus for any dedicated GPU
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: gpu.gpu_mark
+          operator: greater_than
+          value: 3000
+        actions:
+          - action_type: fixed_value
+            value_usd: 60.00
+            description: Dedicated graphics capability
+
+      - name: Entry Gaming GPU
+        description: Entry-level gaming GPU value
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: gpu.gpu_mark
+          operator: between
+          value: [6000, 10000]
+        actions:
+          - action_type: fixed_value
+            value_usd: 35.00
+            description: Casual gaming capable
+
+      - name: Integrated Graphics Standard
+        description: Standard for integrated graphics
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: gpu.gpu_mark
+          operator: less_than
+          value: 3000
+        actions:
+          - action_type: fixed_value
+            value_usd: 0.00
+            description: Basic display only
+
+  # Memory Adequacy
+  - name: RAM Value
+    category: ram
+    description: RAM adequacy for budget systems
+    weight: 0.15
+    display_order: 3
+    rules:
+      - name: Ideal Budget RAM
+        description: 16GB sweet spot for budget systems
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: ram_gb
+          operator: equals
+          value: 16
+        actions:
+          - action_type: fixed_value
+            value_usd: 50.00
+            description: Optimal budget RAM config
+
+      - name: Minimum Viable RAM
+        description: 8GB minimum for modern OS
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: ram_gb
+          operator: equals
+          value: 8
+        actions:
+          - action_type: fixed_value
+            value_usd: 15.00
+            description: Minimum viable RAM
+
+      - name: Insufficient RAM Penalty
+        description: Penalty for less than 8GB
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: ram_gb
+          operator: less_than
+          value: 8
+        actions:
+          - action_type: fixed_value
+            value_usd: -40.00
+            description: Inadequate for modern use
+
+      - name: Overkill RAM Penalty
+        description: Deduction for excessive RAM in budget tier
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: ram_gb
+          operator: greater_than
+          value: 32
+        actions:
+          - action_type: fixed_value
+            value_usd: -30.00
+            description: Excessive for price point
+
+  # Storage Essentials
+  - name: Storage Value
+    category: storage
+    description: Storage speed and capacity value
+    weight: 0.20
+    display_order: 4
+    rules:
+      - name: SSD Boot Drive Premium
+        description: Premium for SSD (any type)
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: primary_storage_type
+          operator: contains
+          value: SSD
+        actions:
+          - action_type: fixed_value
+            value_usd: 45.00
+            description: Fast boot and responsive system
+
+      - name: NVMe Bonus
+        description: Additional bonus for NVMe
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: primary_storage_type
+          operator: contains
+          value: NVMe
+        actions:
+          - action_type: fixed_value
+            value_usd: 20.00
+            description: Faster NVMe storage
+
+      - name: HDD Penalty
+        description: Penalty for HDD primary storage
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: primary_storage_type
+          operator: contains
+          value: HDD
+        actions:
+          - action_type: fixed_value
+            value_usd: -60.00
+            description: Slow boot and load times
+
+      - name: Adequate Capacity
+        description: Bonus for 500GB+ storage
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: primary_storage_capacity_gb
+          operator: greater_than_or_equal
+          value: 500
+        actions:
+          - action_type: fixed_value
+            value_usd: 15.00
+            description: Adequate storage space
+
+      - name: Small Storage Penalty
+        description: Penalty for less than 256GB
+        evaluation_order: 60
+        is_active: true
+        conditions:
+          field_name: primary_storage_capacity_gb
+          operator: less_than
+          value: 256
+        actions:
+          - action_type: fixed_value
+            value_usd: -25.00
+            description: Limited storage space
+
+  # Connectivity Essentials
+  - name: Essential Connectivity
+    category: connectivity
+    description: Basic connectivity requirements
+    weight: 0.10
+    display_order: 5
+    rules:
+      - name: WiFi Included Bonus
+        description: Bonus for built-in WiFi
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: has_wifi
+          operator: equals
+          value: true
+        actions:
+          - action_type: fixed_value
+            value_usd: 20.00
+            description: WiFi connectivity included
+
+      - name: Modern WiFi Bonus
+        description: Additional bonus for WiFi 5+
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: wifi_standard
+          operator: in
+          value: [WiFi 6E (802.11ax), WiFi 6 (802.11ax), WiFi 5 (802.11ac)]
+        actions:
+          - action_type: fixed_value
+            value_usd: 15.00
+            description: Modern WiFi standard
+
+      - name: Bluetooth Bonus
+        description: Bonus for Bluetooth support
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: has_bluetooth
+          operator: equals
+          value: true
+        actions:
+          - action_type: fixed_value
+            value_usd: 10.00
+            description: Bluetooth peripherals support
+
+      - name: USB-C Port Bonus
+        description: Bonus for USB-C ports
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: usb_c_count
+          operator: greater_than
+          value: 0
+        actions:
+          - action_type: fixed_value
+            value_usd: 15.00
+            description: Modern USB-C connectivity
+
+  # Condition & Trust
+  - name: Condition & Seller Trust
+    category: condition
+    description: Condition and seller reliability factors
+    weight: 0.12
+    display_order: 6
+    rules:
+      - name: Like-New Budget Premium
+        description: Premium for excellent condition
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: condition
+          operator: in
+          value: [new, like_new]
+        actions:
+          - action_type: multiplier
+            value_usd: 1.15
+            description: 15% premium for excellent condition
+
+      - name: Good Condition Standard
+        description: Standard for good/used condition
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: condition
+          operator: in
+          value: [good, used]
+        actions:
+          - action_type: multiplier
+            value_usd: 1.00
+            description: Baseline condition pricing
+
+      - name: Fair Condition Penalty
+        description: Penalty for fair condition
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: condition
+          operator: equals
+          value: fair
+        actions:
+          - action_type: multiplier
+            value_usd: 0.80
+            description: 20% penalty for fair condition
+
+      - name: High Seller Rating Bonus
+        description: Bonus for highly-rated sellers
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          logical_operator: AND
+          conditions:
+            - field_name: seller_rating
+              operator: greater_than_or_equal
+              value: 4.5
+            - field_name: number_of_reviews
+              operator: greater_than_or_equal
+              value: 50
+        actions:
+          - action_type: fixed_value
+            value_usd: 30.00
+            description: Trusted seller premium
+
+      - name: Benchmark Tested Bonus
+        description: Bonus for verified performance
+        evaluation_order: 60
+        is_active: true
+        conditions:
+          field_name: benchmark_tested
+          operator: equals
+          value: true
+        actions:
+          - action_type: fixed_value
+            value_usd: 25.00
+            description: Performance verified
+
+  # Value Additions
+  - name: Value Additions
+    category: extras
+    description: Additional value-adds for budget systems
+    weight: 0.05
+    display_order: 7
+    rules:
+      - name: OS Included Bonus
+        description: Bonus for pre-installed OS
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: os_installed
+          operator: not_in
+          value: [No OS, Trial, Unlicensed]
+        actions:
+          - action_type: fixed_value
+            value_usd: 40.00
+            description: Licensed OS included
+
+      - name: Free Shipping Bonus
+        description: Bonus for free shipping
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: shipping_cost_usd
+          operator: equals
+          value: 0.0
+        actions:
+          - action_type: fixed_value
+            value_usd: 20.00
+            description: Free shipping value
+
+      - name: Local Pickup Bonus
+        description: Bonus for local pickup option
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: local_pickup_available
+          operator: equals
+          value: true
+        actions:
+          - action_type: fixed_value
+            value_usd: 15.00
+            description: Save on shipping
+
+      - name: Peripherals Included
+        description: Bonus for included peripherals
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: includes_peripherals
+          operator: equals
+          value: true
+        actions:
+          - action_type: fixed_value
+            value_usd: 35.00
+            description: Keyboard/mouse included
+
+      - name: Original Packaging Bonus
+        description: Bonus for original box
+        evaluation_order: 60
+        is_active: true
+        conditions:
+          field_name: has_original_packaging
+          operator: equals
+          value: true
+        actions:
+          - action_type: fixed_value
+            value_usd: 10.00
+            description: Original packaging preserved

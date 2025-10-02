@@ -305,6 +305,29 @@ test('weight configuration workflow')
   - Advanced topics (weighted scoring, custom fields, formula safety)
   - 518 lines, production-ready documentation
 
+#### Reference Libraries (4.6)
+- ✅ Created comprehensive reference libraries (`docs/examples/libraries/`)
+  - **Custom Fields Library** (42 field definitions)
+    - Physical condition, performance testing, storage details
+    - Networking, ports, power/cooling, aesthetics
+    - Market data, build quality, OS, special features
+  - **Valuation Rules Libraries** (3 complete rulesets, 85+ rules total)
+    - Gaming PC Rules: 6 groups, 30+ rules, $800-$3000 market
+    - Workstation Rules: 6 groups, 25+ rules, $1500-$8000 market
+    - Budget Value Rules: 7 groups, 30+ rules, $200-$800 market
+  - **Scoring Profiles Library** (14 pre-configured profiles)
+    - Gaming profiles (3): Performance, Competitive, SFF
+    - Content creation (2): Video editing, 3D rendering
+    - General purpose (3): Office, Student, HTPC
+    - Development (2): Software dev, AI/ML
+    - Specialized (4): Bargain hunter, Server, Balanced, Future-proof
+  - **Automated Import Script** (`scripts/import_libraries.py`)
+    - CLI tool for automated deployment imports
+    - Supports fields, rules, profiles
+    - Handles existing data (skip/update)
+    - Detailed progress reporting
+  - **Comprehensive Library README** with documentation, best practices, examples
+
 ### In Progress
 _None - Phase 4 core implementation complete_
 
@@ -408,10 +431,10 @@ _None_
 - [x] Common workflows - Included in user guide
 
 ### Examples
-- [ ] 10+ rule examples
-- [ ] 3+ ruleset packages
-- [ ] Common patterns
-- [ ] Best practices
+- [x] 10+ rule examples - 3 complete rulesets with 85+ rules
+- [x] 3+ ruleset packages - Gaming, Workstation, Budget rulesets
+- [x] Common patterns - Documented in library README
+- [x] Best practices - Included in library README and user guide
 
 ---
 

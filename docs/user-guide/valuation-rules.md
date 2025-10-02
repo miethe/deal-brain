@@ -504,12 +504,75 @@ The formula engine uses safe evaluation to prevent code injection:
 
 ---
 
+## Reference Libraries
+
+Deal Brain includes production-ready reference libraries with 85+ pre-built rules, 42 custom fields, and 14 scoring profiles:
+
+📂 **Location**: [docs/examples/libraries/](../examples/libraries/)
+
+### Available Libraries
+
+**Custom Fields** (`fields/listing-custom-fields.yaml`)
+- 42 field definitions organized by category
+- Cosmetic condition, warranty, benchmarking
+- Networking, ports, cooling, aesthetics
+- Seller ratings, shipping, OS licensing
+
+**Gaming PC Rules** (`rules/gaming-pc-rules.yaml`)
+- 6 rule groups, 30+ rules
+- CPU/GPU performance tiers
+- RAM capacity optimization
+- Storage speed premiums
+- Gaming features and RGB
+- Target: $800-$3,000 gaming systems
+
+**Workstation Rules** (`rules/workstation-rules.yaml`)
+- 6 rule groups, 25+ rules
+- Multi-core CPU performance
+- Professional GPU (Quadro/Radeon Pro)
+- High RAM capacity (128GB+)
+- Reliability and expansion features
+- Target: $1,500-$8,000 workstations
+
+**Budget Value Rules** (`rules/budget-value-rules.yaml`)
+- 7 rule groups, 30+ rules
+- Essential performance requirements
+- Value-focused adjustments
+- Connectivity and trust signals
+- Free shipping, peripherals bonuses
+- Target: $200-$800 budget systems
+
+**Scoring Profiles** (`profiles/scoring-profiles.yaml`)
+- 14 pre-configured profiles
+- Gaming, Content Creation, Development
+- Budget, HTPC, Server configurations
+- Custom metric and rule group weights
+
+### Quick Start
+
+```bash
+# Import all libraries
+poetry run python scripts/import_libraries.py --all
+
+# Import specific category
+poetry run python scripts/import_libraries.py --fields
+poetry run python scripts/import_libraries.py --rules
+poetry run python scripts/import_libraries.py --profiles
+
+# Import specific ruleset
+poetry run python scripts/import_libraries.py --ruleset gaming-pc-rules
+```
+
+**Detailed Documentation**: See [Library README](../examples/libraries/README.md)
+
+---
+
 ## Getting Help
 
 - **Documentation**: See [docs/](../../)
 - **API Reference**: `/api/docs`
 - **CLI Help**: `dealbrain-cli rules --help`
-- **Examples**: [docs/examples/rules/](../examples/rules/)
+- **Library Documentation**: [docs/examples/libraries/README.md](../examples/libraries/README.md)
 - **Issues**: [GitHub Issues](https://github.com/your-org/deal-brain/issues)
 
 ---

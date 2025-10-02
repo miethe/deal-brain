@@ -1,0 +1,305 @@
+# Scoring Profiles Library
+# Pre-configured scoring profiles for different use cases
+# Import via: poetry run dealbrain-cli import-profiles scoring-profiles.yaml
+
+profiles:
+  # Gaming Performance Profile
+  - name: Gaming Performance
+    description: Optimized for gaming performance and frame rates
+    is_active: true
+    metric_weights:
+      performance_score: 0.40
+      value_score: 0.25
+      condition_score: 0.15
+      features_score: 0.10
+      seller_trust_score: 0.10
+    rule_group_weights:
+      GPU Performance Tier: 0.35
+      CPU Performance Tier: 0.25
+      RAM Capacity & Speed: 0.15
+      Storage Performance: 0.10
+      Gaming Features: 0.08
+      Condition & Warranty: 0.07
+    metadata:
+      category: gaming
+      target_fps: 60+
+      resolution: 1080p-4K
+      use_cases: [aaa_gaming, esports, streaming]
+
+  - name: Competitive Gaming
+    description: Focus on high FPS for competitive gaming
+    is_active: true
+    metric_weights:
+      performance_score: 0.50
+      value_score: 0.20
+      condition_score: 0.10
+      features_score: 0.10
+      seller_trust_score: 0.10
+    rule_group_weights:
+      CPU Performance Tier: 0.40  # High CPU for FPS
+      GPU Performance Tier: 0.30
+      RAM Capacity & Speed: 0.15
+      Storage Performance: 0.10
+      Gaming Features: 0.05
+    metadata:
+      category: gaming
+      target_fps: 144+
+      resolution: 1080p-1440p
+      use_cases: [esports, competitive, fps_games]
+
+  # Content Creation Profiles
+  - name: Video Editing Workstation
+    description: Optimized for video editing and rendering
+    is_active: true
+    metric_weights:
+      performance_score: 0.45
+      value_score: 0.20
+      condition_score: 0.15
+      features_score: 0.12
+      seller_trust_score: 0.08
+    rule_group_weights:
+      CPU Multi-Core Performance: 0.35
+      Professional GPU: 0.25
+      RAM Capacity & Type: 0.20
+      Storage Performance & Capacity: 0.12
+      Professional Features: 0.05
+      Reliability Features: 0.03
+    metadata:
+      category: content_creation
+      software: [premiere_pro, davinci_resolve, final_cut]
+      use_cases: [4k_editing, color_grading, rendering]
+
+  - name: 3D Rendering Station
+    description: Heavy 3D rendering and CAD work
+    is_active: true
+    metric_weights:
+      performance_score: 0.50
+      value_score: 0.18
+      condition_score: 0.12
+      features_score: 0.12
+      seller_trust_score: 0.08
+    rule_group_weights:
+      CPU Multi-Core Performance: 0.40  # Critical for rendering
+      Professional GPU: 0.30
+      RAM Capacity & Type: 0.20
+      Storage Performance & Capacity: 0.07
+      Reliability Features: 0.03
+    metadata:
+      category: workstation
+      software: [blender, maya, 3ds_max, cinema4d]
+      use_cases: [3d_modeling, animation, rendering]
+
+  # General Purpose Profiles
+  - name: Home Office Productivity
+    description: General productivity and office work
+    is_active: true
+    metric_weights:
+      performance_score: 0.25
+      value_score: 0.35
+      condition_score: 0.20
+      features_score: 0.12
+      seller_trust_score: 0.08
+    rule_group_weights:
+      Essential Performance: 0.25
+      RAM Value: 0.20
+      Storage Value: 0.20
+      Essential Connectivity: 0.15
+      Graphics Value: 0.10
+      Condition & Seller Trust: 0.10
+    metadata:
+      category: productivity
+      software: [microsoft_office, google_workspace, zoom]
+      use_cases: [office_work, web_browsing, video_calls]
+
+  - name: Student Budget Build
+    description: Best value for student use
+    is_active: true
+    metric_weights:
+      performance_score: 0.20
+      value_score: 0.45
+      condition_score: 0.15
+      features_score: 0.12
+      seller_trust_score: 0.08
+    rule_group_weights:
+      Essential Performance: 0.22
+      RAM Value: 0.18
+      Storage Value: 0.22
+      Essential Connectivity: 0.12
+      Graphics Value: 0.12
+      Condition & Seller Trust: 0.09
+      Value Additions: 0.05
+    metadata:
+      category: budget
+      target_price: [300, 700]
+      use_cases: [homework, web_browsing, light_gaming, programming]
+
+  # Media & Entertainment
+  - name: Home Theater PC
+    description: Media streaming and entertainment center
+    is_active: true
+    metric_weights:
+      performance_score: 0.20
+      value_score: 0.30
+      condition_score: 0.20
+      features_score: 0.20
+      seller_trust_score: 0.10
+    rule_group_weights:
+      Graphics Value: 0.25  # 4K playback
+      Storage Value: 0.25    # Media library
+      Essential Connectivity: 0.20
+      Essential Performance: 0.15
+      RAM Value: 0.10
+      Condition & Seller Trust: 0.05
+    metadata:
+      category: htpc
+      form_factor: [HTPC, Mini ITX, SFF]
+      use_cases: [4k_streaming, media_server, plex]
+
+  # Development Profiles
+  - name: Software Development
+    description: Programming and software development
+    is_active: true
+    metric_weights:
+      performance_score: 0.35
+      value_score: 0.25
+      condition_score: 0.15
+      features_score: 0.15
+      seller_trust_score: 0.10
+    rule_group_weights:
+      CPU Multi-Core Performance: 0.30
+      RAM Capacity & Type: 0.25
+      Storage Performance & Capacity: 0.20
+      Essential Connectivity: 0.15
+      Professional Features: 0.10
+    metadata:
+      category: development
+      use_cases: [coding, compilation, docker, vms, testing]
+      software: [vscode, docker, kubernetes, databases]
+
+  - name: AI/ML Development
+    description: Machine learning and AI development
+    is_active: true
+    metric_weights:
+      performance_score: 0.50
+      value_score: 0.20
+      condition_score: 0.12
+      features_score: 0.12
+      seller_trust_score: 0.06
+    rule_group_weights:
+      Professional GPU: 0.40     # GPU compute critical
+      CPU Multi-Core Performance: 0.25
+      RAM Capacity & Type: 0.20
+      Storage Performance & Capacity: 0.10
+      Professional Features: 0.05
+    metadata:
+      category: ai_ml
+      use_cases: [deep_learning, training, inference, data_science]
+      frameworks: [pytorch, tensorflow, cuda]
+
+  # Specialized Profiles
+  - name: Compact SFF Premium
+    description: Small form factor with no compromises
+    is_active: true
+    metric_weights:
+      performance_score: 0.38
+      value_score: 0.22
+      condition_score: 0.18
+      features_score: 0.15
+      seller_trust_score: 0.07
+    rule_group_weights:
+      CPU Performance Tier: 0.28
+      GPU Performance Tier: 0.28
+      RAM Capacity & Speed: 0.15
+      Storage Performance: 0.12
+      Gaming Features: 0.10
+      Condition & Warranty: 0.07
+    metadata:
+      category: sff
+      form_factor: [Mini ITX, SFF, Ultra SFF]
+      use_cases: [compact_gaming, lan_parties, space_saving]
+
+  - name: Ultimate Bargain Hunter
+    description: Maximum value, accepting trade-offs
+    is_active: true
+    metric_weights:
+      performance_score: 0.15
+      value_score: 0.55
+      condition_score: 0.12
+      features_score: 0.10
+      seller_trust_score: 0.08
+    rule_group_weights:
+      Essential Performance: 0.20
+      Graphics Value: 0.18
+      RAM Value: 0.18
+      Storage Value: 0.22
+      Condition & Seller Trust: 0.12
+      Value Additions: 0.10
+    metadata:
+      category: budget
+      strategy: maximum_value
+      acceptable_condition: [good, fair]
+
+  # Server & Infrastructure
+  - name: Home Server Build
+    description: Home server and NAS applications
+    is_active: true
+    metric_weights:
+      performance_score: 0.30
+      value_score: 0.30
+      condition_score: 0.18
+      features_score: 0.15
+      seller_trust_score: 0.07
+    rule_group_weights:
+      CPU Multi-Core Performance: 0.25
+      RAM Capacity & Type: 0.25
+      Storage Performance & Capacity: 0.25
+      Professional Features: 0.15
+      Reliability Features: 0.10
+    metadata:
+      category: server
+      use_cases: [nas, plex, virtualization, file_server]
+      priority: [reliability, storage, connectivity]
+
+  # Balanced Profiles
+  - name: All-Around Balanced
+    description: Balanced for mixed use cases
+    is_active: true
+    metric_weights:
+      performance_score: 0.30
+      value_score: 0.30
+      condition_score: 0.18
+      features_score: 0.14
+      seller_trust_score: 0.08
+    rule_group_weights:
+      CPU Performance Tier: 0.20
+      GPU Performance Tier: 0.20
+      RAM Capacity & Speed: 0.15
+      Storage Performance: 0.15
+      Gaming Features: 0.12
+      Condition & Warranty: 0.10
+      Essential Connectivity: 0.08
+    metadata:
+      category: balanced
+      use_cases: [gaming, productivity, content_creation, general]
+
+  - name: Future-Proof Investment
+    description: Focus on longevity and upgrade path
+    is_active: true
+    metric_weights:
+      performance_score: 0.35
+      value_score: 0.20
+      condition_score: 0.20
+      features_score: 0.18
+      seller_trust_score: 0.07
+    rule_group_weights:
+      CPU Performance Tier: 0.25
+      GPU Performance Tier: 0.20
+      RAM Capacity & Speed: 0.15
+      Professional Features: 0.15  # Expansion slots
+      Storage Performance: 0.12
+      Gaming Features: 0.08
+      Condition & Warranty: 0.05
+    metadata:
+      category: investment
+      priority: [expandability, modern_standards, warranty]
+      upgrade_path: true

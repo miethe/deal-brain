@@ -1,0 +1,372 @@
+# Custom Field Definitions for Listings
+# These fields extend the base Listing model with common use cases
+# Import via: poetry run dealbrain-cli import-fields listing-custom-fields.yaml
+
+entity_type: listing
+
+fields:
+  # Physical Condition & Cosmetics
+  - name: cosmetic_condition
+    display_name: Cosmetic Condition
+    field_type: select
+    description: Physical appearance of the device
+    is_required: false
+    options:
+      - Pristine - No visible wear
+      - Excellent - Minor wear, no scratches
+      - Good - Light scratches, normal wear
+      - Fair - Visible scratches/scuffs
+      - Poor - Heavy wear, dents/damage
+    metadata:
+      category: condition
+      weight: 0.15
+
+  - name: has_original_packaging
+    display_name: Original Packaging
+    field_type: boolean
+    description: Includes original box and packaging
+    default_value: false
+    metadata:
+      category: accessories
+      value_impact: 20.00  # USD value
+
+  - name: warranty_months_remaining
+    display_name: Warranty Remaining
+    field_type: integer
+    description: Months of manufacturer warranty remaining
+    validation_rules:
+      min: 0
+      max: 60
+    metadata:
+      category: warranty
+      value_per_month: 2.50
+
+  # Performance & Testing
+  - name: benchmark_tested
+    display_name: Benchmark Tested
+    field_type: boolean
+    description: Has been benchmark tested and verified
+    default_value: false
+    metadata:
+      category: verification
+      trust_boost: 0.10
+
+  - name: stress_test_hours
+    display_name: Stress Test Duration
+    field_type: integer
+    description: Hours of stress testing performed
+    validation_rules:
+      min: 0
+      max: 168  # 1 week
+    metadata:
+      category: verification
+      quality_indicator: true
+
+  # Storage Details
+  - name: secondary_storage_type
+    display_name: Secondary Storage Type
+    field_type: select
+    description: Type of secondary storage drive
+    options:
+      - NVMe SSD
+      - SATA SSD
+      - M.2 SATA SSD
+      - HDD 7200RPM
+      - HDD 5400RPM
+      - None
+    default_value: None
+    metadata:
+      category: storage
+
+  - name: secondary_storage_capacity_gb
+    display_name: Secondary Storage Capacity (GB)
+    field_type: integer
+    description: Capacity of secondary storage in GB
+    validation_rules:
+      min: 0
+      max: 20000
+    metadata:
+      category: storage
+      unit: GB
+
+  # Networking
+  - name: wifi_standard
+    display_name: WiFi Standard
+    field_type: select
+    description: WiFi standard supported
+    options:
+      - WiFi 6E (802.11ax)
+      - WiFi 6 (802.11ax)
+      - WiFi 5 (802.11ac)
+      - WiFi 4 (802.11n)
+      - No WiFi
+    metadata:
+      category: connectivity
+
+  - name: ethernet_speed_gbps
+    display_name: Ethernet Speed (Gbps)
+    field_type: select
+    description: Maximum ethernet port speed
+    options:
+      - "10"
+      - "2.5"
+      - "1"
+      - "0"  # No ethernet
+    default_value: "1"
+    metadata:
+      category: connectivity
+
+  # Ports & Expansion
+  - name: usb_c_count
+    display_name: USB-C Ports
+    field_type: integer
+    description: Number of USB-C ports
+    validation_rules:
+      min: 0
+      max: 12
+    default_value: 0
+    metadata:
+      category: ports
+
+  - name: thunderbolt_count
+    display_name: Thunderbolt Ports
+    field_type: integer
+    description: Number of Thunderbolt ports
+    validation_rules:
+      min: 0
+      max: 8
+    default_value: 0
+    metadata:
+      category: ports
+      premium_feature: true
+
+  - name: pcie_slots_available
+    display_name: PCIe Slots Available
+    field_type: integer
+    description: Number of available PCIe expansion slots
+    validation_rules:
+      min: 0
+      max: 7
+    metadata:
+      category: expansion
+
+  # Power & Cooling
+  - name: psu_wattage
+    display_name: PSU Wattage
+    field_type: integer
+    description: Power supply unit wattage
+    validation_rules:
+      min: 0
+      max: 2000
+    metadata:
+      category: power
+      unit: Watts
+
+  - name: psu_efficiency_rating
+    display_name: PSU Efficiency Rating
+    field_type: select
+    description: 80 Plus efficiency certification
+    options:
+      - 80 Plus Titanium
+      - 80 Plus Platinum
+      - 80 Plus Gold
+      - 80 Plus Silver
+      - 80 Plus Bronze
+      - 80 Plus White
+      - Not Certified
+    metadata:
+      category: power
+
+  - name: cooling_solution
+    display_name: Cooling Solution
+    field_type: select
+    description: Primary cooling method
+    options:
+      - Custom Water Loop
+      - AIO Liquid Cooler (360mm+)
+      - AIO Liquid Cooler (280mm)
+      - AIO Liquid Cooler (240mm)
+      - AIO Liquid Cooler (120mm)
+      - Tower Air Cooler (High-End)
+      - Tower Air Cooler (Mid-Range)
+      - Stock Cooler
+      - Passive/Fanless
+    metadata:
+      category: cooling
+
+  # RGB & Aesthetics
+  - name: has_rgb_lighting
+    display_name: RGB Lighting
+    field_type: boolean
+    description: Includes RGB lighting system
+    default_value: false
+    metadata:
+      category: aesthetics
+
+  - name: case_form_factor
+    display_name: Case Form Factor
+    field_type: select
+    description: PC case size category
+    options:
+      - Full Tower
+      - Mid Tower
+      - Mini Tower
+      - Micro ATX
+      - Mini ITX
+      - SFF (Small Form Factor)
+      - Ultra SFF
+      - HTPC
+    metadata:
+      category: physical
+
+  # Market & Sales
+  - name: days_since_listing
+    display_name: Days Since Listed
+    field_type: integer
+    description: Number of days the listing has been active
+    validation_rules:
+      min: 0
+      max: 365
+    metadata:
+      category: market
+      freshness_indicator: true
+
+  - name: seller_rating
+    display_name: Seller Rating
+    field_type: decimal
+    description: Seller reputation score (0-5 stars)
+    validation_rules:
+      min: 0.0
+      max: 5.0
+    metadata:
+      category: trust
+
+  - name: number_of_reviews
+    display_name: Number of Reviews
+    field_type: integer
+    description: Number of seller reviews
+    validation_rules:
+      min: 0
+    metadata:
+      category: trust
+
+  - name: shipping_cost_usd
+    display_name: Shipping Cost (USD)
+    field_type: decimal
+    description: Shipping cost in USD
+    validation_rules:
+      min: 0.0
+      max: 500.0
+    metadata:
+      category: pricing
+
+  - name: local_pickup_available
+    display_name: Local Pickup Available
+    field_type: boolean
+    description: Can be picked up locally
+    default_value: false
+    metadata:
+      category: shipping
+
+  # Build Quality & Modifications
+  - name: is_prebuilt
+    display_name: Prebuilt System
+    field_type: boolean
+    description: Prebuilt by manufacturer vs custom built
+    default_value: true
+    metadata:
+      category: origin
+
+  - name: manufacturer
+    display_name: Manufacturer
+    field_type: text
+    description: System manufacturer (if prebuilt)
+    validation_rules:
+      max_length: 100
+    metadata:
+      category: origin
+
+  - name: has_custom_cables
+    display_name: Custom Cable Management
+    field_type: boolean
+    description: Includes custom sleeved cables
+    default_value: false
+    metadata:
+      category: aesthetics
+      premium_feature: true
+
+  - name: bios_updated
+    display_name: BIOS Updated
+    field_type: boolean
+    description: BIOS has been updated to latest version
+    default_value: false
+    metadata:
+      category: maintenance
+
+  # Operating System
+  - name: os_installed
+    display_name: Operating System
+    field_type: select
+    description: Pre-installed operating system
+    options:
+      - Windows 11 Pro
+      - Windows 11 Home
+      - Windows 10 Pro
+      - Windows 10 Home
+      - Linux
+      - macOS
+      - No OS
+    default_value: No OS
+    metadata:
+      category: software
+
+  - name: os_license_type
+    display_name: OS License Type
+    field_type: select
+    description: Operating system license status
+    options:
+      - Retail
+      - OEM
+      - Volume License
+      - Trial
+      - Unlicensed
+    metadata:
+      category: software
+
+  # Special Features
+  - name: has_tempered_glass
+    display_name: Tempered Glass Panel
+    field_type: boolean
+    description: Case includes tempered glass side panel
+    default_value: false
+    metadata:
+      category: aesthetics
+
+  - name: supports_dual_gpu
+    display_name: Dual GPU Support
+    field_type: boolean
+    description: System supports dual GPU configuration
+    default_value: false
+    metadata:
+      category: expansion
+
+  - name: includes_peripherals
+    display_name: Includes Peripherals
+    field_type: boolean
+    description: Includes keyboard, mouse, or other peripherals
+    default_value: false
+    metadata:
+      category: accessories
+
+  - name: refurbishment_grade
+    display_name: Refurbishment Grade
+    field_type: select
+    description: Professional refurbishment certification
+    options:
+      - Manufacturer Certified
+      - Professionally Refurbished
+      - Seller Refurbished
+      - Not Refurbished
+    default_value: Not Refurbished
+    metadata:
+      category: condition

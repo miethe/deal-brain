@@ -1,0 +1,439 @@
+# Gaming PC Valuation Rules
+# Comprehensive rule set for valuing gaming-focused systems
+# Import via: poetry run dealbrain-cli rules import gaming-pc-rules.yaml
+
+ruleset:
+  name: Gaming PC Valuation
+  version: 1.0.0
+  description: Comprehensive valuation rules for gaming PCs with performance and feature adjustments
+  is_active: true
+  metadata:
+    author: Deal Brain Team
+    category: gaming
+    target_market: gaming
+    last_updated: 2025-10-02
+
+rule_groups:
+  # CPU Performance Rules
+  - name: CPU Performance Tier
+    category: cpu
+    description: CPU performance-based value adjustments
+    weight: 0.25
+    display_order: 1
+    rules:
+      - name: Flagship CPU Premium
+        description: Premium for flagship-tier CPUs
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          logical_operator: OR
+          conditions:
+            - field_name: cpu.cpu_mark_multi
+              operator: greater_than
+              value: 45000
+            - field_name: cpu.cores
+              operator: greater_than_or_equal
+              value: 16
+        actions:
+          - action_type: fixed_value
+            value_usd: 150.00
+            description: Flagship CPU premium
+
+      - name: High-End CPU Premium
+        description: Premium for high-end gaming CPUs
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          logical_operator: AND
+          conditions:
+            - field_name: cpu.cpu_mark_multi
+              operator: between
+              value: [30000, 45000]
+            - field_name: cpu.cores
+              operator: greater_than_or_equal
+              value: 8
+        actions:
+          - action_type: fixed_value
+            value_usd: 100.00
+            description: High-end CPU premium
+
+      - name: Mid-Range CPU
+        description: Standard mid-range gaming CPU
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: cpu.cpu_mark_multi
+          operator: between
+          value: [20000, 30000]
+        actions:
+          - action_type: fixed_value
+            value_usd: 50.00
+            description: Mid-range CPU baseline
+
+      - name: Budget CPU Penalty
+        description: Deduction for budget gaming CPUs
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: cpu.cpu_mark_multi
+          operator: less_than
+          value: 15000
+        actions:
+          - action_type: fixed_value
+            value_usd: -75.00
+            description: Budget CPU penalty
+
+  # GPU Performance Rules
+  - name: GPU Performance Tier
+    category: gpu
+    description: GPU performance-based value adjustments
+    weight: 0.35
+    display_order: 2
+    rules:
+      - name: Enthusiast GPU Premium
+        description: Premium for enthusiast-grade GPUs
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: gpu.gpu_mark
+          operator: greater_than
+          value: 30000
+        actions:
+          - action_type: fixed_value
+            value_usd: 250.00
+            description: Enthusiast GPU premium
+
+      - name: High-End GPU Premium
+        description: Premium for high-end gaming GPUs
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: gpu.gpu_mark
+          operator: between
+          value: [20000, 30000]
+        actions:
+          - action_type: fixed_value
+            value_usd: 150.00
+            description: High-end GPU premium
+
+      - name: Mid-Range GPU
+        description: Standard mid-range GPU
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: gpu.gpu_mark
+          operator: between
+          value: [12000, 20000]
+        actions:
+          - action_type: fixed_value
+            value_usd: 75.00
+            description: Mid-range GPU baseline
+
+      - name: Entry-Level GPU Penalty
+        description: Deduction for entry-level GPUs
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: gpu.gpu_mark
+          operator: less_than
+          value: 8000
+        actions:
+          - action_type: fixed_value
+            value_usd: -50.00
+            description: Entry-level GPU penalty
+
+      - name: High VRAM Bonus
+        description: Bonus for high VRAM capacity
+        evaluation_order: 60
+        is_active: true
+        conditions:
+          field_name: gpu.vram_gb
+          operator: greater_than_or_equal
+          value: 16
+        actions:
+          - action_type: fixed_value
+            value_usd: 75.00
+            description: 16GB+ VRAM bonus
+
+  # RAM Configuration Rules
+  - name: RAM Capacity & Speed
+    category: ram
+    description: RAM-based value adjustments
+    weight: 0.15
+    display_order: 3
+    rules:
+      - name: High-Capacity RAM Premium
+        description: Premium for 64GB+ RAM
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: ram_gb
+          operator: greater_than_or_equal
+          value: 64
+        actions:
+          - action_type: per_unit
+            value_usd: 4.50
+            unit_type: ram_gb
+            description: $4.50/GB for high capacity
+
+      - name: Standard Gaming RAM
+        description: Standard 32GB gaming config
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: ram_gb
+          operator: equals
+          value: 32
+        actions:
+          - action_type: fixed_value
+            value_usd: 80.00
+            description: Optimal gaming RAM
+
+      - name: Adequate RAM
+        description: 16GB minimum for gaming
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: ram_gb
+          operator: equals
+          value: 16
+        actions:
+          - action_type: fixed_value
+            value_usd: 40.00
+            description: Adequate gaming RAM
+
+      - name: Insufficient RAM Penalty
+        description: Penalty for less than 16GB
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: ram_gb
+          operator: less_than
+          value: 16
+        actions:
+          - action_type: fixed_value
+            value_usd: -60.00
+            description: Insufficient RAM for gaming
+
+  # Storage Performance Rules
+  - name: Storage Performance
+    category: storage
+    description: Storage speed and capacity adjustments
+    weight: 0.10
+    display_order: 4
+    rules:
+      - name: Gen4 NVMe Premium
+        description: Premium for Gen4 NVMe SSDs
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: primary_storage_type
+          operator: contains
+          value: Gen4
+        actions:
+          - action_type: fixed_value
+            value_usd: 60.00
+            description: Gen4 NVMe speed premium
+
+      - name: NVMe SSD Standard
+        description: Standard NVMe SSD value
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: primary_storage_type
+          operator: contains
+          value: NVMe
+        actions:
+          - action_type: fixed_value
+            value_usd: 40.00
+            description: NVMe SSD baseline
+
+      - name: SATA SSD Penalty
+        description: Penalty for slower SATA SSD
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          logical_operator: AND
+          conditions:
+            - field_name: primary_storage_type
+              operator: contains
+              value: SATA
+            - field_name: primary_storage_type
+              operator: contains
+              value: SSD
+        actions:
+          - action_type: fixed_value
+            value_usd: -20.00
+            description: SATA SSD speed penalty
+
+      - name: HDD Penalty
+        description: Penalty for mechanical HDD
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: primary_storage_type
+          operator: contains
+          value: HDD
+        actions:
+          - action_type: fixed_value
+            value_usd: -80.00
+            description: HDD performance penalty
+
+      - name: Large Capacity Bonus
+        description: Bonus for 2TB+ primary storage
+        evaluation_order: 60
+        is_active: true
+        conditions:
+          field_name: primary_storage_capacity_gb
+          operator: greater_than_or_equal
+          value: 2000
+        actions:
+          - action_type: fixed_value
+            value_usd: 50.00
+            description: Large capacity bonus
+
+  # Condition & Quality Rules
+  - name: Condition & Warranty
+    category: condition
+    description: Physical condition and warranty adjustments
+    weight: 0.08
+    display_order: 5
+    rules:
+      - name: New Condition Premium
+        description: Premium for new/unused systems
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: condition
+          operator: equals
+          value: new
+        actions:
+          - action_type: multiplier
+            value_usd: 1.20
+            description: 20% premium for new condition
+
+      - name: Like-New Premium
+        description: Premium for like-new systems
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: condition
+          operator: equals
+          value: like_new
+        actions:
+          - action_type: multiplier
+            value_usd: 1.10
+            description: 10% premium for like-new
+
+      - name: Good Condition Standard
+        description: Standard pricing for good condition
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: condition
+          operator: in
+          value: [good, used]
+        actions:
+          - action_type: multiplier
+            value_usd: 1.00
+            description: Baseline for good condition
+
+      - name: Fair Condition Penalty
+        description: Penalty for fair condition
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: condition
+          operator: equals
+          value: fair
+        actions:
+          - action_type: multiplier
+            value_usd: 0.85
+            description: 15% penalty for fair condition
+
+      - name: Warranty Remaining Bonus
+        description: Bonus for remaining warranty
+        evaluation_order: 60
+        is_active: true
+        conditions:
+          field_name: warranty_months_remaining
+          operator: greater_than
+          value: 0
+        actions:
+          - action_type: per_unit
+            value_usd: 3.00
+            unit_type: warranty_months_remaining
+            description: $3/month warranty value
+
+  # Features & Connectivity
+  - name: Gaming Features
+    category: features
+    description: Gaming-specific features and connectivity
+    weight: 0.07
+    display_order: 6
+    rules:
+      - name: WiFi 6E Premium
+        description: Premium for latest WiFi standard
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: wifi_standard
+          operator: contains
+          value: WiFi 6E
+        actions:
+          - action_type: fixed_value
+            value_usd: 40.00
+            description: WiFi 6E premium
+
+      - name: WiFi 6 Standard
+        description: Standard WiFi 6 value
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: wifi_standard
+          operator: contains
+          value: WiFi 6
+        actions:
+          - action_type: fixed_value
+            value_usd: 20.00
+            description: WiFi 6 baseline
+
+      - name: Thunderbolt Support Premium
+        description: Premium for Thunderbolt connectivity
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: thunderbolt_count
+          operator: greater_than
+          value: 0
+        actions:
+          - action_type: per_unit
+            value_usd: 30.00
+            unit_type: thunderbolt_count
+            description: $30 per Thunderbolt port
+
+      - name: RGB Lighting Bonus
+        description: Small bonus for RGB lighting
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: has_rgb_lighting
+          operator: equals
+          value: true
+        actions:
+          - action_type: fixed_value
+            value_usd: 25.00
+            description: RGB aesthetics bonus
+
+      - name: Tempered Glass Bonus
+        description: Bonus for tempered glass case
+        evaluation_order: 60
+        is_active: true
+        conditions:
+          field_name: has_tempered_glass
+          operator: equals
+          value: true
+        actions:
+          - action_type: fixed_value
+            value_usd: 15.00
+            description: Premium case materials

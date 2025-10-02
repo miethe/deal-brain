@@ -1,0 +1,446 @@
+# Workstation PC Valuation Rules
+# Professional workstation valuation focusing on reliability and productivity
+# Import via: poetry run dealbrain-cli rules import workstation-rules.yaml
+
+ruleset:
+  name: Workstation Valuation
+  version: 1.0.0
+  description: Professional workstation valuation emphasizing reliability, multi-core performance, and ECC support
+  is_active: true
+  metadata:
+    author: Deal Brain Team
+    category: professional
+    target_market: workstation
+    use_cases: [content_creation, 3d_rendering, video_editing, cad, development]
+    last_updated: 2025-10-02
+
+rule_groups:
+  # CPU Multi-Core Performance
+  - name: CPU Multi-Core Performance
+    category: cpu
+    description: Multi-threaded performance for professional workloads
+    weight: 0.30
+    display_order: 1
+    rules:
+      - name: HEDT CPU Premium
+        description: Premium for High-End Desktop CPUs (32+ cores)
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          logical_operator: AND
+          conditions:
+            - field_name: cpu.cores
+              operator: greater_than_or_equal
+              value: 32
+            - field_name: cpu.cpu_mark_multi
+              operator: greater_than
+              value: 60000
+        actions:
+          - action_type: fixed_value
+            value_usd: 300.00
+            description: HEDT workstation premium
+
+      - name: High Core Count Premium
+        description: Premium for 24-32 core CPUs
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          logical_operator: AND
+          conditions:
+            - field_name: cpu.cores
+              operator: between
+              value: [24, 31]
+            - field_name: cpu.cpu_mark_multi
+              operator: greater_than
+              value: 50000
+        actions:
+          - action_type: fixed_value
+            value_usd: 200.00
+            description: High core count premium
+
+      - name: Professional CPU Standard
+        description: Standard professional 16-24 core
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          logical_operator: AND
+          conditions:
+            - field_name: cpu.cores
+              operator: between
+              value: [16, 23]
+            - field_name: cpu.cpu_mark_multi
+              operator: greater_than
+              value: 35000
+        actions:
+          - action_type: fixed_value
+            value_usd: 120.00
+            description: Professional CPU baseline
+
+      - name: Mid-Range Workstation
+        description: Mid-range 12-16 core workstation
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: cpu.cores
+          operator: between
+          value: [12, 15]
+        actions:
+          - action_type: fixed_value
+            value_usd: 60.00
+            description: Mid-range workstation CPU
+
+      - name: Insufficient Cores Penalty
+        description: Penalty for less than 12 cores
+        evaluation_order: 60
+        is_active: true
+        conditions:
+          field_name: cpu.cores
+          operator: less_than
+          value: 12
+        actions:
+          - action_type: fixed_value
+            value_usd: -80.00
+            description: Insufficient cores for professional work
+
+  # GPU Professional Performance
+  - name: Professional GPU
+    category: gpu
+    description: Professional GPU for content creation and CAD
+    weight: 0.25
+    display_order: 2
+    rules:
+      - name: Quadro/Radeon Pro Premium
+        description: Premium for professional GPU cards
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          logical_operator: OR
+          conditions:
+            - field_name: gpu.name
+              operator: contains
+              value: Quadro
+            - field_name: gpu.name
+              operator: contains
+              value: RTX A
+            - field_name: gpu.name
+              operator: contains
+              value: Radeon Pro
+        actions:
+          - action_type: fixed_value
+            value_usd: 200.00
+            description: Professional GPU certification premium
+
+      - name: High VRAM for 3D Work
+        description: Premium for high VRAM (24GB+)
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: gpu.vram_gb
+          operator: greater_than_or_equal
+          value: 24
+        actions:
+          - action_type: fixed_value
+            value_usd: 150.00
+            description: High VRAM for complex scenes
+
+      - name: Adequate VRAM
+        description: Standard 16GB VRAM for workstation
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: gpu.vram_gb
+          operator: between
+          value: [16, 23]
+        actions:
+          - action_type: fixed_value
+            value_usd: 80.00
+            description: Adequate VRAM baseline
+
+      - name: Dual GPU Support Bonus
+        description: Bonus for dual GPU capability
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: supports_dual_gpu
+          operator: equals
+          value: true
+        actions:
+          - action_type: fixed_value
+            value_usd: 100.00
+            description: Multi-GPU rendering capability
+
+  # RAM Capacity Rules
+  - name: RAM Capacity & Type
+    category: ram
+    description: Large RAM capacity for professional applications
+    weight: 0.20
+    display_order: 3
+    rules:
+      - name: Massive RAM Premium
+        description: Premium for 128GB+ RAM
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: ram_gb
+          operator: greater_than_or_equal
+          value: 128
+        actions:
+          - action_type: per_unit
+            value_usd: 5.00
+            unit_type: ram_gb
+            description: $5/GB for massive capacity
+
+      - name: High-Capacity RAM
+        description: 64-128GB RAM standard
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: ram_gb
+          operator: between
+          value: [64, 127]
+        actions:
+          - action_type: per_unit
+            value_usd: 4.00
+            unit_type: ram_gb
+            description: $4/GB for high capacity
+
+      - name: Standard Workstation RAM
+        description: 32-64GB workstation standard
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: ram_gb
+          operator: between
+          value: [32, 63]
+        actions:
+          - action_type: fixed_value
+            value_usd: 100.00
+            description: Standard workstation RAM
+
+      - name: Insufficient RAM Penalty
+        description: Penalty for less than 32GB
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: ram_gb
+          operator: less_than
+          value: 32
+        actions:
+          - action_type: fixed_value
+            value_usd: -120.00
+            description: Insufficient RAM for professional work
+
+  # Storage Configuration
+  - name: Storage Performance & Capacity
+    category: storage
+    description: Fast storage for large project files
+    weight: 0.12
+    display_order: 4
+    rules:
+      - name: Dual NVMe Configuration
+        description: Premium for dual NVMe drives
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          logical_operator: AND
+          conditions:
+            - field_name: primary_storage_type
+              operator: contains
+              value: NVMe
+            - field_name: secondary_storage_type
+              operator: contains
+              value: NVMe
+        actions:
+          - action_type: fixed_value
+            value_usd: 120.00
+            description: Dual NVMe performance config
+
+      - name: Large Primary Storage
+        description: Premium for 4TB+ primary storage
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: primary_storage_capacity_gb
+          operator: greater_than_or_equal
+          value: 4000
+        actions:
+          - action_type: fixed_value
+            value_usd: 100.00
+            description: Large project storage
+
+      - name: NVMe Primary Standard
+        description: Standard NVMe primary drive
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          logical_operator: AND
+          conditions:
+            - field_name: primary_storage_type
+              operator: contains
+              value: NVMe
+            - field_name: primary_storage_capacity_gb
+              operator: greater_than_or_equal
+              value: 1000
+        actions:
+          - action_type: fixed_value
+            value_usd: 60.00
+            description: Fast primary storage
+
+      - name: Secondary Storage Bonus
+        description: Bonus for large secondary storage
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: secondary_storage_capacity_gb
+          operator: greater_than_or_equal
+          value: 2000
+        actions:
+          - action_type: fixed_value
+            value_usd: 50.00
+            description: Additional project storage
+
+  # Reliability & Build Quality
+  - name: Reliability Features
+    category: reliability
+    description: Features that improve reliability and uptime
+    weight: 0.08
+    display_order: 5
+    rules:
+      - name: Manufacturer Certified
+        description: Premium for manufacturer certification
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: refurbishment_grade
+          operator: equals
+          value: Manufacturer Certified
+        actions:
+          - action_type: multiplier
+            value_usd: 1.15
+            description: 15% premium for certification
+
+      - name: Extended Warranty Premium
+        description: Premium for extended warranty
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: warranty_months_remaining
+          operator: greater_than_or_equal
+          value: 24
+        actions:
+          - action_type: per_unit
+            value_usd: 4.00
+            unit_type: warranty_months_remaining
+            description: $4/month for extended warranty
+
+      - name: Stress Tested Bonus
+        description: Bonus for stress testing
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: stress_test_hours
+          operator: greater_than_or_equal
+          value: 48
+        actions:
+          - action_type: fixed_value
+            value_usd: 75.00
+            description: Verified stability premium
+
+      - name: BIOS Updated Bonus
+        description: Bonus for updated BIOS
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: bios_updated
+          operator: equals
+          value: true
+        actions:
+          - action_type: fixed_value
+            value_usd: 25.00
+            description: Latest firmware/security
+
+  # Professional Features
+  - name: Professional Features
+    category: features
+    description: Features important for professional workflows
+    weight: 0.05
+    display_order: 6
+    rules:
+      - name: 10GbE Network Premium
+        description: Premium for 10 Gigabit Ethernet
+        evaluation_order: 100
+        is_active: true
+        conditions:
+          field_name: ethernet_speed_gbps
+          operator: equals
+          value: "10"
+        actions:
+          - action_type: fixed_value
+            value_usd: 80.00
+            description: 10GbE for fast file transfers
+
+      - name: 2.5GbE Network Bonus
+        description: Bonus for 2.5 Gigabit Ethernet
+        evaluation_order: 90
+        is_active: true
+        conditions:
+          field_name: ethernet_speed_gbps
+          operator: equals
+          value: "2.5"
+        actions:
+          - action_type: fixed_value
+            value_usd: 30.00
+            description: 2.5GbE network upgrade
+
+      - name: Thunderbolt Professional
+        description: Premium for Thunderbolt (fast external storage)
+        evaluation_order: 80
+        is_active: true
+        conditions:
+          field_name: thunderbolt_count
+          operator: greater_than_or_equal
+          value: 2
+        actions:
+          - action_type: fixed_value
+            value_usd: 60.00
+            description: Professional I/O connectivity
+
+      - name: PCIe Expansion Slots
+        description: Bonus for expansion capability
+        evaluation_order: 70
+        is_active: true
+        conditions:
+          field_name: pcie_slots_available
+          operator: greater_than_or_equal
+          value: 3
+        actions:
+          - action_type: per_unit
+            value_usd: 15.00
+            unit_type: pcie_slots_available
+            description: $15 per expansion slot
+
+      - name: High Wattage PSU
+        description: Bonus for high-capacity PSU
+        evaluation_order: 60
+        is_active: true
+        conditions:
+          field_name: psu_wattage
+          operator: greater_than_or_equal
+          value: 1000
+        actions:
+          - action_type: fixed_value
+            value_usd: 50.00
+            description: High-capacity PSU for expansion
+
+      - name: Platinum/Titanium PSU
+        description: Premium for high-efficiency PSU
+        evaluation_order: 50
+        is_active: true
+        conditions:
+          field_name: psu_efficiency_rating
+          operator: in
+          value: [80 Plus Platinum, 80 Plus Titanium]
+        actions:
+          - action_type: fixed_value
+            value_usd: 40.00
+            description: Premium efficiency PSU
