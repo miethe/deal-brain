@@ -8,10 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import session_dependency
 from ..services.custom_fields import CustomFieldService, FieldDependencyError, UNSET
 from .schemas.custom_fields import (
+    AddFieldOptionRequest,
     CustomFieldCreateRequest,
     CustomFieldListResponse,
     CustomFieldResponse,
     CustomFieldUpdateRequest,
+    FieldOptionResponse,
 )
 
 router = APIRouter(prefix="/v1/reference/custom-fields", tags=["custom-fields"])
@@ -100,6 +102,49 @@ async def update_custom_field(
         ) from exc
     return CustomFieldResponse.model_validate(record)
 
+
+@router.post("/{field_id}/options", response_model=FieldOptionResponse, status_code=status.HTTP_201_CREATED)
+async def add_field_option(
+    field_id: int,
+    request: AddFieldOptionRequest,
+    db: AsyncSession = Depends(session_dependency),
+) -> FieldOptionResponse:
+    """Add a new option to a dropdown or multi-select field.
+
+    This endpoint allows inline creation of dropdown options from the UI.
+    The option will be immediately available for selection.
+
+    Args:
+        field_id: ID of the field to add the option to
+        request: Request containing the option value
+        db: Database session
+
+    Returns:
+        Updated field with all current options
+
+    Raises:
+        404: Field not found
+        400: Invalid field type or duplicate option
+    """
+    try:
+        record = await service.add_field_option(
+            db,
+            field_id=field_id,
+            value=request.value,
+            actor=None,  # TODO: Get from auth context
+        )
+        await db.commit()
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    return FieldOptionResponse(
+        field_id=record.id,
+        entity=record.entity,
+        key=record.key,
+        options=list(record.options or []),
+    )
 
 
 @router.delete("/{field_id}", status_code=status.HTTP_204_NO_CONTENT)

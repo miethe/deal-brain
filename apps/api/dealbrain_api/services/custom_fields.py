@@ -294,6 +294,68 @@ class CustomFieldService:
             )
         return record
 
+    async def add_field_option(
+        self,
+        db: AsyncSession,
+        *,
+        field_id: int,
+        value: str,
+        actor: str | None = None,
+    ) -> CustomFieldDefinition:
+        """Add an option to a dropdown/multi-select field.
+
+        Args:
+            db: Database session
+            field_id: ID of the field to modify
+            value: Option value to add
+            actor: Username of user making the change
+
+        Returns:
+            Updated field definition
+
+        Raises:
+            LookupError: If field not found
+            ValueError: If field type doesn't support options or value already exists
+        """
+        record = await self.get_field(db, field_id)
+
+        # Validate field type supports options
+        if record.data_type not in {"enum", "multi_select"}:
+            raise ValueError(
+                f"Cannot add options to field of type '{record.data_type}'. "
+                "Only 'enum' and 'multi_select' fields support options."
+            )
+
+        # Get current options
+        current_options = list(record.options or [])
+
+        # Check if option already exists
+        if value in current_options:
+            raise ValueError(f"Option '{value}' already exists in field '{record.key}'")
+
+        # Add new option
+        current_options.append(value)
+        record.options = current_options
+
+        await db.flush()
+        await db.refresh(record)
+
+        # Audit logging
+        self._write_audit_event(
+            db,
+            field_id=record.id,
+            action="option_added",
+            actor=actor,
+            payload={"option": value, "total_options": len(current_options)},
+        )
+
+        self._emit_event(
+            "field_definition.option_added",
+            {"field_id": record.id, "entity": record.entity, "option": value},
+        )
+
+        return record
+
     async def delete_field(
         self,
         db: AsyncSession,

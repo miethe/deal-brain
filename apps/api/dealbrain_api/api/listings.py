@@ -21,11 +21,13 @@ from ..services.listings import (
     update_listing,
 )
 from .schemas.listings import (
+    AppliedRuleDetail,
     ListingBulkUpdateRequest,
     ListingBulkUpdateResponse,
     ListingFieldSchema,
     ListingPartialUpdateRequest,
     ListingSchemaResponse,
+    ValuationBreakdownResponse,
 )
 from .schemas.custom_fields import CustomFieldResponse
 
@@ -214,4 +216,62 @@ async def bulk_update_listings_endpoint(
     return ListingBulkUpdateResponse(
         updated=[ListingRead.model_validate(listing) for listing in listings],
         updated_count=len(listings),
+    )
+
+
+@router.get("/{listing_id}/valuation-breakdown", response_model=ValuationBreakdownResponse)
+async def get_valuation_breakdown(
+    listing_id: int,
+    session: AsyncSession = Depends(session_dependency),
+) -> ValuationBreakdownResponse:
+    """Get detailed valuation breakdown for a listing.
+
+    This endpoint returns the detailed breakdown of how a listing's adjusted price
+    was calculated, including all applied rules and their individual contributions.
+
+    Args:
+        listing_id: ID of the listing to get breakdown for
+        session: Database session
+
+    Returns:
+        Detailed valuation breakdown
+
+    Raises:
+        404: Listing not found
+    """
+    # Get listing
+    result = await session.execute(
+        select(Listing).where(Listing.id == listing_id)
+    )
+    listing = result.scalar_one_or_none()
+
+    if not listing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Listing {listing_id} not found"
+        )
+
+    # Parse valuation breakdown JSON
+    breakdown = listing.valuation_breakdown or {}
+
+    # Format applied rules
+    applied_rules = []
+    for rule_data in breakdown.get("applied_rules", []):
+        applied_rules.append(AppliedRuleDetail(
+            rule_group_name=rule_data.get("group_name", "Unknown"),
+            rule_name=rule_data.get("rule_name", "Unknown"),
+            rule_description=rule_data.get("description"),
+            adjustment_amount=rule_data.get("adjustment", 0.0),
+            conditions_met=rule_data.get("conditions_met", []),
+            actions_applied=rule_data.get("actions_applied", []),
+        ))
+
+    return ValuationBreakdownResponse(
+        listing_id=listing.id,
+        listing_title=listing.title,
+        base_price_usd=listing.price_usd or 0.0,
+        adjusted_price_usd=listing.adjusted_price_usd or listing.price_usd or 0.0,
+        total_adjustment=breakdown.get("total_adjustment", 0.0),
+        active_ruleset=breakdown.get("ruleset_name", "None"),
+        applied_rules=applied_rules,
     )

@@ -51,7 +51,21 @@ Phase 2.3 - Dropdown Field Integration:
 - Integrated ComboBox with inline option creation
 - Added confirmation dialog for new options
 
+Phase 3 - Backend API Extensions:
+- Added POST /v1/reference/custom-fields/{field_id}/options endpoint
+- Created AddFieldOptionRequest and FieldOptionResponse schemas
+- Implemented add_field_option service method with validation
+- Added GET /v1/listings/{listing_id}/valuation-breakdown endpoint
+- Created ValuationBreakdownResponse and AppliedRuleDetail schemas
+- Discovered valuation rules CRUD APIs already fully implemented
+
+## Backend API Status
+- Custom Fields: Full CRUD + inline option creation ✅
+- Valuation Rules: Full CRUD + preview/evaluation ✅
+- Listings: Full CRUD + valuation breakdown ✅
+
 ## Next Actions
-1. Test and validate all Phase 1 & 2 features
-2. Commit Phase 1 & 2 changes
-3. Begin Phase 3 (Backend API Extensions) if requested
+1. Phase 4: Global Fields UI Enhancements
+2. Phase 5: Valuation Rules UI Implementation
+3. Phase 6: Listings Valuation Column
+4. Test and validate all features

@@ -29,10 +29,25 @@ class CustomFieldListResponse(BaseModel):
     fields: list[CustomFieldResponse] = Field(default_factory=list)
 
 
+class AddFieldOptionRequest(BaseModel):
+    """Request to add an option to a dropdown/multi-select field"""
+    value: str = Field(..., min_length=1, description="Option value to add")
+
+
+class FieldOptionResponse(BaseModel):
+    """Response with updated field options"""
+    field_id: int
+    entity: str
+    key: str
+    options: list[str]
+
+
 __all__ = [
     "CustomFieldCreateRequest",
     "CustomFieldUpdateRequest",
     "CustomFieldResponse",
     "CustomFieldListResponse",
+    "AddFieldOptionRequest",
+    "FieldOptionResponse",
 ]
 
