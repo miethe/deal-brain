@@ -4,6 +4,7 @@ import {
   type ColumnDef,
   type ColumnFiltersState,
   type ColumnSizingState,
+  type PaginationState,
   type Row,
   type SortingState,
   type Table as TableInstance,
@@ -11,13 +12,16 @@ import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   getSortedRowModel,
   useReactTable
 } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import { cn } from "../../lib/utils";
 import { Input } from "./input";
+import { Button } from "./button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
 
 const DEFAULT_ROW_HEIGHT = 44;
@@ -25,8 +29,12 @@ const COMPACT_ROW_HEIGHT = 36;
 const HEADER_HEIGHT = 52;
 const MIN_TABLE_HEIGHT = 240;
 const MAX_TABLE_HEIGHT = 640;
-const VIRTUALIZATION_THRESHOLD = 80;
-const OVERSCAN_ROWS = 8;
+const VIRTUALIZATION_THRESHOLD = 100;
+const OVERSCAN_ROWS = 10;
+const DEFAULT_PAGE_SIZE = 50;
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
+const MIN_COLUMN_WIDTH = 80;
+const COLUMN_RESIZE_DEBOUNCE_MS = 150;
 
 interface ColumnOption {
   label: string;
@@ -37,6 +45,17 @@ interface ColumnMetaConfig {
   tooltip?: string;
   filterType?: "text" | "number" | "select" | "multi-select" | "boolean";
   options?: ColumnOption[];
+}
+
+interface PaginationConfig {
+  pageSize?: number;
+  pageSizeOptions?: number[];
+  defaultPageIndex?: number;
+}
+
+interface StickyColumnConfig {
+  columnId: string;
+  position: "left" | "right";
 }
 
 interface DataGridProps<TData> {
@@ -55,6 +74,8 @@ interface DataGridProps<TData> {
   onCellEdit?: (rowId: string | number, columnId: string, value: any) => Promise<void>;
   enableRowSelection?: boolean;
   onRowSelectionChange?: (selectedRows: TData[]) => void;
+  pagination?: PaginationConfig | false;
+  stickyColumns?: StickyColumnConfig[];
 }
 
 interface VirtualizationState<TData> {
@@ -78,6 +99,16 @@ function useColumnSizingPersistence<TData>(
   storageKey?: string
 ) {
   const hydratedRef = useRef(false);
+
+  // Debounced save to localStorage
+  const debouncedSave = useDebouncedCallback(
+    (sizing: ColumnSizingState) => {
+      if (!storageKey || typeof window === "undefined") return;
+      const key = `${storageKey}:columnSizing`;
+      window.localStorage.setItem(key, JSON.stringify(sizing));
+    },
+    COLUMN_RESIZE_DEBOUNCE_MS
+  );
 
   useEffect(() => {
     if (!table || !storageKey) return;
@@ -103,9 +134,8 @@ function useColumnSizingPersistence<TData>(
     if (!table || !storageKey) return;
     if (typeof window === "undefined" || !hydratedRef.current) return;
 
-    const key = `${storageKey}:columnSizing`;
-    window.localStorage.setItem(key, JSON.stringify(columnSizing));
-  }, [columnSizing, storageKey, table]);
+    debouncedSave(columnSizing);
+  }, [columnSizing, storageKey, table, debouncedSave]);
 }
 
 function useVirtualization<TData>(
@@ -161,6 +191,34 @@ function useVirtualization<TData>(
 function resolveRowHeight(density: "comfortable" | "compact", estimated?: number): number {
   if (estimated) return estimated;
   return density === "compact" ? COMPACT_ROW_HEIGHT : DEFAULT_ROW_HEIGHT;
+}
+
+function getStickyColumnStyles(
+  columnId: string,
+  stickyColumns: StickyColumnConfig[],
+  columnSizing: ColumnSizingState
+): React.CSSProperties {
+  const config = stickyColumns.find((c) => c.columnId === columnId);
+  if (!config) return {};
+
+  // Calculate offset based on columns before this one
+  const samePositionCols = stickyColumns.filter((c) => c.position === config.position);
+  const index = samePositionCols.findIndex((c) => c.columnId === columnId);
+
+  let offset = 0;
+  for (let i = 0; i < index; i++) {
+    const colId = samePositionCols[i].columnId;
+    offset += columnSizing[colId] || 150; // Default width if not sized
+  }
+
+  return {
+    position: "sticky",
+    [config.position]: offset,
+    zIndex: config.position === "left" ? 10 : 11,
+    backgroundColor: "hsl(var(--background))",
+    borderRight: config.position === "left" ? "1px solid hsl(var(--border))" : "none",
+    borderLeft: config.position === "right" ? "1px solid hsl(var(--border))" : "none",
+  };
 }
 
 function renderFilterControl<TData>(
@@ -296,12 +354,20 @@ export function DataGrid<TData>({
   estimatedRowHeight,
   virtualizationThreshold = VIRTUALIZATION_THRESHOLD,
   density = "comfortable",
+  pagination,
+  stickyColumns = [],
 }: DataGridProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const [filterSearch, setFilterSearch] = useState<Record<string, string>>({});
+
+  const paginationConfig = pagination === false ? null : pagination;
+  const [paginationState, setPaginationState] = useState<PaginationState>({
+    pageIndex: paginationConfig?.defaultPageIndex ?? 0,
+    pageSize: paginationConfig?.pageSize ?? DEFAULT_PAGE_SIZE,
+  });
 
   const internalTable = useReactTable({
     data: data ?? [],
@@ -311,15 +377,19 @@ export function DataGrid<TData>({
       columnFilters,
       columnVisibility,
       columnSizing,
+      ...(paginationConfig && { pagination: paginationState }),
     },
     columnResizeMode: "onChange",
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnSizingChange: setColumnSizing,
+    ...(paginationConfig && { onPaginationChange: setPaginationState }),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: enableFilters ? getFilteredRowModel() : undefined,
+    ...(paginationConfig && { getPaginationRowModel: getPaginationRowModel() }),
+    manualPagination: false,
   });
 
   const resolvedTable = table ?? internalTable;
@@ -368,11 +438,12 @@ export function DataGrid<TData>({
                   const tooltipContent = meta?.tooltip ?? (typeof header.column.columnDef.header === "string"
                     ? header.column.columnDef.header
                     : undefined);
+                  const stickyStyles = getStickyColumnStyles(header.column.id, stickyColumns, columnSizingState);
                   return (
                     <TableHead
                       key={header.id}
                       className="whitespace-nowrap border-b border-border bg-background px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                      style={{ width: header.getSize() }}
+                      style={{ width: header.getSize(), ...stickyStyles }}
                       title={tooltipContent}
                     >
                       <div className="flex items-center gap-2">
@@ -409,14 +480,15 @@ export function DataGrid<TData>({
             {renderFilterRow ? (
               <TableRow key="filters" className="border-0">
                 {headerGroups[0]?.headers.map((header) => {
+                  const stickyStyles = getStickyColumnStyles(header.column.id, stickyColumns, columnSizingState);
                   if (!header.column.getCanFilter()) {
-                    return <TableHead key={header.id} className="p-0" style={{ width: header.getSize() }} />;
+                    return <TableHead key={header.id} className="p-0" style={{ width: header.getSize(), ...stickyStyles }} />;
                   }
                   const meta = header.column.columnDef.meta as ColumnMetaConfig | undefined;
                   const filterValue = header.column.getFilterValue();
                   const searchValue = filterSearch[header.column.id] ?? "";
                   return (
-                    <TableHead key={header.id} className="bg-muted/20 px-2 py-2" style={{ width: header.getSize() }}>
+                    <TableHead key={header.id} className="bg-muted/20 px-2 py-2" style={{ width: header.getSize(), ...stickyStyles }}>
                       {renderFilterControl(
                         header.column,
                         meta,
@@ -455,11 +527,18 @@ export function DataGrid<TData>({
                     className="hover:bg-muted/40"
                     style={{ minHeight: rowHeight }}
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} style={{ width: cell.column.getSize() }} className="align-top text-sm">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
+                    {row.getVisibleCells().map((cell) => {
+                      const stickyStyles = getStickyColumnStyles(cell.column.id, stickyColumns, columnSizingState);
+                      return (
+                        <TableCell
+                          key={cell.id}
+                          style={{ width: cell.column.getSize(), ...stickyStyles }}
+                          className="align-top text-sm"
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
                 ))}
                 {virtualization.enabled && virtualization.paddingBottom > 0 ? (
@@ -481,8 +560,100 @@ export function DataGrid<TData>({
           </TableBody>
         </Table>
       </div>
+      {paginationConfig && (
+        <PaginationControls
+          table={resolvedTable}
+          pageSizeOptions={paginationConfig.pageSizeOptions ?? PAGE_SIZE_OPTIONS}
+        />
+      )}
     </div>
   );
 }
 
-export type { ColumnMetaConfig };
+interface PaginationControlsProps<TData> {
+  table: TableInstance<TData>;
+  pageSizeOptions: number[];
+}
+
+function PaginationControls<TData>({
+  table,
+  pageSizeOptions,
+}: PaginationControlsProps<TData>) {
+  const pageCount = table.getPageCount();
+  const pageIndex = table.getState().pagination.pageIndex;
+  const pageSize = table.getState().pagination.pageSize;
+  const totalRows = table.getFilteredRowModel().rows.length;
+
+  const startRow = pageIndex * pageSize + 1;
+  const endRow = Math.min((pageIndex + 1) * pageSize, totalRows);
+
+  return (
+    <div className="flex items-center justify-between gap-4 border-t bg-background px-4 py-3">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span>
+          Showing {startRow} to {endRow} of {totalRows} rows
+        </span>
+      </div>
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Rows per page:</span>
+          <select
+            className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+            value={pageSize}
+            onChange={(e) => {
+              table.setPageSize(Number(e.target.value));
+            }}
+          >
+            {pageSizeOptions.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.setPageIndex(0)}
+            disabled={!table.getCanPreviousPage()}
+          >
+            {"<<"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+          >
+            {"<"}
+          </Button>
+          <span className="flex items-center gap-1 px-2 text-sm">
+            <span>Page</span>
+            <strong>
+              {pageIndex + 1} of {pageCount}
+            </strong>
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+          >
+            {">"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.setPageIndex(pageCount - 1)}
+            disabled={!table.getCanNextPage()}
+          >
+            {">>"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export type { ColumnMetaConfig, PaginationConfig, StickyColumnConfig };
