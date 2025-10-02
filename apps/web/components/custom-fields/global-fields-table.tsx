@@ -11,6 +11,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
+import { Lock } from "lucide-react";
+
 import { track } from "../../lib/analytics";
 import { ApiError, apiFetch, cn } from "../../lib/utils";
 import { Badge } from "../ui/badge";
@@ -21,6 +23,7 @@ import { ModalShell } from "../ui/modal-shell";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { DropdownOptionsBuilder } from "./dropdown-options-builder";
 
 interface FieldValidation {
   pattern?: string;
@@ -42,6 +45,7 @@ interface FieldRecord {
   default_value?: unknown;
   options?: string[] | null;
   is_active: boolean;
+  is_locked: boolean;
   visibility: string;
   created_by?: string | null;
   validation?: FieldValidation | null;
@@ -120,6 +124,7 @@ interface FieldFormValues {
   display_order: number;
   default_value: string;
   optionsText: string;
+  allowMultiple: boolean;
   validationMin: string;
   validationMax: string;
   validationMinLength: string;
@@ -153,7 +158,7 @@ const DATA_TYPE_LABELS: Record<string, string> = {
 };
 
 const ENTITY_OPTIONS = Object.keys(ENTITY_LABELS);
-const TYPE_OPTIONS = ["string", "text", "number", "boolean", "enum", "multi_select", "json"];
+const TYPE_OPTIONS = ["string", "text", "number", "boolean", "enum", "json"];
 
 const STATUS_OPTIONS: FieldStatus[] = ["active", "inactive", "deleted"];
 
@@ -169,6 +174,7 @@ const DEFAULT_FORM: FieldFormValues = {
   display_order: 100,
   default_value: "",
   optionsText: "",
+  allowMultiple: false,
   validationMin: "",
   validationMax: "",
   validationMinLength: "",
@@ -299,6 +305,11 @@ export function GlobalFieldsTable({ entity, hideEntityPicker = false }: GlobalFi
             <div className="flex items-center gap-2">
               <span className="font-medium">{row.original.label}</span>
               {row.original.id < 0 ? <Badge variant="outline" className="text-[10px] uppercase">System</Badge> : null}
+              {row.original.is_locked ? (
+                <div className="flex items-center gap-1 text-muted-foreground" title="Core field - entity, key, and type cannot be changed">
+                  <Lock className="h-3 w-3" />
+                </div>
+              ) : null}
             </div>
             <span className="text-xs text-muted-foreground">{row.original.description || "No description"}</span>
           </div>
@@ -888,6 +899,16 @@ function WizardBasics({
             </option>
           ))}
         </select>
+        {values.data_type === "enum" && (
+          <label className="flex items-center gap-2 text-sm mt-2">
+            <input
+              type="checkbox"
+              checked={values.allowMultiple}
+              onChange={(event) => onChange({ ...values, allowMultiple: event.target.checked })}
+            />
+            Allow Multiple Selections
+          </label>
+        )}
       </div>
       <div className="grid gap-2">
         <Label>Description</Label>
@@ -948,25 +969,26 @@ function WizardBasics({
 }
 
 function WizardValidation({ values, onChange }: { values: FieldFormValues; onChange: (value: FieldFormValues) => void }) {
-  const handleOptionChange = (text: string) => {
-    onChange({ ...values, optionsText: text });
+  const handleOptionsChange = (options: string[]) => {
+    onChange({ ...values, optionsText: options.join("\n") });
   };
 
   const isEnumerated = values.data_type === "enum" || values.data_type === "multi_select";
   const supportsLengths = values.data_type === "string" || values.data_type === "text";
 
+  // Parse options from optionsText
+  const currentOptions = values.optionsText
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
   return (
     <div className="grid gap-4">
       {isEnumerated && (
-        <div className="grid gap-2">
-          <Label>Options</Label>
-          <textarea
-            className="min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={values.optionsText}
-            onChange={(event) => handleOptionChange(event.target.value)}
-            placeholder="Enter one option per line"
-          />
-        </div>
+        <DropdownOptionsBuilder
+          options={currentOptions}
+          onChange={handleOptionsChange}
+        />
       )}
 
       {values.data_type === "number" && (
@@ -1107,11 +1129,16 @@ function slugify(value: string): string {
 
 function fromFieldRecord(field: FieldRecord): FieldFormValues {
   const validation = (field.validation ?? {}) as FieldValidation;
+
+  // Convert multi_select back to enum + allowMultiple checkbox
+  const isMultiSelect = field.data_type === "multi_select";
+  const dataType = isMultiSelect ? "enum" : field.data_type;
+
   return {
     entity: field.entity,
     label: field.label,
     key: field.key,
-    data_type: field.data_type,
+    data_type: dataType,
     description: field.description ?? "",
     required: field.required,
     visibility: field.visibility,
@@ -1119,6 +1146,7 @@ function fromFieldRecord(field: FieldRecord): FieldFormValues {
     display_order: field.display_order,
     default_value: field.default_value != null ? String(field.default_value) : "",
     optionsText: (field.options ?? []).join("\n"),
+    allowMultiple: isMultiSelect,
     validationMin: validation.min != null ? String(validation.min) : "",
     validationMax: validation.max != null ? String(validation.max) : "",
     validationMinLength: validation.min_length != null ? String(validation.min_length) : "",
@@ -1130,11 +1158,16 @@ function fromFieldRecord(field: FieldRecord): FieldFormValues {
 function toPayload(values: FieldFormValues, isEdit: true): FieldUpdatePayload;
 function toPayload(values: FieldFormValues, isEdit: false): FieldCreatePayload;
 function toPayload(values: FieldFormValues, isEdit: boolean): FieldCreatePayload | FieldUpdatePayload {
+  // Convert enum + allowMultiple to multi_select
+  const dataType = values.data_type === "enum" && values.allowMultiple
+    ? "multi_select"
+    : values.data_type;
+
   const base: FieldCreatePayload = {
     entity: values.entity,
     key: values.key,
     label: values.label,
-    data_type: values.data_type,
+    data_type: dataType,
     description: values.description || null,
     required: values.required,
     default_value: parseDefault(values),

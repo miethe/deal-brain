@@ -64,8 +64,17 @@ Phase 3 - Backend API Extensions:
 - Valuation Rules: Full CRUD + preview/evaluation ✅
 - Listings: Full CRUD + valuation breakdown ✅
 
+Phase 4 - Global Fields UI Enhancements:
+- Removed "Multi-select" from field type dropdown
+- Added "Allow Multiple Selections" checkbox (shows when type is enum)
+- Converts enum + allowMultiple to multi_select on save
+- Created DropdownOptionsBuilder with drag-and-drop reordering
+- Added CSV import for bulk option creation
+- Added Lock icon indicator for core/locked fields
+- Replaced textarea with visual options builder
+
 ## Next Actions
-1. Phase 4: Global Fields UI Enhancements
-2. Phase 5: Valuation Rules UI Implementation
-3. Phase 6: Listings Valuation Column
-4. Test and validate all features
+1. Phase 5: Valuation Rules UI Implementation
+2. Phase 6: Listings Valuation Column
+3. Test and validate all features
+4. Create comprehensive completion summary
