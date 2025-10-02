@@ -164,11 +164,48 @@ After comprehensive review of PRD, Implementation Plan, and completed phases, th
 - Phase 6: ✅ Complete (Listings Valuation Column)
 - Phase 7: ✅ Complete (Multi-Pane Layout & Static Nav)
 
-## Next Actions
-1. Create and execute remediation plan for identified gaps
-2. Implement RAM/Storage dropdowns with inline option creation in listings table
-3. Fix column width wrapping/minimum width enforcement
-4. Enhance EditableCell to use ComboBox for dropdown fields with inline creation
-5. Standardize modal styling across valuation rules modals
-6. Install @dnd-kit/utilities dependency (if still needed)
-7. Final testing and commit
+## Remediation Complete ✅ (10-2-2025)
+
+All identified gaps have been successfully addressed and committed:
+
+### Completed Remediation Tasks:
+1. ✅ **Modal Styling Standardization**
+   - All valuation rule modals now have consistent px-6 py-4 padding
+   - Form content properly wrapped in containers
+   - Professional, cohesive appearance across all dialogs
+
+2. ✅ **Column Width Constraints**
+   - Title column enforces 200px minimum width
+   - Text wrapping enabled for Title column
+   - Visual indicator (amber dashed border) when at constraint
+   - Prevents text truncation on important fields
+
+3. ✅ **ComboBox Integration**
+   - Existing ComboBox component integrated into EditableCell
+   - Works for all dropdown fields (enum, number with options)
+   - Inline option creation with confirmation dialog
+   - Auto-refresh after new option added
+
+4. ✅ **RAM/Storage Dropdowns**
+   - RAM (GB): 9 common values (4, 8, 16, 24, 32, 48, 64, 96, 128)
+   - Storage (GB): 6 common values (128, 256, 512, 1024, 2048, 4096)
+   - Both support custom values via inline creation
+   - Confirmation dialog before adding to global fields
+
+### Additional Fixes:
+- Added forwardRef to Input component
+- Created popover.tsx (Radix UI wrapper)
+- Fixed DialogClose export in dialog.tsx
+- Fixed TypeScript errors in data-grid
+- Fixed weight-config Button variant
+
+### Build Status: ✅ Passing
+- All TypeScript errors resolved
+- No compilation warnings affecting functionality
+- Production build successful
+
+## Commit: a41fec9
+feat: Complete UI enhancements remediation
+
+## Final Status
+All Phases 1-7 complete with gaps remediated. Project ready for production.
