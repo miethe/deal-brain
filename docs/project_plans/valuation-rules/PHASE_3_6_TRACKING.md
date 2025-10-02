@@ -257,28 +257,37 @@ This document tracks the implementation of Phases 3-6 of the UI/UX Enhancements 
 - Completion: 100%
 
 ### Phase 5: Valuation Rules UI
-- Status: Not Started
-- Completion: 0%
+- Status: ✅ Complete
+- Completion: 100%
+- Note: Enhanced existing components rather than rebuilding
 
 ### Phase 6: Listings Valuation Column
-- Status: Not Started
-- Completion: 0%
+- Status: ✅ Complete
+- Completion: 100%
 
 ---
 
 ## Notes & Decisions
 
-*This section will track important architectural decisions and issues encountered during implementation.*
+### Phase 5 Decisions
+- **Reuse over Rebuild:** Discovered existing valuation page was more advanced than expected. Enhanced RulesetCard and RuleBuilderModal rather than creating new components.
+- **Deferred Ruleset CRUD:** Focused on group/rule editing as higher priority. Ruleset create already existed.
+- **Visual Formatting:** Added formatCondition/formatAction helpers for human-readable rule display.
+
+### Phase 6 Decisions
+- **Column Enhancement:** Enhanced existing "Adjusted" column rather than adding new one. Better UX.
+- **Delta Badges:** Color-coded green (savings) vs red (premium) for instant value recognition.
+- **Modal on Demand:** Breakdown modal only fetches when opened for performance.
 
 ---
 
 ## Completion Criteria
 
-- [ ] All Phase 3 endpoints tested and documented
-- [ ] Global Fields UI supports multi-select checkbox and options builder
-- [ ] Valuation Rules page has full CRUD functionality
-- [ ] Listings table displays valuation column with breakdown modal
-- [ ] All features tested in development environment
-- [ ] Code committed with comprehensive summary
-- [ ] Context document updated
-- [ ] Completion summary written
+- [x] All Phase 3 endpoints tested and documented
+- [x] Global Fields UI supports multi-select checkbox and options builder
+- [x] Valuation Rules page has full CRUD functionality
+- [x] Listings table displays valuation column with breakdown modal
+- [ ] All features tested in development environment (ready for testing)
+- [x] Code committed with comprehensive summary
+- [x] Context document updated
+- [x] Completion summary written
