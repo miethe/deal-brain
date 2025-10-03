@@ -209,3 +209,81 @@ feat: Complete UI enhancements remediation
 
 ## Final Status
 All Phases 1-7 complete with gaps remediated. Project ready for production.
+
+## Enhanced Rule Builder (10-3-2025)
+
+Implemented Phases 1 & 2 of Enhanced Rule Builder feature per PRD and implementation plan:
+
+### Phase 1: Foundation ✅
+**Backend:**
+- Created FieldMetadataService with 12 operators (equals, not_equals, greater_than, less_than, gte, lte, contains, starts_with, ends_with, in, not_in, between)
+- Added GET /entities/metadata endpoint with structured entity/field metadata
+- Integrated with FieldRegistry for custom listing fields
+- Added CPU and GPU entity metadata
+
+**Frontend:**
+- EntityFieldSelector: Searchable popover with entity grouping, 5-min React Query cache
+- ValueInput: Polymorphic input adapting to field type (string, number, enum, boolean, multi-value)
+- RulePreviewPanel: Shows matched count, avg adjustment, sample listings with before/after pricing
+- Command component: cmdk wrapper for searchable dropdowns
+- TypeScript API client in lib/api/entities.ts
+
+### Phase 2: Advanced Logic ✅
+**Backend:**
+- ConditionNode class for recursive evaluation in packages/core/dealbrain_core/rule_evaluator.py
+- Supports dot notation (e.g., "listing.cpu.cpu_mark_multi")
+- All 12 operators with null-safe comparisons
+- AND/OR logical operators for condition groups
+- Database already supports parent_condition_id for hierarchy
+
+**Frontend:**
+- ConditionGroup: Drag-and-drop nested groups (@dnd-kit)
+  - Nesting limited to 2 levels for UX
+  - AND/OR toggle with visual badge
+  - Keyboard + pointer sensor support
+  - Visual indentation (depth * 24px)
+- ConditionRow: Field selector + operator + polymorphic value input
+- ActionBuilder: Enhanced with condition multipliers
+  - 5 action types: fixed_value, per_unit, percentage, benchmark_based, formula
+  - Multipliers: new (1.0), refurb (0.75), used (0.6)
+  - Grid layout with validation
+
+**Integration:**
+- Replaced simple builders in RuleBuilderModal with advanced components
+- Cleaned up unused handlers and duplicate constants
+- All TypeScript compilation passing
+
+### Remaining Work:
+- Backend service integration for nested condition persistence
+- Rule preview service integration with ConditionNode evaluator
+- Unit and integration tests
+- Phase 3: Versioning & history features
+
+### Files Created:
+- `apps/api/dealbrain_api/api/entities.py`
+- `apps/api/dealbrain_api/services/field_metadata.py`
+- `apps/web/components/ui/command.tsx`
+- `apps/web/components/valuation/entity-field-selector.tsx`
+- `apps/web/components/valuation/value-input.tsx`
+- `apps/web/components/valuation/rule-preview-panel.tsx`
+- `apps/web/components/valuation/condition-row.tsx`
+- `apps/web/components/valuation/condition-group.tsx`
+- `apps/web/components/valuation/action-builder.tsx`
+- `apps/web/lib/api/entities.ts`
+- `packages/core/dealbrain_core/rule_evaluator.py`
+- `.claude/progress/enhanced-rule-builder-progress.md`
+
+### Files Modified:
+- `apps/api/dealbrain_api/api/__init__.py`
+- `apps/web/components/valuation/rule-builder-modal.tsx`
+
+### Commit: 230c4f9
+feat: Implement Enhanced Rule Builder Phases 1 & 2
+
+### Key Learnings:
+1. @dnd-kit provides excellent drag-and-drop with accessibility (keyboard sensors)
+2. Polymorphic components reduce code duplication (ValueInput adapts to 5+ field types)
+3. React Query caching reduces API load (5-min stale time for metadata)
+4. Nested component architecture enables recursive UI (ConditionGroup renders itself)
+5. Database schema already well-designed for nested conditions (parent_condition_id)
+6. Dot notation field access enables flexible condition evaluation across entities
