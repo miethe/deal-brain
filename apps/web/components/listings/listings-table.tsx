@@ -508,7 +508,7 @@ export function ListingsTable() {
       });
 
     return [...baseColumns, ...editableColumns];
-  }, [cpuOptions, fieldConfigs, fieldMap, handleInlineSave, handleCreateOption, inlineMutation.isPending]);
+  }, [cpuOptions, fieldConfigs, fieldMap, handleInlineSave, handleCreateOption, inlineMutation.isPending, thresholds]);
 
   const table = useReactTable({
     data: filteredListings,

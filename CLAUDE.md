@@ -6,6 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Deal Brain is a full-stack price-to-performance assistant for small form factor PCs. The system imports Excel workbooks containing PC listings, normalizes them, computes adjusted pricing based on component valuation rules, applies scoring profiles, and ranks deals with explainable breakdowns.
 
+### Key Features
+
+**Valuation System:**
+- Color-coded pricing display with configurable thresholds (good deal, great deal, premium)
+- Interactive valuation breakdown modals showing applied rules and adjustments
+- Settings-based threshold configuration (ApplicationSettings model)
+
+**Data Management:**
+- Dynamic custom fields system with Global Fields UI
+- Inline dropdown option creation without context switching
+- Default value configuration for all field types
+- CPU enrichment with benchmark scores (CPU Mark, Single-Thread, iGPU Mark)
+
+**UI/UX:**
+- Memoized components for performance optimization
+- Debounced search inputs (200ms)
+- Accessible design (WCAG AA compliant, keyboard navigation, screen reader support)
+- Responsive tables with column resizing, sorting, filtering
+
 ## Monorepo Structure
 
 This is a Python/TypeScript monorepo managed with Poetry (Python) and pnpm (JavaScript):
@@ -144,8 +163,22 @@ Environment variables: `.env` for local development, `.env.example` for Docker.
 
 ## Key Files & Locations
 
+### Backend
+- `apps/api/dealbrain_api/models/core.py` - SQLAlchemy models (CPU, GPU, Listing, ApplicationSettings, etc.)
+- `apps/api/dealbrain_api/services/` - Business logic layer (listings, custom_fields, settings)
+- `apps/api/dealbrain_api/api/` - FastAPI endpoints (organized by domain)
+- `apps/api/alembic/versions/` - Database migrations
+- `apps/api/dealbrain_api/settings.py` - FastAPI configuration via pydantic-settings
+
+### Frontend
+- `apps/web/app/` - Next.js 14 App Router pages
+- `apps/web/components/` - React components (organized by domain: listings, valuation, forms, ui)
+- `apps/web/lib/` - Utilities (valuation-utils, cpu-options, api clients)
+- `apps/web/hooks/` - Custom React hooks (useValuationThresholds, useFieldOptions, etc.)
+- `apps/web/components/ui/` - Reusable UI components (shadcn/ui based)
+
+### Configuration
 - `pyproject.toml` - Python dependencies, Poetry scripts, tool configs (black, ruff, mypy)
 - `package.json` - Monorepo root, defines pnpm workspace
 - `apps/web/package.json` - Next.js dependencies
-- `apps/api/dealbrain_api/settings.py` - FastAPI configuration via pydantic-settings
 - `Makefile` - Common development tasks

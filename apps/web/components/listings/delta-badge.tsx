@@ -1,6 +1,8 @@
 /**
  * Delta badge component for displaying savings/premium indicators
+ * Memoized for performance optimization
  */
+import { memo } from 'react';
 import { ArrowDown, ArrowUp, Minus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/valuation-utils';
@@ -13,7 +15,7 @@ interface DeltaBadgeProps {
   className?: string;
 }
 
-export function DeltaBadge({ delta, percent, icon, className }: DeltaBadgeProps) {
+function DeltaBadgeComponent({ delta, percent, icon, className }: DeltaBadgeProps) {
   const IconComponent =
     icon === 'arrow-down' ? ArrowDown :
     icon === 'arrow-up' ? ArrowUp :
@@ -35,3 +37,6 @@ export function DeltaBadge({ delta, percent, icon, className }: DeltaBadgeProps)
     </Badge>
   );
 }
+
+// Memoize to prevent re-renders when props haven't changed
+export const DeltaBadge = memo(DeltaBadgeComponent);

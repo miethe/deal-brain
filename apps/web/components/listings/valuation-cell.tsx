@@ -1,8 +1,10 @@
 /**
  * Valuation cell component with color-coded pricing display
+ * Memoized for performance in large tables
  */
 'use client';
 
+import { memo } from 'react';
 import { Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DeltaBadge } from './delta-badge';
@@ -16,7 +18,7 @@ interface ValuationCellProps {
   onDetailsClick: () => void;
 }
 
-export function ValuationCell({
+function ValuationCellComponent({
   adjustedPrice,
   listPrice,
   thresholds,
@@ -48,3 +50,6 @@ export function ValuationCell({
     </div>
   );
 }
+
+// Memoize to prevent re-renders when props haven't changed
+export const ValuationCell = memo(ValuationCellComponent);
