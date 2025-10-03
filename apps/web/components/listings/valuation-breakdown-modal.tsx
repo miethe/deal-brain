@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, TrendingDown, TrendingUp } from "lucide-react";
+import { ChevronDown, ChevronRight, TrendingDown, TrendingUp, ExternalLink } from "lucide-react";
+import Link from "next/link";
 
 import {
   Dialog,
@@ -13,7 +14,11 @@ import {
 } from "../ui/dialog";
 import { Badge } from "../ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import { Separator } from "../ui/separator";
 import { apiFetch } from "../../lib/utils";
+import { ValuationCell } from "./valuation-cell";
+import { useValuationThresholds } from "@/hooks/use-valuation-thresholds";
 
 interface AppliedRuleDetail {
   rule_group_name: string;
@@ -39,6 +44,7 @@ interface ValuationBreakdownModalProps {
   onOpenChange: (open: boolean) => void;
   listingId: number;
   listingTitle: string;
+  thumbnailUrl?: string | null;
 }
 
 export function ValuationBreakdownModal({
@@ -46,8 +52,10 @@ export function ValuationBreakdownModal({
   onOpenChange,
   listingId,
   listingTitle,
+  thumbnailUrl,
 }: ValuationBreakdownModalProps) {
   const [expandedRules, setExpandedRules] = useState<Set<number>>(new Set());
+  const { data: thresholds } = useValuationThresholds();
 
   const { data: breakdown, isLoading } = useQuery<ValuationBreakdown>({
     queryKey: ["valuation-breakdown", listingId],
@@ -78,61 +86,50 @@ export function ValuationBreakdownModal({
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Valuation Breakdown</DialogTitle>
-          <DialogDescription>{listingTitle}</DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
           <div className="py-12 text-center text-muted-foreground">Loading breakdown...</div>
         ) : breakdown ? (
           <div className="space-y-6">
-            {/* Summary Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Pricing Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Base Price</span>
-                  <span className="font-medium">{formatCurrency(breakdown.base_price_usd)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Total Adjustment</span>
-                  <div className="flex items-center gap-2">
-                    {breakdown.total_adjustment < 0 ? (
-                      <>
-                        <TrendingDown className="h-4 w-4 text-green-600" />
-                        <span className="font-medium text-green-600">
-                          {formatCurrency(breakdown.total_adjustment)}
-                        </span>
-                      </>
-                    ) : breakdown.total_adjustment > 0 ? (
-                      <>
-                        <TrendingUp className="h-4 w-4 text-red-600" />
-                        <span className="font-medium text-red-600">
-                          +{formatCurrency(breakdown.total_adjustment)}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="font-medium">{formatCurrency(0)}</span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between border-t pt-3">
-                  <span className="font-medium">Adjusted Price</span>
-                  <span className="text-lg font-bold">
-                    {formatCurrency(breakdown.adjusted_price_usd)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>Active Ruleset:</span>
-                  <Badge variant="outline">{breakdown.active_ruleset}</Badge>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Listing Header with Thumbnail and Valuation */}
+            <div className="flex items-start gap-4">
+              {thumbnailUrl && (
+                <img
+                  src={thumbnailUrl}
+                  alt={listingTitle}
+                  className="w-24 h-24 object-cover rounded-lg border"
+                />
+              )}
+              <div className="flex-1 space-y-2">
+                <h3 className="font-semibold text-lg">{listingTitle}</h3>
+                {thresholds && (
+                  <ValuationCell
+                    adjustedPrice={breakdown.adjusted_price_usd}
+                    listPrice={breakdown.base_price_usd}
+                    thresholds={thresholds}
+                    onDetailsClick={() => {}} // Already in details view
+                  />
+                )}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Base Price */}
+            <div>
+              <h4 className="font-medium mb-2 text-sm text-muted-foreground">Base Price</h4>
+              <p className="text-2xl font-semibold">{formatCurrency(breakdown.base_price_usd)}</p>
+            </div>
 
             {/* Applied Rules */}
             <div>
-              <h3 className="text-sm font-medium mb-3">Applied Rules</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium text-sm text-muted-foreground">Applied Rules</h4>
+                <Badge variant="outline" className="text-xs">
+                  {breakdown.active_ruleset}
+                </Badge>
+              </div>
               {breakdown.applied_rules.length === 0 ? (
                 <div className="text-sm text-muted-foreground text-center py-8 border rounded-lg">
                   No rules applied to this listing
@@ -227,6 +224,26 @@ export function ValuationBreakdownModal({
                   })}
                 </div>
               )}
+            </div>
+
+            <Separator />
+
+            {/* Final Summary */}
+            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+              <span className="font-semibold">Adjusted Price</span>
+              <span className="text-2xl font-bold">
+                {formatCurrency(breakdown.adjusted_price_usd)}
+              </span>
+            </div>
+
+            {/* Link to full breakdown page */}
+            <div className="flex justify-center">
+              <Button asChild variant="ghost" size="sm">
+                <Link href={`/listings/${listingId}`} className="flex items-center gap-2">
+                  View Full Details
+                  <ExternalLink className="h-4 w-4" />
+                </Link>
+              </Button>
             </div>
           </div>
         ) : (

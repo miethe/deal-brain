@@ -434,3 +434,11 @@ class CustomFieldAttributeHistory(Base, TimestampMixin):
         Index("ix_custom_field_attribute_history_field", "field_id", "created_at"),
         Index("ix_custom_field_attribute_history_entity_record", "entity", "record_id"),
     )
+
+
+class ApplicationSettings(Base, TimestampMixin):
+    __tablename__ = "application_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)

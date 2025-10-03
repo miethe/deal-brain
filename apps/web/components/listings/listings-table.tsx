@@ -27,12 +27,15 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
 import { ValuationBreakdownModal } from "./valuation-breakdown-modal";
+import { ValuationCell } from "./valuation-cell";
 import { ComboBox } from "../forms/combobox";
 import { useConfirmation } from "../ui/confirmation-dialog";
+import { useValuationThresholds } from "@/hooks/use-valuation-thresholds";
 
 interface ListingRow extends ListingRecord {
   cpu_name?: string | null;
   gpu_name?: string | null;
+  thumbnail_url?: string | null;
 }
 
 interface BulkEditState {
@@ -126,6 +129,7 @@ const numericFilterFn: FilterFn<ListingRow> = (row, columnId, filterValue) => {
 export function ListingsTable() {
   const queryClient = useQueryClient();
   const { confirm, dialog: confirmationDialog } = useConfirmation();
+  const { data: thresholds } = useValuationThresholds();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = useState<SortingState>([{ id: "title", desc: false }]);
   const [grouping, setGrouping] = useState<GroupingState>([]);
@@ -140,6 +144,7 @@ export function ListingsTable() {
   const [selectedListingForBreakdown, setSelectedListingForBreakdown] = useState<{
     id: number;
     title: string;
+    thumbnailUrl?: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -419,33 +424,26 @@ export function ListingsTable() {
         cell: ({ row }) => {
           const adjustedPrice = Number(row.original.adjusted_price_usd ?? 0);
           const listPrice = Number(row.original.price_usd ?? 0);
-          const delta = adjustedPrice - listPrice;
-          const hasDelta = Math.abs(delta) > 0.01;
+
+          if (!thresholds) {
+            // Fallback while loading thresholds
+            return <span className="font-medium">{formatCurrency(adjustedPrice)}</span>;
+          }
 
           return (
-            <div
-              className="flex flex-col gap-1 cursor-pointer hover:underline"
-              onClick={() => {
+            <ValuationCell
+              adjustedPrice={adjustedPrice}
+              listPrice={listPrice}
+              thresholds={thresholds}
+              onDetailsClick={() => {
                 setSelectedListingForBreakdown({
                   id: row.original.id,
                   title: row.original.title || "Untitled",
+                  thumbnailUrl: row.original.thumbnail_url,
                 });
                 setBreakdownModalOpen(true);
               }}
-              title="Click to view valuation breakdown"
-            >
-              <span className="font-medium">{formatCurrency(adjustedPrice)}</span>
-              {hasDelta && (
-                <Badge
-                  variant={delta < 0 ? "default" : "destructive"}
-                  className="text-xs w-fit"
-                >
-                  {delta < 0 ? "-" : "+"}
-                  {formatCurrency(Math.abs(delta))}
-                  {delta < 0 ? " (savings)" : " (premium)"}
-                </Badge>
-              )}
-            </div>
+            />
           );
         },
         enableSorting: true,
@@ -453,10 +451,10 @@ export function ListingsTable() {
         enableColumnFilter: true,
         meta: {
           filterType: "number",
-          tooltip: "Adjusted price based on active ruleset (click for breakdown)",
+          tooltip: "Adjusted price based on active ruleset. Click for breakdown.",
         },
         filterFn: numericFilterFn,
-        size: 160,
+        size: 200,
       },
       {
         header: "$/CPU Mark",
@@ -646,6 +644,7 @@ export function ListingsTable() {
           onOpenChange={setBreakdownModalOpen}
           listingId={selectedListingForBreakdown.id}
           listingTitle={selectedListingForBreakdown.title}
+          thumbnailUrl={selectedListingForBreakdown.thumbnailUrl}
         />
       )}
 

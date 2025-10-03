@@ -17,8 +17,11 @@ interface ComboBoxProps {
   value: string;
   onChange: (value: string) => void;
   onCreateOption?: (value: string) => Promise<void>;
+  fieldId?: number; // For automatic option creation via API
+  fieldName?: string; // For confirmation dialog display
   placeholder?: string;
   allowCustom?: boolean;
+  enableInlineCreate?: boolean;
   disabled?: boolean;
   className?: string;
 }
@@ -28,8 +31,11 @@ export function ComboBox({
   value,
   onChange,
   onCreateOption,
+  fieldId,
+  fieldName,
   placeholder = "Select option...",
   allowCustom = false,
+  enableInlineCreate = true,
   disabled = false,
   className,
 }: ComboBoxProps) {
@@ -99,10 +105,10 @@ export function ComboBox({
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Search..."
+            placeholder=""
             value={search}
             onValueChange={setSearch}
-            className="h-9"
+            className="border-0 focus:ring-0 px-3 py-2 h-9"
           />
           <CommandEmpty>
             {showCreateOption ? (
