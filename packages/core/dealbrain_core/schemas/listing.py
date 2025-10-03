@@ -8,6 +8,7 @@ from typing import Any
 from pydantic import Field
 
 from .base import DealBrainModel
+from .catalog import CpuRead, GpuRead
 from ..enums import ComponentType, Condition, ListingStatus
 
 
@@ -73,6 +74,8 @@ class ListingRead(ListingBase):
     perf_per_watt: float | None = None
     active_profile_id: int | None = None
     components: list[ListingComponentRead] = Field(default_factory=list)
+    cpu: CpuRead | None = None
+    gpu: GpuRead | None = None
 
 
 ListingRead.model_rebuild()
