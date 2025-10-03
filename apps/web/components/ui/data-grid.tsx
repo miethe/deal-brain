@@ -448,8 +448,7 @@ export function DataGrid<TData>({
     <div className={gridClassName}>
       <div
         ref={containerRef}
-        className="relative overflow-x-auto overflow-y-auto"
-        style={{ maxHeight: containerHeight }}
+        className="relative flex-1 overflow-x-auto overflow-y-auto"
       >
         <Table style={{ width: resolvedTable.getTotalSize(), minWidth: "100%" }}>
           <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">

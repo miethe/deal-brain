@@ -85,48 +85,58 @@ export function ComboBox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("w-full justify-between", className)}
+          className={cn(
+            "w-full justify-between h-9 px-3 font-normal",
+            !selectedOption && "text-muted-foreground",
+            className
+          )}
           disabled={disabled}
         >
-          {selectedOption ? selectedOption.label : placeholder}
+          <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Search..."
             value={search}
             onValueChange={setSearch}
+            className="h-9"
           />
           <CommandEmpty>
             {showCreateOption ? (
               <button
                 onClick={handleCreateOption}
                 disabled={creating}
-                className="flex w-full items-center gap-2 px-2 py-1.5 text-sm hover:bg-accent"
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer rounded-sm"
               >
-                <Plus className="h-4 w-4" />
-                {creating ? "Creating..." : `Create "${search}"`}
+                <Plus className="h-4 w-4 shrink-0" />
+                <span className="flex-1 text-left">
+                  {creating ? "Creating..." : `Create "${search}"`}
+                </span>
               </button>
             ) : (
-              <span className="py-6 text-center text-sm">No options found.</span>
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                No options found.
+              </div>
             )}
           </CommandEmpty>
-          <CommandGroup className="max-h-64 overflow-y-auto">
+          <CommandGroup className="max-h-64 overflow-y-auto p-1">
             {filteredOptions.map((option) => (
               <CommandItem
                 key={option.value}
                 value={option.value}
                 onSelect={handleSelect}
+                className="flex items-center gap-2 px-3 py-2.5 cursor-pointer rounded-sm transition-colors hover:bg-accent hover:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground"
               >
                 <Check
                   className={cn(
-                    "mr-2 h-4 w-4",
+                    "h-4 w-4 shrink-0",
                     value === option.value ? "opacity-100" : "opacity-0"
                   )}
                 />
-                {option.label}
+                <span className="flex-1">{option.label}</span>
               </CommandItem>
             ))}
           </CommandGroup>
