@@ -445,7 +445,7 @@ Completed Global Fields terminology updates and CPU data enrichment per implemen
 - `apps/web/components/custom-fields/global-fields-table.tsx`
 - `apps/web/components/valuation/value-input.tsx`
 
-### Commit: [pending]
+### Commit: 56f5410
 feat: Implement Phase 3 & 4 - Global Fields & CPU Enhancements
 
 ### Status:
