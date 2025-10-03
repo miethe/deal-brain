@@ -41,6 +41,9 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
     # For now, use empty rules list
     rule_data: list[ValuationRuleData] = []
 
+    # Eagerly load components to avoid lazy-load in async context
+    await session.refresh(listing, ['components'])
+
     components: list[ComponentValuationInput] = list(build_component_inputs(listing))
     valuation = compute_adjusted_price(
         listing_price_usd=float(listing.price_usd or 0),
