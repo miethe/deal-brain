@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..db import get_session
+from ..db import session_dependency
 from ..services.settings import SettingsService
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -27,7 +27,7 @@ class SettingUpdateRequest(BaseModel):
 @router.get("/{key}", response_model=dict[str, Any])
 async def get_setting(
     key: str,
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(session_dependency)
 ):
     """Get a setting by key."""
     service = SettingsService()
@@ -43,7 +43,7 @@ async def get_setting(
 async def update_setting(
     key: str,
     request: SettingUpdateRequest,
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(session_dependency)
 ):
     """Update or create a setting."""
     service = SettingsService()
@@ -58,7 +58,7 @@ async def update_setting(
 
 @router.get("/valuation_thresholds/default", response_model=dict[str, float])
 async def get_valuation_thresholds(
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(session_dependency)
 ):
     """Get valuation thresholds (backwards compatibility endpoint)."""
     service = SettingsService()
