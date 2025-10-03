@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..db import get_session
+from ..db import session_dependency
 from ..services.field_metadata import FieldMetadataService
 
 
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/entities", tags=["entities"])
 
 @router.get("/metadata")
 async def get_entities_metadata(
-    db: AsyncSession = Depends(get_session),
+    db: AsyncSession = Depends(session_dependency),
 ) -> dict:
     """Get metadata for all entities and fields for rule builder."""
     service = FieldMetadataService()

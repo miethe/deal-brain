@@ -62,19 +62,25 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
 
     await session.flush()
 
+    # Eagerly load CPU and GPU relationships to avoid lazy-load in async context
     if listing.cpu_id:
-        listing.cpu = listing.cpu or await session.get(Cpu, listing.cpu_id)
-    if listing.gpu_id:
-        listing.gpu = listing.gpu or await session.get(Gpu, listing.gpu_id)
+        cpu = await session.get(Cpu, listing.cpu_id)
+    else:
+        cpu = None
 
-    cpu_multi = float(listing.cpu.cpu_mark_multi) if listing.cpu and listing.cpu.cpu_mark_multi else None
-    cpu_single = float(listing.cpu.cpu_mark_single) if listing.cpu and listing.cpu.cpu_mark_single else None
+    if listing.gpu_id:
+        gpu = await session.get(Gpu, listing.gpu_id)
+    else:
+        gpu = None
+
+    cpu_multi = float(cpu.cpu_mark_multi) if cpu and cpu.cpu_mark_multi else None
+    cpu_single = float(cpu.cpu_mark_single) if cpu and cpu.cpu_mark_single else None
     gpu_score = None
-    if listing.gpu:
-        is_apple = bool(listing.cpu and listing.cpu.manufacturer and listing.cpu.manufacturer.lower() == "apple")
+    if gpu:
+        is_apple = bool(cpu and cpu.manufacturer and cpu.manufacturer.lower() == "apple")
         gpu_score = compute_gpu_score(
-            gpu_mark=float(listing.gpu.gpu_mark) if listing.gpu.gpu_mark else None,
-            metal_score=float(listing.gpu.metal_score) if listing.gpu.metal_score else None,
+            gpu_mark=float(gpu.gpu_mark) if gpu.gpu_mark else None,
+            metal_score=float(gpu.metal_score) if gpu.metal_score else None,
             is_apple=is_apple,
         )
 
@@ -83,8 +89,8 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
     listing.score_gpu = gpu_score
 
     perf_per_watt = None
-    if listing.cpu and listing.cpu.tdp_w and listing.cpu.tdp_w > 0 and cpu_multi:
-        perf_per_watt = cpu_multi / listing.cpu.tdp_w
+    if cpu and cpu.tdp_w and cpu.tdp_w > 0 and cpu_multi:
+        perf_per_watt = cpu_multi / cpu.tdp_w
     listing.perf_per_watt = perf_per_watt
 
     default_profile = await get_default_profile(session)
