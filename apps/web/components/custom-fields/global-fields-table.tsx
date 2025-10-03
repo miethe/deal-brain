@@ -24,6 +24,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { DropdownOptionsBuilder } from "./dropdown-options-builder";
+import { DefaultValueInput } from "../global-fields/default-value-input";
 
 interface FieldValidation {
   pattern?: string;
@@ -152,8 +153,8 @@ const DATA_TYPE_LABELS: Record<string, string> = {
   text: "Long Text",
   number: "Number",
   boolean: "Boolean",
-  enum: "Enum",
-  multi_select: "Multi-select",
+  enum: "Dropdown",
+  multi_select: "Multi-Select Dropdown",
   json: "JSON"
 };
 
@@ -891,6 +892,7 @@ function WizardBasics({
         <select
           className="h-9 rounded-md border border-input bg-background px-2 text-sm"
           value={values.data_type}
+          disabled={isEdit}
           onChange={(event) => onChange({ ...values, data_type: event.target.value })}
         >
           {TYPE_OPTIONS.map((type) => (
@@ -899,6 +901,12 @@ function WizardBasics({
             </option>
           ))}
         </select>
+        {isEdit && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Lock className="h-3 w-3" />
+            Type cannot be changed to maintain data integrity
+          </div>
+        )}
         {values.data_type === "enum" && (
           <label className="flex items-center gap-2 text-sm mt-2">
             <input
@@ -957,12 +965,16 @@ function WizardBasics({
         />
       </div>
       <div className="grid gap-2">
-        <Label>Default value</Label>
-        <Input
+        <Label>Default value (Optional)</Label>
+        <DefaultValueInput
+          fieldType={values.data_type === "enum" && values.allowMultiple ? "multi_select" : values.data_type}
+          options={values.optionsText.split(/\r?\n/).map((item) => item.trim()).filter(Boolean)}
           value={values.default_value}
-          onChange={(event) => onChange({ ...values, default_value: event.target.value })}
-          placeholder="Optional default"
+          onChange={(val: any) => onChange({ ...values, default_value: val })}
         />
+        <p className="text-xs text-muted-foreground">
+          This value will be pre-filled when creating new records
+        </p>
       </div>
     </div>
   );

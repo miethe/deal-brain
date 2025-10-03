@@ -199,7 +199,7 @@ class CustomFieldService:
 
         if record.is_locked:
             if data_type is not None and data_type.lower() != record.data_type:
-                raise ValueError(f"Locked field '{record.key}' cannot change type")
+                raise ValueError(f"Locked field '{record.key}' - type cannot be changed to maintain data integrity")
             if is_locked is not None and is_locked is False:
                 raise ValueError(f"Locked field '{record.key}' cannot be unlocked")
 

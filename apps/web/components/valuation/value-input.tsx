@@ -25,7 +25,7 @@ export function ValueInput({ fieldType, options, value, onChange, operator }: Va
     );
   }
 
-  // Enum/dropdown fields
+  // Dropdown fields
   if (fieldType === "enum" && options && options.length > 0) {
     return (
       <Select value={value?.toString()} onValueChange={onChange}>

@@ -382,3 +382,82 @@ feat: Implement Phase 1 & 2 - Valuation Display & Dropdown Enhancements
 4. @ path aliases simplify imports across components
 5. Separation of concerns: utils, components, hooks, services
 6. Backend field options API was already complete from previous work
+
+## October 3 UX/Data Enhancements - Phases 3 & 4 (10-3-2025)
+
+Completed Global Fields terminology updates and CPU data enrichment per implementation plan.
+
+### Phase 3: Global Fields Enhancements ✅
+
+**Terminology Update:**
+- Replaced "Enum" with "Dropdown" in DATA_TYPE_LABELS
+- Updated "Multi-select" to "Multi-Select Dropdown"
+- No user-facing "Enum" terminology remains
+
+**New Components:**
+- default-value-input.tsx: Polymorphic input adapting to field type
+  - Supports: string, number, boolean, enum, multi_select, date
+  - Uses ComboBox for dropdown fields
+  - Comma-separated input for multi-select
+  - Checkbox with label for boolean
+
+**Field Form Integration:**
+- DefaultValueInput integrated into WizardBasics
+- Shows dropdown options from optionsText
+- Type field disabled in edit mode with lock indicator
+- Helper text explains default value usage
+
+**Backend Validation:**
+- Enhanced error messages for locked field changes
+- Validation enforces dropdown fields must have options
+- Type changes blocked on locked fields
+
+### Phase 4: CPU Data Enrichment ✅
+
+**Database Changes:**
+- Migration 0011: Added igpu_mark field to CPU model
+- cpu_mark_multi and cpu_mark_single verified existing
+- Successfully executed migration
+
+**CPU Options Library:**
+- Created cpu-options.ts with comprehensive dropdowns:
+  - 6 manufacturer options (Intel, AMD, Apple, Qualcomm, MediaTek, Other)
+  - 7 Intel series options (Core i3-i9, Xeon, Pentium, Celeron)
+  - 7 AMD series options (Ryzen 3-9, Threadripper, EPYC, Athlon)
+  - 14 core count options (1-128)
+  - 14 thread count options (2-256)
+- getSeriesOptions() helper for manufacturer filtering
+
+**Form Integration:**
+- igpu_mark automatically available in Global Fields Data Tab
+- CPU options ready for dropdown integration
+- Dynamic form generation uses schema + custom fields
+
+### Files Created:
+- `.claude/progress/phase-3-4-tracking.md`
+- `apps/api/alembic/versions/0011_add_cpu_igpu_mark.py`
+- `apps/web/components/global-fields/default-value-input.tsx`
+- `apps/web/lib/cpu-options.ts`
+
+### Files Modified:
+- `apps/api/dealbrain_api/models/core.py`
+- `apps/api/dealbrain_api/services/custom_fields.py`
+- `apps/web/components/custom-fields/global-fields-table.tsx`
+- `apps/web/components/valuation/value-input.tsx`
+
+### Commit: [pending]
+feat: Implement Phase 3 & 4 - Global Fields & CPU Enhancements
+
+### Status:
+- ✅ All Phase 3 tasks complete
+- ✅ All Phase 4 tasks complete
+- ✅ TypeScript compilation passing
+- ✅ Migration executed successfully
+- ✅ No build errors
+
+### Key Learnings:
+1. Polymorphic input components reduce complexity for dynamic forms
+2. Lock indicators provide clear UX for field constraints
+3. CPU schema fields work well with option libraries for guided input
+4. Migration workflow smooth with proper revision numbering
+5. DefaultValueInput pattern extensible to other dynamic field types
