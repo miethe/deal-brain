@@ -114,7 +114,7 @@ export function ConditionGroup({ conditions, onConditionsChange, depth = 0 }: Co
     onConditionsChange([
       ...conditions,
       {
-        id: `cond-${Date.now()}`,
+        id: crypto.randomUUID(),
         field_name: "",
         operator: "equals",
         value: "",
@@ -127,7 +127,7 @@ export function ConditionGroup({ conditions, onConditionsChange, depth = 0 }: Co
     onConditionsChange([
       ...conditions,
       {
-        id: `group-${Date.now()}`,
+        id: crypto.randomUUID(),
         is_group: true,
         logical_operator: "OR",
         children: [],

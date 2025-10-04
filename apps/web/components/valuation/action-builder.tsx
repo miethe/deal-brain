@@ -25,7 +25,7 @@ export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) 
     onActionsChange([
       ...actions,
       {
-        id: `action-${Date.now()}`,
+        id: crypto.randomUUID(),
         action_type: "fixed_value",
         value_usd: 0,
         modifiers: {

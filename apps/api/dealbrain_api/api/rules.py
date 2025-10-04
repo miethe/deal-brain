@@ -528,12 +528,7 @@ async def update_rule(
 
     updates = {k: v for k, v in request.dict(exclude_unset=True).items() if v is not None}
 
-    # Convert schema objects to dicts
-    if "conditions" in updates:
-        updates["conditions"] = [c.dict() for c in updates["conditions"]]
-    if "actions" in updates:
-        updates["actions"] = [a.dict() for a in updates["actions"]]
-
+    # No conversion needed - request.dict() already converts Pydantic objects to dicts
     rule = await service.update_rule(session, rule_id, updates)
 
     if not rule:
