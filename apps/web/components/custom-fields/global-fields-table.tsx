@@ -255,6 +255,7 @@ export function GlobalFieldsTable({ entity, hideEntityPicker = false }: GlobalFi
         default_value: null,
         options: field.options ?? null,
         is_active: true,
+        is_locked: true,
         visibility: "system",
         created_by: "system",
         validation: null,
@@ -351,30 +352,30 @@ export function GlobalFieldsTable({ entity, hideEntityPicker = false }: GlobalFi
         id: "actions",
         header: "",
         cell: ({ row }) => (
-          row.original.id < 0 ? (
-            <span className="text-xs text-muted-foreground">Managed via schema</span>
-          ) : (
-            <div className="flex items-center justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setWizardState({ mode: "edit", field: row.original })}>
-                Edit
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setAuditField(row.original)}>
-                Audit
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive"
-                onClick={() => {
-                  setDeleteField(row.original);
-                  setDeleteError(null);
-                  setForceDelete(false);
-                }}
-              >
-                Delete
-              </Button>
-            </div>
-          )
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setWizardState({ mode: "edit", field: row.original })}>
+              Edit
+            </Button>
+            {row.original.id >= 0 && (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => setAuditField(row.original)}>
+                  Audit
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive"
+                  onClick={() => {
+                    setDeleteField(row.original);
+                    setDeleteError(null);
+                    setForceDelete(false);
+                  }}
+                >
+                  Delete
+                </Button>
+              </>
+            )}
+          </div>
         )
       }
     ];
@@ -819,11 +820,11 @@ function FieldWizard({ title, open, mode, field, lockedEntity, onOpenChange, onS
       >
         <div className="space-y-4">
           <StepIndicator currentStep={step} />
-          {step === 0 && <WizardBasics values={values} onChange={setValues} isEdit={isEdit} lockedEntity={lockedEntity ?? null} />}
+          {step === 0 && <WizardBasics values={values} onChange={setValues} isEdit={isEdit} lockedEntity={lockedEntity ?? null} isLocked={field?.is_locked} />}
           {step === 1 && <WizardValidation values={values} onChange={setValues} />}
           {step === 2 && <WizardReview values={values} />}
           {error && <ErrorBanner error={new Error(error)} />}
-          {isEdit && (
+          {isEdit && !field?.is_locked && (
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -843,12 +844,14 @@ function WizardBasics({
   values,
   onChange,
   isEdit,
-  lockedEntity
+  lockedEntity,
+  isLocked
 }: {
   values: FieldFormValues;
   onChange: (value: FieldFormValues) => void;
   isEdit: boolean;
   lockedEntity: string | null;
+  isLocked?: boolean;
 }) {
   return (
     <div className="grid gap-4">
@@ -857,7 +860,7 @@ function WizardBasics({
         <select
           className="h-9 rounded-md border border-input bg-background px-2 text-sm"
           value={lockedEntity ?? values.entity}
-          disabled={isEdit || Boolean(lockedEntity)}
+          disabled={isEdit || Boolean(lockedEntity) || isLocked}
           onChange={(event) => onChange({ ...values, entity: event.target.value })}
         >
           {ENTITY_OPTIONS.map((entity) => (
@@ -866,6 +869,12 @@ function WizardBasics({
             </option>
           ))}
         </select>
+        {isLocked && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Lock className="h-3 w-3" />
+            Entity cannot be changed for system fields
+          </div>
+        )}
       </div>
       <div className="grid gap-2">
         <Label>Label</Label>
@@ -882,17 +891,23 @@ function WizardBasics({
         <Label>Key</Label>
         <Input
           value={values.key}
-          readOnly={isEdit}
+          readOnly={isEdit || isLocked}
           onChange={(event) => onChange({ ...values, key: slugify(event.target.value) })}
         />
         <p className="text-xs text-muted-foreground">Unique identifier used in APIs and attributes payloads.</p>
+        {isLocked && (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Lock className="h-3 w-3" />
+            Key cannot be changed for system fields
+          </div>
+        )}
       </div>
       <div className="grid gap-2">
         <Label>Type</Label>
         <select
           className="h-9 rounded-md border border-input bg-background px-2 text-sm"
           value={values.data_type}
-          disabled={isEdit}
+          disabled={isEdit || isLocked}
           onChange={(event) => onChange({ ...values, data_type: event.target.value })}
         >
           {TYPE_OPTIONS.map((type) => (
@@ -901,7 +916,7 @@ function WizardBasics({
             </option>
           ))}
         </select>
-        {isEdit && (
+        {(isEdit || isLocked) && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Lock className="h-3 w-3" />
             Type cannot be changed to maintain data integrity

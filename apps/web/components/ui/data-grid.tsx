@@ -23,6 +23,7 @@ import { cn } from "../../lib/utils";
 import { Input } from "./input";
 import { Button } from "./button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
+import { InfoTooltip } from "./info-tooltip";
 
 const DEFAULT_ROW_HEIGHT = 44;
 const COMPACT_ROW_HEIGHT = 36;
@@ -43,6 +44,7 @@ interface ColumnOption {
 
 interface ColumnMetaConfig {
   tooltip?: string;
+  description?: string;
   filterType?: "text" | "number" | "select" | "multi-select" | "boolean";
   options?: ColumnOption[];
   minWidth?: number;
@@ -464,6 +466,7 @@ export function DataGrid<TData>({
                   const tooltipContent = meta?.tooltip ?? (typeof header.column.columnDef.header === "string"
                     ? header.column.columnDef.header
                     : undefined);
+                  const description = meta?.description;
                   const stickyStyles = getStickyColumnStyles(header.column.id, stickyColumns, columnSizingState);
                   const minWidth = meta?.minWidth || MIN_COLUMN_WIDTH;
                   const isConstrained = constrainedColumns.has(header.column.id);
@@ -482,6 +485,7 @@ export function DataGrid<TData>({
                         <span className="truncate">
                           {flexRender(header.column.columnDef.header, header.getContext())}
                         </span>
+                        {description && <InfoTooltip content={description} />}
                         {header.column.getCanSort() ? (
                           <button
                             type="button"

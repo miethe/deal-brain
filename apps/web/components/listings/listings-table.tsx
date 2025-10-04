@@ -79,6 +79,7 @@ function buildListingMeta(field: FieldConfig): ColumnMetaConfig {
   const filterType = deriveListingFilterType(field);
   return {
     tooltip: field.description ?? undefined,
+    description: field.description ?? undefined,
     filterType,
     options: field.options?.map((option) => ({ label: option, value: option })),
   };
@@ -408,6 +409,7 @@ export function ListingsTable() {
         },
         meta: {
           ...titleMeta,
+          description: "Product title or name from the seller listing",
           minWidth: 200,
           enableTextWrap: true,
         },
@@ -440,6 +442,7 @@ export function ListingsTable() {
           filterType: "multi-select",
           options: cpuOptions,
           tooltip: "CPU associated with the listing",
+          description: "The processor model (Intel/AMD) powering this system",
         },
         filterFn: (row, columnId, filterValue) => {
           const selections = Array.isArray(filterValue) ? (filterValue as string[]) : [];
@@ -484,6 +487,7 @@ export function ListingsTable() {
         meta: {
           filterType: "number",
           tooltip: "Adjusted price based on active ruleset. Click for breakdown.",
+          description: "Final valuation after applying active ruleset rules",
         },
         filterFn: numericFilterFn,
         size: 200,
@@ -494,7 +498,11 @@ export function ListingsTable() {
         cell: ({ getValue }) => formatNumber(getValue() as number | null | undefined),
         enableResizing: true,
         enableColumnFilter: true,
-        meta: { filterType: "number", tooltip: "Dollars per CPU mark" },
+        meta: {
+          filterType: "number",
+          tooltip: "Dollars per CPU mark",
+          description: "Price efficiency metric: dollars per CPU benchmark point",
+        },
         filterFn: numericFilterFn,
         size: 140,
       },
@@ -504,7 +512,11 @@ export function ListingsTable() {
         cell: ({ getValue }) => formatNumber(getValue() as number | null | undefined),
         enableResizing: true,
         enableColumnFilter: true,
-        meta: { filterType: "number", tooltip: "Composite performance score" },
+        meta: {
+          filterType: "number",
+          tooltip: "Composite performance score",
+          description: "Overall system performance score based on weighted metrics",
+        },
         filterFn: numericFilterFn,
         size: 140,
       },
