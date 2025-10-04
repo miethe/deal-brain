@@ -617,9 +617,9 @@ function resolveStatus(field: FieldRecord): FieldStatus {
 
 function StatusBadge({ status }: { status: FieldStatus }) {
   const styles: Record<FieldStatus, string> = {
-    active: "bg-emerald-100 text-emerald-800",
-    inactive: "bg-amber-100 text-amber-800",
-    deleted: "bg-red-100 text-red-800"
+    active: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+    inactive: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+    deleted: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
   };
   return <Badge className={cn("text-xs", styles[status])}>{status.toUpperCase()}</Badge>;
 }

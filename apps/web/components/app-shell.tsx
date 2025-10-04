@@ -6,6 +6,7 @@ import { ReactNode, useState } from "react";
 import { Menu, Package2, Settings, X } from "lucide-react";
 
 import { Button } from "./ui/button";
+import { ThemeToggle } from "./ui/theme-toggle";
 import { cn } from "../lib/utils";
 
 const NAV_ITEMS = [
@@ -45,6 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <ThemeToggle />
           <span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">MVP build</span>
         </div>
       </header>

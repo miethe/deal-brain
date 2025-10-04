@@ -27,6 +27,7 @@ export interface ValuationStyle {
 
 /**
  * Calculate the valuation style based on delta percentage and thresholds
+ * Now uses CSS variables for theme-aware colors
  */
 export function getValuationStyle(
   deltaPercent: number,
@@ -38,7 +39,7 @@ export function getValuationStyle(
       color: 'green',
       intensity: 'dark',
       icon: 'arrow-down',
-      className: 'bg-green-800 text-white border-green-900',
+      className: 'bg-[hsl(var(--valuation-great-deal-bg))] text-[hsl(var(--valuation-great-deal-fg))] border-[hsl(var(--valuation-great-deal-border))]',
     };
   }
 
@@ -48,7 +49,7 @@ export function getValuationStyle(
       color: 'green',
       intensity: 'medium',
       icon: 'arrow-down',
-      className: 'bg-green-600 text-white border-green-700',
+      className: 'bg-[hsl(var(--valuation-good-deal-bg))] text-[hsl(var(--valuation-good-deal-fg))] border-[hsl(var(--valuation-good-deal-border))]',
     };
   }
 
@@ -58,7 +59,7 @@ export function getValuationStyle(
       color: 'green',
       intensity: 'light',
       icon: 'arrow-down',
-      className: 'bg-green-100 text-green-800 border-green-200',
+      className: 'bg-[hsl(var(--valuation-light-saving-bg))] text-[hsl(var(--valuation-light-saving-fg))] border-[hsl(var(--valuation-light-saving-border))]',
     };
   }
 
@@ -68,7 +69,7 @@ export function getValuationStyle(
       color: 'red',
       intensity: 'dark',
       icon: 'arrow-up',
-      className: 'bg-red-600 text-white border-red-700',
+      className: 'bg-[hsl(var(--valuation-premium-bg))] text-[hsl(var(--valuation-premium-fg))] border-[hsl(var(--valuation-premium-border))]',
     };
   }
 
@@ -78,7 +79,7 @@ export function getValuationStyle(
       color: 'red',
       intensity: 'light',
       icon: 'arrow-up',
-      className: 'bg-red-100 text-red-800 border-red-200',
+      className: 'bg-[hsl(var(--valuation-light-premium-bg))] text-[hsl(var(--valuation-light-premium-fg))] border-[hsl(var(--valuation-light-premium-border))]',
     };
   }
 
@@ -87,7 +88,7 @@ export function getValuationStyle(
     color: 'gray',
     intensity: 'light',
     icon: 'minus',
-    className: 'bg-gray-100 text-gray-600 border-gray-200',
+    className: 'bg-[hsl(var(--valuation-neutral-bg))] text-[hsl(var(--valuation-neutral-fg))] border-[hsl(var(--valuation-neutral-border))]',
   };
 }
 
