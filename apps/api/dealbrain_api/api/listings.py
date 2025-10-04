@@ -68,27 +68,32 @@ CORE_LISTING_FIELDS: list[ListingFieldSchema] = [
         label="CPU",
         data_type="reference",
         description="Linked CPU identifier",
+        editable=True,
     ),
     ListingFieldSchema(
         key="gpu_id",
         label="GPU",
         data_type="reference",
+        editable=True,
     ),
     ListingFieldSchema(
         key="ram_gb",
         label="RAM (GB)",
         data_type="number",
+        editable=True,
     ),
     ListingFieldSchema(
         key="primary_storage_gb",
         label="Primary Storage (GB)",
         data_type="number",
+        editable=True,
     ),
     ListingFieldSchema(
         key="primary_storage_type",
         label="Primary Storage Type",
         data_type="enum",
         options=["SSD", "HDD", "Hybrid"],
+        editable=True,
     ),
     ListingFieldSchema(
         key="secondary_storage_gb",

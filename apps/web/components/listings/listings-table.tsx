@@ -33,6 +33,8 @@ import { useConfirmation } from "../ui/confirmation-dialog";
 import { useValuationThresholds } from "@/hooks/use-valuation-thresholds";
 
 interface ListingRow extends ListingRecord {
+  cpu_id?: number | null;
+  gpu_id?: number | null;
   cpu_name?: string | null;
   gpu_name?: string | null;
   thumbnail_url?: string | null;
@@ -372,23 +374,38 @@ export function ListingsTable() {
       {
         header: "Title",
         accessorKey: "title",
-        cell: ({ row }) => (
-          <div className="flex flex-col gap-1">
-            {titleConfig ? (
-              <EditableCell
-                listingId={row.original.id}
-                field={titleConfig}
-                value={row.original.title}
-                onSave={handleInlineSave}
-                isSaving={inlineMutation.isPending}
-                onCreateOption={handleCreateOption}
-              />
-            ) : (
-              <span className="font-medium text-foreground">{row.original.title}</span>
-            )}
-            <span className="text-xs text-muted-foreground">{row.original.gpu_name ?? "No dedicated GPU"}</span>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const gpuConfig = fieldMap.get("gpu_id");
+          return (
+            <div className="flex flex-col gap-1">
+              {titleConfig ? (
+                <EditableCell
+                  listingId={row.original.id}
+                  field={titleConfig}
+                  value={row.original.title}
+                  onSave={handleInlineSave}
+                  isSaving={inlineMutation.isPending}
+                  onCreateOption={handleCreateOption}
+                />
+              ) : (
+                <span className="font-medium text-foreground">{row.original.title}</span>
+              )}
+              {gpuConfig && gpuConfig.editable ? (
+                <div className="text-xs">
+                  <EditableCell
+                    listingId={row.original.id}
+                    field={gpuConfig}
+                    value={row.original.gpu_id}
+                    onSave={handleInlineSave}
+                    isSaving={inlineMutation.isPending}
+                  />
+                </div>
+              ) : (
+                <span className="text-xs text-muted-foreground">{row.original.gpu_name ?? "No dedicated GPU"}</span>
+              )}
+            </div>
+          );
+        },
         meta: {
           ...titleMeta,
           minWidth: 200,
@@ -401,6 +418,21 @@ export function ListingsTable() {
       {
         header: "CPU",
         accessorKey: "cpu_name",
+        cell: ({ row }) => {
+          const cpuConfig = fieldMap.get("cpu_id");
+          if (cpuConfig && cpuConfig.editable) {
+            return (
+              <EditableCell
+                listingId={row.original.id}
+                field={cpuConfig}
+                value={row.original.cpu_id}
+                onSave={handleInlineSave}
+                isSaving={inlineMutation.isPending}
+              />
+            );
+          }
+          return <span className="text-sm">{row.original.cpu_name || "—"}</span>;
+        },
         enableSorting: true,
         enableResizing: true,
         enableColumnFilter: true,
@@ -478,7 +510,7 @@ export function ListingsTable() {
       },
     ];
 
-    const hiddenEditableKeys = new Set(["title"]);
+    const hiddenEditableKeys = new Set(["title", "cpu_id", "gpu_id"]);
 
     const editableColumns: ColumnDef<ListingRow>[] = fieldConfigs
       .filter((config) => config.editable && !hiddenEditableKeys.has(config.key))
@@ -666,6 +698,19 @@ interface EditableCellProps {
 function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOption }: EditableCellProps) {
   const [draft, setDraft] = useState<string>(() => toEditableString(field, value));
 
+  // Query for CPU/GPU options if this is a reference field
+  const { data: cpuOptions } = useQuery<Array<{ id: number; name: string }>>({
+    queryKey: ["cpus"],
+    queryFn: () => apiFetch("/v1/catalog/cpus"),
+    enabled: field.data_type === "reference" && field.key === "cpu_id"
+  });
+
+  const { data: gpuOptions } = useQuery<Array<{ id: number; name: string }>>({
+    queryKey: ["gpus"],
+    queryFn: () => apiFetch("/v1/catalog/gpus"),
+    enabled: field.data_type === "reference" && field.key === "gpu_id"
+  });
+
   useEffect(() => {
     setDraft(toEditableString(field, value));
   }, [field, value]);
@@ -687,6 +732,30 @@ function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOptio
 
   if (!field.editable) {
     return <span className="text-sm">{toDisplayValue(value)}</span>;
+  }
+
+  // Handle reference fields (CPU/GPU)
+  if (field.data_type === "reference") {
+    const options = field.key === "cpu_id" ? cpuOptions : field.key === "gpu_id" ? gpuOptions : [];
+    if (!options) {
+      return <span className="text-sm text-muted-foreground">Loading...</span>;
+    }
+
+    return (
+      <select
+        className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+        value={String(value || '')}
+        onChange={(event) => handleSelectChange(event.target.value)}
+        disabled={isSaving}
+      >
+        <option value="">—</option>
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.name}
+          </option>
+        ))}
+      </select>
+    );
   }
 
   // Check if this field should use a dropdown (either in DROPDOWN_FIELD_CONFIGS or has options)
