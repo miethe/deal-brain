@@ -40,30 +40,34 @@ export function ConditionRow({ condition, onChange, onRemove }: ConditionRowProp
 
         <div className="grid grid-cols-2 gap-2">
           {/* Operator Selector */}
-          <Select
-            value={condition.operator}
-            onValueChange={(value) => onChange({ operator: value })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Operator" />
-            </SelectTrigger>
-            <SelectContent>
-              {validOperators.map((op) => (
-                <SelectItem key={op.value} value={op.value}>
-                  {op.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div key="operator">
+            <Select
+              value={condition.operator}
+              onValueChange={(value) => onChange({ operator: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Operator" />
+              </SelectTrigger>
+              <SelectContent>
+                {validOperators.map((op) => (
+                  <SelectItem key={op.value} value={op.value}>
+                    {op.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Value Input */}
-          <ValueInput
-            fieldType={fieldType}
-            options={condition.options}
-            value={condition.value}
-            onChange={(value) => onChange({ value })}
-            operator={condition.operator}
-          />
+          <div key="value">
+            <ValueInput
+              fieldType={fieldType}
+              options={condition.options}
+              value={condition.value}
+              onChange={(value) => onChange({ value })}
+              operator={condition.operator}
+            />
+          </div>
         </div>
       </div>
 

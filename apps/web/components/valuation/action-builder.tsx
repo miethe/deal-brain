@@ -125,7 +125,7 @@ export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) 
           <div className="space-y-2">
             <Label>Condition Multipliers</Label>
             <div className="grid grid-cols-3 gap-2">
-              <div>
+              <div key="new">
                 <Label className="text-xs">New</Label>
                 <Input
                   type="number"
@@ -146,7 +146,7 @@ export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) 
                   }
                 />
               </div>
-              <div>
+              <div key="refurb">
                 <Label className="text-xs">Refurbished</Label>
                 <Input
                   type="number"
@@ -167,7 +167,7 @@ export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) 
                   }
                 />
               </div>
-              <div>
+              <div key="used">
                 <Label className="text-xs">Used</Label>
                 <Input
                   type="number"
