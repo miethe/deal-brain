@@ -78,31 +78,39 @@
 ## Phase 3: Frontend Core Components
 
 ### Tasks
-- [ ] 3.1 Create DualMetricCell Component
-  - [ ] Implement component with raw/adjusted display
-  - [ ] Add percentage improvement indicator
-  - [ ] Add color coding (green/red/gray)
-  - [ ] Add memoization
-  - [ ] Handle null/undefined gracefully
-- [ ] 3.2 Create CPUInfoPanel Component
-  - [ ] Display CPU name and benchmarks
-  - [ ] Show TDP and release year
-  - [ ] Display iGPU info
-  - [ ] Responsive grid layout
-  - [ ] Handle null values
-- [ ] 3.3 Create PortsBuilder Component
-  - [ ] Implement add/remove port entries
-  - [ ] Port type dropdown (9 options)
-  - [ ] Quantity input with validation
-  - [ ] Create PortsDisplay for table view
-  - [ ] Add popover for full details
-- [ ] 3.4 Create ValuationModeToggle Component
-  - [ ] Base/Adjusted mode toggle
-  - [ ] Icons and ARIA labels
-  - [ ] localStorage persistence
-  - [ ] Smooth animations
+- [x] 3.1 Create DualMetricCell Component
+  - [x] Implement component with raw/adjusted display
+  - [x] Add percentage improvement indicator (↓/↑ with %)
+  - [x] Add color coding (green/red/gray)
+  - [x] Add memoization (React.memo)
+  - [x] Handle null/undefined gracefully
+- [x] 3.2 Create CPUInfoPanel Component
+  - [x] Display CPU name and benchmarks
+  - [x] Show TDP and release year
+  - [x] Display iGPU info (model + G3D score)
+  - [x] Responsive grid layout (2 columns)
+  - [x] Handle null values (displays "—")
+- [x] 3.3 Create PortsBuilder Component
+  - [x] Implement add/remove port entries
+  - [x] Port type dropdown (9 options)
+  - [x] Quantity input with validation (1-16)
+  - [x] Create PortsDisplay for table view
+  - [x] Add popover for full details
+- [x] 3.4 Create ValuationModeToggle Component
+  - [x] Base/Adjusted mode toggle
+  - [x] Icons and ARIA labels (DollarSign, Calculator)
+  - [ ] localStorage persistence (will add in Phase 4 integration)
+  - [x] Smooth animations (transition-colors)
 
-**Status:** Not Started
+**Status:** ✅ Complete
+
+**Notes:**
+- DualMetricCell: Displays raw + adjusted values with improvement indicators
+- CPUInfoPanel: Compact 2-column grid with all CPU metadata
+- PortsBuilder: Full CRUD for port entries with 9 predefined types
+- PortsDisplay: Compact badge-style display with popover details
+- ValuationModeToggle: Tab-style toggle with icons for clarity
+- All components follow existing UI patterns (shadcn/ui)
 
 ---
 
