@@ -10,6 +10,9 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Dialog, DialogTrigger } from "../ui/dialog";
 import { ModalContent } from "../ui/modal-shell";
+import { CpuInfoPanel } from "./cpu-info-panel";
+import { PortsBuilder } from "./ports-builder";
+import { getCpu, recalculateListingMetrics, updateListingPorts, type CpuResponse, type PortEntry } from "../../lib/api/listings";
 
 interface CpuOption {
   id: number;
@@ -36,6 +39,27 @@ const DEFAULT_RAM_OPTIONS = [4, 8, 16, 32, 64, 128, 192, 256, 384, 512];
 const DEFAULT_STORAGE_CAPACITIES = [128, 256, 512, 1024, 2048, 4096];
 const DEFAULT_STORAGE_TYPES = ["NVMe SSD", "SATA SSD", "SATA HDD", "Hybrid SSHD", "U.2 SSD"];
 
+const MANUFACTURER_OPTIONS = [
+  "Dell",
+  "HP",
+  "Lenovo",
+  "Apple",
+  "ASUS",
+  "Acer",
+  "MSI",
+  "Custom Build",
+  "Other",
+];
+
+const FORM_FACTOR_OPTIONS = [
+  "Desktop",
+  "Laptop",
+  "Server",
+  "Mini-PC",
+  "All-in-One",
+  "Other",
+];
+
 export function AddListingForm() {
   const queryClient = useQueryClient();
   const { data: cpus } = useQuery<CpuOption[]>({
@@ -44,10 +68,12 @@ export function AddListingForm() {
   });
 
   const [selectedCpuId, setSelectedCpuId] = useState<string>("");
+  const [selectedCpuData, setSelectedCpuData] = useState<CpuResponse | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [ramOptions, setRamOptions] = useState<number[]>(DEFAULT_RAM_OPTIONS);
   const [storageCapOptions, setStorageCapOptions] = useState<number[]>(DEFAULT_STORAGE_CAPACITIES);
   const [storageTypeOptions, setStorageTypeOptions] = useState<string[]>(DEFAULT_STORAGE_TYPES);
+  const [ports, setPorts] = useState<PortEntry[]>([]);
 
   const [isCpuModalOpen, setCpuModalOpen] = useState(false);
   const [newCpuForm, setNewCpuForm] = useState({
@@ -94,7 +120,24 @@ export function AddListingForm() {
     },
   });
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleCpuChange = async (cpuId: string) => {
+    setSelectedCpuId(cpuId);
+
+    if (!cpuId) {
+      setSelectedCpuData(null);
+      return;
+    }
+
+    try {
+      const cpuData = await getCpu(Number(cpuId));
+      setSelectedCpuData(cpuData);
+    } catch (error) {
+      console.error("Failed to fetch CPU data:", error);
+      setStatus("Failed to load CPU details");
+    }
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const form = event.currentTarget;
@@ -109,14 +152,39 @@ export function AddListingForm() {
       primary_storage_type: sanitizeString(formData.get("primary_storage_type")),
       secondary_storage_gb: parseNullableNumber(formData.get("secondary_storage_gb")),
       secondary_storage_type: sanitizeString(formData.get("secondary_storage_type")),
+      // New metadata fields
+      manufacturer: sanitizeString(formData.get("manufacturer")),
+      series: sanitizeString(formData.get("series")),
+      model_number: sanitizeString(formData.get("model_number")),
+      form_factor: sanitizeString(formData.get("form_factor")),
     };
 
     createListingMutation.mutate(payload, {
-      onSuccess: () => {
+      onSuccess: async (listing: any) => {
         queryClient.invalidateQueries({ queryKey: ["listings"] });
-        setStatus("Listing created successfully");
-        form.reset();
-        setSelectedCpuId("");
+
+        const listingId = listing?.id;
+
+        try {
+          // Update ports if provided
+          if (listingId && ports.length > 0) {
+            await updateListingPorts(listingId, ports);
+          }
+
+          // Trigger metric calculation
+          if (listingId) {
+            await recalculateListingMetrics(listingId);
+          }
+
+          setStatus("Listing created successfully");
+          form.reset();
+          setSelectedCpuId("");
+          setSelectedCpuData(null);
+          setPorts([]);
+        } catch (error) {
+          console.error("Post-creation update failed:", error);
+          setStatus("Listing created, but some updates failed");
+        }
       },
       onError: (error) => {
         const message = error instanceof Error ? error.message : "Unknown error";
@@ -199,7 +267,54 @@ export function AddListingForm() {
               ))}
             </select>
           </div>
+          {/* Product Metadata Section */}
+          <div className="md:col-span-2 pt-4 border-t">
+            <h3 className="text-lg font-semibold mb-3">Product Information</h3>
+          </div>
           <div className="space-y-2">
+            <Label htmlFor="manufacturer">Manufacturer</Label>
+            <select
+              id="manufacturer"
+              name="manufacturer"
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">Select manufacturer...</option>
+              {MANUFACTURER_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="series">Series</Label>
+            <Input id="series" name="series" placeholder="e.g., OptiPlex, ThinkCentre, Mac Studio" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="model_number">Model Number</Label>
+            <Input id="model_number" name="model_number" placeholder="e.g., 7090, M75q, A2615" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="form_factor">Form Factor</Label>
+            <select
+              id="form_factor"
+              name="form_factor"
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">Select form factor...</option>
+              {FORM_FACTOR_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Hardware Section */}
+          <div className="md:col-span-2 pt-4 border-t">
+            <h3 className="text-lg font-semibold mb-3">Hardware Configuration</h3>
+          </div>
+          <div className="space-y-2 md:col-span-2">
             <Label htmlFor="cpu_id">CPU</Label>
             <div className="flex items-center gap-2">
               <select
@@ -207,7 +322,7 @@ export function AddListingForm() {
                 name="cpu_id"
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={selectedCpuId}
-                onChange={(event) => setSelectedCpuId(event.target.value)}
+                onChange={(event) => handleCpuChange(event.target.value)}
               >
                 <option value="">Select CPU</option>
                 {sortedCpus.map((cpu) => (
@@ -318,6 +433,11 @@ export function AddListingForm() {
               </Dialog>
             </div>
           </div>
+          {selectedCpuData && (
+            <div className="md:col-span-2">
+              <CpuInfoPanel cpu={selectedCpuData} />
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="ram_gb">RAM (GB)</Label>
             <div className="flex items-center gap-2">
@@ -411,6 +531,19 @@ export function AddListingForm() {
               <option key={value} value={value} />
             ))}
           </datalist>
+
+          {/* Ports Section */}
+          <div className="md:col-span-2 pt-4 border-t">
+            <h3 className="text-lg font-semibold mb-3">Connectivity</h3>
+          </div>
+          <div className="md:col-span-2 space-y-2">
+            <Label>Ports</Label>
+            <p className="text-sm text-muted-foreground mb-2">
+              Specify available ports and quantities
+            </p>
+            <PortsBuilder value={ports} onChange={setPorts} />
+          </div>
+
           <div className="md:col-span-2 flex items-center justify-between">
             <Button type="submit" disabled={createListingMutation.isPending}>
               {createListingMutation.isPending ? "Saving…" : "Save listing"}
