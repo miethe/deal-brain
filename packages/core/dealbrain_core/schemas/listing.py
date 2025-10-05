@@ -53,6 +53,11 @@ class ListingBase(DealBrainModel):
     other_components: list[str] = Field(default_factory=list)
     notes: str | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
+    # Product Metadata (New)
+    manufacturer: str | None = None
+    series: str | None = None
+    model_number: str | None = None
+    form_factor: str | None = None
 
 
 class ListingCreate(ListingBase):
@@ -73,6 +78,11 @@ class ListingRead(ListingBase):
     dollar_per_single_mark: float | None = None
     perf_per_watt: float | None = None
     active_profile_id: int | None = None
+    # Performance Metrics (New)
+    dollar_per_cpu_mark_single: float | None = None
+    dollar_per_cpu_mark_single_adjusted: float | None = None
+    dollar_per_cpu_mark_multi: float | None = None
+    dollar_per_cpu_mark_multi_adjusted: float | None = None
     components: list[ListingComponentRead] = Field(default_factory=list)
     cpu: CpuRead | None = None
     gpu: GpuRead | None = None

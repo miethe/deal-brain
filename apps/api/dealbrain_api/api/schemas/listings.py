@@ -68,12 +68,44 @@ class ValuationBreakdownResponse(BaseModel):
     )
 
 
+class BulkRecalculateRequest(BaseModel):
+    """Request to recalculate metrics for multiple listings"""
+    listing_ids: list[int] | None = Field(None, description="List of listing IDs. If None, updates all.")
+
+
+class BulkRecalculateResponse(BaseModel):
+    """Response after bulk metric recalculation"""
+    updated_count: int = Field(..., description="Number of listings updated")
+    message: str = Field(..., description="Status message")
+
+
+class PortEntry(BaseModel):
+    """Single port entry with type and quantity"""
+    port_type: str = Field(..., description="Port type (e.g., USB-A, HDMI)")
+    quantity: int = Field(..., ge=1, le=16, description="Quantity of this port type")
+
+
+class UpdatePortsRequest(BaseModel):
+    """Request to update ports for a listing"""
+    ports: list[PortEntry] = Field(default_factory=list, description="List of port entries")
+
+
+class PortsResponse(BaseModel):
+    """Response with ports data"""
+    ports: list[PortEntry] = Field(default_factory=list, description="List of port entries")
+
+
 __all__ = [
     "AppliedRuleDetail",
+    "BulkRecalculateRequest",
+    "BulkRecalculateResponse",
     "ListingBulkUpdateRequest",
     "ListingBulkUpdateResponse",
     "ListingFieldSchema",
     "ListingPartialUpdateRequest",
     "ListingSchemaResponse",
+    "PortEntry",
+    "PortsResponse",
+    "UpdatePortsRequest",
     "ValuationBreakdownResponse",
 ]

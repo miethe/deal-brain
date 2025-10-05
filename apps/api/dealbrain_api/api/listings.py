@@ -14,19 +14,27 @@ from ..models import Listing
 from ..services.custom_fields import CustomFieldService
 from ..services.listings import (
     apply_listing_metrics,
+    bulk_update_listing_metrics,
     bulk_update_listings,
     create_listing,
     partial_update_listing,
     sync_listing_components,
     update_listing,
+    update_listing_metrics,
 )
+from ..services import ports as ports_service
 from .schemas.listings import (
     AppliedRuleDetail,
+    BulkRecalculateRequest,
+    BulkRecalculateResponse,
     ListingBulkUpdateRequest,
     ListingBulkUpdateResponse,
     ListingFieldSchema,
     ListingPartialUpdateRequest,
     ListingSchemaResponse,
+    PortEntry,
+    PortsResponse,
+    UpdatePortsRequest,
     ValuationBreakdownResponse,
 )
 from .schemas.custom_fields import CustomFieldResponse
@@ -280,3 +288,61 @@ async def get_valuation_breakdown(
         active_ruleset=breakdown.get("ruleset_name", "None"),
         applied_rules=applied_rules,
     )
+
+
+@router.post("/{listing_id}/recalculate-metrics", response_model=ListingRead)
+async def recalculate_listing_metrics(
+    listing_id: int,
+    session: AsyncSession = Depends(session_dependency)
+):
+    """Recalculate all performance metrics for a listing."""
+    try:
+        listing = await update_listing_metrics(session, listing_id)
+        return ListingRead.model_validate(listing)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/bulk-recalculate-metrics", response_model=BulkRecalculateResponse)
+async def bulk_recalculate_metrics(
+    request: BulkRecalculateRequest,
+    session: AsyncSession = Depends(session_dependency)
+):
+    """Recalculate metrics for multiple listings.
+
+    If listing_ids is None or empty, updates all listings.
+    """
+    count = await bulk_update_listing_metrics(
+        session,
+        request.listing_ids
+    )
+    return BulkRecalculateResponse(
+        updated_count=count,
+        message=f"Updated {count} listing(s)"
+    )
+
+
+@router.post("/{listing_id}/ports", response_model=PortsResponse)
+async def update_listing_ports(
+    listing_id: int,
+    request: UpdatePortsRequest,
+    session: AsyncSession = Depends(session_dependency)
+):
+    """Create or update ports for a listing."""
+    try:
+        ports_data = [p.model_dump() for p in request.ports]
+        await ports_service.update_listing_ports(session, listing_id, ports_data)
+        ports = await ports_service.get_listing_ports(session, listing_id)
+        return PortsResponse(ports=[PortEntry(**p) for p in ports])
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/{listing_id}/ports", response_model=PortsResponse)
+async def get_listing_ports(
+    listing_id: int,
+    session: AsyncSession = Depends(session_dependency)
+):
+    """Get ports for a listing."""
+    ports = await ports_service.get_listing_ports(session, listing_id)
+    return PortsResponse(ports=[PortEntry(**p) for p in ports])

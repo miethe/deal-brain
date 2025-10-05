@@ -305,3 +305,107 @@ def _coerce_condition(value: Any) -> Condition:
     if isinstance(value, str) and value in Condition._value2member_map_:
         return Condition(value)
     return Condition.USED
+
+
+# ============================================================================
+# Performance Metrics Calculation (New)
+# ============================================================================
+
+def calculate_cpu_performance_metrics(listing: Listing) -> dict[str, float]:
+    """Calculate all CPU-based performance metrics for a listing.
+
+    Returns:
+        Dictionary with metric keys and calculated values.
+        Empty dict if CPU not assigned or missing benchmark data.
+    """
+    if not listing.cpu:
+        return {}
+
+    cpu = listing.cpu
+    base_price = float(listing.price_usd)
+    adjusted_price = float(listing.adjusted_price_usd) if listing.adjusted_price_usd else base_price
+
+    metrics = {}
+
+    # Single-thread metrics
+    if cpu.cpu_mark_single and cpu.cpu_mark_single > 0:
+        metrics['dollar_per_cpu_mark_single'] = base_price / cpu.cpu_mark_single
+        metrics['dollar_per_cpu_mark_single_adjusted'] = adjusted_price / cpu.cpu_mark_single
+
+    # Multi-thread metrics
+    if cpu.cpu_mark_multi and cpu.cpu_mark_multi > 0:
+        metrics['dollar_per_cpu_mark_multi'] = base_price / cpu.cpu_mark_multi
+        metrics['dollar_per_cpu_mark_multi_adjusted'] = adjusted_price / cpu.cpu_mark_multi
+
+    return metrics
+
+
+async def update_listing_metrics(
+    session: AsyncSession,
+    listing_id: int
+) -> Listing:
+    """Recalculate and persist all performance metrics for a listing.
+
+    Args:
+        session: Database session
+        listing_id: ID of listing to update
+
+    Returns:
+        Updated listing with recalculated metrics
+
+    Raises:
+        ValueError: If listing not found
+    """
+    from sqlalchemy.orm import joinedload
+
+    # Fetch with CPU relationship
+    stmt = select(Listing).where(Listing.id == listing_id).options(joinedload(Listing.cpu))
+    result = await session.execute(stmt)
+    listing = result.scalar_one_or_none()
+
+    if not listing:
+        raise ValueError(f"Listing {listing_id} not found")
+
+    # Calculate metrics
+    metrics = calculate_cpu_performance_metrics(listing)
+
+    # Update listing
+    for key, value in metrics.items():
+        setattr(listing, key, value)
+
+    await session.commit()
+    await session.refresh(listing)
+    return listing
+
+
+async def bulk_update_listing_metrics(
+    session: AsyncSession,
+    listing_ids: list[int] | None = None
+) -> int:
+    """Recalculate metrics for multiple listings.
+
+    Args:
+        session: Database session
+        listing_ids: List of IDs to update. If None, updates all listings.
+
+    Returns:
+        Count of listings updated
+    """
+    from sqlalchemy.orm import joinedload
+
+    stmt = select(Listing).options(joinedload(Listing.cpu))
+    if listing_ids:
+        stmt = stmt.where(Listing.id.in_(listing_ids))
+
+    result = await session.execute(stmt)
+    listings = result.scalars().all()
+
+    updated_count = 0
+    for listing in listings:
+        metrics = calculate_cpu_performance_metrics(listing)
+        for key, value in metrics.items():
+            setattr(listing, key, value)
+        updated_count += 1
+
+    await session.commit()
+    return updated_count

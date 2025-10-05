@@ -21,6 +21,7 @@ class CpuBase(DealBrainModel):
     igpu_model: str | None = None
     cpu_mark_multi: int | None = None
     cpu_mark_single: int | None = None
+    igpu_mark: int | None = None
     release_year: int | None = None
     notes: str | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
