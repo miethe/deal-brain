@@ -114,7 +114,7 @@ export function ConditionGroup({ conditions, onConditionsChange, depth = 0 }: Co
     onConditionsChange([
       ...conditions,
       {
-        id: crypto.randomUUID(),
+        id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         field_name: "",
         operator: "equals",
         value: "",
@@ -127,7 +127,7 @@ export function ConditionGroup({ conditions, onConditionsChange, depth = 0 }: Co
     onConditionsChange([
       ...conditions,
       {
-        id: crypto.randomUUID(),
+        id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         is_group: true,
         logical_operator: "OR",
         children: [],
