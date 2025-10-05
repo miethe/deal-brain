@@ -795,48 +795,48 @@ function FieldWizard({ title, open, mode, field, lockedEntity, onOpenChange, onS
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <ModalShell
-        title={title}
-        description={mode === "create" ? "Define label, type, and validation for the new field." : "Edit metadata and validation."}
-        footer={
-          <div className="flex w-full items-center justify-end gap-2">
-            {step > 0 && (
-              <Button variant="ghost" type="button" onClick={handlePrev}>
-                Back
-              </Button>
-            )}
-            {step < 2 ? (
-              <Button type="button" onClick={handleNext} disabled={!canProceed(values, step)}>
-                Continue
-              </Button>
-            ) : (
-              <Button type="button" onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? "Saving…" : "Save field"}
-              </Button>
-            )}
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <StepIndicator currentStep={step} />
-          {step === 0 && <WizardBasics values={values} onChange={setValues} isEdit={isEdit} lockedEntity={lockedEntity ?? null} isLocked={field?.is_locked} />}
-          {step === 1 && <WizardValidation values={values} onChange={setValues} />}
-          {step === 2 && <WizardReview values={values} />}
-          {error && <ErrorBanner error={new Error(error)} />}
-          {isEdit && !field?.is_locked && (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={forceUpdate}
-                onChange={(event) => setForceUpdate(event.target.checked)}
-              />
-              Force update (override dependency guardrails)
-            </label>
+    <ModalShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title={title}
+      description={mode === "create" ? "Define label, type, and validation for the new field." : "Edit metadata and validation."}
+      footer={
+        <div className="flex w-full items-center justify-end gap-2">
+          {step > 0 && (
+            <Button variant="ghost" type="button" onClick={handlePrev}>
+              Back
+            </Button>
+          )}
+          {step < 2 ? (
+            <Button type="button" onClick={handleNext} disabled={!canProceed(values, step)}>
+              Continue
+            </Button>
+          ) : (
+            <Button type="button" onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? "Saving…" : "Save field"}
+            </Button>
           )}
         </div>
-      </ModalShell>
-    </Dialog>
+      }
+    >
+      <div className="space-y-4">
+        <StepIndicator currentStep={step} />
+        {step === 0 && <WizardBasics values={values} onChange={setValues} isEdit={isEdit} lockedEntity={lockedEntity ?? null} isLocked={field?.is_locked} />}
+        {step === 1 && <WizardValidation values={values} onChange={setValues} />}
+        {step === 2 && <WizardReview values={values} />}
+        {error && <ErrorBanner error={new Error(error)} />}
+        {isEdit && !field?.is_locked && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={forceUpdate}
+              onChange={(event) => setForceUpdate(event.target.checked)}
+            />
+            Force update (override dependency guardrails)
+          </label>
+        )}
+      </div>
+    </ModalShell>
   );
 }
 

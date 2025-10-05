@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Dialog, DialogTrigger } from "../ui/dialog";
-import { ModalShell } from "../ui/modal-shell";
+import { ModalContent } from "../ui/modal-shell";
 
 interface CpuOption {
   id: number;
@@ -222,7 +222,7 @@ export function AddListingForm() {
                     Add CPU
                   </Button>
                 </DialogTrigger>
-                <ModalShell
+                <ModalContent
                   title="Add CPU"
                   description="Create a lightweight CPU entry without leaving the form."
                   footer={
@@ -314,7 +314,7 @@ export function AddListingForm() {
                       </div>
                     </div>
                   </div>
-                </ModalShell>
+                </ModalContent>
               </Dialog>
             </div>
           </div>

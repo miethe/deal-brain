@@ -1,11 +1,9 @@
 "use client";
 
 import { ReactNode } from "react";
-import { X } from "lucide-react";
 
-import { DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "./dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./dialog";
 import { cn } from "../../lib/utils";
-import { Button } from "./button";
 
 const MODAL_SIZES = {
   sm: "max-w-sm",   // 400px - confirmations
@@ -15,29 +13,31 @@ const MODAL_SIZES = {
   full: "max-w-[90vw]" // 90% viewport
 } as const;
 
-interface ModalShellProps {
+interface ModalContentProps {
   title: string;
   description?: string;
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
   size?: keyof typeof MODAL_SIZES;
-  onClose?: () => void;
   preventClose?: boolean;
-  showCloseButton?: boolean;
+  hideClose?: boolean;
 }
 
-export function ModalShell({
+/**
+ * ModalContent - Use inside an existing Dialog context (e.g., with DialogTrigger).
+ * This provides modal structure without wrapping in Dialog.
+ */
+export function ModalContent({
   title,
   description,
   children,
   footer,
   className,
   size = "md",
-  onClose,
   preventClose = false,
-  showCloseButton = true,
-}: ModalShellProps) {
+  hideClose = false,
+}: ModalContentProps) {
   const sizeClass = MODAL_SIZES[size];
 
   const handleInteractOutside = (e: Event) => {
@@ -54,37 +54,67 @@ export function ModalShell({
 
   return (
     <DialogContent
-      className={cn(sizeClass, "gap-6 p-6 shadow-2xl sm:px-8", className)}
+      className={cn(sizeClass, "gap-6", className)}
       onInteractOutside={handleInteractOutside}
       onEscapeKeyDown={handleEscapeKeyDown}
+      hideClose={hideClose || preventClose}
     >
-      <DialogHeader className="space-y-1 text-left">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <DialogTitle className="text-xl font-semibold tracking-tight">{title}</DialogTitle>
-            {description ? <DialogDescription className="mt-1.5">{description}</DialogDescription> : null}
-          </div>
-          {showCloseButton && !preventClose && (
-            <DialogClose asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 -mr-2 -mt-1"
-                onClick={onClose}
-              >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </Button>
-            </DialogClose>
-          )}
-        </div>
+      <DialogHeader>
+        <DialogTitle className="text-xl font-semibold tracking-tight">{title}</DialogTitle>
+        {description && <DialogDescription className="mt-1.5">{description}</DialogDescription>}
       </DialogHeader>
       <div className="max-h-[70vh] overflow-y-auto pr-1">{children}</div>
-      {footer ? (
-        <DialogFooter className="sticky bottom-0 flex justify-between gap-3 border-t bg-background/95 px-0 pt-4">
+      {footer && (
+        <DialogFooter className="mt-2 flex justify-between gap-3 border-t pt-4">
           {footer}
         </DialogFooter>
-      ) : null}
+      )}
     </DialogContent>
+  );
+}
+
+interface ModalShellProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  children: ReactNode;
+  footer?: ReactNode;
+  className?: string;
+  size?: keyof typeof MODAL_SIZES;
+  preventClose?: boolean;
+  hideClose?: boolean;
+}
+
+/**
+ * ModalShell - Complete modal with Dialog wrapper.
+ * Use when you control the open state directly.
+ */
+export function ModalShell({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  footer,
+  className,
+  size = "md",
+  preventClose = false,
+  hideClose = false,
+}: ModalShellProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <ModalContent
+        title={title}
+        description={description}
+        footer={footer}
+        className={className}
+        size={size}
+        preventClose={preventClose}
+        hideClose={hideClose}
+      >
+        {children}
+      </ModalContent>
+    </Dialog>
   );
 }

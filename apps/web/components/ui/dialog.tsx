@@ -25,33 +25,36 @@ const DialogOverlay = React.forwardRef<React.ElementRef<typeof DialogPrimitive.O
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 
-const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Content>, DialogPrimitive.DialogContentProps>(
-  ({ className, children, ...props }, ref) => (
-    <DialogPortal>
-      <DialogOverlay />
-      <DialogPrimitive.Content
-        ref={ref}
-        className={cn(
-          "fixed inset-x-4 top-16 z-50 mx-auto w-full max-w-3xl rounded-lg border border-border bg-background shadow-xl outline-none",
-          "animate-in fade-in-90 slide-in-from-top-10",
-          className
-        )}
-        {...props}
-      >
-        {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground hover:bg-muted">
+const DialogContent = React.forwardRef<
+  React.ElementRef<typeof DialogPrimitive.Content>,
+  DialogPrimitive.DialogContentProps & { hideClose?: boolean }
+>(({ className, children, hideClose = false, ...props }, ref) => (
+  <DialogPortal>
+    <DialogOverlay />
+    <DialogPrimitive.Content
+      ref={ref}
+      className={cn(
+        "fixed inset-x-4 top-16 z-50 mx-auto w-full max-w-3xl rounded-lg border border-border bg-background p-6 shadow-xl outline-none",
+        "animate-in fade-in-90 slide-in-from-top-10",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      {!hideClose && (
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground hover:bg-muted transition-colors">
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
-      </DialogPrimitive.Content>
-    </DialogPortal>
-  )
-);
+      )}
+    </DialogPrimitive.Content>
+  </DialogPortal>
+));
 
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("space-y-1.5 text-left", className)} {...props} />
+  <div className={cn("mb-4 space-y-1.5 text-left", className)} {...props} />
 );
 
 const DialogTitle = ({ className, ...props }: DialogPrimitive.DialogTitleProps) => (

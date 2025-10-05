@@ -8,7 +8,7 @@ import { Button } from "../ui/button";
 import { DataGrid, type ColumnMetaConfig } from "../ui/data-grid";
 import { Dialog, DialogTrigger } from "../ui/dialog";
 import { Badge } from "../ui/badge";
-import { ModalShell } from "../ui/modal-shell";
+import { ModalContent } from "../ui/modal-shell";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { ColumnDef, type FilterFn } from "@tanstack/react-table";
@@ -270,7 +270,7 @@ function RecordModal({ schema, mode, record, isSubmitting, onSubmit }: RecordMod
   const [formErrors, setFormErrors] = useState<string | null>(null);
 
   return (
-    <ModalShell
+    <ModalContent
       title={mode === "create" ? `Add ${schema.label}` : `Edit ${schema.label}`}
       description="Core fields save directly to the catalog; custom fields persist in attributes."
       footer={
@@ -316,7 +316,7 @@ function RecordModal({ schema, mode, record, isSubmitting, onSubmit }: RecordMod
           return <FieldInput key={field.key} field={field} defaultValue={initialValue} />;
         })}
       </form>
-    </ModalShell>
+    </ModalContent>
   );
 }
 
