@@ -266,6 +266,18 @@ class Listing(Base, TimestampMixin):
     perf_per_watt: Mapped[float | None]
     active_profile_id: Mapped[int | None] = mapped_column(ForeignKey("profile.id"))
 
+    # Performance Metrics (New)
+    dollar_per_cpu_mark_single: Mapped[float | None]
+    dollar_per_cpu_mark_single_adjusted: Mapped[float | None]
+    dollar_per_cpu_mark_multi: Mapped[float | None]
+    dollar_per_cpu_mark_multi_adjusted: Mapped[float | None]
+
+    # Product Metadata (New)
+    manufacturer: Mapped[str | None] = mapped_column(String(64))
+    series: Mapped[str | None] = mapped_column(String(128))
+    model_number: Mapped[str | None] = mapped_column(String(128))
+    form_factor: Mapped[str | None] = mapped_column(String(32))
+
     cpu: Mapped[Cpu | None] = relationship(back_populates="listings", lazy="joined")
     gpu: Mapped[Gpu | None] = relationship(back_populates="listings", lazy="joined")
     ports_profile: Mapped[PortsProfile | None] = relationship(back_populates="listings", lazy="joined")
