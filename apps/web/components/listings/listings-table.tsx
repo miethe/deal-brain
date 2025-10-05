@@ -28,6 +28,8 @@ import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
 import { ValuationBreakdownModal } from "./valuation-breakdown-modal";
 import { ValuationCell } from "./valuation-cell";
+import { DualMetricCell } from "./dual-metric-cell";
+import { PortsDisplay } from "./ports-display";
 import { ComboBox } from "../forms/combobox";
 import { useConfirmation } from "../ui/confirmation-dialog";
 import { useValuationThresholds } from "@/hooks/use-valuation-thresholds";
@@ -38,6 +40,22 @@ interface ListingRow extends ListingRecord {
   cpu_name?: string | null;
   gpu_name?: string | null;
   thumbnail_url?: string | null;
+  // Performance metrics (new)
+  dollar_per_cpu_mark_single?: number | null;
+  dollar_per_cpu_mark_single_adjusted?: number | null;
+  dollar_per_cpu_mark_multi?: number | null;
+  dollar_per_cpu_mark_multi_adjusted?: number | null;
+  // Product metadata (new)
+  manufacturer?: string | null;
+  series?: string | null;
+  model_number?: string | null;
+  form_factor?: string | null;
+  // Ports (new)
+  ports_profile?: {
+    id?: number | null;
+    name?: string | null;
+    ports?: Array<{ port_type: string; quantity: number }>;
+  } | null;
 }
 
 interface BulkEditState {
@@ -505,6 +523,120 @@ export function ListingsTable() {
         },
         filterFn: numericFilterFn,
         size: 140,
+      },
+      {
+        id: 'dollar_per_cpu_mark_single',
+        header: '$/CPU Mark (Single)',
+        accessorKey: 'dollar_per_cpu_mark_single',
+        cell: ({ row }) => (
+          <DualMetricCell
+            raw={row.original.dollar_per_cpu_mark_single}
+            adjusted={row.original.dollar_per_cpu_mark_single_adjusted}
+            prefix="$"
+            decimals={3}
+          />
+        ),
+        meta: {
+          tooltip: 'Single-thread price efficiency. Lower = better value.',
+          description: 'Cost per PassMark single-thread point. Adjusted value uses price after RAM/storage deductions.',
+          filterType: 'number',
+          minWidth: 160,
+        },
+        enableSorting: true,
+        enableResizing: true,
+        enableColumnFilter: true,
+        filterFn: numericFilterFn,
+        size: 160,
+      },
+      {
+        id: 'dollar_per_cpu_mark_multi',
+        header: '$/CPU Mark (Multi)',
+        accessorKey: 'dollar_per_cpu_mark_multi',
+        cell: ({ row }) => (
+          <DualMetricCell
+            raw={row.original.dollar_per_cpu_mark_multi}
+            adjusted={row.original.dollar_per_cpu_mark_multi_adjusted}
+            prefix="$"
+            decimals={3}
+          />
+        ),
+        meta: {
+          tooltip: 'Multi-thread price efficiency. Lower = better value.',
+          description: 'Cost per PassMark multi-thread point. Adjusted value uses price after RAM/storage deductions.',
+          filterType: 'number',
+          minWidth: 160,
+        },
+        enableSorting: true,
+        enableResizing: true,
+        enableColumnFilter: true,
+        filterFn: numericFilterFn,
+        size: 160,
+      },
+      {
+        id: 'manufacturer',
+        header: 'Manufacturer',
+        accessorKey: 'manufacturer',
+        cell: ({ getValue }) => {
+          const val = getValue() as string | null;
+          return <span className="text-sm">{val || "—"}</span>;
+        },
+        meta: {
+          tooltip: 'PC manufacturer or builder',
+          filterType: 'multi-select',
+          options: [
+            { label: 'Dell', value: 'Dell' },
+            { label: 'HP', value: 'HP' },
+            { label: 'Lenovo', value: 'Lenovo' },
+            { label: 'Apple', value: 'Apple' },
+            { label: 'ASUS', value: 'ASUS' },
+            { label: 'Acer', value: 'Acer' },
+            { label: 'MSI', value: 'MSI' },
+            { label: 'Custom Build', value: 'Custom Build' },
+            { label: 'Other', value: 'Other' },
+          ],
+        },
+        enableSorting: true,
+        enableResizing: true,
+        size: 140,
+      },
+      {
+        id: 'form_factor',
+        header: 'Form Factor',
+        accessorKey: 'form_factor',
+        cell: ({ getValue }) => {
+          const val = getValue() as string | null;
+          return <span className="text-sm">{val || "—"}</span>;
+        },
+        meta: {
+          tooltip: 'PC form factor classification',
+          filterType: 'multi-select',
+          options: [
+            { label: 'Desktop', value: 'Desktop' },
+            { label: 'Laptop', value: 'Laptop' },
+            { label: 'Server', value: 'Server' },
+            { label: 'Mini-PC', value: 'Mini-PC' },
+            { label: 'All-in-One', value: 'All-in-One' },
+            { label: 'Other', value: 'Other' },
+          ],
+        },
+        enableSorting: true,
+        enableResizing: true,
+        size: 120,
+      },
+      {
+        id: 'ports',
+        header: 'Ports',
+        accessorFn: (row) => row.ports_profile?.ports || [],
+        cell: ({ row }) => (
+          <PortsDisplay ports={row.original.ports_profile?.ports || []} />
+        ),
+        meta: {
+          tooltip: 'Connectivity ports',
+          description: 'Available ports and quantities',
+        },
+        enableSorting: false,
+        enableResizing: true,
+        size: 200,
       },
       {
         header: "Composite",
