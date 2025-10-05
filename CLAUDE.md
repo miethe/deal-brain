@@ -19,6 +19,14 @@ Deal Brain is a full-stack price-to-performance assistant for small form factor 
 - Default value configuration for all field types
 - CPU enrichment with benchmark scores (CPU Mark, Single-Thread, iGPU Mark)
 
+**Performance Metrics:**
+- Dual CPU Mark metrics (single-thread and multi-thread price efficiency)
+- Base and adjusted valuations with automatic calculations
+- Product metadata (manufacturer, series, model number, form factor)
+- Structured ports management (USB-A, USB-C, HDMI, DisplayPort, etc.)
+- Automatic metric recalculation on price or CPU changes
+- PassMark benchmark data import from CSV
+
 **UI/UX:**
 - Memoized components for performance optimization
 - Debounced search inputs (200ms)
@@ -71,6 +79,11 @@ make format             # Format code (black, isort, prettier)
 ```bash
 make seed               # Run seed script (apps/api/dealbrain_api/seeds.py)
 poetry run dealbrain-cli import path/to/workbook.xlsx  # Import Excel workbook
+
+# Performance metrics data population
+poetry run python scripts/import_passmark_data.py data/passmark_cpus.csv  # Import CPU benchmarks
+poetry run python scripts/recalculate_all_metrics.py  # Recalculate performance metrics for all listings
+poetry run python scripts/seed_sample_listings.py     # Create sample listings with metadata and ports
 ```
 
 ### CLI Commands
@@ -95,7 +108,8 @@ The `packages/core/` directory contains the **core domain logic** shared across 
 
 ### Backend Services Layer
 `apps/api/dealbrain_api/services/` orchestrates persistence + domain logic:
-- `listings.py` - Listing CRUD, component sync, metrics application
+- `listings.py` - Listing CRUD, component sync, metrics application, performance calculations
+- `ports.py` - Ports profile and port management for connectivity data
 - `custom_fields.py` - Dynamic custom field management per entity
 - `field_registry.py` - Field metadata registration and validation
 - `imports/` - Excel workbook parsing and import pipeline
