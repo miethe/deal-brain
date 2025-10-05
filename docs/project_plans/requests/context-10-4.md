@@ -194,7 +194,7 @@
    - Description and metadata remain editable
    - Delete and Audit buttons hidden for system fields
 
-**Git Commit:** Pending (see below)
+**Git Commit:** `7ea7c82` - "feat: Add column tooltips and smart dropdown components (Phases 3 & 4)"
 
 ---
 
@@ -219,7 +219,7 @@
    - ComboBox remains recommended for complex scenarios
    - Clear separation: ComboBox (search/creation) vs SmartDropdown (simple select)
 
-**Git Commit:** Pending (see below)
+**Git Commit:** `7ea7c82` - "feat: Add column tooltips and smart dropdown components (Phases 3 & 4)"
 
 ---
 
