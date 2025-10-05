@@ -301,23 +301,40 @@ function renderFilterControl<TData>(
         }
       };
 
+      // Calculate dynamic height based on number of options
+      const optionCount = options.length;
+      const hasSearch = (meta?.options ?? []).length > 5;
+      // Each option is ~28px (checkbox + padding), search input is ~32px, padding is ~16px
+      const contentHeight = optionCount * 28 + (hasSearch ? 32 : 0) + 16;
+      const maxHeight = 320; // Max height in pixels (equivalent to max-h-80)
+      const dropdownHeight = Math.min(contentHeight, maxHeight);
+      const needsScroll = contentHeight > maxHeight;
+
       return (
         <div className="flex h-full flex-col gap-1">
-          <Input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search"
-            className="h-8 w-full text-xs"
-          />
-          <div className="grid max-h-40 gap-1 overflow-y-auto rounded-md border border-input bg-background p-2 text-xs">
+          {hasSearch && (
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search"
+              className="h-8 w-full text-xs"
+            />
+          )}
+          <div
+            className={cn(
+              "grid gap-1 rounded-md border border-input bg-background p-2 text-xs",
+              needsScroll && "overflow-y-auto"
+            )}
+            style={{ maxHeight: `${dropdownHeight}px` }}
+          >
             {options.length ? (
               options.map((option) => {
                 const checked = selections.includes(option.value);
                 return (
-                  <label key={option.value} className="flex cursor-pointer items-center gap-2">
+                  <label key={option.value} className="flex cursor-pointer items-center gap-2 whitespace-nowrap">
                     <input
                       type="checkbox"
-                      className="h-3 w-3"
+                      className="h-3 w-3 flex-shrink-0"
                       checked={checked}
                       onChange={() => toggleSelection(option.value)}
                     />
