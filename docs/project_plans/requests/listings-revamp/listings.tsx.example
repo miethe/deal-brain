@@ -1,0 +1,461 @@
+import React, { useMemo, useState } from "react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Slider } from "@/components/ui/slider";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { MoreHorizontal, Cpu, Gauge, DollarSign, ArrowUpRight, Filter, Columns2, SquarePen, Layers3 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
+
+// --------------------
+// Types & Mock Data
+// --------------------
+
+export type Listing = {
+  id: string;
+  title: string;
+  deviceType: "Mini-PC" | "Desktop" | "Laptop" | "Server" | "All-in-One";
+  manufacturer: string;
+  cpu: { name: string; stMark: number; mtMark: number; cores: number };
+  ramGB: number;
+  storage: { primary: number; type: "SSD" | "HDD" };
+  ports: { usbC: number; usbA: number; hdmi: number; dp: number };
+  condition: "new" | "used" | "refurb";
+  status: "active" | "archived" | "pending";
+  priceUSD: number; // current asking price
+  adjustedUSD: number; // price after valuation rules
+  url?: string;
+  images?: string[];
+  tags?: string[];
+  vendor?: string; // Best Buy, eBay, etc.
+};
+
+const listingsSeed: Listing[] = [
+  {
+    id: "asusz14-1",
+    title: "ASUS Zenbook Pro 14 OLED",
+    deviceType: "Laptop",
+    manufacturer: "ASUS",
+    cpu: { name: "AMD Ryzen 9 7940HS", stMark: 10000, mtMark: 48500, cores: 8 },
+    ramGB: 32,
+    storage: { primary: 1024, type: "SSD" },
+    ports: { usbC: 2, usbA: 1, hdmi: 1, dp: 0 },
+    condition: "new",
+    status: "active",
+    priceUSD: 1599.99,
+    adjustedUSD: 1499.99,
+    url: "https://example.com/listing/1",
+    tags: ["OLED", "Creator"],
+    vendor: "ASUS Store",
+  },
+  {
+    id: "mini-um690s",
+    title: "Minisforum UM690S",
+    deviceType: "Mini-PC",
+    manufacturer: "Minisforum",
+    cpu: { name: "AMD Ryzen 9 6900HX", stMark: 8750, mtMark: 30500, cores: 8 },
+    ramGB: 32,
+    storage: { primary: 512, type: "SSD" },
+    ports: { usbC: 2, usbA: 4, hdmi: 2, dp: 1 },
+    condition: "used",
+    status: "active",
+    priceUSD: 499,
+    adjustedUSD: 479,
+    url: "https://example.com/listing/2",
+    tags: ["SFF", "RDNA2"],
+    vendor: "eBay",
+  },
+  {
+    id: "beelink-ser5",
+    title: "Beelink SER5",
+    deviceType: "Mini-PC",
+    manufacturer: "Beelink",
+    cpu: { name: "AMD Ryzen 7 5800H", stMark: 6200, mtMark: 22000, cores: 8 },
+    ramGB: 16,
+    storage: { primary: 256, type: "SSD" },
+    ports: { usbC: 1, usbA: 4, hdmi: 2, dp: 1 },
+    condition: "used",
+    status: "active",
+    priceUSD: 299,
+    adjustedUSD: 289,
+    url: "https://example.com/listing/3",
+    tags: ["Budget"],
+    vendor: "Amazon",
+  },
+];
+
+// --------------------
+// Utilities
+// --------------------
+
+const usd = (v: number) => v.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+const ratio = (price: number, mark: number) => (mark > 0 ? price / mark : 0);
+const pct = (a: number, b: number) => (b === 0 ? 0 : (a - b) / b);
+
+function PerfBadges({ price, adjusted, st, mt }: { price: number; adjusted: number; st: number; mt: number }) {
+  const priceSt = ratio(price, st);
+  const priceMt = ratio(price, mt);
+  const adjSt = ratio(adjusted, st);
+  const adjMt = ratio(adjusted, mt);
+  const cheap = pct(adjusted, price) < -0.01;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge variant="secondary" className="rounded-2xl">$/ST {priceSt.toFixed(3)}</Badge>
+      <Badge variant="secondary" className="rounded-2xl">$/MT {priceMt.toFixed(3)}</Badge>
+      <Badge className={cn("rounded-2xl", cheap && "bg-emerald-600 text-white")}>adj $/ST {adjSt.toFixed(3)}</Badge>
+      <Badge className={cn("rounded-2xl", cheap && "bg-emerald-600 text-white")}>adj $/MT {adjMt.toFixed(3)}</Badge>
+    </div>
+  );
+}
+
+// --------------------
+// Filters Bar
+// --------------------
+
+function FiltersBar({ q, setQ, type, setType, manufacturer, setManufacturer, priceRange, setPriceRange }: any) {
+  return (
+    <div className="sticky top-0 z-10 -mx-4 mb-4 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+        <div className="flex items-center gap-2">
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, CPU, tags…" className="w-full" />
+          <Button variant="outline"><Filter className="h-4 w-4"/></Button>
+        </div>
+        <Select value={type} onValueChange={setType}>
+          <SelectTrigger><SelectValue placeholder="Form factor" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All devices</SelectItem>
+            <SelectItem value="Mini-PC">Mini‑PC</SelectItem>
+            <SelectItem value="Laptop">Laptop</SelectItem>
+            <SelectItem value="Desktop">Desktop</SelectItem>
+            <SelectItem value="Server">Server</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={manufacturer} onValueChange={setManufacturer}>
+          <SelectTrigger><SelectValue placeholder="Manufacturer" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All brands</SelectItem>
+            <SelectItem value="ASUS">ASUS</SelectItem>
+            <SelectItem value="Minisforum">Minisforum</SelectItem>
+            <SelectItem value="Beelink">Beelink</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="space-y-1">
+          <div className="text-xs text-muted-foreground">Max price: {usd(priceRange)}</div>
+          <Slider defaultValue={[1500]} max={2500} step={50} onValueChange={(v) => setPriceRange(v[0])} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --------------------
+// Iteration A – Card Grid (expressive, scannable)
+// --------------------
+
+function GridCard({ l, onOpen }: { l: Listing; onOpen: (l: Listing) => void }) {
+  const cheapPct = pct(l.adjustedUSD, l.priceUSD);
+  return (
+    <Card className="group overflow-hidden hover:shadow-xl transition-shadow rounded-2xl">
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-base leading-tight">{l.title}</CardTitle>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => onOpen(l)}>
+            <ArrowUpRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2 pt-2">
+          <Badge variant="outline" className="gap-1"><Cpu className="h-3 w-3" /> {l.cpu.name}</Badge>
+          <Badge variant="outline" className="gap-1"><Gauge className="h-3 w-3" /> ST {l.cpu.stMark.toLocaleString()} / MT {l.cpu.mtMark.toLocaleString()}</Badge>
+          <Badge variant="secondary">{l.deviceType}</Badge>
+          {l.tags?.slice(0,2).map(t => <Badge key={t} variant="secondary">{t}</Badge>)}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="text-2xl font-semibold">{usd(l.priceUSD)}</div>
+          <div className="text-right">
+            <div className="text-sm text-muted-foreground">Adjusted</div>
+            <div className={cn("font-medium", cheapPct < 0 ? "text-emerald-600" : cheapPct > 0 ? "text-amber-600" : "")}>{usd(l.adjustedUSD)}</div>
+          </div>
+        </div>
+        <PerfBadges price={l.priceUSD} adjusted={l.adjustedUSD} st={l.cpu.stMark} mt={l.cpu.mtMark} />
+        <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+          <div>RAM <span className="text-foreground font-medium">{l.ramGB} GB</span></div>
+          <div>Storage <span className="text-foreground font-medium">{l.storage.primary} GB {l.storage.type}</span></div>
+          <div>Condition <span className="text-foreground font-medium capitalize">{l.condition}</span></div>
+        </div>
+        <div className="flex items-center justify-between pt-1">
+          <Badge variant="outline" className="gap-1"><DollarSign className="h-3 w-3"/> {l.vendor ?? "—"}</Badge>
+          <div className="flex items-center gap-2 opacity-70 group-hover:opacity-100 transition-opacity">
+            <TooltipProvider><Tooltip><TooltipTrigger asChild>
+              <Button size="sm" variant="ghost" className="gap-1"><SquarePen className="h-4 w-4"/> Quick edit</Button>
+            </TooltipTrigger><TooltipContent>Inline edit key fields</TooltipContent></Tooltip></TooltipProvider>
+            <Button size="sm" asChild><a href={l.url ?? "#"} target="_blank" rel="noreferrer">Open</a></Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function GridView({ data, onOpen }: { data: Listing[]; onOpen: (l: Listing) => void }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {data.map((l) => <GridCard key={l.id} l={l} onOpen={onOpen} />)}
+    </div>
+  );
+}
+
+// --------------------
+// Iteration B – Dense List (operations-first)
+// --------------------
+
+function DenseTable({ data, onOpen }: { data: Listing[]; onOpen: (l: Listing) => void }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Title</TableHead>
+          <TableHead>CPU</TableHead>
+          <TableHead className="text-right">Price</TableHead>
+          <TableHead className="text-right">Adjusted</TableHead>
+          <TableHead className="text-right">$/ST</TableHead>
+          <TableHead className="text-right">$/MT</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {data.map((l) => (
+          <TableRow key={l.id} className="group">
+            <TableCell>
+              <div className="font-medium leading-tight">{l.title}</div>
+              <div className="text-xs text-muted-foreground flex gap-2 items-center pt-0.5">
+                <Badge variant="secondary" className="rounded-2xl">{l.deviceType}</Badge>
+                <span>{l.ramGB} GB / {l.storage.primary} GB {l.storage.type}</span>
+              </div>
+            </TableCell>
+            <TableCell>
+              <div className="text-sm">{l.cpu.name}</div>
+              <div className="text-xs text-muted-foreground">ST {l.cpu.stMark.toLocaleString()} / MT {l.cpu.mtMark.toLocaleString()}</div>
+            </TableCell>
+            <TableCell className="text-right">{usd(l.priceUSD)}</TableCell>
+            <TableCell className={cn("text-right", l.adjustedUSD < l.priceUSD ? "text-emerald-600" : "text-amber-600")}>{usd(l.adjustedUSD)}</TableCell>
+            <TableCell className="text-right">{ratio(l.priceUSD, l.cpu.stMark).toFixed(3)}</TableCell>
+            <TableCell className="text-right">{ratio(l.priceUSD, l.cpu.mtMark).toFixed(3)}</TableCell>
+            <TableCell className="text-right">
+              <div className="flex justify-end gap-2 opacity-70 group-hover:opacity-100">
+                <Button size="sm" variant="outline" onClick={() => onOpen(l)}>Details</Button>
+                <Button size="sm" variant="ghost"><SquarePen className="h-4 w-4"/></Button>
+                <Button size="sm" variant="ghost"><MoreHorizontal className="h-4 w-4"/></Button>
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+// --------------------
+// Iteration C – Split Master/Detail with Compare Drawer
+// --------------------
+
+function MasterDetail({ data }: { data: Listing[] }) {
+  const [selected, setSelected] = useState<Listing | null>(data[0] ?? null);
+  const [compare, setCompare] = useState<Listing[]>([]);
+  const toggleCompare = (l: Listing) => setCompare((arr) => arr.find((x) => x.id === l.id) ? arr.filter((x) => x.id !== l.id) : [...arr, l]);
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
+      <div className="lg:col-span-4">
+        <ScrollArea className="h-[70vh] pr-2">
+          <div className="space-y-2">
+            {data.map((l) => (
+              <button key={l.id} onClick={() => setSelected(l)} className={cn("w-full text-left rounded-xl border p-3 hover:bg-muted", selected?.id === l.id && "border-primary bg-muted") }>
+                <div className="flex items-center justify-between">
+                  <div className="font-medium">{l.title}</div>
+                  <div className="text-sm">{usd(l.adjustedUSD)}</div>
+                </div>
+                <div className="text-xs text-muted-foreground">{l.cpu.name} • ST {l.cpu.stMark.toLocaleString()} / MT {l.cpu.mtMark.toLocaleString()}</div>
+                <div className="flex items-center gap-2 pt-2">
+                  <Checkbox checked={!!compare.find((x) => x.id === l.id)} onCheckedChange={() => toggleCompare(l)} />
+                  <span className="text-xs">Compare</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+      <div className="lg:col-span-6">
+        {selected && (
+          <Card className="rounded-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>{selected.title}</span>
+                <div className="flex items-center gap-2">
+                  <Badge>{selected.deviceType}</Badge>
+                  <Button size="sm" asChild><a href={selected.url ?? "#"} target="_blank" rel="noreferrer">Open</a></Button>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Metric label="Price" value={usd(selected.priceUSD)} />
+                <Metric label="Adjusted" value={usd(selected.adjustedUSD)} accent={selected.adjustedUSD < selected.priceUSD ? "good" : "warn"} />
+                <Metric label="$/ST" value={ratio(selected.priceUSD, selected.cpu.stMark).toFixed(3)} />
+                <Metric label="$/MT" value={ratio(selected.priceUSD, selected.cpu.mtMark).toFixed(3)} />
+              </div>
+              <PerfBadges price={selected.priceUSD} adjusted={selected.adjustedUSD} st={selected.cpu.stMark} mt={selected.cpu.mtMark} />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                <KV label="CPU" value={selected.cpu.name} />
+                <KV label="Scores" value={`ST ${selected.cpu.stMark.toLocaleString()} / MT ${selected.cpu.mtMark.toLocaleString()}`} />
+                <KV label="Memory" value={`${selected.ramGB} GB`} />
+                <KV label="Storage" value={`${selected.storage.primary} GB ${selected.storage.type}`} />
+                <KV label="Condition" value={selected.condition} />
+                <KV label="Vendor" value={selected.vendor ?? "—"} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button className="mt-4" variant="outline"><Layers3 className="h-4 w-4 mr-2"/>Compare ({compare.length})</Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-[60vh]">
+            <SheetHeader><SheetTitle>Quick Compare</SheetTitle></SheetHeader>
+            <div className="grid md:grid-cols-3 gap-4 mt-4">
+              {compare.map((c) => (
+                <Card key={c.id} className="rounded-2xl">
+                  <CardHeader className="pb-2"><CardTitle className="text-base">{c.title}</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Metric label="Adjusted" value={usd(c.adjustedUSD)} />
+                      <Metric label="$/MT" value={ratio(c.adjustedUSD, c.cpu.mtMark).toFixed(3)} />
+                      <Metric label="CPU" value={c.cpu.name} />
+                      <Metric label="Scores" value={`ST ${c.cpu.stMark.toLocaleString()} / MT ${c.cpu.mtMark.toLocaleString()}`} />
+                    </div>
+                    <PerfBadges price={c.priceUSD} adjusted={c.adjustedUSD} st={c.cpu.stMark} mt={c.cpu.mtMark} />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    </div>
+  );
+}
+
+function Metric({ label, value, accent }: { label: string; value: React.ReactNode; accent?: "good" | "warn" }) {
+  return (
+    <div className={cn("rounded-xl border p-3", accent === "good" && "border-emerald-500/40 bg-emerald-500/5", accent === "warn" && "border-amber-500/40 bg-amber-500/5") }>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="font-medium">{value}</div>
+    </div>
+  );
+}
+
+function KV({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="font-medium">{value}</div>
+    </div>
+  );
+}
+
+// --------------------
+// Details Dialog
+// --------------------
+
+function DetailsDialog({ listing, open, onOpenChange }: { listing: Listing | null; open: boolean; onOpenChange: (v:boolean) => void }) {
+  if (!listing) return null;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
+            <span>{listing.title}</span>
+            <Badge>{listing.deviceType}</Badge>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Metric label="Price" value={usd(listing.priceUSD)} />
+          <Metric label="Adjusted" value={usd(listing.adjustedUSD)} accent={listing.adjustedUSD < listing.priceUSD ? "good" : "warn"} />
+          <Metric label="$/ST" value={ratio(listing.priceUSD, listing.cpu.stMark).toFixed(3)} />
+          <Metric label="$/MT" value={ratio(listing.priceUSD, listing.cpu.mtMark).toFixed(3)} />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+          <KV label="CPU" value={listing.cpu.name} />
+          <KV label="Scores" value={`ST ${listing.cpu.stMark.toLocaleString()} / MT ${listing.cpu.mtMark.toLocaleString()}`} />
+          <KV label="Memory" value={`${listing.ramGB} GB`} />
+          <KV label="Storage" value={`${listing.storage.primary} GB ${listing.storage.type}`} />
+          <KV label="Condition" value={listing.condition} />
+          <KV label="Vendor" value={listing.vendor ?? "—"} />
+        </div>
+        <div className="pt-2"><PerfBadges price={listing.priceUSD} adjusted={listing.adjustedUSD} st={listing.cpu.stMark} mt={listing.cpu.mtMark} /></div>
+        <div className="flex justify-end gap-2 pt-4">
+          <Button variant="outline" asChild><a href={listing.url ?? "#"} target="_blank" rel="noreferrer">Open link</a></Button>
+          <Button>Expand full page</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// --------------------
+// Top-level Demo Component
+// --------------------
+
+export default function ListingsCatalogDemo() {
+  const [q, setQ] = useState("");
+  const [type, setType] = useState("all");
+  const [manufacturer, setManufacturer] = useState("all");
+  const [priceRange, setPriceRange] = useState(2500);
+  const [view, setView] = useState<"grid" | "list" | "md">("grid");
+  const [details, setDetails] = useState<{open: boolean; listing: Listing | null}>({ open: false, listing: null });
+
+  const data = useMemo(() => {
+    return listingsSeed.filter((l) =>
+      (type === "all" || l.deviceType === (type as any)) &&
+      (manufacturer === "all" || l.manufacturer === manufacturer) &&
+      l.priceUSD <= priceRange &&
+      (q.trim() === "" || [l.title, l.cpu.name, l.tags?.join(" ")].join(" ").toLowerCase().includes(q.toLowerCase()))
+    );
+  }, [q, type, manufacturer, priceRange]);
+
+  const openDetails = (l: Listing) => setDetails({ open: true, listing: l });
+
+  return (
+    <div className="p-4 md:p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Listings</h1>
+          <p className="text-sm text-muted-foreground">Clean catalog views with inline edit, filters, and quick compare. Switch to the Data tab for the raw grid.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant={view === "grid" ? "default" : "outline"} onClick={() => setView("grid")} className="rounded-2xl"><Columns2 className="h-4 w-4 mr-2"/>Grid</Button>
+          <Button variant={view === "list" ? "default" : "outline"} onClick={() => setView("list")} className="rounded-2xl">List</Button>
+          <Button variant={view === "md" ? "default" : "outline"} onClick={() => setView("md")} className="rounded-2xl">Master‑Detail</Button>
+        </div>
+      </div>
+
+      <FiltersBar q={q} setQ={setQ} type={type} setType={setType} manufacturer={manufacturer} setManufacturer={setManufacturer} priceRange={priceRange} setPriceRange={setPriceRange} />
+
+      <div className="mt-4">
+        {view === "grid" && <GridView data={data} onOpen={openDetails} />}
+        {view === "list" && <DenseTable data={data} onOpen={openDetails} />}
+        {view === "md" && <MasterDetail data={data} />}
+      </div>
+
+      <DetailsDialog open={details.open} listing={details.listing} onOpenChange={(v)=> setDetails((d) => ({...d, open: v}))} />
+    </div>
+  );
+}
