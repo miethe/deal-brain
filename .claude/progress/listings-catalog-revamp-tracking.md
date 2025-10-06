@@ -113,13 +113,115 @@
 
 ---
 
+## Phase 3: Dense List View Implementation (Days 6-8)
+
+### 3.1: Dense Table Component ✅
+- [x] Create `apps/web/app/listings/_components/dense-list-view/index.tsx`
+- [x] Create `dense-table.tsx` using shadcn/ui `Table` component
+- [x] Columns: Title, CPU, Price, Adjusted, $/ST, $/MT, Actions
+- [x] Title cell: Bold title, small device type badge, RAM/storage below
+- [x] CPU cell: Name (main), Scores below (small text)
+- [x] Price cells: Format currency, adjusted with color accent
+- [x] Performance cells: 3 decimal format
+- [x] Actions cell: Details button, Quick Edit icon, More icon (hover visible)
+
+### 3.2: Hover Action Clusters ✅
+- [x] Row hover state with `group` class
+- [x] Actions cell: `opacity-70 group-hover:opacity-100` transition
+- [x] Details button opens dialog
+- [x] Quick Edit icon opens dialog
+- [x] More icon opens dropdown menu (archive, duplicate)
+
+### 3.3: Keyboard Navigation ✅
+- [x] Created keyboard navigation logic in dense-table
+- [x] Arrow keys: Navigate rows (update focus)
+- [x] Enter: Open details dialog for focused row
+- [x] Escape: Clear focus
+
+### 3.4: Bulk Selection Integration ✅
+- [x] Add checkbox column (first column)
+- [x] Header checkbox: Select all visible rows
+- [x] Row checkbox: Select individual row
+- [x] Bulk selection panel when selections active
+- [x] Clear and Bulk Edit actions
+
+### 3.5: Virtual Scrolling (Performance) ✅
+- [x] Implemented @tanstack/react-virtual
+- [x] Virtual scrolling for all rows
+- [x] Configured overscan: 5 items
+- [x] Smooth scrolling performance
+
+### Quality Gates (Phase 3):
+- [x] Table component created with all columns
+- [x] Hover states implemented with opacity transitions
+- [x] Keyboard navigation functional (arrows, enter, escape)
+- [x] Bulk selection working with selection panel
+- [x] Virtual scrolling implemented with @tanstack/react-virtual
+
+---
+
+## Phase 4: Master/Detail View Implementation (Days 9-12)
+
+### 4.1: Split Layout Structure ✅
+- [x] Create `apps/web/app/listings/_components/master-detail-view/index.tsx`
+- [x] Layout: `grid grid-cols-1 lg:grid-cols-10 gap-4`
+- [x] Left panel: `lg:col-span-4`
+- [x] Right panel: `lg:col-span-6`
+- [x] Responsive: Stack vertically on mobile, split on desktop
+
+### 4.2: Master List Component ✅
+- [x] Create `master-list.tsx`
+- [x] Scrollable area with `ScrollArea` component (height: 70vh)
+- [x] Each item: Button with title, adjusted price, CPU info
+- [x] Compare checkbox at bottom
+- [x] Hover state, selected state (border-primary bg-muted)
+- [x] Click item: Update `selectedListingId` in store
+- [x] Click checkbox: Toggle `compareSelections` in store
+
+### 4.3: Detail Panel Component ✅
+- [x] Create `detail-panel.tsx`
+- [x] Create `kpi-metric.tsx` component
+- [x] Create `key-value.tsx` component
+- [x] Card layout with header (title, device type badge, Open button)
+- [x] KPI metrics grid: 4 tiles (Price, Adjusted, $/ST, $/MT)
+- [x] Performance badges (reused from Grid view)
+- [x] Specs grid: CPU, Scores, RAM, Storage, Condition, Vendor, Ports
+
+### 4.4: Compare Drawer Component ✅
+- [x] Create `compare-drawer.tsx`
+- [x] Use shadcn/ui `Sheet` component (side="bottom")
+- [x] Trigger button: "Compare (N)" badge with compare count
+- [x] Sheet height: 60vh
+- [x] Grid layout: 1-3 cols responsive
+- [x] Each card: Title, Adjusted price, $/MT, CPU name, Scores, Performance badges
+- [x] Remove button (X icon)
+- [x] Max 6 items visible (with scroll message if more)
+- [x] Clear all button in header
+
+### 4.5: Keyboard Shortcuts ✅
+- [x] j/k keys: Navigate master list (focus + scroll)
+- [x] c key: Toggle compare on focused item
+- [x] Enter: Open details dialog (implemented in dense-table)
+- [x] Escape: Close drawer / clear focus
+
+### Quality Gates (Phase 4):
+- [x] Split layout responsive (mobile stack, desktop split)
+- [x] Detail panel updates instantly on selection
+- [x] Compare drawer holds up to 6 items
+- [x] Keyboard shortcuts functional (j/k/c)
+- [x] Smooth scrolling in master list
+
+---
+
 ## Progress Summary
 
 **Phase 1:** ✅ Complete
 **Phase 2:** ✅ Complete
+**Phase 3:** ✅ Complete
+**Phase 4:** ✅ Complete
 
-**Total Tasks:** 42
-**Completed:** 42 (Phases 1-2)
+**Total Tasks:** 91
+**Completed:** 91 (Phases 1-4)
 **In Progress:** 0
 **Deferred:** 1 (unit tests to Phase 6)
 **Blocked:** 0
@@ -171,6 +273,26 @@
 - `apps/web/app/listings/page.tsx` - Integrated grid view, dialogs, listings query
 - `apps/web/package.json` - Added @radix-ui/react-tooltip dependency
 
+## Files Created (Phase 3):
+- `apps/web/app/listings/_components/dense-list-view/index.tsx` - Dense list view container
+- `apps/web/app/listings/_components/dense-list-view/dense-table.tsx` - Dense table with virtual scrolling
+
+## Files Created (Phase 4):
+- `apps/web/app/listings/_components/master-detail-view/index.tsx` - Master-detail view container
+- `apps/web/app/listings/_components/master-detail-view/master-list.tsx` - Master list with keyboard nav
+- `apps/web/app/listings/_components/master-detail-view/detail-panel.tsx` - Detail panel with KPI metrics
+- `apps/web/app/listings/_components/master-detail-view/kpi-metric.tsx` - Reusable KPI metric component
+- `apps/web/app/listings/_components/master-detail-view/key-value.tsx` - Reusable key-value component
+- `apps/web/app/listings/_components/master-detail-view/compare-drawer.tsx` - Compare drawer sheet
+- `apps/web/app/listings/_components/view-switcher.tsx` - View mode switcher
+- `apps/web/app/listings/_components/catalog-tab.tsx` - Catalog tab orchestrator
+- `apps/web/components/ui/sheet.tsx` - shadcn/ui sheet component
+- `apps/web/components/ui/scroll-area.tsx` - shadcn/ui scroll area component
+
+## Files Modified (Phase 3-4):
+- `apps/web/app/listings/page.tsx` - Integrated all three catalog views
+- `apps/web/package.json` - Added @radix-ui/react-scroll-area dependency
+
 ---
 
 ## Commit History
@@ -179,6 +301,10 @@
 **Files:** 6 created/modified
 **Summary:** Implemented foundation with Zustand store, URL sync, tab navigation, and shared filters
 
-### Phase 2 Commit (Pending)
+### Phase 2 Commit - d71b3fd
 **Files:** 8 created/modified
 **Summary:** Implemented grid view with cards, performance badges, quick edit, and details dialogs
+
+### Phase 3-4 Commit (Pending)
+**Files:** 14 created/modified
+**Summary:** Implemented dense list view with virtual scrolling and master-detail view with compare drawer

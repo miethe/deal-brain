@@ -670,3 +670,95 @@ Completed full implementation of performance metrics and data enrichment feature
 - WCAG AA compliance throughout
 
 **Status:** Production-ready ✅
+
+
+---
+
+## Listings Catalog View Revamp - Phases 1-2 Complete ✅ (10-6-2025)
+
+### Phase 1: Foundation & Tab Navigation ✅
+**State Management:**
+- Created Zustand store (catalog-store.ts) with persist middleware
+- CatalogState interface: view modes, tabs, filters, compare selections, dialog states
+- Custom hooks: useFilters(), useCompare() for ergonomic access
+- Partialize: only persists activeView, activeTab, filters (not temporary state)
+
+**URL Synchronization:**
+- useUrlSync() hook with 300ms debounced updates
+- Bidirectional sync: store ↔ URL params
+- Browser back/forward navigation support
+- Mount-time hydration with validation
+
+**Tab Navigation:**
+- Tabs component (Radix UI wrapper)
+- Catalog/Data tabs with state persistence
+- Data tab preserves existing ListingsTable
+- Catalog tab shows grid view
+
+**Shared Filters:**
+- ListingsFilters component with sticky positioning
+- Text search (200ms debounce), Form Factor dropdown, Manufacturer dropdown, Price slider
+- Conditional Clear button
+- Fully integrated with Zustand store
+
+### Phase 2: Grid View Implementation ✅
+**Grid View & Cards:**
+- Responsive grid: 1 col (mobile) → 2 (tablet) → 3 (desktop) → 4 (large)
+- ListingCard component (React.memo optimized)
+- Card sections: Header, Badges, Price, Performance, Metadata, Footer
+- Click card → details dialog, hover → quick actions
+- Empty states: no listings, no filter matches, loading skeletons
+
+**Performance Badges:**
+- 4 badges: $/ST, $/MT, adj $/ST, adj $/MT (3 decimals)
+- Color accent: emerald for better adjusted values
+- Tooltips with Radix UI
+- isAdjustedBetter logic (lower is better for price efficiency)
+
+**Dialogs:**
+- QuickEditDialog: Title, Price, Condition, Status fields
+- ListingDetailsDialog: KPI tiles, performance badges, specs grid, link to full page
+- React Query integration for fetching/mutations
+- Toast notifications for success/errors
+- Zustand state management for open/close
+
+**Client-Side Filtering:**
+- Search by title, CPU, manufacturer, series, model
+- Filter by form factor, manufacturer, price range
+- Sort by adjusted $/MT (ascending - best value first)
+- useMemo for performance
+
+### Files Created (Phases 1-2):
+- `apps/web/stores/catalog-store.ts`
+- `apps/web/hooks/use-url-sync.ts`
+- `apps/web/components/ui/tabs.tsx`
+- `apps/web/components/ui/tooltip.tsx`
+- `apps/web/app/listings/_components/listings-filters.tsx`
+- `apps/web/app/listings/_components/grid-view/index.tsx`
+- `apps/web/app/listings/_components/grid-view/listing-card.tsx`
+- `apps/web/app/listings/_components/grid-view/performance-badges.tsx`
+- `apps/web/components/listings/quick-edit-dialog.tsx`
+- `apps/web/components/listings/listing-details-dialog.tsx`
+
+### Files Modified (Phases 1-2):
+- `apps/web/app/listings/page.tsx`
+- `apps/web/package.json` (added @radix-ui/react-tabs, @radix-ui/react-tooltip)
+
+### Commits:
+- `88d6bd3` - Phase 1: Foundation & Tab Navigation
+- `d71b3fd` - Phase 2: Grid View Implementation
+
+### Status:
+- ✅ Phase 1 complete (20 tasks)
+- ✅ Phase 2 complete (22 tasks)
+- ⏭️ Phases 3-6 pending (Dense List, Master-Detail, Integration, Testing)
+- ⚠️ TypeScript compilation requires pnpm install for new Radix packages
+
+### Key Learnings:
+1. Zustand persist + partialize for selective state persistence
+2. URL sync with debounce prevents history pollution
+3. React.memo critical for card components in large grids
+4. Radix UI provides excellent accessibility out of the box
+5. Client-side filtering with useMemo scales well for <1000 items
+6. Color accent logic: >15% savings (dark emerald), >5% (light emerald), <-10% (amber)
+7. Tooltip + color + text provides triple-encoded accessibility

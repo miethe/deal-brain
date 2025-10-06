@@ -9,8 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/ta
 import { AddListingModal } from "../../components/listings/add-listing-modal";
 import { useCatalogStore } from "@/stores/catalog-store";
 import { useUrlSync } from "@/hooks/use-url-sync";
-import { ListingsFilters } from "./_components/listings-filters";
-import { GridView } from "./_components/grid-view";
+import { CatalogTab } from "./_components/catalog-tab";
 import { QuickEditDialog } from "../../components/listings/quick-edit-dialog";
 import { ListingDetailsDialog } from "../../components/listings/listing-details-dialog";
 import { useQuery } from "@tanstack/react-query";
@@ -60,8 +59,7 @@ export default function ListingsPage() {
         </TabsList>
 
         <TabsContent value="catalog" className="space-y-4">
-          <ListingsFilters />
-          <GridView
+          <CatalogTab
             listings={listings || []}
             isLoading={isLoading}
             onAddListing={() => setAddModalOpen(true)}
