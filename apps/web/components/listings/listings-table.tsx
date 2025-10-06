@@ -36,29 +36,8 @@ import { useValuationThresholds } from "@/hooks/use-valuation-thresholds";
 import { CpuTooltip } from "./cpu-tooltip";
 import { CpuDetailsModal } from "./cpu-details-modal";
 
-interface ListingRow extends ListingRecord {
-  cpu_id?: number | null;
-  gpu_id?: number | null;
-  cpu_name?: string | null;
-  gpu_name?: string | null;
-  thumbnail_url?: string | null;
-  // Performance metrics (new)
-  dollar_per_cpu_mark_single?: number | null;
-  dollar_per_cpu_mark_single_adjusted?: number | null;
-  dollar_per_cpu_mark_multi?: number | null;
-  dollar_per_cpu_mark_multi_adjusted?: number | null;
-  // Product metadata (new)
-  manufacturer?: string | null;
-  series?: string | null;
-  model_number?: string | null;
-  form_factor?: string | null;
-  // Ports (new)
-  ports_profile?: {
-    id?: number | null;
-    name?: string | null;
-    ports?: Array<{ port_type: string; quantity: number }>;
-  } | null;
-}
+// ListingRow is just an alias for ListingRecord - all fields come from the API
+type ListingRow = ListingRecord;
 
 interface BulkEditState {
   fieldKey: string;
@@ -935,7 +914,7 @@ function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOptio
     return (
       <select
         className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-        value={String(value || '')}
+        value={value != null ? String(value) : ""}
         onChange={(event) => handleSelectChange(event.target.value)}
         disabled={isSaving}
       >
@@ -957,7 +936,7 @@ function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOptio
     return (
       <select
         className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-        value={draft || "false"}
+        value={draft ? draft : "false"}
         onChange={(event) => handleSelectChange(event.target.value)}
         disabled={isSaving}
       >
@@ -982,7 +961,7 @@ function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOptio
     ) : onCreateOption ? (
       <ComboBox
         options={options.map(v => ({ label: v, value: v }))}
-        value={String(value || '')}
+        value={value != null ? String(value) : ""}
         onChange={(newValue) => onSave(listingId, field, newValue)}
         onCreateOption={async (customValue) => {
           await onCreateOption(field.key, customValue);
@@ -995,7 +974,7 @@ function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOptio
     ) : (
       <select
         className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-        value={draft}
+        value={draft ? draft : ""}
         onChange={(event) => handleSelectChange(event.target.value)}
         disabled={isSaving}
       >
@@ -1009,22 +988,22 @@ function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOptio
     );
   }
 
-  // Use ComboBox for number fields with dropdown configs (RAM, Storage)
-  if (field.data_type === "number" && useDropdown && onCreateOption) {
-    const options = dropdownOptions.map(v => ({ label: v, value: v }));
+  // Use simple select for number fields with dropdown configs (RAM, Storage)
+  if (field.data_type === "number" && useDropdown) {
     return (
-      <ComboBox
-        options={options}
-        value={String(value || '')}
-        onChange={(newValue) => onSave(listingId, field, newValue)}
-        onCreateOption={async (customValue) => {
-          await onCreateOption(field.key, customValue);
-          onSave(listingId, field, customValue);
-        }}
-        allowCustom={true}
+      <select
+        className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+        value={value != null ? String(value) : ""}
+        onChange={(event) => handleSelectChange(event.target.value)}
         disabled={isSaving}
-        className="text-sm"
-      />
+      >
+        <option value="">—</option>
+        {dropdownOptions.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
     );
   }
 

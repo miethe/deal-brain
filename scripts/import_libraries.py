@@ -25,16 +25,16 @@ import json
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from dealbrain_api.db import get_session, async_session_maker
-from dealbrain_api.services.custom_fields import CustomFieldsService
+from dealbrain_api.db import session_scope
+from dealbrain_api.services.custom_fields import CustomFieldService
 from dealbrain_api.services.rules import RulesService
 from dealbrain_api.models.core import Profile
 from dealbrain_api.schemas.rules import (
-    RulesetCreate,
-    RuleGroupCreate,
-    RuleCreate,
-    ConditionCreate,
-    ActionCreate,
+    RulesetCreateRequest,
+    RuleGroupCreateRequest,
+    RuleCreateRequest,
+    ConditionSchema,
+    ActionSchema,
 )
 
 
@@ -51,7 +51,7 @@ class LibraryImporter:
 
     def __init__(self, session: AsyncSession):
         self.session = session
-        self.fields_service = CustomFieldsService()
+        self.fields_service = CustomFieldService()
         self.rules_service = RulesService()
 
     async def import_custom_fields(self, filepath: Path) -> Dict[str, Any]:
@@ -115,7 +115,7 @@ class LibraryImporter:
         rule_groups_data = data.get("rule_groups", [])
 
         # Create ruleset
-        ruleset_create = RulesetCreate(
+        ruleset_create = RulesetCreateRequest(
             name=ruleset_data["name"],
             version=ruleset_data["version"],
             description=ruleset_data.get("description", ""),
@@ -144,7 +144,7 @@ class LibraryImporter:
         for group_data in rule_groups_data:
             try:
                 # Create rule group
-                group_create = RuleGroupCreate(
+                group_create = RuleGroupCreateRequest(
                     name=group_data["name"],
                     category=group_data["category"],
                     description=group_data.get("description", ""),
@@ -166,12 +166,12 @@ class LibraryImporter:
 
                         # Parse actions
                         actions = [
-                            ActionCreate(**action_data)
+                            ActionSchema(**action_data)
                             for action_data in rule_data["actions"]
                         ]
 
                         # Create rule
-                        rule_create = RuleCreate(
+                        rule_create = RuleCreateRequest(
                             name=rule_data["name"],
                             description=rule_data.get("description", ""),
                             category=rule_data["category"],
@@ -208,11 +208,11 @@ class LibraryImporter:
             "errors": errors,
         }
 
-    def _parse_conditions(self, condition_data: Dict[str, Any]) -> ConditionCreate:
-        """Recursively parse condition data into ConditionCreate objects."""
+    def _parse_conditions(self, condition_data: Dict[str, Any]) -> ConditionSchema:
+        """Recursively parse condition data into ConditionSchema objects."""
         if "logical_operator" in condition_data:
             # Nested condition group
-            return ConditionCreate(
+            return ConditionSchema(
                 logical_operator=condition_data["logical_operator"],
                 conditions=[
                     self._parse_conditions(c) for c in condition_data["conditions"]
@@ -220,7 +220,7 @@ class LibraryImporter:
             )
         else:
             # Leaf condition
-            return ConditionCreate(
+            return ConditionSchema(
                 field_name=condition_data["field_name"],
                 field_type=condition_data.get("field_type"),
                 operator=condition_data["operator"],
@@ -403,7 +403,7 @@ async def main():
     print("🚀 Deal Brain Library Importer")
     print("="*60)
 
-    async with async_session_maker() as session:
+    async with session_scope() as session:
         try:
             if args.all or args.fields:
                 results = await import_all_fields(session)

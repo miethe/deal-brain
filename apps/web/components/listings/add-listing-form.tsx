@@ -60,7 +60,11 @@ const FORM_FACTOR_OPTIONS = [
   "Other",
 ];
 
-export function AddListingForm() {
+interface AddListingFormProps {
+  onSuccess?: () => void;
+}
+
+export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
   const queryClient = useQueryClient();
   const { data: cpus } = useQuery<CpuOption[]>({
     queryKey: ["cpus"],
@@ -181,6 +185,9 @@ export function AddListingForm() {
           setSelectedCpuId("");
           setSelectedCpuData(null);
           setPorts([]);
+
+          // Call onSuccess callback if provided
+          onSuccess?.();
         } catch (error) {
           console.error("Post-creation update failed:", error);
           setStatus("Listing created, but some updates failed");

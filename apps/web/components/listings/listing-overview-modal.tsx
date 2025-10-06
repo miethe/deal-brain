@@ -10,6 +10,7 @@ import { ValuationCell } from "./valuation-cell";
 import { DualMetricCell } from "./dual-metric-cell";
 import { PortsDisplay } from "./ports-display";
 import { apiFetch } from "../../lib/utils";
+import { useValuationThresholds } from "../../hooks/use-valuation-thresholds";
 import { ListingRecord } from "../../types/listings";
 
 interface ListingOverviewModalProps {
@@ -28,6 +29,8 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
     enabled: open && !!listingId,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  const { data: thresholds } = useValuationThresholds();
 
   if (!open || !listingId) return null;
 
@@ -57,29 +60,53 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
               )}
 
               <Section title="Pricing">
-                <ValuationCell
-                  basePrice={listing.price_usd}
-                  adjustedPrice={listing.adjusted_price_usd}
-                  listingId={listing.id}
-                />
+                {thresholds && listing.adjusted_price_usd !== null ? (
+                  <ValuationCell
+                    listPrice={listing.price_usd}
+                    adjustedPrice={listing.adjusted_price_usd}
+                    thresholds={thresholds}
+                    onDetailsClick={() => {
+                      onOpenChange(false);
+                      window.location.href = `/listings?highlight=${listing.id}&showValuation=true`;
+                    }}
+                  />
+                ) : (
+                  <div className="text-sm">
+                    <div className="font-medium">List Price: ${listing.price_usd.toFixed(2)}</div>
+                    {listing.adjusted_price_usd !== null && (
+                      <div className="text-muted-foreground">Adjusted: ${listing.adjusted_price_usd.toFixed(2)}</div>
+                    )}
+                  </div>
+                )}
               </Section>
 
               <Separator />
 
               <Section title="Performance Metrics">
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">$/CPU Mark:</span>
+                    <span className="text-muted-foreground">$/CPU Mark (Single):</span>
                     <DualMetricCell
-                      singleValue={listing.dollar_per_cpu_mark_single}
-                      multiValue={listing.dollar_per_cpu_mark_multi}
+                      raw={listing.dollar_per_cpu_mark_single}
+                      adjusted={listing.dollar_per_cpu_mark_single_adjusted}
+                      prefix="$"
+                      decimals={3}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">$/CPU Mark (Multi):</span>
+                    <DualMetricCell
+                      raw={listing.dollar_per_cpu_mark_multi}
+                      adjusted={listing.dollar_per_cpu_mark_multi_adjusted}
+                      prefix="$"
+                      decimals={3}
                     />
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Composite Score:</span>
                     <span className="font-medium">{listing.score_composite?.toFixed(2) ?? 'N/A'}</span>
                   </div>
-                  {listing.perf_per_watt !== null && (
+                  {listing.perf_per_watt !== null && listing.perf_per_watt !== undefined && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Perf/Watt:</span>
                       <span className="font-medium">{listing.perf_per_watt.toFixed(2)}</span>

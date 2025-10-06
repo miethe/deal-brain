@@ -53,6 +53,20 @@ export interface CpuRecord {
   notes: string | null;
 }
 
+export interface PortRecord {
+  id?: number | null;
+  port_type: string;
+  quantity: number;
+  version?: string | null;
+  notes?: string | null;
+}
+
+export interface PortsProfileRecord {
+  id?: number | null;
+  name?: string | null;
+  ports?: PortRecord[] | null;
+}
+
 export interface ListingRecord {
   id: number;
   title: string;
@@ -65,11 +79,32 @@ export interface ListingRecord {
   score_cpu_single: number | null;
   score_gpu: number | null;
   dollar_per_cpu_mark: number | null;
+  dollar_per_single_mark: number | null;
+  dollar_per_cpu_mark_single?: number | null | undefined;
+  dollar_per_cpu_mark_single_adjusted?: number | null | undefined;
+  dollar_per_cpu_mark_multi?: number | null | undefined;
+  dollar_per_cpu_mark_multi_adjusted?: number | null | undefined;
+  perf_per_watt?: number | null | undefined;
   condition: string;
   status: string;
+  cpu_id?: number | null;
+  cpu_name?: string | null;
+  gpu_id?: number | null;
+  gpu_name?: string | null;
+  ram_gb?: number | null;
+  primary_storage_gb?: number | null;
+  primary_storage_type?: string | null;
+  secondary_storage_gb?: number | null;
+  secondary_storage_type?: string | null;
+  manufacturer?: string | null;
+  series?: string | null;
+  model_number?: string | null;
+  form_factor?: string | null;
+  thumbnail_url?: string | null;
+  valuation_breakdown?: Record<string, unknown> | null;
   cpu?: CpuRecord | null;
   gpu?: { id?: number | null; name?: string | null } | null;
-  ports_profile?: { id?: number | null; name?: string | null } | null;
+  ports_profile?: PortsProfileRecord | null;
   attributes: Record<string, unknown>;
   created_at: string;
   updated_at: string;

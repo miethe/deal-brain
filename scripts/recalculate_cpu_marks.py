@@ -17,13 +17,13 @@ sys.path.insert(0, str(api_path))
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dealbrain_api.db import async_session_scope
+from dealbrain_api.db import session_scope
 from dealbrain_api.models.core import Listing
 
 
 async def recalculate_all_cpu_marks() -> None:
     """Recalculate CPU Mark metrics for all listings with CPUs."""
-    async with async_session_scope() as session:
+    async with session_scope() as session:
         # Fetch all listings with CPUs
         result = await session.execute(
             select(Listing).where(Listing.cpu_id.is_not(None))
@@ -62,10 +62,11 @@ async def recalculate_all_cpu_marks() -> None:
                 updated = True
 
             if updated:
+                single_str = f"{listing.dollar_per_cpu_mark_single:.4f}" if listing.dollar_per_cpu_mark_single else "N/A"
+                multi_str = f"{listing.dollar_per_cpu_mark_multi:.4f}" if listing.dollar_per_cpu_mark_multi else "N/A"
                 print(
                     f"  [UPDATE] Listing {listing.id} ({listing.title[:50]}): "
-                    f"single={listing.dollar_per_cpu_mark_single:.4f if listing.dollar_per_cpu_mark_single else 'N/A'}, "
-                    f"multi={listing.dollar_per_cpu_mark_multi:.4f if listing.dollar_per_cpu_mark_multi else 'N/A'}"
+                    f"single={single_str}, multi={multi_str}"
                 )
                 updated_count += 1
             else:
