@@ -10,10 +10,23 @@ import { AddListingModal } from "../../components/listings/add-listing-modal";
 import { useCatalogStore } from "@/stores/catalog-store";
 import { useUrlSync } from "@/hooks/use-url-sync";
 import { ListingsFilters } from "./_components/listings-filters";
+import { GridView } from "./_components/grid-view";
+import { QuickEditDialog } from "../../components/listings/quick-edit-dialog";
+import { ListingDetailsDialog } from "../../components/listings/listing-details-dialog";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "../../lib/utils";
+import { ListingRecord } from "../../types/listings";
 
 export default function ListingsPage() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const router = useRouter();
+
+  // Fetch listings data
+  const { data: listings, isLoading } = useQuery({
+    queryKey: ["listings", "records"],
+    queryFn: () => apiFetch<ListingRecord[]>("/v1/listings"),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
   // Sync URL with store
   useUrlSync();
@@ -48,14 +61,11 @@ export default function ListingsPage() {
 
         <TabsContent value="catalog" className="space-y-4">
           <ListingsFilters />
-          <div className="flex items-center justify-center h-96 border-2 border-dashed border-muted-foreground/25 rounded-lg">
-            <div className="text-center space-y-2">
-              <p className="text-lg font-medium">Catalog View Coming Soon</p>
-              <p className="text-sm text-muted-foreground">
-                Grid, list, and master-detail views will be available here
-              </p>
-            </div>
-          </div>
+          <GridView
+            listings={listings || []}
+            isLoading={isLoading}
+            onAddListing={() => setAddModalOpen(true)}
+          />
         </TabsContent>
 
         <TabsContent value="data" className="space-y-4">
@@ -79,6 +89,10 @@ export default function ListingsPage() {
         onOpenChange={setAddModalOpen}
         onSuccess={handleSuccess}
       />
+
+      {/* Catalog Dialogs */}
+      <QuickEditDialog />
+      <ListingDetailsDialog />
     </div>
   );
 }
