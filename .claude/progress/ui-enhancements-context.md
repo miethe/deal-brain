@@ -651,4 +651,4 @@ Completed full implementation of performance metrics and data enrichment feature
 **Files Created:** cpu-tooltip.tsx, cpu-details-modal.tsx, dropdown-utils.ts
 **Files Modified:** combobox.tsx, listings.ts, listings-table.tsx
 
-**Commit:** (next)
+**Commit:** 348f06a
