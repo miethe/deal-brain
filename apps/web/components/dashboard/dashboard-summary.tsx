@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { apiFetch } from "../../lib/utils";
@@ -7,6 +8,7 @@ import { Badge } from "../ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import Link from "next/link";
+import { ListingOverviewModal } from "../listings/listing-overview-modal";
 
 interface DashboardData {
   best_value: ListingSummary | null;
@@ -24,10 +26,19 @@ interface ListingSummary {
 }
 
 export function DashboardSummary() {
+  const [selectedListingId, setSelectedListingId] = useState<number | null>(null);
+  const [overviewOpen, setOverviewOpen] = useState(false);
+
   const { data, isLoading, error } = useQuery<DashboardData>({
     queryKey: ["dashboard"],
-    queryFn: () => apiFetch<DashboardData>("/v1/dashboard")
+    queryFn: () => apiFetch<DashboardData>("/v1/dashboard"),
+    staleTime: 1 * 60 * 1000, // 1 minute
   });
+
+  const handleListingClick = (listingId: number) => {
+    setSelectedListingId(listingId);
+    setOverviewOpen(true);
+  };
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Loading dashboard metrics…</p>;
@@ -43,47 +54,59 @@ export function DashboardSummary() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      <SummaryCard
-        title="Best $ / CPU Mark"
-        description="Adjusted price normalized by CPU score"
-        listing={data.best_value}
+    <>
+      <div className="grid gap-4 md:grid-cols-3">
+        <SummaryCard
+          title="Best $ / CPU Mark"
+          description="Adjusted price normalized by CPU score"
+          listing={data.best_value}
+          onListingClick={handleListingClick}
+        />
+        <SummaryCard
+          title="Top Perf / Watt"
+          description="Efficiency champion for tonight's shortlist"
+          listing={data.best_perf_per_watt}
+          onListingClick={handleListingClick}
+        />
+        <Card>
+          <CardHeader>
+            <CardTitle>Best Under Budget</CardTitle>
+            <CardDescription>Top picks within your configured ceiling</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {data.best_under_budget.length === 0 ? (
+              <span className="text-sm text-muted-foreground">No listings within budget yet.</span>
+            ) : (
+              data.best_under_budget.map((listing) => (
+                <ListingRow key={listing.id} listing={listing} onClick={() => handleListingClick(listing.id)} />
+              ))
+            )}
+            <Button asChild variant="outline" className="mt-2">
+              <Link href="/listings">Open listings table</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <ListingOverviewModal
+        listingId={selectedListingId}
+        open={overviewOpen}
+        onOpenChange={setOverviewOpen}
       />
-      <SummaryCard
-        title="Top Perf / Watt"
-        description="Efficiency champion for tonight's shortlist"
-        listing={data.best_perf_per_watt}
-      />
-      <Card>
-        <CardHeader>
-          <CardTitle>Best Under Budget</CardTitle>
-          <CardDescription>Top picks within your configured ceiling</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {data.best_under_budget.length === 0 ? (
-            <span className="text-sm text-muted-foreground">No listings within budget yet.</span>
-          ) : (
-            data.best_under_budget.map((listing) => (
-              <ListingRow key={listing.id} listing={listing} />
-            ))
-          )}
-          <Button asChild variant="outline" className="mt-2">
-            <Link href="/listings">Open listings table</Link>
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+    </>
   );
 }
 
 function SummaryCard({
   title,
   description,
-  listing
+  listing,
+  onListingClick,
 }: {
   title: string;
   description: string;
   listing: ListingSummary | null;
+  onListingClick: (listingId: number) => void;
 }) {
   return (
     <Card>
@@ -94,12 +117,16 @@ function SummaryCard({
       <CardContent className="flex flex-col gap-3">
         {listing ? (
           <>
-            <div className="flex flex-col gap-1">
+            <button
+              onClick={() => onListingClick(listing.id)}
+              className="flex flex-col gap-1 text-left rounded-md p-2 -m-2 transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              aria-label={`View details for ${listing.title}`}
+            >
               <span className="text-base font-semibold leading-tight">{listing.title}</span>
               <span className="text-sm text-muted-foreground">
                 Adjusted: {formatCurrency(listing.adjusted_price_usd)} · $/CPU Mark: {formatNumber(listing.dollar_per_cpu_mark)}
               </span>
-            </div>
+            </button>
             <Badge className="w-fit">Composite {formatNumber(listing.score_composite)}</Badge>
             <Button asChild size="sm" variant="outline">
               <Link href={`/listings?highlight=${listing.id}`}>View listing</Link>
@@ -113,14 +140,18 @@ function SummaryCard({
   );
 }
 
-function ListingRow({ listing }: { listing: ListingSummary }) {
+function ListingRow({ listing, onClick }: { listing: ListingSummary; onClick: () => void }) {
   return (
-    <div className="rounded-md border p-3">
+    <button
+      onClick={onClick}
+      className="rounded-md border p-3 text-left transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+      aria-label={`View details for ${listing.title}`}
+    >
       <div className="text-sm font-medium leading-tight">{listing.title}</div>
       <div className="text-xs text-muted-foreground">
         Adjusted {formatCurrency(listing.adjusted_price_usd)} · Composite {formatNumber(listing.score_composite)}
       </div>
-    </div>
+    </button>
   );
 }
 

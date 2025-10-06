@@ -12,6 +12,7 @@ import { ModalContent } from "../ui/modal-shell";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { ColumnDef, type FilterFn } from "@tanstack/react-table";
+import { AddListingModal } from "../listings/add-listing-modal";
 
 interface FieldDefinition {
   key: string;
@@ -220,6 +221,9 @@ export function GlobalFieldsDataTab({ entity }: GlobalFieldsDataTabProps) {
     setModalOpen(false);
   };
 
+  // For listing entity, use AddListingModal instead of generic RecordModal
+  const isListingEntity = entity === "listing";
+
   return (
     <div className="w-full space-y-4">
       <div className="flex items-center justify-between">
@@ -227,20 +231,36 @@ export function GlobalFieldsDataTab({ entity }: GlobalFieldsDataTabProps) {
           <h2 className="text-xl font-semibold tracking-tight">{schema?.label ?? "Fields"} data</h2>
           <p className="text-sm text-muted-foreground">Create and edit catalog records using the global field schema.</p>
         </div>
-        <Dialog open={isModalOpen} onOpenChange={setModalOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={handleCreate}>Add entry</Button>
-          </DialogTrigger>
-          {schema ? (
-            <RecordModal
-              schema={schema}
-              mode={mode}
-              record={activeRecord}
-              isSubmitting={createMutation.isPending || updateMutation.isPending}
-              onSubmit={handleSubmit}
+        {isListingEntity ? (
+          // Use AddListingModal for listings
+          <>
+            <Button onClick={() => setModalOpen(true)}>Add entry</Button>
+            <AddListingModal
+              open={isModalOpen}
+              onOpenChange={setModalOpen}
+              onSuccess={() => {
+                setModalOpen(false);
+                queryClient.invalidateQueries({ queryKey: ["records", entity] });
+              }}
             />
-          ) : null}
-        </Dialog>
+          </>
+        ) : (
+          // Use generic RecordModal for other entities
+          <Dialog open={isModalOpen} onOpenChange={setModalOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={handleCreate}>Add entry</Button>
+            </DialogTrigger>
+            {schema ? (
+              <RecordModal
+                schema={schema}
+                mode={mode}
+                record={activeRecord}
+                isSubmitting={createMutation.isPending || updateMutation.isPending}
+                onSubmit={handleSubmit}
+              />
+            ) : null}
+          </Dialog>
+        )}
       </div>
       <DataGrid
         columns={columns}
