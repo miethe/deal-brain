@@ -605,3 +605,23 @@ Completed full implementation of performance metrics and data enrichment feature
 5. User guide critical for adoption (400+ lines of examples)
 6. Memoization essential for performance (React.memo on table cells)
 7. Structured tracking documents maintain momentum across phases
+
+## 10-6 UX Enhancements & Bug Fixes - Phase 1 Complete (10-6-2025)
+
+### Phase 1: Critical Bug Fixes ✅
+
+**Bug Fix 1.1: CPU Mark Calculations**
+- Added dollar_per_cpu_mark_single/multi calculations in apply_listing_metrics()
+- Calculations auto-trigger when listing has CPU + adjusted price
+- Created recalculate_cpu_marks.py for bulk updates
+- Added 6 comprehensive unit tests
+
+**Bug Fix 1.2: CPU Save Type Error**
+- Frontend: Convert cpu_id to number before API call
+- Backend: Pydantic field_validator coerces string to int
+- Updated type signatures (string | number) throughout
+
+**Bug Fix 1.3: Seed Script Port Model Error**
+- Fixed field names: port_profile_id → ports_profile_id, port_type → type, quantity → count
+
+**Commit:** 5e6f6a8

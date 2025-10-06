@@ -6,6 +6,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
+import { calculateDropdownWidth } from "../../lib/dropdown-utils";
 import { useDebounce } from "use-debounce";
 
 export interface ComboBoxOption {
@@ -48,6 +49,12 @@ export function ComboBox({
   const [debouncedSearch] = useDebounce(search, 200);
 
   const selectedOption = options.find((option) => option.value === value);
+
+  // Calculate dropdown width based on longest option
+  const dropdownWidth = React.useMemo(
+    () => calculateDropdownWidth(options.map((o) => o.label)),
+    [options]
+  );
 
   const filteredOptions = React.useMemo(() => {
     if (!debouncedSearch) return options;
@@ -102,17 +109,22 @@ export function ComboBox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full justify-between h-9 px-3 font-normal",
+            "justify-between h-9 px-3 font-normal",
             !selectedOption && "text-muted-foreground",
             className
           )}
+          style={{ width: `${dropdownWidth}px`, minWidth: "120px" }}
           disabled={disabled}
         >
           <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+      <PopoverContent
+        className="p-0"
+        align="start"
+        style={{ width: `${dropdownWidth}px` }}
+      >
         <Command shouldFilter={false}>
           <CommandInput
             placeholder=""
