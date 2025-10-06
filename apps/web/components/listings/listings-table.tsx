@@ -19,7 +19,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { apiFetch, ApiError } from "../../lib/utils";
-import { ListingFieldSchema, ListingRecord, ListingSchemaResponse } from "../../types/listings";
+import { CpuRecord, ListingFieldSchema, ListingRecord, ListingSchemaResponse } from "../../types/listings";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { DataGrid, type ColumnMetaConfig } from "../ui/data-grid";
@@ -33,6 +33,8 @@ import { PortsDisplay } from "./ports-display";
 import { ComboBox } from "../forms/combobox";
 import { useConfirmation } from "../ui/confirmation-dialog";
 import { useValuationThresholds } from "@/hooks/use-valuation-thresholds";
+import { CpuTooltip } from "./cpu-tooltip";
+import { CpuDetailsModal } from "./cpu-details-modal";
 
 interface ListingRow extends ListingRecord {
   cpu_id?: number | null;
@@ -167,6 +169,8 @@ export function ListingsTable() {
     title: string;
     thumbnailUrl?: string | null;
   } | null>(null);
+  const [cpuModalOpen, setCpuModalOpen] = useState(false);
+  const [selectedCpu, setSelectedCpu] = useState<CpuRecord | null>(null);
 
   useEffect(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
@@ -440,18 +444,47 @@ export function ListingsTable() {
         accessorKey: "cpu_name",
         cell: ({ row }) => {
           const cpuConfig = fieldMap.get("cpu_id");
+          const cpu = row.original.cpu;
+
           if (cpuConfig && cpuConfig.editable) {
             return (
-              <EditableCell
-                listingId={row.original.id}
-                field={cpuConfig}
-                value={row.original.cpu_id}
-                onSave={handleInlineSave}
-                isSaving={inlineMutation.isPending}
-              />
+              <div className="flex items-center gap-2">
+                <EditableCell
+                  listingId={row.original.id}
+                  field={cpuConfig}
+                  value={row.original.cpu_id}
+                  onSave={handleInlineSave}
+                  isSaving={inlineMutation.isPending}
+                />
+                {cpu && (
+                  <CpuTooltip
+                    cpu={cpu}
+                    onViewDetails={() => {
+                      setSelectedCpu(cpu);
+                      setCpuModalOpen(true);
+                    }}
+                  />
+                )}
+              </div>
             );
           }
-          return <span className="text-sm">{row.original.cpu_name || "—"}</span>;
+
+          if (!cpu) {
+            return <span className="text-sm text-muted-foreground">—</span>;
+          }
+
+          return (
+            <div className="flex items-center gap-2">
+              <span className="text-sm">{cpu.name}</span>
+              <CpuTooltip
+                cpu={cpu}
+                onViewDetails={() => {
+                  setSelectedCpu(cpu);
+                  setCpuModalOpen(true);
+                }}
+              />
+            </div>
+          );
         },
         enableSorting: true,
         enableResizing: true,
@@ -823,6 +856,13 @@ export function ListingsTable() {
           thumbnailUrl={selectedListingForBreakdown.thumbnailUrl}
         />
       )}
+
+      {/* CPU Details Modal */}
+      <CpuDetailsModal
+        cpu={selectedCpu}
+        open={cpuModalOpen}
+        onOpenChange={setCpuModalOpen}
+      />
 
       {/* Confirmation Dialog */}
       {confirmationDialog}

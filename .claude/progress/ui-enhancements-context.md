@@ -606,7 +606,7 @@ Completed full implementation of performance metrics and data enrichment feature
 6. Memoization essential for performance (React.memo on table cells)
 7. Structured tracking documents maintain momentum across phases
 
-## 10-6 UX Enhancements & Bug Fixes - Phase 1 Complete (10-6-2025)
+## 10-6 UX Enhancements & Bug Fixes - Phases 1-3 Complete (10-6-2025)
 
 ### Phase 1: Critical Bug Fixes ✅
 
@@ -625,3 +625,30 @@ Completed full implementation of performance metrics and data enrichment feature
 - Fixed field names: port_profile_id → ports_profile_id, port_type → type, quantity → count
 
 **Commit:** 5e6f6a8
+
+### Phase 2: Table Foundation ✅
+
+**Dropdown Width Consistency**
+- Created dropdown-utils.ts with calculateDropdownWidth() (120-400px range)
+- Updated ComboBox to use dynamic width based on longest option
+- Applied via inline styles with useMemo for performance
+
+**Column Resizing** (already complete)
+- Column resizing with persistence already fully implemented from previous work
+- useColumnSizingPersistence hook with debounced localStorage save
+
+**Commit:** 124fffa
+
+### Phase 3: CPU Intelligence ✅
+
+**CPU Tooltip & Modal**
+- Created cpu-tooltip.tsx with Radix Popover (6 key specs)
+- Created cpu-details-modal.tsx with Dialog (14 fields in 4 sections)
+- Updated CpuRecord interface in types/listings.ts
+- Integrated into listings table with state management
+- Both components memoized with React.memo
+
+**Files Created:** cpu-tooltip.tsx, cpu-details-modal.tsx, dropdown-utils.ts
+**Files Modified:** combobox.tsx, listings.ts, listings-table.tsx
+
+**Commit:** (next)

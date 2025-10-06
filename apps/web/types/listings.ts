@@ -37,6 +37,22 @@ export interface ListingSchemaResponse {
   custom_fields: CustomFieldDefinition[];
 }
 
+export interface CpuRecord {
+  id: number;
+  name: string;
+  manufacturer: string;
+  socket: string | null;
+  cores: number | null;
+  threads: number | null;
+  tdp_w: number | null;
+  igpu_model: string | null;
+  cpu_mark_multi: number | null;
+  cpu_mark_single: number | null;
+  igpu_mark: number | null;
+  release_year: number | null;
+  notes: string | null;
+}
+
 export interface ListingRecord {
   id: number;
   title: string;
@@ -51,7 +67,7 @@ export interface ListingRecord {
   dollar_per_cpu_mark: number | null;
   condition: string;
   status: string;
-  cpu?: { id?: number | null; name?: string | null } | null;
+  cpu?: CpuRecord | null;
   gpu?: { id?: number | null; name?: string | null } | null;
   ports_profile?: { id?: number | null; name?: string | null } | null;
   attributes: Record<string, unknown>;
