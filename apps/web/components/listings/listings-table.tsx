@@ -670,7 +670,19 @@ export function ListingsTable() {
       },
     ];
 
-    const hiddenEditableKeys = new Set(["title", "cpu_id", "gpu_id"]);
+    // Exclude fields that have custom column implementations above
+    const hiddenEditableKeys = new Set([
+      "title",
+      "cpu_id",
+      "gpu_id",
+      "manufacturer",
+      "form_factor",
+      "adjusted_price_usd",
+      "score_composite",
+      "dollar_per_cpu_mark",
+      "dollar_per_cpu_mark_single",
+      "dollar_per_cpu_mark_multi",
+    ]);
 
     const editableColumns: ColumnDef<ListingRow>[] = fieldConfigs
       .filter((config) => config.editable && !hiddenEditableKeys.has(config.key))
