@@ -4,6 +4,8 @@ import React, { useMemo } from 'react'
 import { MasterList } from './master-list'
 import { DetailPanel } from './detail-panel'
 import { CompareDrawer } from './compare-drawer'
+import { MasterDetailSkeleton } from './master-detail-skeleton'
+import { NoFilterResultsEmptyState } from '@/components/ui/empty-state'
 import { useCatalogStore } from '@/stores/catalog-store'
 import type { ListingRow } from '@/components/listings/listings-table'
 
@@ -39,26 +41,11 @@ export const MasterDetailView = React.memo(function MasterDetailView({
   }, [sortedListings, compareSelections])
 
   if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-10">
-        <div className="lg:col-span-4">
-          <div className="h-[70vh] animate-pulse rounded-lg bg-muted" />
-        </div>
-        <div className="lg:col-span-6">
-          <div className="h-[70vh] animate-pulse rounded-lg bg-muted" />
-        </div>
-      </div>
-    )
+    return <MasterDetailSkeleton />
   }
 
   if (sortedListings.length === 0) {
-    return (
-      <div className="flex min-h-[400px] flex-col items-center justify-center space-y-4 rounded-lg border border-dashed p-8">
-        <p className="text-sm text-muted-foreground">
-          No listings match your filters
-        </p>
-      </div>
-    )
+    return <NoFilterResultsEmptyState />
   }
 
   return (

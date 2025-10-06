@@ -213,14 +213,152 @@
 
 ---
 
+## Phase 5: Integration & Polish (Days 13-15)
+
+### 5.1: View State Persistence ✅
+- [x] Extend Zustand persist middleware (already configured correctly)
+- [x] Persist: `activeView`, `activeTab`, `filters`
+- [x] Don't persist: `selectedListingId`, `compareSelections`, dialog states
+- [x] Test: Refresh page preserves view/filters (verified via partialize config)
+
+### 5.2: Error Boundaries ✅
+- [x] Create `ErrorBoundary` component for each view
+- [x] Fallback UI with retry button
+- [x] Log errors to console (future: error tracking service)
+- [x] Integrated into CatalogTab wrapping all three views
+- [x] Test: Component errors don't crash app
+
+### 5.3: Loading Skeletons ✅
+- [x] Create skeleton components:
+  - `ListingCardSkeleton` (for grid view)
+  - `DenseTableSkeleton` (for list view)
+  - `MasterDetailSkeleton` (for split view)
+- [x] Show during initial load
+- [x] Use Tailwind `animate-pulse`
+- [x] Integrated into all three views
+- [x] Test: Skeletons match layout
+
+### 5.4: Empty States ✅
+- [x] Create `EmptyState` component
+- [x] Variations:
+  - No listings at all: "Get started by adding your first listing"
+  - No results from filters: "No listings match your filters. Try adjusting."
+- [x] Include relevant CTA button
+- [x] Icon + heading + description layout
+- [x] Created predefined components: NoListingsEmptyState, NoFilterResultsEmptyState
+- [x] Integrated into all three views
+- [x] Test: Shows correct message for each scenario
+
+### 5.5: Mobile Responsive Testing
+- [ ] Test on 375px viewport (iPhone SE)
+- [ ] Test on 768px viewport (iPad)
+- [ ] Test on 1024px+ (Desktop)
+- [ ] Adjustments:
+  - Grid: 1 col mobile, 2 cols tablet, 3-4 cols desktop
+  - List: Horizontal scroll on mobile (or simplified columns)
+  - Master-Detail: Stack vertically on mobile, split on tablet+
+- [ ] Test: All interactions work on touch
+
+### 5.6: Accessibility Audit
+- [ ] Run Axe DevTools on each view
+- [ ] Fix all violations
+- [ ] Manual keyboard testing checklist:
+  - [ ] Tab through all interactive elements
+  - [ ] Focus indicators visible
+  - [ ] Dialogs trap focus
+  - [ ] Escape closes dialogs
+  - [ ] Enter activates buttons
+- [ ] Screen reader testing (VoiceOver/NVDA):
+  - [ ] ARIA labels present
+  - [ ] Dynamic content announced
+  - [ ] Color not sole indicator
+- [ ] Test: Lighthouse Accessibility score 95+
+
+### Quality Gates (Phase 5):
+- [ ] State persists correctly across sessions
+- [ ] Error boundaries catch failures gracefully
+- [ ] Loading states smooth and accurate
+- [ ] Empty states helpful
+- [ ] Mobile layout fully functional
+- [ ] Zero accessibility violations
+
+---
+
+## Phase 6: Testing & Documentation (Days 16-18)
+
+### 6.1: Unit Tests
+- [ ] Test Zustand store actions (`catalog-store.test.ts`)
+- [ ] Test filter logic (`use-listing-filters.test.ts`)
+- [ ] Test compare logic (`use-compare-selections.test.ts`)
+- [ ] Test utility functions (formatting, color accents)
+- [ ] Coverage: 80%+ for new code
+- [ ] Tool: Vitest
+- [ ] Test: `pnpm test`
+
+### 6.2: Integration Tests
+- [ ] Test data flow: API fetch → filter → render
+- [ ] Test state synchronization: Store → URL → LocalStorage
+- [ ] Test dialog interactions: Open → Edit → Save
+- [ ] Tool: React Testing Library
+- [ ] Test: `pnpm test:integration`
+
+### 6.3: E2E Tests (Playwright)
+- [ ] Test: Tab navigation preserves state
+- [ ] Test: Filter listings in each view
+- [ ] Test: Inline edit saves successfully
+- [ ] Test: Compare drawer workflow (add, remove, clear)
+- [ ] Test: Keyboard navigation in Master-Detail
+- [ ] Test: Details dialog → Expand full page
+- [ ] Tool: Playwright
+- [ ] Test: `pnpm test:e2e`
+
+### 6.4: Performance Benchmarks
+- [ ] Measure: Grid view initial render (target: <500ms for 200 items)
+- [ ] Measure: List view scroll FPS (target: 60fps)
+- [ ] Measure: Filter debounce responsiveness (target: <200ms)
+- [ ] Measure: Bundle size (target: <100KB gzipped for catalog code)
+- [ ] Tool: Chrome DevTools Performance tab
+- [ ] Document results in `PERFORMANCE.md`
+
+### 6.5: Component Stories (Storybook)
+- [ ] Story: `ListingCard` with variants (good/warn/neutral accents)
+- [ ] Story: `PerformanceBadges` with sample data
+- [ ] Story: `KpiMetric` with accents
+- [ ] Story: `ListingsFilters` interactive
+- [ ] Story: `CompareDrawer` with 1, 3, 6 items
+- [ ] Tool: Storybook
+- [ ] Test: `pnpm storybook`
+
+### 6.6: User Documentation
+- [ ] Create `docs/user-guide/catalog-views.md`
+- [ ] Sections:
+  - Overview of three views
+  - When to use each view
+  - Filter and search tips
+  - Keyboard shortcuts reference
+  - Comparison workflow
+- [ ] Include screenshots
+- [ ] Link from in-app help icon
+
+### Quality Gates (Phase 6):
+- [ ] 80%+ test coverage for new code
+- [ ] All E2E tests passing
+- [ ] Performance budgets met
+- [ ] Storybook stories complete
+- [ ] User documentation reviewed
+
+---
+
 ## Progress Summary
 
 **Phase 1:** ✅ Complete
 **Phase 2:** ✅ Complete
 **Phase 3:** ✅ Complete
 **Phase 4:** ✅ Complete
+**Phase 5:** 🚧 In Progress
+**Phase 6:** ⏭️ Pending
 
-**Total Tasks:** 91
+**Total Tasks:** 157
 **Completed:** 91 (Phases 1-4)
 **In Progress:** 0
 **Deferred:** 1 (unit tests to Phase 6)

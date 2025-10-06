@@ -2,6 +2,8 @@
 
 import React, { useMemo } from 'react'
 import { DenseTable } from './dense-table'
+import { DenseTableSkeleton } from './dense-table-skeleton'
+import { NoFilterResultsEmptyState } from '@/components/ui/empty-state'
 import type { ListingRow } from '@/components/listings/listings-table'
 
 interface DenseListViewProps {
@@ -23,26 +25,11 @@ export const DenseListView = React.memo(function DenseListView({
   }, [listings])
 
   if (isLoading) {
-    return (
-      <div className="space-y-2">
-        {Array.from({ length: 10 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-16 w-full animate-pulse rounded-lg bg-muted"
-          />
-        ))}
-      </div>
-    )
+    return <DenseTableSkeleton />
   }
 
   if (sortedListings.length === 0) {
-    return (
-      <div className="flex min-h-[400px] flex-col items-center justify-center space-y-4 rounded-lg border border-dashed p-8">
-        <p className="text-sm text-muted-foreground">
-          No listings match your filters
-        </p>
-      </div>
-    )
+    return <NoFilterResultsEmptyState />
   }
 
   return <DenseTable listings={sortedListings} />

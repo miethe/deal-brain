@@ -7,6 +7,7 @@ import { GridView } from './grid-view'
 import { DenseListView } from './dense-list-view'
 import { MasterDetailView } from './master-detail-view'
 import { useCatalogStore } from '@/stores/catalog-store'
+import { ErrorBoundary } from '@/components/error-boundary'
 import type { ListingRow } from '@/components/listings/listings-table'
 
 interface CatalogTabProps {
@@ -69,23 +70,29 @@ export const CatalogTab = React.memo(function CatalogTab({
 
       {/* Active View */}
       {activeView === 'grid' && (
-        <GridView
-          listings={filteredListings}
-          isLoading={isLoading}
-          onAddListing={onAddListing}
-        />
+        <ErrorBoundary>
+          <GridView
+            listings={filteredListings}
+            isLoading={isLoading}
+            onAddListing={onAddListing}
+          />
+        </ErrorBoundary>
       )}
       {activeView === 'list' && (
-        <DenseListView
-          listings={filteredListings}
-          isLoading={isLoading}
-        />
+        <ErrorBoundary>
+          <DenseListView
+            listings={filteredListings}
+            isLoading={isLoading}
+          />
+        </ErrorBoundary>
       )}
       {activeView === 'master-detail' && (
-        <MasterDetailView
-          listings={filteredListings}
-          isLoading={isLoading}
-        />
+        <ErrorBoundary>
+          <MasterDetailView
+            listings={filteredListings}
+            isLoading={isLoading}
+          />
+        </ErrorBoundary>
       )}
     </div>
   )
