@@ -111,7 +111,7 @@ class LibraryImporter:
         ruleset_name = ruleset_data["name"]
         ruleset_version = ruleset_data["version"]
         ruleset_description = ruleset_data.get("description", "")
-        ruleset_metadata = ruleset_data.get("metadata", {})
+        ruleset_metadata = self._sanitize_metadata(ruleset_data.get("metadata", {}))
 
         # Check if ruleset exists
         existing_rulesets = await self.rules_service.list_rulesets(self.session)
@@ -193,6 +193,25 @@ class LibraryImporter:
             "rules_created": rules_created,
             "errors": errors,
         }
+
+    def _sanitize_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert non-JSON-serializable types in metadata to strings."""
+        import datetime
+
+        sanitized = {}
+        for key, value in metadata.items():
+            if isinstance(value, (datetime.date, datetime.datetime)):
+                sanitized[key] = value.isoformat()
+            elif isinstance(value, dict):
+                sanitized[key] = self._sanitize_metadata(value)
+            elif isinstance(value, list):
+                sanitized[key] = [
+                    item.isoformat() if isinstance(item, (datetime.date, datetime.datetime)) else item
+                    for item in value
+                ]
+            else:
+                sanitized[key] = value
+        return sanitized
 
     def _conditions_to_dict_list(self, condition_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Convert nested condition structure to flat list of condition dicts for service layer."""
