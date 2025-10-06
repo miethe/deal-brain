@@ -82,6 +82,7 @@ const STORAGE_KEY = "dealbrain_listings_table_state_v1";
 const DROPDOWN_FIELD_CONFIGS: Record<string, string[]> = {
   'ram_gb': ['4', '8', '16', '24', '32', '48', '64', '96', '128'],
   'primary_storage_gb': ['128', '256', '512', '1024', '2048', '4096'],
+  'secondary_storage_gb': ['128', '256', '512', '1024', '2048', '4096'],
   'storage_type': ['SSD', 'HDD', 'NVMe', 'eMMC'],
 };
 

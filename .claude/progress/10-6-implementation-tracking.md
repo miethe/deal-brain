@@ -133,12 +133,149 @@ Power & Thermal, Graphics). Uses Separator components. Memoized for performance.
 
 ---
 
+## Phase 4: Enhanced Dropdowns
+
+### 4.1 Secondary Storage Dropdown
+- [x] Update DROPDOWN_FIELD_CONFIGS in listings-table.tsx (add secondary_storage_gb)
+- [x] Verify EditableCell component handles secondary_storage_gb as dropdown (line 1013-1028)
+- [x] Verify add-listing-form.tsx supports secondary storage (uses datalist, acceptable)
+- [x] Ensure inline creation works (uses existing ComboBox infrastructure)
+- [x] Verify stored as number in database (field.data_type === "number")
+
+**Implementation:** Added 'secondary_storage_gb' to DROPDOWN_FIELD_CONFIGS with same values as
+primary_storage_gb ['128', '256', '512', '1024', '2048', '4096']. EditableCell already had
+logic to check DROPDOWN_FIELD_CONFIGS for number fields (line 1012-1028) and render ComboBox
+with inline creation support.
+
+**Phase 4.1 Completion Criteria:**
+- [x] Secondary Storage uses dropdown matching Primary Storage pattern
+
+### 4.2 Custom Inline Creation Modal
+- [x] Check existing inline creation in combobox.tsx (no browser prompt used)
+- [x] Verify confirmation dialog is used (handleCreateOption line 294-320)
+- [x] Confirmation dialog implementation verified (useConfirmation hook, line 302-307)
+- [x] Input validation exists (API handles validation, frontend shows error on fail)
+- [x] ComboBox directly calls onCreateOption (no browser dialog)
+
+**Verification:** The ComboBox component (line 88-102) directly calls the onCreateOption
+callback when user clicks "Create" button. The EditableCell passes handleCreateOption which
+uses the useConfirmation hook to show a custom confirmation dialog (line 302-307). No browser
+prompt() or alert() dialogs are used anywhere in the flow.
+
+**Phase 4.2 Completion Criteria:**
+- [x] All inline creation uses custom confirmation dialog, no browser prompts
+
+**Phase 4 Status:** ✅ COMPLETE
+
+---
+
+## Phase 5: Modal Navigation
+
+### 5.1 Add Entry Modal Expandable
+- [ ] Create add-listing-modal.tsx component
+- [ ] Implement expand/collapse state management (useState)
+- [ ] Add expand button in modal header (Maximize2 icon)
+- [ ] Add collapse button in full-screen mode (Minimize2 icon)
+- [ ] Full-screen mode: fixed inset-0 z-50 bg-background
+- [ ] Modal mode: Dialog with max-w-4xl max-h-[90vh]
+- [ ] Ensure form data persists when toggling expanded state
+- [ ] Add smooth transition animation (200ms ease-in-out)
+- [ ] Update Data Tab "Add entry" button (apps/web/app/data/page.tsx or equivalent)
+- [ ] Update /listings page "Add Listing" button
+- [ ] Manual test: Click "Add Entry" → modal opens
+- [ ] Manual test: Click expand icon → transitions to full screen
+- [ ] Manual test: Fill form fields → toggle expanded → data persists
+- [ ] Manual test: Click collapse → returns to modal mode
+- [ ] Manual test: Submit form in modal mode → closes on success
+- [ ] Manual test: Submit form in expanded mode → closes on success
+- [ ] Accessibility test: Focus management during expand/collapse
+
+**Phase 5.1 Completion Criteria:**
+- [ ] Add Listing modal supports expand/collapse with state preservation
+
+### 5.2 Dashboard Listing Overview Modals
+- [ ] Locate dashboard summary cards (apps/web/app/page.tsx or dashboard-summary.tsx)
+- [ ] Create listing-overview-modal.tsx component
+- [ ] Implement listing detail fetch with React Query (5-min cache)
+- [ ] Modal content: thumbnail, pricing, performance, hardware, metadata
+- [ ] Reuse ValuationCell, DualMetricCell, PortsDisplay components
+- [ ] Add "View Full Listing" button (navigates to /listings?highlight={id})
+- [ ] Add "View Valuation Breakdown" button (if valuation data exists)
+- [ ] Make dashboard cards clickable (entire card)
+- [ ] Add keyboard accessibility (Enter/Space on card)
+- [ ] Add hover state (bg-accent transition)
+- [ ] Manual test: Click dashboard "Best Value" card → modal opens
+- [ ] Manual test: Click "View Full Listing" → navigates to /listings with highlight
+- [ ] Manual test: ESC closes modal
+- [ ] Accessibility test: Tab to card → Enter opens modal
+- [ ] Performance test: Modal data cached for 5 minutes
+
+**Phase 5.2 Completion Criteria:**
+- [ ] Dashboard listings open overview modals with navigation to full listing
+
+**Phase 5 Status:** Pending
+
+---
+
+## Phase 6: Testing & Polish
+
+### 6.1 Integration Testing
+- [ ] Test CPU Intelligence flow (create listing → CPU Mark metrics calculate)
+- [ ] Test CPU tooltip → specs display → modal opens
+- [ ] Test dropdown flows (RAM inline creation, Secondary Storage dropdown)
+- [ ] Test modal flows (Add Entry expand/collapse, dashboard overview)
+- [ ] Test table flows (resize columns, filter by CPU, sort by CPU Mark)
+- [ ] Verify all bug fixes (CPU Mark calculations, CPU save, seed script)
+- [ ] Test column resizing persists across sessions
+- [ ] Test dropdowns auto-size correctly
+- [ ] Test all interactions keyboard accessible
+- [ ] Check React Query cache (no duplicate requests)
+- [ ] Verify no console errors or warnings
+
+### 6.2 Accessibility Verification
+- [ ] Keyboard Navigation: All interactive elements reachable via Tab
+- [ ] Modals trap focus when open
+- [ ] ESC closes all modals
+- [ ] Enter/Space activates buttons and triggers
+- [ ] Arrow keys navigate dropdown options
+- [ ] CPU Info icon: aria-label="View CPU details"
+- [ ] Expand button: aria-label="Expand to full screen"
+- [ ] Collapse button: aria-label="Collapse to modal"
+- [ ] Dashboard cards: role="button" or semantic button
+- [ ] Modals: aria-modal="true", aria-labelledby for title
+- [ ] Loading states: aria-busy="true"
+- [ ] Color contrast: Info icon 4.5:1, dropdown text 4.5:1, modal text 4.5:1
+- [ ] Run axe DevTools on all pages
+- [ ] Test with keyboard only (no mouse)
+
+### 6.3 Performance Optimization
+- [ ] React.memo: CpuTooltip, CpuDetailsModal, ListingOverviewModal, AddListingModal
+- [ ] React Query: 5-min stale time for listings with CPU data
+- [ ] React Query: 5-min stale time for single listing (overview modal)
+- [ ] Verify debouncing: Column resize 150ms, dropdown search 200ms
+- [ ] Check bundle size impact (should be < 5KB per component)
+- [ ] Test: CPU tooltip render < 100ms
+- [ ] Test: Modal open < 200ms
+- [ ] Test: Column resize < 150ms (debounced)
+- [ ] Test: Table initial render with 100 rows < 2s
+- [ ] Use React DevTools Profiler
+- [ ] Measure with Chrome Lighthouse
+
+**Phase 6 Completion Criteria:**
+- [ ] All integration tests passing
+- [ ] Zero critical accessibility violations
+- [ ] All performance targets met
+
+**Phase 6 Status:** Pending
+
+---
+
 ## Summary Statistics
 
-**Total Tasks:** 48
-**Completed:** 48
+**Total Tasks:** 86
+**Completed:** 48 (Phases 1-3)
 **In Progress:** 0
-**Pending:** 0
+**Pending:** 38 (Phases 4-6)
 
-**Current Phase:** Phases 1-3 Complete
-**Overall Progress:** 100% (for Phases 1-3)
+**Current Phase:** Phase 4 - Enhanced Dropdowns
+**Overall Progress:** 56% (48/86 tasks complete)
