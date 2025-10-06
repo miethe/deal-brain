@@ -674,7 +674,7 @@ Completed full implementation of performance metrics and data enrichment feature
 
 ---
 
-## Listings Catalog View Revamp - Phases 1-2 Complete ✅ (10-6-2025)
+## Listings Catalog View Revamp - Phases 1-4 Complete ✅ (10-6-2025)
 
 ### Phase 1: Foundation & Tab Navigation ✅
 **State Management:**
@@ -728,30 +728,80 @@ Completed full implementation of performance metrics and data enrichment feature
 - Sort by adjusted $/MT (ascending - best value first)
 - useMemo for performance
 
-### Files Created (Phases 1-2):
-- `apps/web/stores/catalog-store.ts`
-- `apps/web/hooks/use-url-sync.ts`
-- `apps/web/components/ui/tabs.tsx`
-- `apps/web/components/ui/tooltip.tsx`
-- `apps/web/app/listings/_components/listings-filters.tsx`
-- `apps/web/app/listings/_components/grid-view/index.tsx`
-- `apps/web/app/listings/_components/grid-view/listing-card.tsx`
-- `apps/web/app/listings/_components/grid-view/performance-badges.tsx`
-- `apps/web/components/listings/quick-edit-dialog.tsx`
-- `apps/web/components/listings/listing-details-dialog.tsx`
+### Phase 3: Dense List View Implementation ✅
+**Dense Table Component:**
+- Created dense-table.tsx with virtual scrolling (@tanstack/react-virtual)
+- Columns: Title (with badges), CPU (with scores), Price, Adjusted, $/ST, $/MT, Actions
+- Row height: 64px, overscan: 5 items
+- Virtual scrolling for smooth 1000+ row performance
 
-### Files Modified (Phases 1-2):
-- `apps/web/app/listings/page.tsx`
-- `apps/web/package.json` (added @radix-ui/react-tabs, @radix-ui/react-tooltip)
+**Interactions:**
+- Hover action clusters with opacity-70 → opacity-100 transitions
+- Bulk selection: header checkbox, row checkboxes, shift+click support
+- Keyboard navigation: arrows, enter (open details), escape (clear focus)
+- Bulk selection panel appears when rows selected
 
-### Commits:
+**Performance:**
+- useVirtualizer with dynamic row calculations
+- Memoized row components
+- Efficient state management for selections
+
+### Phase 4: Master/Detail View Implementation ✅
+**Split Layout:**
+- Responsive grid: 1 col mobile, 4/6 split desktop (lg:grid-cols-10)
+- Master list (left): 4 cols, 70vh ScrollArea
+- Detail panel (right): 6 cols, full specs
+
+**Master List Component:**
+- Button-based list items with selection state
+- Compare checkboxes below each item
+- Keyboard shortcuts: j/k (navigate), c (toggle compare)
+- Auto-select first item on mount
+
+**Detail Panel:**
+- Created KpiMetric component (accent variants: good/warn/neutral)
+- Created KeyValue component for spec display
+- KPI metrics: Price, Adjusted, $/ST, $/MT with accents
+- Full specs: CPU, Hardware, Metadata, Ports (when available)
+- Performance badges reused from Grid view
+
+**Compare Drawer:**
+- Sheet component (bottom, 60vh height)
+- Floating "Compare (N)" button (fixed bottom-right)
+- Grid of mini-cards (1-3 cols responsive)
+- Shows first 6 items, scroll message if more
+- Each card: Title, Adjusted price, $/MT, CPU, Scores, Performance badges
+- Remove button and Clear All functionality
+
+### Files Created (Phases 3-4):
+- `apps/web/app/listings/_components/dense-list-view/index.tsx`
+- `apps/web/app/listings/_components/dense-list-view/dense-table.tsx`
+- `apps/web/app/listings/_components/master-detail-view/index.tsx`
+- `apps/web/app/listings/_components/master-detail-view/master-list.tsx`
+- `apps/web/app/listings/_components/master-detail-view/detail-panel.tsx`
+- `apps/web/app/listings/_components/master-detail-view/kpi-metric.tsx`
+- `apps/web/app/listings/_components/master-detail-view/key-value.tsx`
+- `apps/web/app/listings/_components/master-detail-view/compare-drawer.tsx`
+- `apps/web/app/listings/_components/view-switcher.tsx`
+- `apps/web/app/listings/_components/catalog-tab.tsx`
+- `apps/web/components/ui/sheet.tsx`
+- `apps/web/components/ui/scroll-area.tsx`
+
+### Files Modified (Phases 3-4):
+- `apps/web/app/listings/page.tsx` (integrated all three views)
+- `apps/web/package.json` (added @radix-ui/react-scroll-area)
+
+### All Commits:
 - `88d6bd3` - Phase 1: Foundation & Tab Navigation
 - `d71b3fd` - Phase 2: Grid View Implementation
+- `c96ccb8` - Phase 3-4: Dense List View & Master/Detail View
 
 ### Status:
 - ✅ Phase 1 complete (20 tasks)
 - ✅ Phase 2 complete (22 tasks)
-- ⏭️ Phases 3-6 pending (Dense List, Master-Detail, Integration, Testing)
+- ✅ Phase 3 complete (19 tasks)
+- ✅ Phase 4 complete (30 tasks)
+- ⏭️ Phases 5-6 pending (Integration & Polish, Testing & Documentation)
 - ⚠️ TypeScript compilation requires pnpm install for new Radix packages
 
 ### Key Learnings:
@@ -762,3 +812,9 @@ Completed full implementation of performance metrics and data enrichment feature
 5. Client-side filtering with useMemo scales well for <1000 items
 6. Color accent logic: >15% savings (dark emerald), >5% (light emerald), <-10% (amber)
 7. Tooltip + color + text provides triple-encoded accessibility
+8. @tanstack/react-virtual essential for 1000+ row tables (60fps scrolling)
+9. Virtual scrolling with 64px rows and 5-item overscan provides smooth UX
+10. Keyboard navigation enhances power-user workflows (j/k/c shortcuts)
+11. Sheet component (bottom) excellent for compare/preview drawers
+12. KpiMetric + KeyValue pattern scales well across detail views
+13. Compare drawer with 6-item limit + scroll message balances UX and performance
