@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -17,7 +18,7 @@ interface ListingOverviewModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function ListingOverviewModal({ listingId, open, onOpenChange }: ListingOverviewModalProps) {
+function ListingOverviewModalComponent({ listingId, open, onOpenChange }: ListingOverviewModalProps) {
   const { data: listing, isLoading } = useQuery<ListingRecord>({
     queryKey: ['listing', listingId],
     queryFn: async () => {
@@ -169,3 +170,5 @@ function SpecRow({ label, value }: { label: string; value: any }) {
     </div>
   );
 }
+
+export const ListingOverviewModal = memo(ListingOverviewModalComponent);

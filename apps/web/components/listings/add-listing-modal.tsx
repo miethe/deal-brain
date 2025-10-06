@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Maximize2, Minimize2, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
@@ -12,7 +12,7 @@ interface AddListingModalProps {
   onSuccess?: () => void;
 }
 
-export function AddListingModal({ open, onOpenChange, onSuccess }: AddListingModalProps) {
+function AddListingModalComponent({ open, onOpenChange, onSuccess }: AddListingModalProps) {
   const [expanded, setExpanded] = useState(false);
 
   const handleSuccess = () => {
@@ -83,3 +83,5 @@ export function AddListingModal({ open, onOpenChange, onSuccess }: AddListingMod
     </Dialog>
   );
 }
+
+export const AddListingModal = memo(AddListingModalComponent);
