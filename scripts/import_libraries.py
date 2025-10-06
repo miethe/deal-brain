@@ -63,24 +63,37 @@ class LibraryImporter:
 
         for field_data in fields:
             try:
-                field_name = field_data["name"]
+                field_key = field_data.get("key") or field_data["name"]
+                field_label = field_data["name"]
 
                 # Check if field already exists
-                existing = await self.fields_service.get_field_definition(
-                    self.session, entity_type, field_name
+                existing_fields = await self.fields_service.list_fields(
+                    self.session, entity=entity_type
+                )
+                existing = next(
+                    (f for f in existing_fields if f.key == field_key), None
                 )
 
                 if existing:
-                    print(f"  ⏭️  Skipping existing field: {field_name}")
+                    print(f"  ⏭️  Skipping existing field: {field_key}")
                     skipped += 1
                     continue
 
                 # Create field definition
-                await self.fields_service.create_field_definition(
-                    self.session, entity_type, field_data
+                await self.fields_service.create_field(
+                    self.session,
+                    entity=entity_type,
+                    key=field_key,
+                    label=field_label,
+                    data_type=field_data.get("data_type", "string"),
+                    description=field_data.get("description"),
+                    required=field_data.get("required", False),
+                    default_value=field_data.get("default_value"),
+                    options=field_data.get("options"),
+                    is_active=field_data.get("is_active", True),
                 )
 
-                print(f"  ✅ Imported field: {field_name}")
+                print(f"  ✅ Imported field: {field_key}")
                 imported += 1
 
             except Exception as e:
@@ -270,10 +283,9 @@ class LibraryImporter:
                 profile = Profile(
                     name=name,
                     description=profile_data.get("description", ""),
-                    is_active=profile_data.get("is_active", True),
-                    metric_weights=profile_data.get("metric_weights", {}),
+                    weights_json=profile_data.get("metric_weights", {}),
                     rule_group_weights=profile_data.get("rule_group_weights", {}),
-                    metadata=profile_data.get("metadata", {}),
+                    is_default=profile_data.get("is_default", False),
                 )
 
                 self.session.add(profile)

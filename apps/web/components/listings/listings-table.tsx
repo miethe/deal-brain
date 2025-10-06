@@ -152,15 +152,18 @@ export function ListingsTable() {
   const [cpuModalOpen, setCpuModalOpen] = useState(false);
   const [selectedCpu, setSelectedCpu] = useState<CpuRecord | null>(null);
 
+  // Load saved table state on mount (will be validated when table initializes)
   useEffect(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
     if (!saved) return;
+
     try {
       const parsed = JSON.parse(saved);
-      setSorting(parsed.sorting ?? [{ id: "title", desc: false }]);
-      setColumnFilters(parsed.filters ?? []);
-      setGrouping(parsed.grouping ?? []);
-      setQuickSearch(parsed.search ?? "");
+      // Set state optimistically - invalid columns will be filtered by React Table
+      if (parsed.sorting) setSorting(parsed.sorting);
+      if (parsed.filters) setColumnFilters(parsed.filters);
+      if (parsed.grouping) setGrouping(parsed.grouping);
+      if (parsed.search) setQuickSearch(parsed.search);
     } catch (
       // eslint-disable-next-line no-empty
       _error
