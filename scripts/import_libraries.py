@@ -29,13 +29,6 @@ from dealbrain_api.db import session_scope
 from dealbrain_api.services.custom_fields import CustomFieldService
 from dealbrain_api.services.rules import RulesService
 from dealbrain_api.models.core import Profile
-from dealbrain_api.schemas.rules import (
-    RulesetCreateRequest,
-    RuleGroupCreateRequest,
-    RuleCreateRequest,
-    ConditionSchema,
-    ActionSchema,
-)
 
 
 # Directory paths
@@ -114,26 +107,29 @@ class LibraryImporter:
         ruleset_data = data.get("ruleset", {})
         rule_groups_data = data.get("rule_groups", [])
 
-        # Create ruleset
-        ruleset_create = RulesetCreateRequest(
-            name=ruleset_data["name"],
-            version=ruleset_data["version"],
-            description=ruleset_data.get("description", ""),
-            is_active=ruleset_data.get("is_active", True),
-            metadata=ruleset_data.get("metadata", {}),
-        )
+        # Extract ruleset data
+        ruleset_name = ruleset_data["name"]
+        ruleset_version = ruleset_data["version"]
+        ruleset_description = ruleset_data.get("description", "")
+        ruleset_metadata = ruleset_data.get("metadata", {})
 
         # Check if ruleset exists
         existing_rulesets = await self.rules_service.list_rulesets(self.session)
         existing = next(
-            (rs for rs in existing_rulesets if rs.name == ruleset_create.name), None
+            (rs for rs in existing_rulesets if rs.name == ruleset_name), None
         )
 
         if existing:
-            print(f"  ⏭️  Ruleset '{ruleset_create.name}' already exists (ID: {existing.id})")
+            print(f"  ⏭️  Ruleset '{ruleset_name}' already exists (ID: {existing.id})")
             ruleset = existing
         else:
-            ruleset = await self.rules_service.create_ruleset(self.session, ruleset_create)
+            ruleset = await self.rules_service.create_ruleset(
+                self.session,
+                name=ruleset_name,
+                description=ruleset_description,
+                version=ruleset_version,
+                metadata=ruleset_metadata,
+            )
             print(f"  ✅ Created ruleset: {ruleset.name} (ID: {ruleset.id})")
 
         # Import rule groups and rules
@@ -143,17 +139,15 @@ class LibraryImporter:
 
         for group_data in rule_groups_data:
             try:
-                # Create rule group
-                group_create = RuleGroupCreateRequest(
+                # Create rule group with individual parameters
+                group = await self.rules_service.create_rule_group(
+                    self.session,
+                    ruleset_id=ruleset.id,
                     name=group_data["name"],
                     category=group_data["category"],
                     description=group_data.get("description", ""),
                     weight=group_data.get("weight", 1.0),
                     display_order=group_data.get("display_order", 0),
-                )
-
-                group = await self.rules_service.create_rule_group(
-                    self.session, ruleset.id, group_create
                 )
                 groups_created += 1
                 print(f"  ✅ Created group: {group.name}")
@@ -161,28 +155,20 @@ class LibraryImporter:
                 # Create rules in group
                 for rule_data in group_data.get("rules", []):
                     try:
-                        # Parse conditions recursively
-                        conditions = self._parse_conditions(rule_data["conditions"])
+                        # Convert conditions and actions to dict format for service layer
+                        conditions_list = self._conditions_to_dict_list(rule_data["conditions"])
+                        actions_list = rule_data["actions"]  # Already in dict format
 
-                        # Parse actions
-                        actions = [
-                            ActionSchema(**action_data)
-                            for action_data in rule_data["actions"]
-                        ]
-
-                        # Create rule
-                        rule_create = RuleCreateRequest(
+                        # Create rule with individual parameters
+                        rule = await self.rules_service.create_rule(
+                            self.session,
+                            group_id=group.id,
                             name=rule_data["name"],
                             description=rule_data.get("description", ""),
-                            category=rule_data["category"],
+                            priority=rule_data.get("priority", 100),
                             evaluation_order=rule_data.get("evaluation_order", 100),
-                            is_active=rule_data.get("is_active", True),
-                            conditions=conditions,
-                            actions=actions,
-                        )
-
-                        rule = await self.rules_service.create_rule(
-                            self.session, group.id, rule_create
+                            conditions=conditions_list,
+                            actions=actions_list,
                         )
                         rules_created += 1
                         print(f"    ✅ Created rule: {rule.name}")
@@ -208,24 +194,29 @@ class LibraryImporter:
             "errors": errors,
         }
 
-    def _parse_conditions(self, condition_data: Dict[str, Any]) -> ConditionSchema:
-        """Recursively parse condition data into ConditionSchema objects."""
-        if "logical_operator" in condition_data:
-            # Nested condition group
-            return ConditionSchema(
-                logical_operator=condition_data["logical_operator"],
-                conditions=[
-                    self._parse_conditions(c) for c in condition_data["conditions"]
-                ],
-            )
-        else:
-            # Leaf condition
-            return ConditionSchema(
-                field_name=condition_data["field_name"],
-                field_type=condition_data.get("field_type"),
-                operator=condition_data["operator"],
-                value=condition_data["value"],
-            )
+    def _conditions_to_dict_list(self, condition_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Convert nested condition structure to flat list of condition dicts for service layer."""
+        conditions = []
+
+        def flatten_conditions(cond_data: Dict[str, Any], parent_group: int = 0):
+            """Recursively flatten nested conditions."""
+            if "logical_operator" in cond_data:
+                # This is a condition group - process nested conditions
+                for nested_cond in cond_data.get("conditions", []):
+                    flatten_conditions(nested_cond, parent_group)
+            else:
+                # This is a leaf condition
+                conditions.append({
+                    "field_name": cond_data["field_name"],
+                    "field_type": cond_data.get("field_type", "string"),
+                    "operator": cond_data["operator"],
+                    "value": cond_data["value"],
+                    "logical_operator": cond_data.get("logical_operator"),
+                    "group_order": parent_group,
+                })
+
+        flatten_conditions(condition_data)
+        return conditions
 
     async def import_profiles(self, filepath: Path) -> Dict[str, Any]:
         """Import scoring profiles from YAML."""
