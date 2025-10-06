@@ -279,7 +279,7 @@ export function ListingsTable() {
   });
 
   const handleInlineSave = useCallback(
-    (listingId: number, field: FieldConfig, rawValue: string | string[] | boolean | null) => {
+    (listingId: number, field: FieldConfig, rawValue: string | string[] | boolean | number | null) => {
       const parsed = parseFieldValue(field, rawValue);
       inlineMutation.mutate({ listingId, field, value: parsed });
     },
@@ -835,7 +835,7 @@ interface EditableCellProps {
   field: FieldConfig;
   value: unknown;
   isSaving: boolean;
-  onSave: (listingId: number, field: FieldConfig, value: string | string[] | boolean | null) => void;
+  onSave: (listingId: number, field: FieldConfig, value: string | string[] | boolean | number | null) => void;
   onCreateOption?: (fieldKey: string, value: string) => Promise<void>;
 }
 
@@ -866,7 +866,13 @@ function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOptio
 
   const handleSelectChange = (raw: string) => {
     setDraft(raw);
-    onSave(listingId, field, raw);
+    // Convert to number for reference fields (cpu_id, gpu_id)
+    if (field.data_type === "reference") {
+      const numValue = raw === "" ? null : parseInt(raw, 10);
+      onSave(listingId, field, numValue);
+    } else {
+      onSave(listingId, field, raw);
+    }
   };
 
   const handleCheckbox = (checked: boolean) => {
@@ -1086,9 +1092,13 @@ function BulkEditPanel({ fieldConfigs, state, onChange, onSubmit, isSubmitting, 
   );
 }
 
-function parseFieldValue(field: FieldConfig, value: string | string[] | boolean | null): unknown {
+function parseFieldValue(field: FieldConfig, value: string | string[] | boolean | number | null): unknown {
   if (value === null || value === "") {
     return null;
+  }
+  // If already a number, return as-is (for reference fields like cpu_id)
+  if (typeof value === "number") {
+    return value;
   }
   if (field.data_type === "number") {
     return Number(value);

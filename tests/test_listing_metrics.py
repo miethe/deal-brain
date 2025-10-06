@@ -4,11 +4,18 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dealbrain_api.models.core import Cpu, Listing
-from dealbrain_api.services.listings import (
-    calculate_cpu_performance_metrics,
-    update_listing_metrics,
-    bulk_update_listing_metrics,
-)
+from dealbrain_api.services.listings import apply_listing_metrics
+
+# Legacy function imports (may not exist - tests will be adjusted)
+try:
+    from dealbrain_api.services.listings import (
+        calculate_cpu_performance_metrics,
+        update_listing_metrics,
+        bulk_update_listing_metrics,
+    )
+    LEGACY_FUNCTIONS_AVAILABLE = True
+except ImportError:
+    LEGACY_FUNCTIONS_AVAILABLE = False
 
 
 class TestCalculateCpuPerformanceMetrics:
@@ -221,3 +228,203 @@ class TestBulkUpdateListingMetrics:
         )
 
         assert count == 2
+
+
+@pytest.mark.asyncio
+class TestApplyListingMetricsCpuMarks:
+    """Test apply_listing_metrics function for CPU Mark calculations."""
+
+    async def test_cpu_mark_calculations_with_both_marks(self, session: AsyncSession):
+        """Test CPU Mark metrics calculated with both single and multi marks."""
+        # Create CPU with both marks
+        cpu = Cpu(
+            name="Intel Core i7-12700K",
+            manufacturer="Intel",
+            cpu_mark_single=3985,
+            cpu_mark_multi=35864,
+        )
+        session.add(cpu)
+        await session.flush()
+
+        # Create listing with CPU and price
+        listing = Listing(
+            title="Test PC",
+            price_usd=799.99,
+            condition="used",
+            cpu_id=cpu.id,
+        )
+        session.add(listing)
+        await session.flush()
+
+        # Apply metrics
+        await apply_listing_metrics(session, listing)
+
+        # Verify calculations
+        assert listing.dollar_per_cpu_mark_single is not None
+        assert listing.dollar_per_cpu_mark_multi is not None
+        assert listing.dollar_per_cpu_mark_single == pytest.approx(
+            listing.adjusted_price_usd / 3985, rel=0.01
+        )
+        assert listing.dollar_per_cpu_mark_multi == pytest.approx(
+            listing.adjusted_price_usd / 35864, rel=0.01
+        )
+
+    async def test_cpu_mark_calculations_single_only(self, session: AsyncSession):
+        """Test metrics when only single-thread mark available."""
+        cpu = Cpu(
+            name="Test CPU",
+            manufacturer="Test",
+            cpu_mark_single=4000,
+            cpu_mark_multi=None,  # No multi-thread mark
+        )
+        session.add(cpu)
+        await session.flush()
+
+        listing = Listing(
+            title="Test",
+            price_usd=800.0,
+            condition="used",
+            cpu_id=cpu.id,
+        )
+        session.add(listing)
+        await session.flush()
+
+        await apply_listing_metrics(session, listing)
+
+        # Should have single but not multi
+        assert listing.dollar_per_cpu_mark_single is not None
+        assert listing.dollar_per_cpu_mark_multi is None
+        assert listing.dollar_per_cpu_mark_single == pytest.approx(
+            listing.adjusted_price_usd / 4000, rel=0.01
+        )
+
+    async def test_cpu_mark_calculations_multi_only(self, session: AsyncSession):
+        """Test metrics when only multi-thread mark available."""
+        cpu = Cpu(
+            name="Test CPU",
+            manufacturer="Test",
+            cpu_mark_single=None,  # No single-thread mark
+            cpu_mark_multi=30000,
+        )
+        session.add(cpu)
+        await session.flush()
+
+        listing = Listing(
+            title="Test",
+            price_usd=600.0,
+            condition="refurb",
+            cpu_id=cpu.id,
+        )
+        session.add(listing)
+        await session.flush()
+
+        await apply_listing_metrics(session, listing)
+
+        # Should have multi but not single
+        assert listing.dollar_per_cpu_mark_single is None
+        assert listing.dollar_per_cpu_mark_multi is not None
+        assert listing.dollar_per_cpu_mark_multi == pytest.approx(
+            listing.adjusted_price_usd / 30000, rel=0.01
+        )
+
+    async def test_cpu_mark_calculations_no_cpu(self, session: AsyncSession):
+        """Test metrics when no CPU assigned."""
+        listing = Listing(
+            title="Test",
+            price_usd=500.0,
+            condition="used",
+            cpu_id=None,  # No CPU
+        )
+        session.add(listing)
+        await session.flush()
+
+        await apply_listing_metrics(session, listing)
+
+        # Should be None
+        assert listing.dollar_per_cpu_mark_single is None
+        assert listing.dollar_per_cpu_mark_multi is None
+
+    async def test_cpu_mark_recalculation_on_price_update(self, session: AsyncSession):
+        """Test metrics recalculate when price changes."""
+        cpu = Cpu(
+            name="Test CPU",
+            manufacturer="Test",
+            cpu_mark_single=4000,
+            cpu_mark_multi=30000,
+        )
+        session.add(cpu)
+        await session.flush()
+
+        listing = Listing(
+            title="Test",
+            price_usd=800.0,
+            condition="used",
+            cpu_id=cpu.id,
+        )
+        session.add(listing)
+        await session.flush()
+
+        # Initial calculation
+        await apply_listing_metrics(session, listing)
+        initial_single = listing.dollar_per_cpu_mark_single
+        initial_multi = listing.dollar_per_cpu_mark_multi
+
+        # Update price
+        listing.price_usd = 600.0
+
+        # Recalculate
+        await apply_listing_metrics(session, listing)
+
+        # Metrics should have changed
+        assert listing.dollar_per_cpu_mark_single != initial_single
+        assert listing.dollar_per_cpu_mark_multi != initial_multi
+        assert listing.dollar_per_cpu_mark_single == pytest.approx(
+            listing.adjusted_price_usd / 4000, rel=0.01
+        )
+
+    async def test_cpu_mark_recalculation_on_cpu_change(self, session: AsyncSession):
+        """Test metrics recalculate when CPU changes."""
+        cpu1 = Cpu(
+            name="CPU 1",
+            manufacturer="Intel",
+            cpu_mark_single=4000,
+            cpu_mark_multi=30000,
+        )
+        cpu2 = Cpu(
+            name="CPU 2",
+            manufacturer="AMD",
+            cpu_mark_single=5000,
+            cpu_mark_multi=40000,
+        )
+        session.add_all([cpu1, cpu2])
+        await session.flush()
+
+        listing = Listing(
+            title="Test",
+            price_usd=800.0,
+            condition="used",
+            cpu_id=cpu1.id,
+        )
+        session.add(listing)
+        await session.flush()
+
+        # Initial calculation with CPU1
+        await apply_listing_metrics(session, listing)
+        initial_single = listing.dollar_per_cpu_mark_single
+        initial_multi = listing.dollar_per_cpu_mark_multi
+
+        # Change to CPU2
+        listing.cpu_id = cpu2.id
+
+        # Recalculate
+        await apply_listing_metrics(session, listing)
+
+        # Metrics should have changed
+        assert listing.dollar_per_cpu_mark_single != initial_single
+        assert listing.dollar_per_cpu_mark_multi != initial_multi
+        assert listing.dollar_per_cpu_mark_single == pytest.approx(
+            listing.adjusted_price_usd / 5000, rel=0.01
+        )
+        assert listing.dollar_per_cpu_mark_multi == pytest.approx(
+            listing.adjusted_price_usd / 40000, rel=0.01
+        )

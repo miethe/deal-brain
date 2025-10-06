@@ -113,6 +113,13 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
         dollar_per_metric(listing.adjusted_price_usd, cpu_single) if cpu_single else None
     )
 
+    # New dollar per CPU Mark metrics (single and multi-thread)
+    if listing.adjusted_price_usd and cpu:
+        if cpu.cpu_mark_single:
+            listing.dollar_per_cpu_mark_single = listing.adjusted_price_usd / cpu.cpu_mark_single
+        if cpu.cpu_mark_multi:
+            listing.dollar_per_cpu_mark_multi = listing.adjusted_price_usd / cpu.cpu_mark_multi
+
     await session.flush()
 
 

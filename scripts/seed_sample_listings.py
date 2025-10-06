@@ -167,9 +167,9 @@ async def seed_sample_listings():
 
                 for port_data in sample["ports"]:
                     port = Port(
-                        port_profile_id=ports_profile.id,
-                        port_type=port_data["port_type"],
-                        quantity=port_data["quantity"],
+                        ports_profile_id=ports_profile.id,
+                        type=port_data["port_type"],
+                        count=port_data["quantity"],
                     )
                     session.add(port)
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from dealbrain_core.schemas import ListingRead
 
@@ -31,6 +31,29 @@ class ListingSchemaResponse(BaseModel):
 class ListingPartialUpdateRequest(BaseModel):
     fields: dict[str, Any] | None = None
     attributes: dict[str, Any] | None = None
+
+    @field_validator("fields", mode="before")
+    @classmethod
+    def coerce_reference_fields(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Coerce cpu_id and gpu_id to integers if they are strings."""
+        if v is None:
+            return v
+
+        # Coerce cpu_id to int
+        if "cpu_id" in v:
+            if v["cpu_id"] is None or v["cpu_id"] == "":
+                v["cpu_id"] = None
+            elif isinstance(v["cpu_id"], str):
+                v["cpu_id"] = int(v["cpu_id"])
+
+        # Coerce gpu_id to int
+        if "gpu_id" in v:
+            if v["gpu_id"] is None or v["gpu_id"] == "":
+                v["gpu_id"] = None
+            elif isinstance(v["gpu_id"], str):
+                v["gpu_id"] = int(v["gpu_id"])
+
+        return v
 
 
 class ListingBulkUpdateRequest(BaseModel):
