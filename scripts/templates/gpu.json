@@ -1,0 +1,22 @@
+[
+  {
+    "name": "NVIDIA GeForce RTX 3060",
+    "manufacturer": "NVIDIA",
+    "gpu_mark": 19000,
+    "metal_score": 43000,
+    "notes": "Ampere mid-range desktop GPU",
+    "attributes": {
+      "memory_gb": 12
+    }
+  },
+  {
+    "name": "AMD Radeon RX 6600",
+    "manufacturer": "AMD",
+    "gpu_mark": 16500,
+    "metal_score": 36000,
+    "notes": "RDNA2 desktop GPU",
+    "attributes": {
+      "memory_gb": 8
+    }
+  }
+]

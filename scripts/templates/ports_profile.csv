@@ -1,0 +1,3 @@
+name,description,attributes,ports
+"Baseline SFF","Balanced mix for compact systems","{""supports_power_delivery"": true}","[{""type"": ""usb_a"", ""count"": 4}, {""type"": ""usb_c"", ""count"": 2, ""spec_notes"": ""USB 3.2 Gen2""}, {""type"": ""hdmi"", ""count"": 1}, {""type"": ""rj45_2_5g"", ""count"": 1}]"
+"Media Hub","Expanded video outputs","{}","[{""type"": ""usb_a"", ""count"": 6}, {""type"": ""displayport"", ""count"": 2}, {""type"": ""hdmi"", ""count"": 2}, {""type"": ""rj45_1g"", ""count"": 1}]"

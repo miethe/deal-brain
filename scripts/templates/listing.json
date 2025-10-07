@@ -1,0 +1,29 @@
+[
+  {
+    "title": "Refurbished OptiPlex 7060 SFF",
+    "price_usd": 320.0,
+    "condition": "used",
+    "cpu_name": "Intel Core i7-8700",
+    "gpu_name": "NVIDIA GeForce GTX 1650 Low Profile",
+    "ram_gb": 32,
+    "primary_storage_gb": 512,
+    "primary_storage_type": "NVMe SSD",
+    "secondary_storage_gb": 1000,
+    "secondary_storage_type": "HDD",
+    "os_license": "Windows 11 Pro",
+    "other_components": ["Wi-Fi 6 PCIe card"],
+    "notes": "Includes warranty and clean install",
+    "attributes": {
+      "color": "black"
+    },
+    "components": [
+      {
+        "component_type": "gpu",
+        "name": "NVIDIA GeForce GTX 1650 Low Profile",
+        "metadata_json": {
+          "gpu_mark": 8540
+        }
+      }
+    ]
+  }
+]

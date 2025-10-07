@@ -1,0 +1,3 @@
+name,manufacturer,gpu_mark,metal_score,notes,attributes
+NVIDIA GeForce RTX 3060,NVIDIA,19000,43000,Ampere mid-range desktop GPU,"{""memory_gb"": 12}"
+AMD Radeon RX 6600,AMD,16500,36000,RDNA2 desktop GPU,"{""memory_gb"": 8}"

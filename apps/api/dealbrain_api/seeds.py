@@ -10,7 +10,6 @@ from sqlalchemy import select
 from dealbrain_core.schemas import SpreadsheetSeed
 
 from .db import Base, get_engine, session_scope
-from .importers import SpreadsheetImporter
 from .models import Cpu, Gpu, Listing, ListingComponent, PortsProfile, Port, Profile
 from .settings import get_settings
 
@@ -32,6 +31,9 @@ async def apply_seed(seed: SpreadsheetSeed) -> None:
         for gpu in seed.gpus:
             existing = await session.scalar(select(Gpu).where(Gpu.name == gpu.name))
             data = gpu.model_dump(exclude_none=True)
+            # Map 'attributes' to 'attributes_json' for SQLAlchemy model
+            if 'attributes' in data:
+                data['attributes_json'] = data.pop('attributes')
             if existing:
                 for field, value in data.items():
                     setattr(existing, field, value)
@@ -93,6 +95,9 @@ async def apply_seed(seed: SpreadsheetSeed) -> None:
 
 
 async def seed_from_workbook(path: Path) -> None:
+    # Import lazily so CLI scripts without spreadsheet dependencies can rely on apply_seed.
+    from .importers import SpreadsheetImporter
+
     importer = SpreadsheetImporter(path)
     seed, summary = importer.load()
     await apply_seed(seed)
@@ -121,4 +126,3 @@ async def run() -> None:
 
 if __name__ == "__main__":
     asyncio.run(run())
-

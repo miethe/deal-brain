@@ -1,0 +1,3 @@
+name,description,weights_json,rule_group_weights,is_default
+"Home Lab","Balanced profile for general virtualization","{""cpu_mark_multi"": 0.4, ""ram_capacity"": 0.3, ""perf_per_watt"": 0.2, ""expandability"": 0.1}","{""storage"": 0.3, ""network"": 0.2, ""cpu"": 0.5}",true
+"Media Server","Optimized for transcoding and low power draw","{""encoder_capability"": 0.5, ""perf_per_watt"": 0.3, ""cpu_mark_single"": 0.2}","{""storage"": 0.4, ""network"": 0.3, ""cpu"": 0.3}",false

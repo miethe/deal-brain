@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Intel Core i7-8700",
+    "manufacturer": "Intel",
+    "socket": "LGA1151",
+    "cores": 6,
+    "threads": 12,
+    "tdp_w": 65,
+    "igpu_model": "Intel UHD Graphics 630",
+    "cpu_mark_multi": 13875,
+    "cpu_mark_single": 2630,
+    "release_year": 2017,
+    "notes": "Baseline Coffee Lake desktop processor",
+    "attributes": {
+      "l3_cache_mb": 12
+    }
+  },
+  {
+    "name": "AMD Ryzen 5 5600G",
+    "manufacturer": "AMD",
+    "socket": "AM4",
+    "cores": 6,
+    "threads": 12,
+    "tdp_w": 65,
+    "igpu_model": "Radeon Vega 7",
+    "cpu_mark_multi": 20650,
+    "cpu_mark_single": 3215,
+    "release_year": 2021,
+    "notes": "Popular APU for compact systems",
+    "attributes": {
+      "l3_cache_mb": 16
+    }
+  }
+]

@@ -1,0 +1,3 @@
+name,manufacturer,socket,cores,threads,tdp_w,igpu_model,cpu_mark_multi,cpu_mark_single,release_year,notes,attributes
+Intel Core i7-8700,Intel,LGA1151,6,12,65,Intel UHD Graphics 630,13875,2630,2017,Baseline Coffee Lake desktop processor,"{""l3_cache_mb"": 12}"
+AMD Ryzen 5 5600G,AMD,AM4,6,12,65,Radeon Vega 7,20650,3215,2021,Popular APU for compact systems,"{""l3_cache_mb"": 16}"
