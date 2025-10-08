@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 from .base import DealBrainModel
 from .catalog import CpuRead, GpuRead
@@ -33,7 +33,12 @@ class ListingComponentRead(ListingComponentBase):
 
 class ListingBase(DealBrainModel):
     title: str
-    url: str | None = None
+    listing_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("listing_url", "url"),
+        serialization_alias="listing_url",
+    )
+    other_urls: list[dict[str, str]] = Field(default_factory=list)
     seller: str | None = None
     price_usd: float
     price_date: datetime | None = None
@@ -53,6 +58,7 @@ class ListingBase(DealBrainModel):
     other_components: list[str] = Field(default_factory=list)
     notes: str | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
+    ruleset_id: int | None = None
     # Product Metadata (New)
     manufacturer: str | None = None
     series: str | None = None

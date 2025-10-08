@@ -106,10 +106,13 @@ class ValuationRuleset(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_by: Mapped[str | None] = mapped_column(String(128))
     metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    conditions_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
     rule_groups: Mapped[list["ValuationRuleGroup"]] = relationship(
         back_populates="ruleset", cascade="all, delete-orphan", lazy="selectin"
     )
+    listings: Mapped[list["Listing"]] = relationship(back_populates="ruleset", lazy="selectin")
 
 
 class ValuationRuleGroup(Base, TimestampMixin):
@@ -236,7 +239,7 @@ class Listing(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    url: Mapped[str | None] = mapped_column(Text)
+    listing_url: Mapped[str | None] = mapped_column(Text)
     seller: Mapped[str | None] = mapped_column(String(128))
     price_usd: Mapped[float] = mapped_column(nullable=False)
     price_date: Mapped[datetime | None]
@@ -257,6 +260,7 @@ class Listing(Base, TimestampMixin):
     notes: Mapped[str | None] = mapped_column(Text)
     raw_listing_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     attributes_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    other_urls: Mapped[list[dict[str, str]]] = mapped_column(JSON, nullable=False, default=list)
 
     adjusted_price_usd: Mapped[float | None]
     valuation_breakdown: Mapped[dict[str, Any] | None] = mapped_column(JSON)
@@ -281,12 +285,15 @@ class Listing(Base, TimestampMixin):
     model_number: Mapped[str | None] = mapped_column(String(128))
     form_factor: Mapped[str | None] = mapped_column(String(32))
 
+    ruleset_id: Mapped[int | None] = mapped_column(ForeignKey("valuation_ruleset.id", ondelete="SET NULL"))
+
     cpu: Mapped[Cpu | None] = relationship(back_populates="listings", lazy="joined")
     gpu: Mapped[Gpu | None] = relationship(back_populates="listings", lazy="joined")
     ports_profile: Mapped[PortsProfile | None] = relationship(back_populates="listings", lazy="joined")
     active_profile: Mapped[Profile | None] = relationship(back_populates="listings", lazy="joined")
     components: Mapped[list["ListingComponent"]] = relationship(back_populates="listing", cascade="all, delete-orphan", lazy="selectin")
     score_history: Mapped[list["ListingScoreSnapshot"]] = relationship(back_populates="listing", cascade="all, delete-orphan", lazy="selectin")
+    ruleset: Mapped["ValuationRuleset | None"] = relationship(back_populates="listings", lazy="joined")
 
 
 class ListingComponent(Base, TimestampMixin):

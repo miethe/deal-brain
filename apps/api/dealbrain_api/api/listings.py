@@ -53,6 +53,19 @@ CORE_LISTING_FIELDS: list[ListingFieldSchema] = [
         validation={"min_length": 3},
     ),
     ListingFieldSchema(
+        key="listing_url",
+        label="Listing URL",
+        data_type="string",
+        description="Primary external link for the listing",
+    ),
+    ListingFieldSchema(
+        key="other_urls",
+        label="Additional Links",
+        data_type="list",
+        description="Supplemental URLs with optional labels",
+        editable=True,
+    ),
+    ListingFieldSchema(
         key="price_usd",
         label="Price (USD)",
         data_type="number",
@@ -118,6 +131,12 @@ CORE_LISTING_FIELDS: list[ListingFieldSchema] = [
         key="os_license",
         label="OS License",
         data_type="string",
+    ),
+    ListingFieldSchema(
+        key="ruleset_id",
+        label="Assigned Ruleset",
+        data_type="reference",
+        description="Static valuation ruleset override",
     ),
     ListingFieldSchema(
         key="notes",

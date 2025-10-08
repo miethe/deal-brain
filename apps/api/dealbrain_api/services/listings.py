@@ -15,7 +15,8 @@ from ..models import Cpu, Gpu, Listing, ListingComponent, Profile
 
 MUTABLE_LISTING_FIELDS: set[str] = {
     "title",
-    "url",
+    "listing_url",
+    "other_urls",
     "seller",
     "price_usd",
     "price_date",
@@ -33,7 +34,15 @@ MUTABLE_LISTING_FIELDS: set[str] = {
     "secondary_storage_type",
     "os_license",
     "notes",
+    "ruleset_id",
 }
+
+
+def _normalize_listing_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Handle legacy field aliases and normalize payload keys."""
+    if "url" in payload and "listing_url" not in payload:
+        payload["listing_url"] = payload.pop("url")
+    return payload
 
 
 async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None:
@@ -180,6 +189,7 @@ async def create_listing(session: AsyncSession, payload: dict) -> Listing:
     # Map 'attributes' to 'attributes_json' for SQLAlchemy model
     if 'attributes' in payload:
         payload['attributes_json'] = payload.pop('attributes')
+    payload = _normalize_listing_payload(payload)
     listing = Listing(**payload)
     session.add(listing)
     await session.flush()
@@ -187,6 +197,7 @@ async def create_listing(session: AsyncSession, payload: dict) -> Listing:
 
 
 async def update_listing(session: AsyncSession, listing: Listing, payload: dict) -> Listing:
+    payload = _normalize_listing_payload(payload)
     for field, value in payload.items():
         setattr(listing, field, value)
     await session.flush()
@@ -236,6 +247,7 @@ async def partial_update_listing(
 ) -> Listing:
     fields = fields or {}
     attributes = attributes or {}
+    fields = _normalize_listing_payload(dict(fields))
 
     for field, value in fields.items():
         if field in MUTABLE_LISTING_FIELDS:
