@@ -5,9 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, Iterable, List, Mapping, Sequence
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, select, inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
+from sqlalchemy.sql import sqltypes
 
 from dealbrain_core.schemas import CpuRead, ListingRead
 
@@ -58,7 +59,7 @@ class FieldRegistry:
             "cpu": EntityMeta(
                 entity="cpu",
                 label="CPUs",
-                supports_custom_fields=False,
+                supports_custom_fields=True,
                 core_fields=self._cpu_core_fields(),
             ),
         }
@@ -140,7 +141,10 @@ class FieldRegistry:
             await db.refresh(listing)
             return self._serialize_listing(listing)
         if entity == "cpu":
-            cpu = Cpu(**record_payload.fields)
+            cpu_payload = dict(record_payload.fields)
+            if record_payload.attributes:
+                cpu_payload["attributes_json"] = record_payload.attributes
+            cpu = Cpu(**cpu_payload)
             db.add(cpu)
             await db.flush()
             await db.refresh(cpu)
@@ -174,6 +178,14 @@ class FieldRegistry:
                 raise LookupError("CPU not found")
             for field, value in record_payload.fields.items():
                 setattr(cpu, field, value)
+            if record_payload.attributes:
+                merged = dict(cpu.attributes_json or {})
+                for key, value in record_payload.attributes.items():
+                    if value is None:
+                        merged.pop(key, None)
+                    else:
+                        merged[key] = value
+                cpu.attributes_json = merged
             await db.flush()
             await db.refresh(cpu)
             return self._serialize_cpu(cpu)
@@ -193,6 +205,11 @@ class FieldRegistry:
             for key in ("price_usd", "ram_gb", "primary_storage_gb", "secondary_storage_gb"):
                 if key in fields and fields[key] is not None:
                     fields[key] = float(fields[key])
+        elif entity == "cpu":
+            if "attributes_json" in fields:
+                maybe_attributes = fields.pop("attributes_json") or {}
+                if isinstance(maybe_attributes, Mapping):
+                    attributes.update(maybe_attributes)
         return RecordPayload(fields=fields, attributes=attributes)
 
     async def _count(self, db: AsyncSession, model) -> int:
@@ -226,15 +243,58 @@ class FieldRegistry:
         return fields
 
     def _cpu_core_fields(self) -> list[FieldMeta]:
-        return [
-            FieldMeta(key="name", label="Name", data_type="string", required=True, origin="core", locked=True),
-            FieldMeta(key="manufacturer", label="Manufacturer", data_type="string", origin="core", locked=True),
-            FieldMeta(key="series", label="Series", data_type="string", origin="core", locked=True),
-            FieldMeta(key="cores", label="Cores", data_type="number", origin="core", locked=True),
-            FieldMeta(key="threads", label="Threads", data_type="number", origin="core", locked=True),
-            FieldMeta(key="base_clock_ghz", label="Base Clock (GHz)", data_type="number", origin="core", locked=True),
-            FieldMeta(key="max_clock_ghz", label="Max Clock (GHz)", data_type="number", origin="core", locked=True),
-        ]
+        mapper = sa_inspect(Cpu)
+        skip_keys = {"id", "created_at", "updated_at", "attributes_json"}
+        label_overrides = {
+            "igpu_model": "iGPU Model",
+            "igpu_mark": "iGPU Mark",
+            "cpu_mark_multi": "CPU Mark (Multi)",
+            "cpu_mark_single": "CPU Mark (Single)",
+            "tdp_w": "TDP (W)",
+            "passmark_slug": "PassMark Slug",
+            "passmark_category": "PassMark Category",
+            "passmark_id": "PassMark ID",
+        }
+
+        def format_label(key: str) -> str:
+            return label_overrides.get(key, key.replace("_", " ").title().replace("Cpu", "CPU"))
+
+        numeric_types = (
+            sqltypes.Integer,
+            sqltypes.Numeric,
+            sqltypes.Float,
+            sqltypes.BigInteger,
+            sqltypes.SmallInteger,
+        )
+        text_types = (sqltypes.Text, sqltypes.UnicodeText)
+
+        def infer_type(column_type: sqltypes.TypeEngine) -> str:
+            if isinstance(column_type, numeric_types):
+                return "number"
+            if isinstance(column_type, sqltypes.Boolean):
+                return "boolean"
+            if isinstance(column_type, text_types):
+                return "text"
+            if isinstance(column_type, sqltypes.JSON):
+                return "json"
+            return "string"
+
+        fields: list[FieldMeta] = []
+        for column in mapper.columns:
+            key = column.key
+            if key in skip_keys:
+                continue
+            fields.append(
+                FieldMeta(
+                    key=key,
+                    label=format_label(key),
+                    data_type=infer_type(column.type),
+                    required=not column.nullable,
+                    origin="core",
+                    locked=True,
+                )
+            )
+        return fields
 
     def _serialize_listing(self, listing: Listing) -> dict[str, Any]:
         data = ListingRead.model_validate(listing).model_dump()
@@ -248,12 +308,15 @@ class FieldRegistry:
         data = CpuRead.model_validate(cpu).model_dump()
         return {
             "id": data["id"],
-            "fields": data,
-            "attributes": {},
+            "fields": {key: data.get(key) for key in self._cpu_field_keys()},
+            "attributes": dict(getattr(cpu, "attributes_json", {}) or {}),
         }
 
     def _listing_field_keys(self) -> list[str]:
         return [field.key for field in self.entities["listing"].core_fields]
+
+    def _cpu_field_keys(self) -> list[str]:
+        return [field.key for field in self.entities["cpu"].core_fields]
 
 
 __all__ = ["FieldRegistry", "EntityMeta", "FieldMeta"]

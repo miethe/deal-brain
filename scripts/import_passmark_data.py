@@ -242,7 +242,7 @@ async def import_passmark_csv(csv_path: str):
         csv_path: Path to CSV file with PassMark benchmark data
 
     Returns:
-        Tuple of (updated_count, not_found_count)
+        Tuple of (updated_count, created_count, not_found_count)
     """
     settings = get_settings()
     engine = create_async_engine(settings.database_url, echo=False)
@@ -250,6 +250,7 @@ async def import_passmark_csv(csv_path: str):
 
     updated_count = 0
     not_found = []
+    created_count = 0
 
     async with async_session() as session:
         with open(csv_path, 'r', encoding='utf-8') as f:
@@ -280,13 +281,24 @@ async def import_passmark_csv(csv_path: str):
                     except Exception as e:
                         print(f"Line {row_num}: Error parsing data for '{cpu_name}': {e}")
                 else:
-                    not_found.append(cpu_name)
-                    print(f"Line {row_num}: CPU not found in database: {cpu_name}")
+                    try:
+                        row_data = dict(row)
+                        row_data["name"] = cpu_name
+                        manufacturer = infer_manufacturer(cpu_name) or "Unknown"
+                        cpu = Cpu(name=cpu_name, manufacturer=manufacturer)
+                        update_cpu_from_passmark(cpu, row_data)
+                        session.add(cpu)
+                        created_count += 1
+                        print(f"Line {row_num}: Created new CPU '{cpu_name}'")
+                    except Exception as e:
+                        not_found.append(cpu_name)
+                        print(f"Line {row_num}: Could not create CPU '{cpu_name}': {e}")
 
         await session.commit()
 
     print(f"\n=== Import Complete ===")
     print(f"Updated {updated_count} CPUs with PassMark data")
+    print(f"Created {created_count} CPUs")
     print(f"Not found: {len(not_found)} CPUs")
 
     if not_found:
@@ -298,7 +310,7 @@ async def import_passmark_csv(csv_path: str):
 
     await engine.dispose()
 
-    return updated_count, len(not_found)
+    return updated_count, created_count, len(not_found)
 
 
 async def import_passmark_json(json_path: str):
@@ -309,6 +321,7 @@ async def import_passmark_json(json_path: str):
 
     updated_count = 0
     not_found: list[str] = []
+    created_count = 0
 
     async with async_session() as session:
         with open(json_path, "r", encoding="utf-8") as f:
@@ -320,6 +333,8 @@ async def import_passmark_json(json_path: str):
                 entries = payload["cpus"]
             elif "items" in payload and isinstance(payload["items"], list):
                 entries = payload["items"]
+            elif "data" in payload and isinstance(payload["data"], list):
+                entries = payload["data"]
             else:
                 entries = list(payload.values())
         else:
@@ -356,13 +371,22 @@ async def import_passmark_json(json_path: str):
                 except Exception as exc:  # Log and continue
                     print(f"Item {index}: Error updating '{cpu_name}': {exc}")
             else:
-                not_found.append(cpu_name)
-                print(f"Item {index}: CPU not found in database: {cpu_name}")
+                try:
+                    manufacturer = parse_string(entry.get("manufacturer")) or infer_manufacturer(cpu_name) or "Unknown"
+                    cpu = Cpu(name=cpu_name, manufacturer=manufacturer)
+                    update_cpu_from_passmark(cpu, entry)
+                    session.add(cpu)
+                    created_count += 1
+                    print(f"Item {index}: Created new CPU '{cpu_name}'")
+                except Exception as exc:
+                    not_found.append(cpu_name)
+                    print(f"Item {index}: Could not create CPU '{cpu_name}': {exc}")
 
         await session.commit()
 
     print(f"\n=== Import Complete ===")
     print(f"Updated {updated_count} CPUs with PassMark data")
+    print(f"Created {created_count} CPUs")
     print(f"Not found: {len(not_found)} CPUs")
 
     if not_found:
@@ -374,7 +398,7 @@ async def import_passmark_json(json_path: str):
 
     await engine.dispose()
 
-    return updated_count, len(not_found)
+    return updated_count, created_count, len(not_found)
 
 
 if __name__ == "__main__":
