@@ -188,8 +188,10 @@ export function ListingsTable() {
       origin: "core" as const,
       options: field.options ?? null
     }));
+    const coreKeys = new Set(core.map((f) => f.key));
     const custom = (schema.custom_fields || [])
       .filter((field) => field.is_active && !field.deleted_at)
+      .filter((field) => !coreKeys.has(field.key))
       .map((field) => ({
         key: field.key,
         label: field.label,

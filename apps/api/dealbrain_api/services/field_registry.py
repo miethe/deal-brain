@@ -72,6 +72,7 @@ class FieldRegistry:
         custom: list[dict[str, Any]] = []
         if meta.supports_custom_fields:
             records = await self.custom_fields.list_fields(db, entity=entity, include_inactive=True, include_deleted=False)
+            core_keys = {f.key for f in meta.core_fields}
             custom = [
                 {
                     "id": record.id,
@@ -87,6 +88,7 @@ class FieldRegistry:
                     "is_active": record.is_active,
                 }
                 for record in records
+                if record.key not in core_keys  # avoid duplicate keys colliding with core fields
             ]
         return {
             "entity": entity,

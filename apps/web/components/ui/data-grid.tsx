@@ -126,12 +126,17 @@ function useColumnSizingPersistence<TData>(
     }
     try {
       const parsed = JSON.parse(raw) as ColumnSizingState;
-      table.setColumnSizing(parsed);
+      // Filter out any saved sizes for columns that no longer exist
+      const valid = new Set(table.getAllLeafColumns().map((c) => c.id));
+      const filtered: ColumnSizingState = {};
+      for (const [colId, size] of Object.entries(parsed)) {
+        if (valid.has(colId)) filtered[colId] = size as number;
+      }
+      table.setColumnSizing(filtered);
     } catch (error) {
       console.error("Failed to hydrate column sizing state", error);
-    } finally {
-      hydratedRef.current = true;
     }
+    hydratedRef.current = true;
   }, [storageKey, table]);
 
   useEffect(() => {

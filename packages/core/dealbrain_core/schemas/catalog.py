@@ -24,6 +24,9 @@ class CpuBase(DealBrainModel):
     igpu_mark: int | None = None
     release_year: int | None = None
     notes: str | None = None
+    passmark_slug: str | None = None
+    passmark_category: str | None = None
+    passmark_id: str | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
 
 
