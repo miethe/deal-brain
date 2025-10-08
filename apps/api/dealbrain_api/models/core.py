@@ -36,6 +36,9 @@ class Cpu(Base, TimestampMixin):
     igpu_mark: Mapped[int | None]
     release_year: Mapped[int | None]
     notes: Mapped[str | None] = mapped_column(Text)
+    passmark_slug: Mapped[str | None] = mapped_column(String(512))
+    passmark_category: Mapped[str | None] = mapped_column(String(64))
+    passmark_id: Mapped[str | None] = mapped_column(String(64))
     attributes_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
     listings: Mapped[list["Listing"]] = relationship(back_populates="cpu", lazy="selectin")
