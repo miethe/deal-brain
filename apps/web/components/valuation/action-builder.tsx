@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Plus, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -20,12 +21,62 @@ interface ActionBuilderProps {
   onActionsChange: (actions: any[]) => void;
 }
 
+const generateId = () => {
+  const cryptoApi = typeof globalThis !== "undefined" ? (globalThis as { crypto?: Crypto }).crypto : undefined;
+  if (cryptoApi?.randomUUID) {
+    return cryptoApi.randomUUID();
+  }
+  return `id-${Math.random().toString(36).slice(2, 11)}`;
+};
+
 export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) {
+  const fallbackIds = useRef(new WeakMap<any, string>());
+
+  const getActionId = (action: any) => {
+    if (action?.id) {
+      return action.id;
+    }
+
+    if (!fallbackIds.current.has(action)) {
+      fallbackIds.current.set(action, generateId());
+    }
+
+    return fallbackIds.current.get(action)!;
+  };
+
+  useEffect(() => {
+    if (!Array.isArray(actions)) {
+      return;
+    }
+
+    const needsUpdate = actions.some(
+      (action) => !action?.id || !action?.action_type
+    );
+
+    if (needsUpdate) {
+      onActionsChange(
+        actions.map((action) => ({
+          value_usd: 0,
+          modifiers: {
+            condition_multipliers: {
+              new: 1.0,
+              refurb: 0.75,
+              used: 0.6,
+            },
+          },
+          ...action,
+          id: action?.id ?? generateId(),
+          action_type: action?.action_type ?? "fixed_value",
+        }))
+      );
+    }
+  }, [actions, onActionsChange]);
+
   const addAction = () => {
     onActionsChange([
       ...actions,
       {
-        id: crypto.randomUUID(),
+        id: generateId(),
         action_type: "fixed_value",
         value_usd: 0,
         modifiers: {
@@ -51,8 +102,10 @@ export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) 
 
   return (
     <div className="space-y-3">
-      {actions.map((action, index) => (
-        <div key={action.id} className="rounded-lg border p-4 space-y-3">
+      {actions.map((action, index) => {
+        const actionId = getActionId(action);
+        return (
+          <div key={actionId} className="rounded-lg border p-4 space-y-3">
           <div className="flex items-center justify-between">
             <Label>Action Type</Label>
             <Button type="button" variant="ghost" size="sm" onClick={() => removeAction(index)}>
@@ -193,8 +246,9 @@ export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) 
               Adjust action value based on listing condition (1.0 = 100%)
             </p>
           </div>
-        </div>
-      ))}
+          </div>
+        );
+      })}
 
       <Button type="button" variant="outline" onClick={addAction}>
         <Plus className="mr-2 h-4 w-4" />

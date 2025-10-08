@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, X, GripVertical } from "lucide-react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -28,6 +28,57 @@ interface ConditionGroupProps {
   onConditionsChange: (conditions: any[]) => void;
   depth?: number; // Nesting level for visual indentation
 }
+
+const generateId = () => {
+  const globalCrypto =
+    typeof globalThis !== "undefined" && "crypto" in globalThis
+      ? (globalThis.crypto as Crypto | undefined)
+      : undefined;
+
+  if (globalCrypto?.randomUUID) {
+    return globalCrypto.randomUUID();
+  }
+
+  return `id-${Math.random().toString(36).slice(2, 11)}`;
+};
+
+const ensureConditionIds = (items: any[]): any[] =>
+  items.map((item) => {
+    const nextId = item?.id ?? generateId();
+
+    if (item?.is_group) {
+      const children = Array.isArray(item.children) ? item.children : [];
+      return {
+        logical_operator: "AND",
+        ...item,
+        id: nextId,
+        logical_operator: item?.logical_operator ?? "AND",
+        children: ensureConditionIds(children),
+      };
+    }
+
+    return {
+      operator: "equals",
+      logical_operator: "AND",
+      ...item,
+      id: nextId,
+      operator: item?.operator ?? "equals",
+      logical_operator: item?.logical_operator ?? "AND",
+    };
+  });
+
+const hasMissingIds = (items: any[]): boolean =>
+  items.some((item) => {
+    if (!item?.id) {
+      return true;
+    }
+
+    if (item?.is_group && Array.isArray(item.children)) {
+      return hasMissingIds(item.children);
+    }
+
+    return false;
+  });
 
 // Sortable wrapper for individual conditions
 function SortableCondition({
@@ -101,7 +152,50 @@ function SortableCondition({
 }
 
 export function ConditionGroup({ conditions, onConditionsChange, depth = 0 }: ConditionGroupProps) {
-  const [logicalOperator, setLogicalOperator] = useState<"AND" | "OR">("AND");
+  const fallbackIds = useRef(new WeakMap<any, string>());
+  const [logicalOperator, setLogicalOperator] = useState<"AND" | "OR">(
+    () => (conditions?.[0]?.logical_operator === "OR" ? "OR" : "AND")
+  );
+
+  const getConditionId = (condition: any) => {
+    if (condition?.id) {
+      return condition.id;
+    }
+
+    if (!fallbackIds.current.has(condition)) {
+      fallbackIds.current.set(condition, generateId());
+    }
+
+    return fallbackIds.current.get(condition)!;
+  };
+
+  useEffect(() => {
+    const nextOperator = conditions?.[0]?.logical_operator;
+    if (nextOperator === "OR" || nextOperator === "AND") {
+      setLogicalOperator(nextOperator);
+    }
+  }, [conditions]);
+
+  useEffect(() => {
+    if (!Array.isArray(conditions)) {
+      return;
+    }
+
+    if (hasMissingIds(conditions)) {
+      onConditionsChange(ensureConditionIds(conditions));
+      return;
+    }
+
+    const hasMissingLogicalOperator = conditions.some(
+      (condition) =>
+        (condition?.is_group && condition?.logical_operator === undefined) ||
+        (!condition?.is_group && condition?.operator === undefined)
+    );
+
+    if (hasMissingLogicalOperator) {
+      onConditionsChange(ensureConditionIds(conditions));
+    }
+  }, [conditions, onConditionsChange]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -114,7 +208,7 @@ export function ConditionGroup({ conditions, onConditionsChange, depth = 0 }: Co
     onConditionsChange([
       ...conditions,
       {
-        id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: generateId(),
         field_name: "",
         operator: "equals",
         value: "",
@@ -127,7 +221,7 @@ export function ConditionGroup({ conditions, onConditionsChange, depth = 0 }: Co
     onConditionsChange([
       ...conditions,
       {
-        id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: generateId(),
         is_group: true,
         logical_operator: "OR",
         children: [],
@@ -158,8 +252,8 @@ export function ConditionGroup({ conditions, onConditionsChange, depth = 0 }: Co
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      const oldIndex = conditions.findIndex((c) => c.id === active.id);
-      const newIndex = conditions.findIndex((c) => c.id === over.id);
+      const oldIndex = conditions.findIndex((c) => getConditionId(c) === active.id);
+      const newIndex = conditions.findIndex((c) => getConditionId(c) === over.id);
 
       onConditionsChange(arrayMove(conditions, oldIndex, newIndex));
     }
@@ -194,13 +288,13 @@ export function ConditionGroup({ conditions, onConditionsChange, depth = 0 }: Co
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={conditions.map((c) => c.id)}
+          items={conditions.map((c) => getConditionId(c))}
           strategy={verticalListSortingStrategy}
         >
           {conditions.map((condition, index) => (
             <SortableCondition
-              key={condition.id}
-              id={condition.id}
+              key={getConditionId(condition)}
+              id={getConditionId(condition)}
               condition={condition}
               index={index}
               updateCondition={updateCondition}

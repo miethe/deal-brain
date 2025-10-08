@@ -112,11 +112,10 @@ The current backend model already exposes a single `url` column for listings (`a
 - Add monitoring alert for discrepancies between stored `adjusted_price_usd` and on-the-fly evaluation > $1.
 
 ## Risks & Mitigations
-- **Data Migration Risk**: Renaming `url` could break legacy clients. Mitigate by providing backward-compatible shadow field during transition and updating API contracts simultaneously.
+- **Data Migration Risk**: Renaming `url` could break legacy clients. However, app is in active development, so impact is negligible.
 - **Rule Consistency**: Simultaneous edits in Basic and Advanced modes may introduce race conditions. Mitigate with optimistic locking or timestamp checks.
 - **Priority Conflicts**: Mis-ordered priorities or overlapping conditions could misapply rules. Mitigate with admin validation (e.g., warning for duplicate priorities) and comprehensive tests.
 - **Performance**: Per-listing rule previews could be heavy. Mitigate via batched queries and caching evaluation results.
-- **Change Fatigue**: Users accustomed to Advanced-only view may be confused. Mitigate with inline education and gentle mode toggle messaging.
 
 ## Assumptions & Open Questions
 - Multiple rulesets can be active system-wide, but listings consume at most one ruleset via precedence: (1) static assignment, (2) highest-priority matching ruleset, (3) fall back to no rules.

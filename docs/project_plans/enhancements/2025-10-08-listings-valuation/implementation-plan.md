@@ -82,12 +82,7 @@
 - **Accessibility Audit**: Keyboard navigation and screen reader checks for new tabs/toggles.
 
 ## Rollout & Communication
-1. Deploy backend first behind feature flags (accepting new fields while continuing to serve legacy responses), then ship frontend toggling on the flag.
-2. Run full catalog recalculation in staging, compare adjusted values to expected baselines, then schedule production recalculation off-peak.
-3. Announce changes in release notes with short Loom walkthrough for valuation modes.
-4. Monitor error logs and analytics dashboards for 48 hours post-release; fast-follow fixes as needed.
+1. Remember that we are in active development with no public users or data, so we can deploy directly to production after testing.
 
 ## Dependencies & Resources
-- Coordination with data team for migration scheduling.
-- Access to design system resources for toggle and tab patterns.
-- Potential need for Celery worker capacity review if recalculation load increases.
+- None, as we utilize AI Agents for all aspects of design, development, testing, and deployment.
