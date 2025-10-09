@@ -26,9 +26,9 @@ from ..services.listings import (
 )
 from ..services import ports as ports_service
 from .schemas.listings import (
-    AppliedRuleDetail,
     BulkRecalculateRequest,
     BulkRecalculateResponse,
+    LegacyValuationLine,
     ListingBulkUpdateRequest,
     ListingBulkUpdateResponse,
     ListingFieldSchema,
@@ -39,6 +39,8 @@ from .schemas.listings import (
     PortEntry,
     PortsResponse,
     UpdatePortsRequest,
+    ValuationAdjustmentAction,
+    ValuationAdjustmentDetail,
     ValuationBreakdownResponse,
 )
 from .schemas.custom_fields import CustomFieldResponse
@@ -335,29 +337,70 @@ async def get_valuation_breakdown(
             detail=f"Listing {listing_id} not found"
         )
 
-    # Parse valuation breakdown JSON
     breakdown = listing.valuation_breakdown or {}
+    ruleset_info = breakdown.get("ruleset") or {}
 
-    # Format applied rules
-    applied_rules = []
-    for rule_data in breakdown.get("applied_rules", []):
-        applied_rules.append(AppliedRuleDetail(
-            rule_group_name=rule_data.get("group_name", "Unknown"),
-            rule_name=rule_data.get("rule_name", "Unknown"),
-            rule_description=rule_data.get("description"),
-            adjustment_amount=rule_data.get("adjustment", 0.0),
-            conditions_met=rule_data.get("conditions_met", []),
-            actions_applied=rule_data.get("actions_applied", []),
-        ))
+    adjustments_payload = breakdown.get("adjustments") or []
+    adjustments: list[ValuationAdjustmentDetail] = []
+    for payload in adjustments_payload:
+        actions_payload = payload.get("actions") or []
+        actions = [
+            ValuationAdjustmentAction(
+                action_type=action.get("action_type"),
+                metric=action.get("metric"),
+                value=float(action.get("value") or 0.0),
+                details=action.get("details"),
+                error=action.get("error"),
+            )
+            for action in actions_payload
+        ]
+        adjustments.append(
+            ValuationAdjustmentDetail(
+                rule_id=payload.get("rule_id"),
+                rule_name=payload.get("rule_name") or "Unnamed Rule",
+                adjustment_amount=float(payload.get("adjustment_usd") or 0.0),
+                actions=actions,
+            )
+        )
+
+    legacy_payload = breakdown.get("legacy_lines") or breakdown.get("lines") or []
+    legacy_lines: list[LegacyValuationLine] = []
+    for line in legacy_payload:
+        adjustment_usd = line.get("adjustment_usd")
+        legacy_lines.append(
+            LegacyValuationLine(
+                label=line.get("label", "Unknown"),
+                component_type=line.get("component_type", "component"),
+                quantity=float(line.get("quantity") or 0.0),
+                unit_value=float(line.get("unit_value") or 0.0),
+                condition_multiplier=float(line.get("condition_multiplier") or 1.0),
+                deduction_usd=float(line.get("deduction_usd") or 0.0),
+                adjustment_usd=float(adjustment_usd) if adjustment_usd is not None else None,
+            )
+        )
+
+    total_adjustment = float(
+        breakdown.get("total_adjustment")
+        or sum(adjustment.adjustment_amount for adjustment in adjustments)
+    )
+    total_deductions = breakdown.get("total_deductions")
+    if total_deductions is not None:
+        total_deductions = float(total_deductions)
+
+    matched_rules_count = int(breakdown.get("matched_rules_count") or len(adjustments))
 
     return ValuationBreakdownResponse(
         listing_id=listing.id,
         listing_title=listing.title,
-        base_price_usd=listing.price_usd or 0.0,
-        adjusted_price_usd=listing.adjusted_price_usd or listing.price_usd or 0.0,
-        total_adjustment=breakdown.get("total_adjustment", 0.0),
-        active_ruleset=breakdown.get("ruleset_name", "None"),
-        applied_rules=applied_rules,
+        base_price_usd=float(listing.price_usd or 0.0),
+        adjusted_price_usd=float(listing.adjusted_price_usd or listing.price_usd or 0.0),
+        total_adjustment=total_adjustment,
+        total_deductions=total_deductions,
+        matched_rules_count=matched_rules_count,
+        ruleset_id=ruleset_info.get("id"),
+        ruleset_name=ruleset_info.get("name") or breakdown.get("ruleset_name"),
+        adjustments=adjustments,
+        legacy_lines=legacy_lines,
     )
 
 

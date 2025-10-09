@@ -4,25 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/ui/table";
 import { Badge } from "../../../components/ui/badge";
 import { apiFetch } from "../../../lib/utils";
+import type { ValuationBreakdown } from "../../../types/listings";
 
 interface ListingDetail {
   id: number;
   title: string;
   price_usd: number;
   adjusted_price_usd: number | null;
-  valuation_breakdown?: {
-    adjusted_price: number;
-    listing_price: number;
-    total_deductions: number;
-    lines: Array<{
-      label: string;
-      component_type: string;
-      quantity: number;
-      unit_value: number;
-      condition_multiplier: number;
-      deduction_usd: number;
-    }>;
-  };
+  valuation_breakdown?: ValuationBreakdown | null;
   score_cpu_multi: number | null;
   score_cpu_single: number | null;
   score_composite: number | null;
@@ -46,6 +35,13 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
   }
 
   const breakdown = listing.valuation_breakdown;
+  const adjustments = breakdown?.adjustments ?? [];
+  const legacyLines = breakdown?.legacy_lines ?? breakdown?.lines ?? [];
+
+  const formatCurrency = (value: number | null | undefined) =>
+    value == null ?
+      "—" :
+      new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
   return (
     <div className="space-y-6">
@@ -76,33 +72,114 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
         <Card>
           <CardHeader>
             <CardTitle>Valuation breakdown</CardTitle>
-            <CardDescription>Deductions applied to normalize the listing.</CardDescription>
+            <CardDescription>
+              Rule-driven adjustments applied to derive the adjusted price.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Component</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Unit value</TableHead>
-                  <TableHead>Condition</TableHead>
-                  <TableHead className="text-right">Deduction</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {breakdown.lines.map((line) => (
-                  <TableRow key={`${line.label}-${line.component_type}`}>
-                    <TableCell>{line.label}</TableCell>
-                    <TableCell>{line.quantity}</TableCell>
-                    <TableCell>${line.unit_value.toFixed(2)}</TableCell>
-                    <TableCell>{line.condition_multiplier.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">-${line.deduction_usd.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <div className="mt-4 flex justify-end text-sm text-muted-foreground">
-              Total deductions: ${breakdown.total_deductions.toFixed(2)} · Adjusted price: ${breakdown.adjusted_price.toFixed(2)}
+            <div className="space-y-6">
+              <div className="flex flex-col gap-1 text-sm">
+                <span className="text-muted-foreground">
+                  Ruleset: {breakdown.ruleset?.name ?? "None"} · Matched rules:{" "}
+                  {breakdown.matched_rules_count ?? adjustments.length}
+                </span>
+                <span className="font-medium">
+                  Total adjustment: {formatCurrency(breakdown.total_adjustment)}
+                  {breakdown.total_deductions != null && (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · Total deductions: {formatCurrency(breakdown.total_deductions)}
+                    </span>
+                  )}
+                </span>
+              </div>
+
+              {adjustments.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Rule</TableHead>
+                      <TableHead>Adjustment</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {adjustments.map((adjustment, index) => (
+                      <TableRow key={`${adjustment.rule_id ?? adjustment.rule_name}-${index}`}>
+                        <TableCell className="font-medium">{adjustment.rule_name}</TableCell>
+                        <TableCell
+                          className={
+                            adjustment.adjustment_amount < 0 ? "text-emerald-600 font-medium" :
+                            adjustment.adjustment_amount > 0 ? "text-red-600 font-medium" :
+                            "text-muted-foreground"
+                          }
+                        >
+                          {adjustment.adjustment_amount > 0 ? "+" : ""}
+                          {formatCurrency(adjustment.adjustment_amount)}
+                        </TableCell>
+                        <TableCell>
+                          {adjustment.actions.length === 0 ? (
+                            <span className="text-muted-foreground text-xs">No action details</span>
+                          ) : (
+                            <ul className="space-y-1 text-xs text-muted-foreground">
+                              {adjustment.actions.map((action, actionIndex) => (
+                                <li key={actionIndex}>
+                                  <span className="font-medium text-foreground">
+                                    {action.action_type ?? "action"}
+                                  </span>
+                                  {action.metric && <span> · {action.metric}</span>}
+                                  <span>
+                                    {" "}
+                                    ({action.value >= 0 ? "+" : ""}
+                                    {formatCurrency(action.value)})
+                                  </span>
+                                  {action.error && (
+                                    <span className="text-red-600"> – {action.error}</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="rounded-md border p-6 text-sm text-muted-foreground">
+                  No rule-based adjustments were applied.
+                </div>
+              )}
+
+              {legacyLines.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold">Component deductions</h4>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Component</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Unit value</TableHead>
+                        <TableHead>Condition</TableHead>
+                        <TableHead className="text-right">Deduction</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {legacyLines.map((line) => (
+                        <TableRow key={`${line.label}-${line.component_type}`}>
+                          <TableCell>{line.label}</TableCell>
+                          <TableCell>{line.quantity}</TableCell>
+                          <TableCell>{formatCurrency(line.unit_value)}</TableCell>
+                          <TableCell>{line.condition_multiplier.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            -{formatCurrency(line.deduction_usd)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

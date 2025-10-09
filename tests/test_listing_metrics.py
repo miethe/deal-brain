@@ -3,7 +3,14 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dealbrain_api.models.core import Cpu, Listing
+from dealbrain_api.models.core import (
+    Cpu,
+    Listing,
+    ValuationRuleAction,
+    ValuationRuleGroup,
+    ValuationRuleV2,
+    ValuationRuleset,
+)
 from dealbrain_api.services.listings import apply_listing_metrics
 
 # Legacy function imports (may not exist - tests will be adjusted)
@@ -428,3 +435,167 @@ class TestApplyListingMetricsCpuMarks:
         assert listing.dollar_per_cpu_mark_multi == pytest.approx(
             listing.adjusted_price_usd / 40000, rel=0.01
         )
+
+
+@pytest.mark.asyncio
+class TestApplyListingMetricsValuationRules:
+    """Test integration between apply_listing_metrics and the valuation rule engine."""
+
+    async def test_apply_listing_metrics_with_matching_ruleset(self, session: AsyncSession):
+        """Adjusted price should incorporate rule engine adjustments."""
+        ruleset = ValuationRuleset(
+            name="Default Ruleset",
+            priority=5,
+            is_active=True,
+        )
+        session.add(ruleset)
+        await session.flush()
+
+        group = ValuationRuleGroup(
+            ruleset_id=ruleset.id,
+            name="Base Adjustments",
+            category="base",
+            display_order=1,
+        )
+        session.add(group)
+        await session.flush()
+
+        rule = ValuationRuleV2(
+            group_id=group.id,
+            name="Static Discount",
+            evaluation_order=1,
+            priority=1,
+            is_active=True,
+        )
+        session.add(rule)
+        await session.flush()
+
+        action = ValuationRuleAction(
+            rule_id=rule.id,
+            action_type="fixed_value",
+            value_usd=-100.0,
+        )
+        session.add(action)
+        await session.commit()
+
+        listing = Listing(
+            title="Discounted Listing",
+            price_usd=1000.0,
+            condition="used",
+        )
+        session.add(listing)
+        await session.flush()
+
+        await apply_listing_metrics(session, listing)
+
+        assert listing.adjusted_price_usd == pytest.approx(900.0, rel=0.001)
+        breakdown = listing.valuation_breakdown or {}
+        assert breakdown.get("ruleset", {}).get("id") == ruleset.id
+        assert breakdown.get("matched_rules_count") == 1
+        adjustments = breakdown.get("adjustments") or []
+        assert len(adjustments) == 1
+        assert adjustments[0]["rule_id"] == rule.id
+        assert adjustments[0]["adjustment_usd"] == pytest.approx(-100.0, rel=0.001)
+        lines = breakdown.get("lines") or []
+        assert len(lines) == 1
+        assert lines[0]["deduction_usd"] == pytest.approx(100.0, rel=0.001)
+
+    async def test_apply_listing_metrics_without_rulesets_defaults_to_list_price(
+        self, session: AsyncSession
+    ):
+        """When no rulesets exist, adjusted price should equal the listing price."""
+        listing = Listing(
+            title="No Rules Listing",
+            price_usd=750.0,
+            condition="used",
+        )
+        session.add(listing)
+        await session.flush()
+
+        await apply_listing_metrics(session, listing)
+
+        assert listing.adjusted_price_usd == pytest.approx(750.0, rel=0.001)
+        breakdown = listing.valuation_breakdown or {}
+        assert breakdown.get("adjusted_price") == pytest.approx(750.0, rel=0.001)
+        assert breakdown.get("total_adjustment") == pytest.approx(0.0, rel=0.001)
+
+    async def test_apply_listing_metrics_honors_static_override(self, session: AsyncSession):
+        """Static ruleset assignment should take precedence over dynamic matching."""
+        default_ruleset = ValuationRuleset(
+            name="Default Auto Rules",
+            priority=5,
+            is_active=True,
+        )
+        static_ruleset = ValuationRuleset(
+            name="Static Premium Rules",
+            priority=10,
+            is_active=True,
+        )
+        session.add_all([default_ruleset, static_ruleset])
+        await session.flush()
+
+        default_group = ValuationRuleGroup(
+            ruleset_id=default_ruleset.id,
+            name="Default Group",
+            category="base",
+            display_order=1,
+        )
+        static_group = ValuationRuleGroup(
+            ruleset_id=static_ruleset.id,
+            name="Static Group",
+            category="base",
+            display_order=1,
+        )
+        session.add_all([default_group, static_group])
+        await session.flush()
+
+        default_rule = ValuationRuleV2(
+            group_id=default_group.id,
+            name="Default Deduction",
+            evaluation_order=1,
+            priority=1,
+            is_active=True,
+        )
+        static_rule = ValuationRuleV2(
+            group_id=static_group.id,
+            name="Static Bonus",
+            evaluation_order=1,
+            priority=1,
+            is_active=True,
+        )
+        session.add_all([default_rule, static_rule])
+        await session.flush()
+
+        session.add_all(
+            [
+                ValuationRuleAction(
+                    rule_id=default_rule.id,
+                    action_type="fixed_value",
+                    value_usd=-50.0,
+                ),
+                ValuationRuleAction(
+                    rule_id=static_rule.id,
+                    action_type="fixed_value",
+                    value_usd=200.0,
+                ),
+            ]
+        )
+        await session.commit()
+
+        listing = Listing(
+            title="Static Override Listing",
+            price_usd=1000.0,
+            condition="used",
+            ruleset_id=static_ruleset.id,
+        )
+        session.add(listing)
+        await session.flush()
+
+        await apply_listing_metrics(session, listing)
+
+        # Should use static override (+200) rather than default ruleset (-50)
+        assert listing.adjusted_price_usd == pytest.approx(1200.0, rel=0.001)
+        breakdown = listing.valuation_breakdown or {}
+        assert breakdown.get("ruleset", {}).get("id") == static_ruleset.id
+        adjustments = breakdown.get("adjustments") or []
+        assert adjustments and adjustments[0]["adjustment_usd"] == pytest.approx(200.0, rel=0.001)

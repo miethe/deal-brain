@@ -72,6 +72,47 @@ export interface PortsProfileRecord {
   ports?: PortRecord[] | null;
 }
 
+export interface ValuationAdjustmentAction {
+  action_type?: string | null;
+  metric?: string | null;
+  value: number;
+  details?: Record<string, unknown> | null;
+  error?: string | null;
+}
+
+export interface ValuationAdjustment {
+  rule_id?: number | null;
+  rule_name: string;
+  adjustment_amount: number;
+  actions: ValuationAdjustmentAction[];
+}
+
+export interface LegacyValuationLine {
+  label: string;
+  component_type: string;
+  quantity: number;
+  unit_value: number;
+  condition_multiplier: number;
+  deduction_usd: number;
+  adjustment_usd?: number | null;
+}
+
+export interface ValuationBreakdown {
+  listing_price: number;
+  adjusted_price: number;
+  total_adjustment: number;
+  total_deductions?: number | null;
+  matched_rules_count?: number;
+  ruleset?: {
+    id?: number | null;
+    name?: string | null;
+  };
+  ruleset_name?: string | null;
+  adjustments: ValuationAdjustment[];
+  legacy_lines?: LegacyValuationLine[];
+  lines?: LegacyValuationLine[];
+}
+
 export interface ListingRecord {
   id: number;
   title: string;
@@ -107,7 +148,7 @@ export interface ListingRecord {
   model_number?: string | null;
   form_factor?: string | null;
   thumbnail_url?: string | null;
-  valuation_breakdown?: Record<string, unknown> | null;
+  valuation_breakdown?: ValuationBreakdown | null;
   cpu?: CpuRecord | null;
   gpu?: { id?: number | null; name?: string | null } | null;
   ports_profile?: PortsProfileRecord | null;

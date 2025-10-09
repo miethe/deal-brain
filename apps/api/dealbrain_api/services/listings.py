@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Iterable
 from urllib.parse import urlparse
 
@@ -9,11 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from dealbrain_core.enums import ComponentMetric, ComponentType, Condition
 from dealbrain_core.gpu import compute_gpu_score
 from dealbrain_core.scoring import ListingMetrics, compute_composite_score, dollar_per_metric
-from dealbrain_core.valuation import ComponentValuationInput, ValuationRuleData, compute_adjusted_price
+from dealbrain_core.valuation import ComponentValuationInput, compute_adjusted_price
 
 from ..models import Cpu, Gpu, Listing, ListingComponent, Profile
+from .rule_evaluation import RuleEvaluationService
 
 VALUATION_DISABLED_RULESETS_KEY = "valuation_disabled_rulesets"
+
+logger = logging.getLogger(__name__)
+_RULE_EVALUATION_SERVICE = RuleEvaluationService()
 
 
 MUTABLE_LISTING_FIELDS: set[str] = {
@@ -93,29 +98,135 @@ def _normalize_other_urls(value: Any) -> list[dict[str, str | None]]:
     return normalized
 
 
-async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None:
-    # TODO: Update to use new ValuationRuleV2 system
-    # For now, use empty rules list
-    rule_data: list[ValuationRuleData] = []
+def _format_rule_evaluation_breakdown(summary: dict[str, Any]) -> dict[str, Any]:
+    """Normalize rule evaluation summary for storage on the listing record."""
+    def _as_float(value: Any) -> float:
+        try:
+            return float(value) if value is not None else 0.0
+        except (TypeError, ValueError):
+            return 0.0
 
-    # Eagerly load components to avoid lazy-load in async context
-    await session.refresh(listing, ['components'])
+    listing_price = _as_float(summary.get("original_price"))
+    adjusted_price = _as_float(summary.get("adjusted_price"))
+    total_adjustment = _as_float(summary.get("total_adjustment"))
 
-    components: list[ComponentValuationInput] = list(build_component_inputs(listing))
-    valuation = compute_adjusted_price(
-        listing_price_usd=float(listing.price_usd or 0),
-        condition=_coerce_condition(listing.condition),
-        rules=rule_data,
-        components=components,
-    )
+    adjustments: list[dict[str, Any]] = []
+    lines: list[dict[str, Any]] = []
 
-    listing.adjusted_price_usd = valuation.adjusted_price_usd
-    listing.valuation_breakdown = {
-        "listing_price": valuation.listing_price_usd,
-        "adjusted_price": valuation.adjusted_price_usd,
-        "lines": [line.__dict__ for line in valuation.lines],
-        "total_deductions": valuation.total_deductions,
+    for result in summary.get("evaluation_results", []):
+        if not result or not result.get("matched") or result.get("error"):
+            continue
+
+        adjustment_value = _as_float(result.get("adjustment_value"))
+        actions_breakdown = []
+        for action in result.get("breakdown") or []:
+            action_value = _as_float(action.get("value"))
+            actions_breakdown.append(
+                {
+                    "action_type": action.get("action_type"),
+                    "metric": action.get("metric"),
+                    "value": action_value,
+                    "details": action.get("details"),
+                    "error": action.get("error"),
+                }
+            )
+
+        adjustments.append(
+            {
+                "rule_id": result.get("rule_id"),
+                "rule_name": result.get("rule_name"),
+                "adjustment_usd": adjustment_value,
+                "actions": actions_breakdown,
+            }
+        )
+
+        lines.append(
+            {
+                "label": result.get("rule_name"),
+                "component_type": "rule",
+                "quantity": 1,
+                "unit_value": abs(adjustment_value),
+                "condition_multiplier": 1.0,
+                "deduction_usd": round(max(-adjustment_value, 0.0), 2),
+                "adjustment_usd": adjustment_value,
+            }
+        )
+
+    matched_rules = []
+    for entry in summary.get("matched_rules", []):
+        matched_rules.append(
+            {
+                "rule_id": entry.get("rule_id"),
+                "rule_name": entry.get("rule_name"),
+                "adjustment": _as_float(entry.get("adjustment")),
+                "breakdown": entry.get("breakdown"),
+            }
+        )
+
+    total_deductions = round(sum(line["deduction_usd"] for line in lines), 2)
+
+    return {
+        "listing_price": listing_price,
+        "adjusted_price": adjusted_price,
+        "total_adjustment": total_adjustment,
+        "total_deductions": total_deductions,
+        "matched_rules_count": summary.get("matched_rules_count", len(adjustments)),
+        "matched_rules": matched_rules,
+        "adjustments": adjustments,
+        "lines": lines,
+        "ruleset": {
+            "id": summary.get("ruleset_id"),
+            "name": summary.get("ruleset_name"),
+        },
+        "ruleset_name": summary.get("ruleset_name"),
     }
+
+
+async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None:
+    evaluation_summary: dict[str, Any] | None = None
+
+    if listing.id:
+        try:
+            ruleset_override = listing.ruleset_id if listing.ruleset_id else None
+            evaluation_summary = await _RULE_EVALUATION_SERVICE.evaluate_listing(
+                session=session,
+                listing_id=listing.id,
+                ruleset_id=ruleset_override,
+            )
+        except ValueError as exc:
+            # Expected when no active rulesets are available; fall back to legacy valuation path.
+            if "No active ruleset found" not in str(exc):
+                logger.warning("Rule evaluation failed for listing %s: %s", listing.id, exc)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.exception("Unexpected error evaluating rules for listing %s", listing.id)
+
+    if evaluation_summary:
+        listing.adjusted_price_usd = float(evaluation_summary.get("adjusted_price") or 0.0)
+        listing.valuation_breakdown = _format_rule_evaluation_breakdown(evaluation_summary)
+    else:
+        # Eagerly load components to avoid lazy-load in async context for legacy valuation fallback.
+        await session.refresh(listing, ["components"])
+
+        components: list[ComponentValuationInput] = list(build_component_inputs(listing))
+        valuation = compute_adjusted_price(
+            listing_price_usd=float(listing.price_usd or 0),
+            condition=_coerce_condition(listing.condition),
+            rules=[],
+            components=components,
+        )
+
+        listing.adjusted_price_usd = valuation.adjusted_price_usd
+        listing.valuation_breakdown = {
+            "listing_price": valuation.listing_price_usd,
+            "adjusted_price": valuation.adjusted_price_usd,
+            "lines": [line.__dict__ for line in valuation.lines],
+            "total_deductions": valuation.total_deductions,
+            "total_adjustment": float(valuation.adjusted_price_usd - valuation.listing_price_usd),
+            "matched_rules_count": 0,
+            "matched_rules": [],
+            "adjustments": [],
+            "ruleset": {"id": None, "name": None},
+        }
 
     await session.flush()
 

@@ -9,10 +9,10 @@
 - [x] Normalize listing service payloads and expose new core fields via the listings API schema.
 - [x] Extend ruleset schemas/services with priority validation and condition metadata plumbed through API + service layers.
 - [x] Build listing override endpoints to manage per-listing enable/disable flows.
-- [ ] Regenerate API/TypeScript clients once schema changes stabilize and add backend tests for new fields.
+- [ ] Regenerate API/TypeScript clients once schema changes stabilize and add backend tests for new fields. _(Backend tests landed Oct 9; client regeneration pending tooling refresh.)_
 
 ## Valuation Engine Integration (Week 2)
-- [ ] Wire `RuleEvaluationService` into listing metric calculations with static override support.
+- [x] Wire `RuleEvaluationService` into listing metric calculations with static override support.
 - [ ] Implement background job for recalculating listings when rules change and cover with tests.
 
 ## Frontend Listing Experience (Week 3)

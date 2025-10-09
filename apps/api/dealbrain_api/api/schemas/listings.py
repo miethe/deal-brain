@@ -67,27 +67,55 @@ class ListingBulkUpdateResponse(BaseModel):
     updated_count: int
 
 
-class AppliedRuleDetail(BaseModel):
-    """Details of a single rule applied during valuation"""
-    rule_group_name: str = Field(..., description="Name of the rule group")
-    rule_name: str = Field(..., description="Name of the specific rule")
-    rule_description: str | None = Field(None, description="Description of the rule")
-    adjustment_amount: float = Field(..., description="Price adjustment amount in USD")
-    conditions_met: list[str] = Field(default_factory=list, description="Human-readable condition descriptions")
-    actions_applied: list[str] = Field(default_factory=list, description="Human-readable action descriptions")
+class ValuationAdjustmentAction(BaseModel):
+    """Breakdown of an individual action contributing to a rule adjustment."""
+    action_type: str | None = Field(None, description="Action type identifier")
+    metric: str | None = Field(None, description="Metric or dimension affected by the action")
+    value: float = Field(..., description="Value contributed by this action in USD")
+    details: dict[str, Any] | None = Field(None, description="Raw action configuration details")
+    error: str | None = Field(None, description="Error encountered while executing the action")
+
+
+class ValuationAdjustmentDetail(BaseModel):
+    """Details of a rule adjustment applied during valuation."""
+    rule_id: int | None = Field(None, description="Identifier of the valuation rule")
+    rule_name: str = Field(..., description="Display name of the rule")
+    adjustment_amount: float = Field(..., description="Net price adjustment in USD")
+    actions: list[ValuationAdjustmentAction] = Field(
+        default_factory=list,
+        description="Actions executed as part of the rule evaluation",
+    )
+
+
+class LegacyValuationLine(BaseModel):
+    """Legacy component deduction line retained for backwards compatibility."""
+    label: str = Field(..., description="Component or deduction label")
+    component_type: str = Field(..., description="Component type identifier")
+    quantity: float = Field(..., description="Quantity associated with the deduction")
+    unit_value: float = Field(..., description="Unit value in USD")
+    condition_multiplier: float = Field(..., description="Condition multiplier applied")
+    deduction_usd: float = Field(..., description="Deduction amount in USD")
+    adjustment_usd: float | None = Field(None, description="Signed adjustment amount when available")
 
 
 class ValuationBreakdownResponse(BaseModel):
-    """Detailed breakdown of listing valuation calculation"""
+    """Detailed breakdown of listing valuation calculation."""
     listing_id: int = Field(..., description="Listing ID")
     listing_title: str = Field(..., description="Listing title")
     base_price_usd: float = Field(..., description="Original listing price")
     adjusted_price_usd: float = Field(..., description="Price after rule adjustments")
-    total_adjustment: float = Field(..., description="Total adjustment amount")
-    active_ruleset: str = Field(..., description="Name of the active ruleset used")
-    applied_rules: list[AppliedRuleDetail] = Field(
+    total_adjustment: float = Field(..., description="Total adjustment amount (can be positive or negative)")
+    total_deductions: float | None = Field(None, description="Sum of deduction amounts when available")
+    matched_rules_count: int = Field(0, description="Number of rules that contributed adjustments")
+    ruleset_id: int | None = Field(None, description="Identifier of the ruleset used for valuation")
+    ruleset_name: str | None = Field(None, description="Display name of the ruleset used for valuation")
+    adjustments: list[ValuationAdjustmentDetail] = Field(
         default_factory=list,
-        description="List of rules that were applied"
+        description="Applied rule adjustments",
+    )
+    legacy_lines: list[LegacyValuationLine] = Field(
+        default_factory=list,
+        description="Legacy component deductions retained for backwards compatibility",
     )
 
 
@@ -147,9 +175,9 @@ class ListingValuationOverrideResponse(BaseModel):
 
 
 __all__ = [
-    "AppliedRuleDetail",
     "BulkRecalculateRequest",
     "BulkRecalculateResponse",
+    "LegacyValuationLine",
     "ListingBulkUpdateRequest",
     "ListingBulkUpdateResponse",
     "ListingFieldSchema",
@@ -160,5 +188,7 @@ __all__ = [
     "PortEntry",
     "PortsResponse",
     "UpdatePortsRequest",
+    "ValuationAdjustmentAction",
+    "ValuationAdjustmentDetail",
     "ValuationBreakdownResponse",
 ]
