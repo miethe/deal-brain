@@ -21,5 +21,8 @@ def ping() -> str:
     return "pong"
 
 
-__all__ = ["celery_app"]
+# Import task modules to register with Celery
+from .tasks import valuation as _valuation_tasks  # noqa: F401
 
+
+__all__ = ["celery_app"]

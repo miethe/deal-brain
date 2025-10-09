@@ -11,6 +11,7 @@
 - `apply_listing_metrics` now delegates to `RuleEvaluationService`, normalizes breakdown metadata (ruleset info, adjustments, legacy lines), and persists static override decisions with graceful fallback when no rulesets exist.
 - Added valuation regression tests covering rule application, static overrides, and baseline fallbacks (`tests/test_listing_metrics.py`).
 - `/v1/listings/{id}/valuation-breakdown` response schema upgraded for rule adjustments + legacy lines; frontend modal/detail views now render rule cards/table using shared TypeScript `ValuationBreakdown` types.
+- Background valuation recalculation task added via Celery helper; rules/ruleset mutations enqueue reprocessing with coverage in `tests/services/test_rules_service.py` + `tests/test_valuation_tasks.py`.
 - Shared TypeScript listing types/API responses updated; listing tables/cards/dialogs consume `listing_url` in place of deprecated `url`.
 - Added `/v1/listings/{id}/valuation-overrides` endpoint with service helpers for static assignments and per-listing disabled rulesets.
 - Listing creation + quick edit flows now capture and validate `listing_url` and supplemental links; UI surfaces additional links in catalog detail views.
@@ -18,4 +19,4 @@
 ## Follow-Ups
 - Regenerate API/TS clients (manual TS types updated; generator still pending) and add automated coverage for ruleset priority/condition handling (including override scenarios).
 - Add valuation override UI (selector, disable toggles) and wiring to new endpoint.
-- Introduce recalculation workers + tests ensuring priority changes trigger listing updates.
+- Wire recalculation task telemetry/monitoring and expose admin affordances to view job status.

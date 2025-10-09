@@ -6,9 +6,10 @@ Tests CRUD operations for rulesets, rule groups, and rules with database persist
 
 import pytest
 from datetime import datetime
+from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dealbrain_api.models.core import ValuationRulesetV2, ValuationRuleGroupV2, ValuationRuleV2
+from dealbrain_api.models.core import ValuationRuleset, ValuationRuleGroup, ValuationRuleV2
 from dealbrain_api.services.rules import RulesService
 from dealbrain_api.schemas.rules import (
     RulesetCreate,
@@ -78,12 +79,40 @@ async def sample_rule_data() -> RuleCreate:
     )
 
 
+@pytest.fixture(autouse=True)
+def _disable_recalculation(monkeypatch):
+    """Prevent Celery enqueues during tests unless explicitly observed."""
+    monkeypatch.setattr(
+        "dealbrain_api.services.rules.enqueue_listing_recalculation",
+        lambda **_: None,
+    )
+
+
+@pytest.fixture
+def recalculation_spy(monkeypatch):
+    """Capture recalculation enqueue invocations."""
+    calls: list[dict[str, Any]] = []
+
+    def _capture(**kwargs):
+        calls.append(kwargs)
+
+    monkeypatch.setattr(
+        "dealbrain_api.services.rules.enqueue_listing_recalculation",
+        _capture,
+    )
+    return calls
+
+
 class TestRulesetCRUD:
     """Test ruleset CRUD operations."""
 
     @pytest.mark.asyncio
     async def test_create_ruleset(
-        self, db_session: AsyncSession, rules_service: RulesService, sample_ruleset_data: RulesetCreate
+        self,
+        db_session: AsyncSession,
+        rules_service: RulesService,
+        sample_ruleset_data: RulesetCreate,
+        recalculation_spy,
     ):
         """Test creating a new ruleset."""
         ruleset = await rules_service.create_ruleset(db_session, sample_ruleset_data)
@@ -95,6 +124,8 @@ class TestRulesetCRUD:
         assert ruleset.is_active == sample_ruleset_data.is_active
         assert ruleset.metadata == sample_ruleset_data.metadata
         assert isinstance(ruleset.created_at, datetime)
+        assert recalculation_spy[-1]["ruleset_id"] == ruleset.id
+        assert recalculation_spy[-1]["reason"] == "ruleset_created"
 
     @pytest.mark.asyncio
     async def test_get_ruleset(
@@ -148,7 +179,11 @@ class TestRulesetCRUD:
 
     @pytest.mark.asyncio
     async def test_update_ruleset(
-        self, db_session: AsyncSession, rules_service: RulesService, sample_ruleset_data: RulesetCreate
+        self,
+        db_session: AsyncSession,
+        rules_service: RulesService,
+        sample_ruleset_data: RulesetCreate,
+        recalculation_spy,
     ):
         """Test updating a ruleset."""
         created = await rules_service.create_ruleset(db_session, sample_ruleset_data)
@@ -166,10 +201,16 @@ class TestRulesetCRUD:
         assert updated.version == update_data.version
         assert updated.description == update_data.description
         assert updated.is_active == update_data.is_active
+        assert recalculation_spy[-1]["reason"] == "ruleset_updated"
+        assert recalculation_spy[-1]["ruleset_id"] == created.id
 
     @pytest.mark.asyncio
     async def test_delete_ruleset(
-        self, db_session: AsyncSession, rules_service: RulesService, sample_ruleset_data: RulesetCreate
+        self,
+        db_session: AsyncSession,
+        rules_service: RulesService,
+        sample_ruleset_data: RulesetCreate,
+        recalculation_spy,
     ):
         """Test deleting a ruleset."""
         created = await rules_service.create_ruleset(db_session, sample_ruleset_data)
@@ -180,6 +221,8 @@ class TestRulesetCRUD:
         # Verify it's deleted
         retrieved = await rules_service.get_ruleset(db_session, created.id)
         assert retrieved is None
+        assert recalculation_spy[-1]["reason"] == "ruleset_deleted"
+        assert recalculation_spy[-1]["ruleset_id"] == created.id
 
 
 class TestRuleGroupCRUD:
@@ -192,6 +235,7 @@ class TestRuleGroupCRUD:
         rules_service: RulesService,
         sample_ruleset_data: RulesetCreate,
         sample_rule_group_data: RuleGroupCreate,
+        recalculation_spy,
     ):
         """Test creating a rule group."""
         ruleset = await rules_service.create_ruleset(db_session, sample_ruleset_data)
@@ -205,6 +249,8 @@ class TestRuleGroupCRUD:
         assert group.name == sample_rule_group_data.name
         assert group.category == sample_rule_group_data.category
         assert group.weight == sample_rule_group_data.weight
+        assert recalculation_spy[-1]["reason"] == "rule_group_created"
+        assert recalculation_spy[-1]["ruleset_id"] == ruleset.id
 
     @pytest.mark.asyncio
     async def test_list_rule_groups(
@@ -257,6 +303,7 @@ class TestRuleCRUD:
         sample_ruleset_data: RulesetCreate,
         sample_rule_group_data: RuleGroupCreate,
         sample_rule_data: RuleCreate,
+        recalculation_spy,
     ):
         """Test creating a rule."""
         ruleset = await rules_service.create_ruleset(db_session, sample_ruleset_data)
@@ -273,6 +320,8 @@ class TestRuleCRUD:
         assert rule.is_active == sample_rule_data.is_active
         assert len(rule.conditions) > 0
         assert len(rule.actions) > 0
+        assert recalculation_spy[-1]["reason"] == "rule_created"
+        assert recalculation_spy[-1]["ruleset_id"] == ruleset.id
 
     @pytest.mark.asyncio
     async def test_create_rule_with_nested_conditions(
@@ -369,6 +418,7 @@ class TestRuleCRUD:
         sample_ruleset_data: RulesetCreate,
         sample_rule_group_data: RuleGroupCreate,
         sample_rule_data: RuleCreate,
+        recalculation_spy,
     ):
         """Test updating a rule."""
         ruleset = await rules_service.create_ruleset(db_session, sample_ruleset_data)
@@ -390,6 +440,8 @@ class TestRuleCRUD:
         assert updated.name == update_data.name
         assert updated.description == update_data.description
         assert updated.is_active == update_data.is_active
+        assert recalculation_spy[-1]["reason"] == "rule_updated"
+        assert recalculation_spy[-1]["ruleset_id"] == ruleset.id
 
     @pytest.mark.asyncio
     async def test_delete_rule(
@@ -399,6 +451,7 @@ class TestRuleCRUD:
         sample_ruleset_data: RulesetCreate,
         sample_rule_group_data: RuleGroupCreate,
         sample_rule_data: RuleCreate,
+        recalculation_spy,
     ):
         """Test deleting a rule."""
         ruleset = await rules_service.create_ruleset(db_session, sample_ruleset_data)
@@ -409,6 +462,8 @@ class TestRuleCRUD:
 
         result = await rules_service.delete_rule(db_session, rule.id)
         assert result is True
+        assert recalculation_spy[-1]["reason"] == "rule_deleted"
+        assert recalculation_spy[-1]["ruleset_id"] == ruleset.id
 
     @pytest.mark.asyncio
     async def test_delete_ruleset_cascades(
@@ -430,7 +485,7 @@ class TestRuleCRUD:
         await rules_service.delete_ruleset(db_session, ruleset.id)
 
         # Verify group and rule are also deleted
-        retrieved_group = await db_session.get(ValuationRuleGroupV2, group.id)
+        retrieved_group = await db_session.get(ValuationRuleGroup, group.id)
         assert retrieved_group is None
 
         retrieved_rule = await db_session.get(ValuationRuleV2, rule.id)

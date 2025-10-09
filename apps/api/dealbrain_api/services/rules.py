@@ -23,6 +23,7 @@ from ..models.core import (
     ValuationRuleVersion,
     ValuationRuleAudit,
 )
+from ..tasks import enqueue_listing_recalculation
 
 
 class RulesService:
@@ -99,6 +100,7 @@ class RulesService:
             changes={"ruleset_id": ruleset.id, "name": name}
         )
 
+        enqueue_listing_recalculation(ruleset_id=ruleset.id, reason="ruleset_created")
         return ruleset
 
     async def get_ruleset(
@@ -185,6 +187,7 @@ class RulesService:
             changes={"ruleset_id": ruleset_id, "updates": updates}
         )
 
+        enqueue_listing_recalculation(ruleset_id=ruleset_id, reason="ruleset_updated")
         return ruleset
 
     async def delete_ruleset(
@@ -209,6 +212,8 @@ class RulesService:
 
         await session.delete(ruleset)
         await session.commit()
+
+        enqueue_listing_recalculation(ruleset_id=ruleset_id, reason="ruleset_deleted")
         return True
 
     # --- Rule Group operations ---
@@ -237,6 +242,7 @@ class RulesService:
         await session.commit()
         await session.refresh(group)
 
+        enqueue_listing_recalculation(ruleset_id=ruleset_id, reason="rule_group_created")
         return group
 
     async def get_rule_group(
@@ -289,6 +295,9 @@ class RulesService:
     ) -> ValuationRuleV2:
         """Create a new rule with conditions and actions"""
         # Create rule
+        parent_group = await session.get(ValuationRuleGroup, group_id)
+        ruleset_id = parent_group.ruleset_id if parent_group else None
+
         rule = ValuationRuleV2(
             group_id=group_id,
             name=name,
@@ -346,6 +355,7 @@ class RulesService:
             changes={"rule_name": name, "group_id": group_id}
         )
 
+        enqueue_listing_recalculation(ruleset_id=ruleset_id, reason="rule_created")
         return rule
 
     async def get_rule(
@@ -403,6 +413,8 @@ class RulesService:
         rule = await self.get_rule(session, rule_id)
         if not rule:
             return None
+
+        ruleset_id = rule.group.ruleset_id if rule.group else None
 
         # Update basic fields
         for key in ["name", "description", "priority", "is_active", "evaluation_order"]:
@@ -472,6 +484,7 @@ class RulesService:
             changes=updates
         )
 
+        enqueue_listing_recalculation(ruleset_id=ruleset_id, reason="rule_updated")
         return rule
 
     async def delete_rule(
@@ -485,6 +498,8 @@ class RulesService:
         if not rule:
             return False
 
+        ruleset_id = rule.group.ruleset_id if rule.group else None
+
         # Audit before delete
         await self._audit_action(
             session,
@@ -496,6 +511,8 @@ class RulesService:
 
         await session.delete(rule)
         await session.commit()
+
+        enqueue_listing_recalculation(ruleset_id=ruleset_id, reason="rule_deleted")
         return True
 
     # --- Helper methods ---

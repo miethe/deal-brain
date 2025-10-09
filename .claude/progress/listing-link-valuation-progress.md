@@ -13,7 +13,7 @@
 
 ## Valuation Engine Integration (Week 2)
 - [x] Wire `RuleEvaluationService` into listing metric calculations with static override support.
-- [ ] Implement background job for recalculating listings when rules change and cover with tests.
+- [x] Implement background job for recalculating listings when rules change and cover with tests.
 
 ## Frontend Listing Experience (Week 3)
 - [x] Update listing tables, cards, and detail surfaces to consume `listing_url` and refreshed schema types.
