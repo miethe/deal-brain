@@ -9,9 +9,10 @@
 - Ruleset requests/responses now surface `priority`, `conditions`, and `is_active`; service layer validates condition trees, accepts schema payloads, and orders listings by priority.
 - Rule evaluation now honors static `ruleset_id`, matches active rulesets by priority/condition context, and falls back to highest-priority active set.
 - Shared TypeScript listing types/API responses updated; listing tables/cards/dialogs consume `listing_url` in place of deprecated `url`.
+- Added `/v1/listings/{id}/valuation-overrides` endpoint with service helpers for static assignments and per-listing disabled rulesets.
+- Listing creation + quick edit flows now capture and validate `listing_url` and supplemental links; UI surfaces additional links in catalog detail views.
 
 ## Follow-Ups
-- Implement listing override endpoints + UI controls for per-listing enable/disable flows.
-- Regenerate API/TS clients and add automated coverage for ruleset priority/condition handling.
-- Expand frontend forms to manage `listing_url`/`other_urls` with validation and supplemental link presentation.
+- Regenerate API/TS clients and add automated coverage for ruleset priority/condition handling (including override scenarios).
+- Add valuation override UI (selector, disable toggles) and wiring to new endpoint.
 - Introduce recalculation workers + tests ensuring priority changes trigger listing updates.

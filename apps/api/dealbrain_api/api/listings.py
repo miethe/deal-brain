@@ -10,7 +10,7 @@ from dealbrain_core.enums import Condition, ListingStatus
 from dealbrain_core.schemas import ListingCreate, ListingRead
 
 from ..db import session_dependency
-from ..models import Listing
+from ..models import Listing, ValuationRuleset
 from ..services.custom_fields import CustomFieldService
 from ..services.listings import (
     apply_listing_metrics,
@@ -21,6 +21,8 @@ from ..services.listings import (
     sync_listing_components,
     update_listing,
     update_listing_metrics,
+    update_listing_overrides,
+    VALUATION_DISABLED_RULESETS_KEY,
 )
 from ..services import ports as ports_service
 from .schemas.listings import (
@@ -32,6 +34,8 @@ from .schemas.listings import (
     ListingFieldSchema,
     ListingPartialUpdateRequest,
     ListingSchemaResponse,
+    ListingValuationOverrideRequest,
+    ListingValuationOverrideResponse,
     PortEntry,
     PortsResponse,
     UpdatePortsRequest,
@@ -228,6 +232,54 @@ async def patch_listing_endpoint(
         attributes=request.attributes or {},
     )
     return ListingRead.model_validate(updated)
+
+
+def _serialize_listing_override(listing: Listing) -> ListingValuationOverrideResponse:
+    attrs = listing.attributes_json or {}
+    disabled = [
+        int(ruleset_id)
+        for ruleset_id in attrs.get(VALUATION_DISABLED_RULESETS_KEY, [])
+        if isinstance(ruleset_id, (int, str)) and str(ruleset_id).isdigit()
+    ]
+    mode = "static" if listing.ruleset_id else "auto"
+    return ListingValuationOverrideResponse(
+        mode=mode,
+        ruleset_id=listing.ruleset_id,
+        disabled_rulesets=disabled,
+    )
+
+
+@router.patch("/{listing_id}/valuation-overrides", response_model=ListingValuationOverrideResponse)
+async def update_listing_valuation_overrides(
+    listing_id: int,
+    request: ListingValuationOverrideRequest,
+    session: AsyncSession = Depends(session_dependency),
+) -> ListingValuationOverrideResponse:
+    listing = await session.get(Listing, listing_id)
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+
+    if request.mode == "static":
+        ruleset = await session.get(ValuationRuleset, request.ruleset_id)
+        if not ruleset:
+            raise HTTPException(status_code=404, detail="Ruleset not found")
+        if not ruleset.is_active:
+            raise HTTPException(status_code=400, detail="Ruleset is inactive and cannot be assigned")
+
+    try:
+        await update_listing_overrides(
+            session,
+            listing,
+            mode=request.mode,
+            ruleset_id=request.ruleset_id,
+            disabled_rulesets=request.disabled_rulesets,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    await apply_listing_metrics(session, listing)
+    await session.refresh(listing)
+    return _serialize_listing_override(listing)
 
 
 @router.post("/bulk-update", response_model=ListingBulkUpdateResponse)

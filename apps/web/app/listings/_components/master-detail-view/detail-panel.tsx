@@ -38,6 +38,16 @@ export const DetailPanel = React.memo(function DetailPanel({
     return `$${value.toFixed(3)}`
   }
 
+  const getLinkLabel = (url: string, label?: string | null) => {
+    if (label) return label
+    try {
+      const { hostname } = new URL(url)
+      return hostname.replace(/^www\./, '')
+    } catch {
+      return url
+    }
+  }
+
   if (!listing) {
     return (
       <Card className="h-[70vh]">
@@ -129,6 +139,26 @@ export const DetailPanel = React.memo(function DetailPanel({
             />
           </div>
         </div>
+
+        {!!listing.other_urls?.length && (
+          <div>
+            <h4 className="mb-3 text-sm font-semibold">Additional Links</h4>
+            <ul className="space-y-2 text-sm">
+              {listing.other_urls.map((link) => (
+                <li key={link.url}>
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    {getLinkLabel(link.url, link.label)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Hardware Specs */}
         <div>

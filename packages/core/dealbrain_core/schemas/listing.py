@@ -4,12 +4,46 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlparse
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, field_validator
 
 from .base import DealBrainModel
 from .catalog import CpuRead, GpuRead
 from ..enums import ComponentType, Condition, ListingStatus
+
+
+def _normalize_http_url(value: str) -> str:
+    if value is None:
+        return value
+    url_str = str(value).strip()
+    if not url_str:
+        return ""
+    parsed = urlparse(url_str)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("URL must start with http:// or https:// and include a host")
+    return url_str
+
+
+class ListingLink(DealBrainModel):
+    url: str
+    label: str | None = None
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value: str) -> str:
+        normalized = _normalize_http_url(value)
+        if not normalized:
+            raise ValueError("URL is required")
+        return normalized
+
+    @field_validator("label")
+    @classmethod
+    def normalize_label(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
 
 
 class ListingComponentBase(DealBrainModel):
@@ -38,7 +72,7 @@ class ListingBase(DealBrainModel):
         validation_alias=AliasChoices("listing_url", "url"),
         serialization_alias="listing_url",
     )
-    other_urls: list[dict[str, str]] = Field(default_factory=list)
+    other_urls: list[ListingLink] = Field(default_factory=list)
     seller: str | None = None
     price_usd: float
     price_date: datetime | None = None
@@ -64,6 +98,35 @@ class ListingBase(DealBrainModel):
     series: str | None = None
     model_number: str | None = None
     form_factor: str | None = None
+
+    @field_validator("listing_url", mode="before")
+    @classmethod
+    def validate_listing_url(cls, value: Any) -> Any:
+        if value in (None, ""):
+            return None
+        return _normalize_http_url(value)
+
+    @field_validator("other_urls", mode="before")
+    @classmethod
+    def coerce_other_urls(cls, value: Any) -> Any:
+        if not value:
+            return []
+        if isinstance(value, dict):
+            value = [value]
+        normalized: list[dict[str, Any]] = []
+        for entry in value:
+            if isinstance(entry, ListingLink):
+                normalized.append(entry.model_dump())
+            elif isinstance(entry, str):
+                normalized.append({"url": entry})
+            elif isinstance(entry, dict):
+                data = dict(entry)
+                url_value = data.get("url") or data.get("href")
+                if not url_value:
+                    continue
+                label_value = data.get("label") or data.get("text")
+                normalized.append({"url": url_value, "label": label_value})
+        return normalized
 
 
 class ListingCreate(ListingBase):
@@ -92,6 +155,5 @@ class ListingRead(ListingBase):
     components: list[ListingComponentRead] = Field(default_factory=list)
     cpu: CpuRead | None = None
     gpu: GpuRead | None = None
-
 
 ListingRead.model_rebuild()

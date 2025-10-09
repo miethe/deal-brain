@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Iterable
+from urllib.parse import urlparse
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +12,8 @@ from dealbrain_core.scoring import ListingMetrics, compute_composite_score, doll
 from dealbrain_core.valuation import ComponentValuationInput, ValuationRuleData, compute_adjusted_price
 
 from ..models import Cpu, Gpu, Listing, ListingComponent, Profile
+
+VALUATION_DISABLED_RULESETS_KEY = "valuation_disabled_rulesets"
 
 
 MUTABLE_LISTING_FIELDS: set[str] = {
@@ -42,7 +45,52 @@ def _normalize_listing_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Handle legacy field aliases and normalize payload keys."""
     if "url" in payload and "listing_url" not in payload:
         payload["listing_url"] = payload.pop("url")
+    if "listing_url" in payload:
+        payload["listing_url"] = _sanitize_primary_url(payload["listing_url"])
+    if "other_urls" in payload:
+        payload["other_urls"] = _normalize_other_urls(payload["other_urls"])
     return payload
+
+
+def _sanitize_primary_url(value: Any) -> str | None:
+    if value in (None, "", []):
+        return None
+    url_str = str(value).strip()
+    parsed = urlparse(url_str)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("listing_url must use http:// or https:// and include a host")
+    return url_str
+
+
+def _normalize_other_urls(value: Any) -> list[dict[str, str | None]]:
+    if not value:
+        return []
+    normalized: list[dict[str, str | None]] = []
+    items = value if isinstance(value, (list, tuple)) else [value]
+    seen: set[str] = set()
+    for item in items:
+        if item in (None, "", {}):
+            continue
+        if isinstance(item, str):
+            url = item.strip()
+            label = None
+        elif isinstance(item, dict):
+            url = str(item.get("url") or item.get("href") or "").strip()
+            label_value = item.get("label") or item.get("text")
+            label = str(label_value).strip() if label_value else None
+        else:
+            url = str(item).strip()
+            label = None
+        if not url:
+            continue
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("Supplemental link URLs must use http:// or https:// and include a host")
+        if url in seen:
+            continue
+        seen.add(url)
+        normalized.append({"url": url, "label": label})
+    return normalized
 
 
 async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None:
@@ -267,6 +315,51 @@ async def partial_update_listing(
     if run_metrics:
         await apply_listing_metrics(session, listing)
         await session.refresh(listing)
+    return listing
+
+
+def _normalize_disabled_rulesets(values: Iterable[Any] | None) -> list[int]:
+    if not values:
+        return []
+    normalized: list[int] = []
+    seen: set[int] = set()
+    for value in values:
+        try:
+            ruleset_id = int(value)
+        except (TypeError, ValueError):
+            continue
+        if ruleset_id < 0 or ruleset_id in seen:
+            continue
+        seen.add(ruleset_id)
+        normalized.append(ruleset_id)
+    return normalized
+
+
+async def update_listing_overrides(
+    session: AsyncSession,
+    listing: Listing,
+    *,
+    mode: str,
+    ruleset_id: int | None,
+    disabled_rulesets: Iterable[Any] | None = None,
+) -> Listing:
+    """Update listing valuation overrides (static assignment and disabled dynamic rulesets)."""
+    normalized_disabled = _normalize_disabled_rulesets(disabled_rulesets)
+
+    if mode == "auto":
+        listing.ruleset_id = None
+    elif mode == "static":
+        if ruleset_id is None:
+            raise ValueError("Static mode requires a ruleset_id")
+        listing.ruleset_id = ruleset_id
+    else:
+        raise ValueError("Unsupported override mode")
+
+    attributes = dict(listing.attributes_json or {})
+    attributes[VALUATION_DISABLED_RULESETS_KEY] = normalized_disabled
+    listing.attributes_json = attributes
+
+    await session.flush()
     return listing
 
 

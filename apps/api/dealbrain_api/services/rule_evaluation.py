@@ -21,6 +21,8 @@ from ..models.core import (
     Listing,
 )
 
+VALUATION_DISABLED_RULESETS_KEY = "valuation_disabled_rulesets"
+
 
 class RuleEvaluationService:
     """Service for evaluating valuation rules against listings"""
@@ -56,6 +58,11 @@ class RuleEvaluationService:
 
         # Build context from listing (used for ruleset selection and evaluation)
         context = build_context_from_listing(listing)
+        disabled_rulesets = {
+            int(ruleset_id)
+            for ruleset_id in (listing.attributes_json or {}).get(VALUATION_DISABLED_RULESETS_KEY, [])
+            if isinstance(ruleset_id, (int, str)) and str(ruleset_id).isdigit()
+        }
 
         # Get ruleset
         if ruleset_id is None:
@@ -66,10 +73,10 @@ class RuleEvaluationService:
                     ruleset = None
 
             if not ruleset:
-                ruleset = await self._match_ruleset_for_context(session, context)
+                ruleset = await self._match_ruleset_for_context(session, context, disabled_rulesets)
 
             if not ruleset:
-                ruleset = await self._get_active_ruleset(session)
+                ruleset = await self._get_active_ruleset(session, disabled_rulesets)
         else:
             ruleset = await self._get_ruleset(session, ruleset_id)
 
@@ -255,7 +262,8 @@ class RuleEvaluationService:
 
     async def _get_active_ruleset(
         self,
-        session: AsyncSession
+        session: AsyncSession,
+        excluded_ids: set[int],
     ) -> ValuationRuleset | None:
         """Get first active ruleset"""
         stmt = (
@@ -268,12 +276,17 @@ class RuleEvaluationService:
             .limit(1)
         )
         result = await session.execute(stmt)
-        return result.scalar_one_or_none()
+        for ruleset in result.scalars().all():
+            if ruleset.id in excluded_ids:
+                continue
+            return ruleset
+        return None
 
     async def _match_ruleset_for_context(
         self,
         session: AsyncSession,
         context: dict[str, Any],
+        excluded_ids: set[int],
     ) -> ValuationRuleset | None:
         """Find the highest priority active ruleset whose conditions match the provided context."""
         stmt = (
@@ -286,6 +299,8 @@ class RuleEvaluationService:
         )
         result = await session.execute(stmt)
         for ruleset in result.scalars().all():
+            if ruleset.id in excluded_ids:
+                continue
             if self._ruleset_matches_context(ruleset, context):
                 return ruleset
         return None

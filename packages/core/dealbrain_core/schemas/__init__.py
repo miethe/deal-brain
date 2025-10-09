@@ -28,6 +28,7 @@ from .listing import (
     ListingComponentCreate,
     ListingComponentRead,
     ListingCreate,
+    ListingLink,
     ListingRead,
 )
 from .custom_field import (
@@ -61,6 +62,7 @@ __all__ = [
     "ListingComponentCreate",
     "ListingComponentRead",
     "ListingCreate",
+    "ListingLink",
     "ListingRead",
     "SpreadsheetSeed",
     "CustomFieldDefinitionCreate",

@@ -60,6 +60,17 @@ const FORM_FACTOR_OPTIONS = [
   "Other",
 ];
 
+const createLinkId = () => Math.random().toString(36).slice(2, 10);
+
+const isValidHttpUrl = (value: string) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
+
 interface AddListingFormProps {
   onSuccess?: () => void;
 }
@@ -78,6 +89,9 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
   const [storageCapOptions, setStorageCapOptions] = useState<number[]>(DEFAULT_STORAGE_CAPACITIES);
   const [storageTypeOptions, setStorageTypeOptions] = useState<string[]>(DEFAULT_STORAGE_TYPES);
   const [ports, setPorts] = useState<PortEntry[]>([]);
+  const [listingUrl, setListingUrl] = useState("");
+  const [otherLinks, setOtherLinks] = useState<Array<{ id: string; url: string; label: string }>>([]);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const [isCpuModalOpen, setCpuModalOpen] = useState(false);
   const [newCpuForm, setNewCpuForm] = useState({
@@ -97,7 +111,7 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
 
   const createListingMutation = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
-      await apiFetch("/v1/listings", {
+      return apiFetch("/v1/listings", {
         method: "POST",
         body: JSON.stringify(payload),
       });
@@ -146,6 +160,44 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
     const formData = new FormData(event.currentTarget);
     const form = event.currentTarget;
 
+    setLinkError(null);
+    const primaryLink = listingUrl.trim();
+    if (primaryLink && !isValidHttpUrl(primaryLink)) {
+      setLinkError("Primary listing URL must start with http:// or https://");
+      setStatus("Fix link issues before submitting.");
+      return;
+    }
+
+    const preparedOtherLinks = otherLinks
+      .map((link) => ({
+        url: link.url.trim(),
+        label: link.label.trim(),
+      }))
+      .filter((link) => Boolean(link.url));
+
+    const invalidSupplemental = preparedOtherLinks.find((link) => !isValidHttpUrl(link.url));
+    if (invalidSupplemental) {
+      setLinkError(`Additional link must use http/https: ${invalidSupplemental.url}`);
+      setStatus("Fix link issues before submitting.");
+      return;
+    }
+
+    const seenLinks = new Set<string>();
+    const uniqueSupplemental = preparedOtherLinks.reduce<Array<{ url: string; label?: string }>>(
+      (acc, link) => {
+        if (seenLinks.has(link.url)) {
+          return acc;
+        }
+        seenLinks.add(link.url);
+        acc.push({
+          url: link.url,
+          label: link.label ? link.label : undefined,
+        });
+        return acc;
+      },
+      []
+    );
+
     const payload = {
       title: formData.get("title"),
       price_usd: Number(formData.get("price_usd")) || 0,
@@ -161,6 +213,8 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
       series: sanitizeString(formData.get("series")),
       model_number: sanitizeString(formData.get("model_number")),
       form_factor: sanitizeString(formData.get("form_factor")),
+      listing_url: primaryLink || null,
+      other_urls: uniqueSupplemental,
     };
 
     createListingMutation.mutate(payload, {
@@ -185,6 +239,9 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
           setSelectedCpuId("");
           setSelectedCpuData(null);
           setPorts([]);
+          setListingUrl("");
+          setOtherLinks([]);
+          setLinkError(null);
 
           // Call onSuccess callback if provided
           onSuccess?.();
@@ -243,6 +300,20 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
     }
   };
 
+  const addOtherLink = () => {
+    setOtherLinks((prev) => [...prev, { id: createLinkId(), url: "", label: "" }]);
+  };
+
+  const updateOtherLink = (id: string, field: "url" | "label", value: string) => {
+    setOtherLinks((prev) =>
+      prev.map((link) => (link.id === id ? { ...link, [field]: value } : link))
+    );
+  };
+
+  const removeOtherLink = (id: string) => {
+    setOtherLinks((prev) => prev.filter((link) => link.id !== id));
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -273,6 +344,69 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="md:col-span-2 pt-4 border-t">
+            <h3 className="text-lg font-semibold mb-1">Listing Links</h3>
+            <p className="text-sm text-muted-foreground">
+              Provide the primary marketplace link and any supplemental references users should see.
+            </p>
+            {linkError && <p className="text-sm text-destructive mt-2">{linkError}</p>}
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="listing_url">Primary Listing URL</Label>
+            <Input
+              id="listing_url"
+              name="listing_url"
+              placeholder="https://www.ebay.com/itm/..."
+              value={listingUrl}
+              onChange={(event) => setListingUrl(event.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Used for the main “Open” button in catalog views.
+            </p>
+          </div>
+          <div className="space-y-3 md:col-span-2">
+            <div className="flex items-center justify-between">
+              <Label>Additional Links</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addOtherLink}>
+                Add Link
+              </Button>
+            </div>
+            {otherLinks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No additional links yet. Add one to share photos, spec sheets, or secondary listings.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {otherLinks.map((link) => (
+                  <div
+                    key={link.id}
+                    className="flex flex-col gap-2 md:flex-row md:items-center"
+                  >
+                    <Input
+                      className="md:flex-1"
+                      placeholder="https://imgur.com/..."
+                      value={link.url}
+                      onChange={(event) => updateOtherLink(link.id, "url", event.target.value)}
+                    />
+                    <Input
+                      className="md:w-56"
+                      placeholder="Optional label"
+                      value={link.label}
+                      onChange={(event) => updateOtherLink(link.id, "label", event.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeOtherLink(link.id)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           {/* Product Metadata Section */}
           <div className="md:col-span-2 pt-4 border-t">

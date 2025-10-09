@@ -57,6 +57,16 @@ export function ListingDetailsDialog() {
     return "text-muted-foreground";
   };
 
+  const getLinkLabel = (url: string, label?: string | null) => {
+    if (label) return label;
+    try {
+      const { hostname } = new URL(url);
+      return hostname.replace(/^www\./, "");
+    } catch {
+      return url;
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={closeDialog}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
@@ -198,6 +208,29 @@ export function ListingDetailsDialog() {
                 )}
               </div>
             </div>
+
+            {!!listing.other_urls?.length && (
+              <>
+                <Separator />
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Additional Links</h4>
+                  <ul className="space-y-2 text-sm">
+                    {listing.other_urls.map((link) => (
+                      <li key={link.url}>
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          {getLinkLabel(link.url, link.label)}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            )}
 
             <Separator />
 

@@ -118,6 +118,34 @@ class PortsResponse(BaseModel):
     ports: list[PortEntry] = Field(default_factory=list, description="List of port entries")
 
 
+class ListingValuationOverrideRequest(BaseModel):
+    """Request schema for managing listing-level ruleset overrides."""
+    mode: Literal["auto", "static"] = Field(
+        "auto",
+        description="Auto selects by priority; static locks to a specific ruleset.",
+    )
+    ruleset_id: int | None = Field(None, description="Required when mode is static.")
+    disabled_rulesets: list[int] = Field(
+        default_factory=list,
+        description="Ruleset IDs to exclude when using auto matching.",
+    )
+
+    @field_validator("ruleset_id")
+    @classmethod
+    def validate_ruleset_id(cls, value: int | None, info) -> int | None:
+        mode = info.data.get("mode", "auto")
+        if mode == "static" and value is None:
+            raise ValueError("ruleset_id is required when mode is 'static'")
+        return value
+
+
+class ListingValuationOverrideResponse(BaseModel):
+    """Response describing the current listing valuation override state."""
+    mode: Literal["auto", "static"]
+    ruleset_id: int | None = Field(None, description="Static ruleset assignment if any.")
+    disabled_rulesets: list[int] = Field(default_factory=list)
+
+
 __all__ = [
     "AppliedRuleDetail",
     "BulkRecalculateRequest",
@@ -127,6 +155,8 @@ __all__ = [
     "ListingFieldSchema",
     "ListingPartialUpdateRequest",
     "ListingSchemaResponse",
+    "ListingValuationOverrideRequest",
+    "ListingValuationOverrideResponse",
     "PortEntry",
     "PortsResponse",
     "UpdatePortsRequest",
