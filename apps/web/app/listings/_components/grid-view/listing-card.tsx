@@ -39,8 +39,8 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
 
   const handleOpenExternal = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
-    if (listing.url) {
-      window.open(listing.url, "_blank", "noopener,noreferrer");
+    if (listing.listing_url) {
+      window.open(listing.listing_url, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -75,7 +75,7 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
           <h3 className="font-semibold text-base line-clamp-2 flex-1">
             {listing.title}
           </h3>
-          {listing.url && (
+          {listing.listing_url && (
             <Button
               variant="ghost"
               size="sm"

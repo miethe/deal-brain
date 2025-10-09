@@ -114,6 +114,16 @@ class RulesetCreateRequest(BaseModel):
     description: str | None = None
     version: str = Field("1.0.0", max_length=32)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    is_active: bool = Field(True, description="Whether this ruleset can be applied")
+    priority: int = Field(
+        10,
+        ge=0,
+        description="Lower numbers run first when multiple rulesets are active",
+    )
+    conditions: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Serialized condition tree controlling when this ruleset applies",
+    )
 
 
 class RulesetUpdateRequest(BaseModel):
@@ -123,6 +133,15 @@ class RulesetUpdateRequest(BaseModel):
     version: str | None = None
     is_active: bool | None = None
     metadata: dict[str, Any] | None = None
+    priority: int | None = Field(
+        None,
+        ge=0,
+        description="Lower numbers run first when multiple rulesets are active",
+    )
+    conditions: dict[str, Any] | None = Field(
+        None,
+        description="Serialized condition tree controlling when this ruleset applies",
+    )
 
 
 class RulesetResponse(BaseModel):
@@ -136,6 +155,8 @@ class RulesetResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     metadata: dict[str, Any]
+    priority: int
+    conditions: dict[str, Any]
     rule_groups: list[RuleGroupResponse] = Field(default_factory=list)
 
     class Config:

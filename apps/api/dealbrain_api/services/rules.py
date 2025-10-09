@@ -1,6 +1,7 @@
 """Service layer for valuation rules CRUD operations"""
 
 from typing import Any
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -32,19 +33,57 @@ class RulesService:
     async def create_ruleset(
         self,
         session: AsyncSession,
-        name: str,
+        name: str | BaseModel | dict[str, Any],
         description: str | None = None,
         version: str = "1.0.0",
         created_by: str | None = None,
         metadata: dict[str, Any] | None = None,
+        priority: int = 10,
+        conditions: dict[str, Any] | None = None,
+        is_active: bool = True,
     ) -> ValuationRuleset:
-        """Create a new ruleset"""
+        """Create a new ruleset.
+
+        Accepts either explicit parameters or a schema/dict payload supplied via the `name` argument.
+        """
+        payload: dict[str, Any] | None = None
+        if isinstance(name, BaseModel):
+            payload = name.model_dump(exclude_unset=True)
+        elif isinstance(name, dict):
+            payload = dict(name)
+
+        if payload is not None:
+            extracted_name = payload.get("name")
+            if not extracted_name:
+                raise ValueError("Ruleset name is required")
+            name = extracted_name
+            description = payload.get("description", description)
+            version = payload.get("version", version)
+            created_by = payload.get("created_by", created_by)
+            metadata = payload.get("metadata", metadata)
+            priority = payload.get("priority", priority)
+            conditions = payload.get("conditions", conditions)
+            is_active = payload.get("is_active", is_active)
+        elif not isinstance(name, str) or not name:
+            raise ValueError("Ruleset name is required")
+
+        if priority < 0:
+            raise ValueError("Ruleset priority must be zero or greater")
+
+        condition_payload = conditions or {}
+        if condition_payload:
+            # Validate condition shape before persisting
+            build_condition_from_dict(condition_payload)
+
         ruleset = ValuationRuleset(
             name=name,
             description=description,
             version=version,
             created_by=created_by,
             metadata_json=metadata or {},
+            priority=priority,
+            conditions_json=condition_payload,
+            is_active=is_active,
         )
 
         session.add(ruleset)
@@ -89,7 +128,14 @@ class RulesService:
         if active_only:
             stmt = stmt.where(ValuationRuleset.is_active == True)
 
-        stmt = stmt.offset(skip).limit(limit).order_by(ValuationRuleset.name)
+        stmt = (
+            stmt.order_by(
+                ValuationRuleset.priority.asc(),
+                ValuationRuleset.name.asc(),
+            )
+            .offset(skip)
+            .limit(limit)
+        )
 
         result = await session.execute(stmt)
         return list(result.scalars().all())
@@ -98,13 +144,30 @@ class RulesService:
         self,
         session: AsyncSession,
         ruleset_id: int,
-        updates: dict[str, Any],
+        updates: dict[str, Any] | BaseModel,
         updated_by: str | None = None
     ) -> ValuationRuleset | None:
         """Update ruleset"""
         ruleset = await self.get_ruleset(session, ruleset_id)
         if not ruleset:
             return None
+
+        if isinstance(updates, BaseModel):
+            updates = updates.model_dump(exclude_unset=True)
+        else:
+            updates = dict(updates)
+        if "priority" in updates and updates["priority"] is not None:
+            if updates["priority"] < 0:
+                raise ValueError("Ruleset priority must be zero or greater")
+
+        if "conditions" in updates:
+            condition_payload = updates.pop("conditions") or {}
+            if condition_payload:
+                build_condition_from_dict(condition_payload)
+            updates["conditions_json"] = condition_payload
+
+        if "metadata" in updates and updates["metadata"] is not None:
+            updates["metadata_json"] = updates.pop("metadata")
 
         for key, value in updates.items():
             if hasattr(ruleset, key):

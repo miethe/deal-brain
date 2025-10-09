@@ -15,6 +15,8 @@ export interface CpuResponse {
 export interface ListingResponse {
   id: number;
   title: string;
+  listing_url: string | null;
+  other_urls: Array<{ url: string; label?: string | null }> | null;
   price_usd: number;
   adjusted_price_usd: number | null;
   condition: string;
@@ -31,6 +33,7 @@ export interface ListingResponse {
   // CPU details
   cpu: CpuResponse | null;
   cpu_id: number | null;
+  ruleset_id: number | null;
   // Ports data
   ports_profile: {
     id: number;

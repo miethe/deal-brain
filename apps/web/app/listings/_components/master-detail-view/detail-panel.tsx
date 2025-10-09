@@ -65,10 +65,10 @@ export const DetailPanel = React.memo(function DetailPanel({
               )}
             </div>
           </div>
-          {listing.url && (
+          {listing.listing_url && (
             <Button asChild size="sm">
               <a
-                href={listing.url}
+                href={listing.listing_url}
                 target="_blank"
                 rel="noopener noreferrer"
               >

@@ -57,6 +57,9 @@ async def create_ruleset(
         description=request.description,
         version=request.version,
         metadata=request.metadata,
+        priority=request.priority,
+        conditions=request.conditions,
+        is_active=request.is_active,
     )
 
     return RulesetResponse(
@@ -69,6 +72,8 @@ async def create_ruleset(
         created_at=ruleset.created_at,
         updated_at=ruleset.updated_at,
         metadata=ruleset.metadata_json,
+        priority=ruleset.priority,
+        conditions=ruleset.conditions_json,
         rule_groups=[],
     )
 
@@ -100,6 +105,8 @@ async def list_rulesets(
             created_at=rs.created_at,
             updated_at=rs.updated_at,
             metadata=rs.metadata_json,
+            priority=rs.priority,
+            conditions=rs.conditions_json,
             rule_groups=[],
         )
         for rs in rulesets
@@ -186,6 +193,8 @@ async def get_ruleset(
         created_at=ruleset.created_at,
         updated_at=ruleset.updated_at,
         metadata=ruleset.metadata_json,
+        priority=ruleset.priority,
+        conditions=ruleset.conditions_json,
         rule_groups=rule_groups,
     )
 
@@ -216,6 +225,8 @@ async def update_ruleset(
         created_at=ruleset.created_at,
         updated_at=ruleset.updated_at,
         metadata=ruleset.metadata_json,
+        priority=ruleset.priority,
+        conditions=ruleset.conditions_json,
         rule_groups=[],
     )
 

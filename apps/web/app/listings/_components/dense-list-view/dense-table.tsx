@@ -232,14 +232,14 @@ export const DenseTable = React.memo(function DenseTable({
                       >
                         <SquarePen className="h-4 w-4" />
                       </Button>
-                      {listing.url && (
+                      {listing.listing_url && (
                         <Button
                           variant="ghost"
                           size="sm"
                           asChild
                         >
                           <a
-                            href={listing.url}
+                            href={listing.listing_url}
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="Open listing"

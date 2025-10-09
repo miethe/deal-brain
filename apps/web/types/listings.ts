@@ -37,6 +37,11 @@ export interface ListingSchemaResponse {
   custom_fields: CustomFieldDefinition[];
 }
 
+export interface ListingLink {
+  url: string;
+  label?: string | null;
+}
+
 export interface CpuRecord {
   id: number;
   name: string;
@@ -70,7 +75,8 @@ export interface PortsProfileRecord {
 export interface ListingRecord {
   id: number;
   title: string;
-  url: string | null;
+  listing_url: string | null;
+  other_urls?: ListingLink[] | null;
   seller: string | null;
   price_usd: number;
   adjusted_price_usd: number | null;
@@ -106,6 +112,7 @@ export interface ListingRecord {
   gpu?: { id?: number | null; name?: string | null } | null;
   ports_profile?: PortsProfileRecord | null;
   attributes: Record<string, unknown>;
+  ruleset_id?: number | null;
   created_at: string;
   updated_at: string;
 }

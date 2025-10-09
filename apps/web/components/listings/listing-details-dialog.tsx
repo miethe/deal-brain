@@ -72,13 +72,13 @@ export function ListingDetailsDialog() {
                 )}
               </DialogDescription>
             </div>
-            {listing?.url && (
+            {listing?.listing_url && (
               <Button
                 variant="ghost"
                 size="sm"
                 asChild
               >
-                <a href={listing.url} target="_blank" rel="noopener noreferrer">
+                <a href={listing.listing_url} target="_blank" rel="noopener noreferrer">
                   <ArrowUpRight className="h-4 w-4" />
                 </a>
               </Button>

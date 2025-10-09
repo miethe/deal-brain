@@ -54,17 +54,27 @@ class RuleEvaluationService:
         if not listing:
             raise ValueError(f"Listing {listing_id} not found")
 
+        # Build context from listing (used for ruleset selection and evaluation)
+        context = build_context_from_listing(listing)
+
         # Get ruleset
         if ruleset_id is None:
-            ruleset = await self._get_active_ruleset(session)
+            ruleset = None
+            if listing.ruleset_id:
+                ruleset = await self._get_ruleset(session, listing.ruleset_id)
+                if ruleset and not ruleset.is_active:
+                    ruleset = None
+
+            if not ruleset:
+                ruleset = await self._match_ruleset_for_context(session, context)
+
+            if not ruleset:
+                ruleset = await self._get_active_ruleset(session)
         else:
             ruleset = await self._get_ruleset(session, ruleset_id)
 
         if not ruleset:
             raise ValueError("No active ruleset found")
-
-        # Build context from listing
-        context = build_context_from_listing(listing)
 
         # Get all rules from ruleset
         rules = await self._get_rules_from_ruleset(session, ruleset.id)
@@ -251,11 +261,54 @@ class RuleEvaluationService:
         stmt = (
             select(ValuationRuleset)
             .where(ValuationRuleset.is_active == True)
-            .order_by(ValuationRuleset.created_at.desc())
+            .order_by(
+                ValuationRuleset.priority.asc(),
+                ValuationRuleset.created_at.asc(),
+            )
             .limit(1)
         )
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def _match_ruleset_for_context(
+        self,
+        session: AsyncSession,
+        context: dict[str, Any],
+    ) -> ValuationRuleset | None:
+        """Find the highest priority active ruleset whose conditions match the provided context."""
+        stmt = (
+            select(ValuationRuleset)
+            .where(ValuationRuleset.is_active == True)
+            .order_by(
+                ValuationRuleset.priority.asc(),
+                ValuationRuleset.created_at.asc(),
+            )
+        )
+        result = await session.execute(stmt)
+        for ruleset in result.scalars().all():
+            if self._ruleset_matches_context(ruleset, context):
+                return ruleset
+        return None
+
+    def _ruleset_matches_context(
+        self,
+        ruleset: ValuationRuleset,
+        context: dict[str, Any],
+    ) -> bool:
+        """Evaluate a ruleset's condition tree against the provided context."""
+        conditions_data = ruleset.conditions_json or {}
+        if not conditions_data:
+            return True
+
+        try:
+            condition_obj = build_condition_from_dict(conditions_data)
+        except Exception:
+            # Invalid condition payloads should not break evaluation; treat as non-match.
+            return False
+
+        if isinstance(condition_obj, ConditionGroup):
+            return condition_obj.evaluate(context)
+        return condition_obj.evaluate(context)
 
     async def _get_rules_from_ruleset(
         self,
