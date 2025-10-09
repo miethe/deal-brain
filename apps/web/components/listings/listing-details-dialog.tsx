@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -13,10 +15,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCatalogStore } from "@/stores/catalog-store";
 import { apiFetch } from "@/lib/utils";
 import { ListingRecord } from "@/types/listings";
 import { PerformanceBadges } from "@/app/listings/_components/grid-view/performance-badges";
+import { ListingValuationTab } from "./listing-valuation-tab";
 
 /**
  * Listing Details Dialog
@@ -34,12 +38,21 @@ export function ListingDetailsDialog() {
   const isOpen = useCatalogStore((state) => state.detailsDialogOpen);
   const listingId = useCatalogStore((state) => state.detailsDialogListingId);
   const closeDialog = useCatalogStore((state) => state.closeDetailsDialog);
+  const [activeTab, setActiveTab] = useState<"details" | "valuation">("details");
+  const searchParams = useSearchParams();
 
   const { data: listing, isLoading } = useQuery({
     queryKey: ["listings", "single", listingId],
     queryFn: () => apiFetch<ListingRecord>(`/v1/listings/${listingId}`),
     enabled: isOpen && !!listingId,
   });
+
+  const showValuationParam = searchParams?.get("showValuation");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setActiveTab(showValuationParam === "true" ? "valuation" : "details");
+  }, [isOpen, listingId, showValuationParam]);
 
   const getValuationAccent = (): string => {
     if (!listing?.adjusted_price_usd || !listing?.price_usd) return "";
@@ -102,148 +115,163 @@ export function ListingDetailsDialog() {
             <div className="h-32 bg-muted animate-pulse rounded" />
           </div>
         ) : listing ? (
-          <div className="space-y-6">
-            {/* KPI Metrics Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Price</p>
-                <p className="text-xl font-bold">${listing.price_usd.toLocaleString()}</p>
-              </div>
-              {listing.adjusted_price_usd && (
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as "details" | "valuation")}
+            className="mt-4"
+          >
+            <TabsList className="grid w-full grid-cols-2 sm:w-auto">
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="valuation">Valuation</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="details" className="mt-4 space-y-6">
+              {/* KPI Metrics Grid */}
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Adjusted</p>
-                  <p className={`text-xl font-bold ${getValuationAccent()}`}>
-                    ${listing.adjusted_price_usd.toLocaleString()}
-                  </p>
+                  <p className="text-xs text-muted-foreground">Price</p>
+                  <p className="text-xl font-bold">${listing.price_usd.toLocaleString()}</p>
                 </div>
-              )}
-              {listing.dollar_per_cpu_mark_single && (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">$/ST</p>
-                  <p className="text-xl font-bold font-mono">
-                    ${listing.dollar_per_cpu_mark_single.toFixed(3)}
-                  </p>
-                </div>
-              )}
-              {listing.dollar_per_cpu_mark_multi && (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">$/MT</p>
-                  <p className="text-xl font-bold font-mono">
-                    ${listing.dollar_per_cpu_mark_multi.toFixed(3)}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Performance Badges */}
-            <div>
-              <h4 className="text-sm font-medium mb-2">Performance Metrics</h4>
-              <PerformanceBadges
-                dollarPerSingleRaw={listing.dollar_per_cpu_mark_single}
-                dollarPerMultiRaw={listing.dollar_per_cpu_mark_multi}
-                dollarPerSingleAdjusted={listing.dollar_per_cpu_mark_single_adjusted}
-                dollarPerMultiAdjusted={listing.dollar_per_cpu_mark_multi_adjusted}
-              />
-            </div>
-
-            <Separator />
-
-            {/* Specs Grid */}
-            <div>
-              <h4 className="text-sm font-medium mb-3">Specifications</h4>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                {listing.cpu_name && (
-                  <>
-                    <span className="text-muted-foreground">CPU</span>
-                    <span className="font-medium">{listing.cpu_name}</span>
-                  </>
+                {listing.adjusted_price_usd && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Adjusted</p>
+                    <p className={`text-xl font-bold ${getValuationAccent()}`}>
+                      ${listing.adjusted_price_usd.toLocaleString()}
+                    </p>
+                  </div>
                 )}
-                {listing.cpu?.cpu_mark_single && listing.cpu?.cpu_mark_multi && (
-                  <>
-                    <span className="text-muted-foreground">CPU Scores</span>
-                    <span className="font-medium font-mono">
-                      ST {listing.cpu.cpu_mark_single.toLocaleString()} / MT {listing.cpu.cpu_mark_multi.toLocaleString()}
-                    </span>
-                  </>
+                {listing.dollar_per_cpu_mark_single && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">$/ST</p>
+                    <p className="text-xl font-bold font-mono">
+                      ${listing.dollar_per_cpu_mark_single.toFixed(3)}
+                    </p>
+                  </div>
                 )}
-                {listing.ram_gb && (
-                  <>
-                    <span className="text-muted-foreground">RAM</span>
-                    <span className="font-medium">{listing.ram_gb}GB</span>
-                  </>
-                )}
-                {listing.primary_storage_gb && (
-                  <>
-                    <span className="text-muted-foreground">Storage</span>
-                    <span className="font-medium">
-                      {listing.primary_storage_gb}GB {listing.primary_storage_type || ""}
-                    </span>
-                  </>
-                )}
-                {listing.condition && (
-                  <>
-                    <span className="text-muted-foreground">Condition</span>
-                    <span className="font-medium capitalize">{listing.condition}</span>
-                  </>
-                )}
-                {listing.manufacturer && (
-                  <>
-                    <span className="text-muted-foreground">Manufacturer</span>
-                    <span className="font-medium">{listing.manufacturer}</span>
-                  </>
-                )}
-                {listing.series && (
-                  <>
-                    <span className="text-muted-foreground">Series</span>
-                    <span className="font-medium">{listing.series}</span>
-                  </>
-                )}
-                {listing.model_number && (
-                  <>
-                    <span className="text-muted-foreground">Model</span>
-                    <span className="font-medium">{listing.model_number}</span>
-                  </>
+                {listing.dollar_per_cpu_mark_multi && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">$/MT</p>
+                    <p className="text-xl font-bold font-mono">
+                      ${listing.dollar_per_cpu_mark_multi.toFixed(3)}
+                    </p>
+                  </div>
                 )}
               </div>
-            </div>
 
-            {!!listing.other_urls?.length && (
-              <>
-                <Separator />
-                <div>
-                  <h4 className="text-sm font-medium mb-3">Additional Links</h4>
-                  <ul className="space-y-2 text-sm">
-                    {listing.other_urls.map((link) => (
-                      <li key={link.url}>
-                        <a
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          {getLinkLabel(link.url, link.label)}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
+              <Separator />
+
+              {/* Performance Badges */}
+              <div>
+                <h4 className="mb-2 text-sm font-medium">Performance Metrics</h4>
+                <PerformanceBadges
+                  dollarPerSingleRaw={listing.dollar_per_cpu_mark_single}
+                  dollarPerMultiRaw={listing.dollar_per_cpu_mark_multi}
+                  dollarPerSingleAdjusted={listing.dollar_per_cpu_mark_single_adjusted}
+                  dollarPerMultiAdjusted={listing.dollar_per_cpu_mark_multi_adjusted}
+                />
+              </div>
+
+              <Separator />
+
+              {/* Specs Grid */}
+              <div>
+                <h4 className="mb-3 text-sm font-medium">Specifications</h4>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  {listing.cpu_name && (
+                    <>
+                      <span className="text-muted-foreground">CPU</span>
+                      <span className="font-medium">{listing.cpu_name}</span>
+                    </>
+                  )}
+                  {listing.cpu?.cpu_mark_single && listing.cpu?.cpu_mark_multi && (
+                    <>
+                      <span className="text-muted-foreground">CPU Scores</span>
+                      <span className="font-medium font-mono">
+                        ST {listing.cpu.cpu_mark_single.toLocaleString()} / MT {listing.cpu.cpu_mark_multi.toLocaleString()}
+                      </span>
+                    </>
+                  )}
+                  {listing.ram_gb && (
+                    <>
+                      <span className="text-muted-foreground">RAM</span>
+                      <span className="font-medium">{listing.ram_gb}GB</span>
+                    </>
+                  )}
+                  {listing.primary_storage_gb && (
+                    <>
+                      <span className="text-muted-foreground">Storage</span>
+                      <span className="font-medium">
+                        {listing.primary_storage_gb}GB {listing.primary_storage_type || ""}
+                      </span>
+                    </>
+                  )}
+                  {listing.condition && (
+                    <>
+                      <span className="text-muted-foreground">Condition</span>
+                      <span className="font-medium capitalize">{listing.condition}</span>
+                    </>
+                  )}
+                  {listing.manufacturer && (
+                    <>
+                      <span className="text-muted-foreground">Manufacturer</span>
+                      <span className="font-medium">{listing.manufacturer}</span>
+                    </>
+                  )}
+                  {listing.series && (
+                    <>
+                      <span className="text-muted-foreground">Series</span>
+                      <span className="font-medium">{listing.series}</span>
+                    </>
+                  )}
+                  {listing.model_number && (
+                    <>
+                      <span className="text-muted-foreground">Model</span>
+                      <span className="font-medium">{listing.model_number}</span>
+                    </>
+                  )}
                 </div>
-              </>
-            )}
+              </div>
 
-            <Separator />
+              {!!listing.other_urls?.length && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="mb-3 text-sm font-medium">Additional Links</h4>
+                    <ul className="space-y-2 text-sm">
+                      {listing.other_urls.map((link) => (
+                        <li key={link.url}>
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            {getLinkLabel(link.url, link.label)}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
 
-            {/* Footer - Link to full page */}
-            <div className="flex justify-center">
-              <Button variant="outline" asChild>
-                <Link href={`/listings/${listing.id}`}>
-                  View Full Page
-                  <ArrowUpRight className="h-4 w-4 ml-2" />
-                </Link>
-              </Button>
-            </div>
-          </div>
+              <Separator />
+
+              {/* Footer - Link to full page */}
+              <div className="flex justify-center">
+                <Button variant="outline" asChild>
+                  <Link href={`/listings/${listing.id}`}>
+                    View Full Page
+                    <ArrowUpRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="valuation" className="mt-4">
+              <ListingValuationTab listing={listing} />
+            </TabsContent>
+          </Tabs>
         ) : null}
       </DialogContent>
     </Dialog>

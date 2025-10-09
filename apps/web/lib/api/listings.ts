@@ -86,3 +86,33 @@ export async function getListingPorts(listingId: number): Promise<PortEntry[]> {
   );
   return response.ports;
 }
+
+export interface ListingValuationOverridePayload {
+  mode: "auto" | "static";
+  ruleset_id?: number | null;
+  disabled_rulesets?: number[];
+}
+
+export interface ListingValuationOverrideResponse {
+  mode: "auto" | "static";
+  ruleset_id: number | null;
+  disabled_rulesets: number[];
+}
+
+export async function updateListingValuationOverrides(
+  listingId: number,
+  payload: ListingValuationOverridePayload
+): Promise<ListingValuationOverrideResponse> {
+  return apiFetch<ListingValuationOverrideResponse>(
+    `/v1/listings/${listingId}/valuation-overrides`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: payload.mode,
+        ruleset_id: payload.ruleset_id ?? null,
+        disabled_rulesets: payload.disabled_rulesets ?? [],
+      }),
+    }
+  );
+}

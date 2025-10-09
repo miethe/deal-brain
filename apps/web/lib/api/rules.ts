@@ -63,6 +63,8 @@ export interface Ruleset {
   created_at: string;
   updated_at: string;
   metadata: Record<string, any>;
+  priority: number;
+  conditions: Record<string, any> | null;
   rule_groups: RuleGroup[];
 }
 

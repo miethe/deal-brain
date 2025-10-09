@@ -22,6 +22,9 @@ import { RulesetCard } from "../../components/valuation/ruleset-card";
 import { RuleBuilderModal } from "../../components/valuation/rule-builder-modal";
 import { RulesetBuilderModal } from "../../components/valuation/ruleset-builder-modal";
 import { RuleGroupFormModal } from "../../components/valuation/rule-group-form-modal";
+import { BasicValuationForm } from "../../components/valuation/basic-valuation-form";
+
+type Mode = "basic" | "advanced";
 
 export default function ValuationRulesPage() {
   const [selectedRulesetId, setSelectedRulesetId] = useState<number | null>(null);
@@ -32,6 +35,7 @@ export default function ValuationRulesPage() {
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
   const [editingGroup, setEditingGroup] = useState<RuleGroup | null>(null);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
+  const [mode, setMode] = useState<Mode>("basic");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -56,6 +60,21 @@ export default function ValuationRulesPage() {
       setSelectedRulesetId(activeRuleset.id);
     }
   }, [rulesets, selectedRulesetId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("valuationMode");
+    if (stored === "advanced" || stored === "basic") {
+      setMode(stored as Mode);
+    }
+  }, []);
+
+  const handleModeChange = (nextMode: Mode) => {
+    setMode(nextMode);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("valuationMode", nextMode);
+    }
+  };
 
   const handleCreateRule = (groupId: number) => {
     setEditingGroupId(groupId);
@@ -104,7 +123,8 @@ export default function ValuationRulesPage() {
             Manage hierarchical rules for component valuation and pricing adjustments
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <ModeToggle mode={mode} onChange={handleModeChange} />
           <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
@@ -194,71 +214,77 @@ export default function ValuationRulesPage() {
         )}
       </Card>
 
-      {/* Search and Actions */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search rules, groups, or categories..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        {selectedRulesetId && (
-          <Button
-            variant="outline"
-            onClick={() => {
-              setEditingGroup(null);
-              setIsGroupFormOpen(true);
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Group
-          </Button>
-        )}
-      </div>
-
-      {/* Rule Groups */}
-      {isLoadingRuleset ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            Loading rules...
-          </CardContent>
-        </Card>
-      ) : filteredRuleGroups && filteredRuleGroups.length > 0 ? (
-        <div className="space-y-4">
-          {filteredRuleGroups.map((group) => (
-            <RulesetCard
-              key={group.id}
-              ruleGroup={group}
-              onCreateRule={() => handleCreateRule(group.id)}
-              onEditGroup={handleEditGroup}
-              onEditRule={handleEditRule}
-              onRefresh={handleRefresh}
-            />
-          ))}
-        </div>
+      {mode === "basic" ? (
+        <BasicValuationForm ruleset={selectedRuleset} onRefresh={handleRefresh} />
       ) : (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <div className="text-muted-foreground">
-              {searchQuery
-                ? "No rules match your search"
-                : "No rule groups in this ruleset"}
+        <>
+          {/* Search and Actions */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search rules, groups, or categories..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
             </div>
-            {!searchQuery && selectedRulesetId && (
+            {selectedRulesetId && (
               <Button
                 variant="outline"
-                className="mt-4"
-                onClick={() => setIsRulesetBuilderOpen(true)}
+                onClick={() => {
+                  setEditingGroup(null);
+                  setIsGroupFormOpen(true);
+                }}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add Rule Group
+                Add Group
               </Button>
             )}
-          </CardContent>
-        </Card>
+          </div>
+
+          {/* Rule Groups */}
+          {isLoadingRuleset ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                Loading rules...
+              </CardContent>
+            </Card>
+          ) : filteredRuleGroups && filteredRuleGroups.length > 0 ? (
+            <div className="space-y-4">
+              {filteredRuleGroups.map((group) => (
+                <RulesetCard
+                  key={group.id}
+                  ruleGroup={group}
+                  onCreateRule={() => handleCreateRule(group.id)}
+                  onEditGroup={handleEditGroup}
+                  onEditRule={handleEditRule}
+                  onRefresh={handleRefresh}
+                />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <div className="text-muted-foreground">
+                  {searchQuery
+                    ? "No rules match your search"
+                    : "No rule groups in this ruleset"}
+                </div>
+                {!searchQuery && selectedRulesetId && (
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => setIsRulesetBuilderOpen(true)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Rule Group
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
       {/* Modals */}
@@ -292,6 +318,43 @@ export default function ValuationRulesPage() {
         onOpenChange={setIsRulesetBuilderOpen}
         onSuccess={handleRefresh}
       />
+    </div>
+  );
+}
+
+function ModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: Mode;
+  onChange: (mode: Mode) => void;
+}) {
+  return (
+    <div className="inline-flex rounded-md border bg-muted/40 p-1 text-sm font-medium">
+      <button
+        type="button"
+        className={`rounded-sm px-3 py-1.5 transition-colors ${
+          mode === "basic"
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+        onClick={() => onChange("basic")}
+        aria-pressed={mode === "basic"}
+      >
+        Basic
+      </button>
+      <button
+        type="button"
+        className={`rounded-sm px-3 py-1.5 transition-colors ${
+          mode === "advanced"
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+        onClick={() => onChange("advanced")}
+        aria-pressed={mode === "advanced"}
+      >
+        Advanced
+      </button>
     </div>
   );
 }

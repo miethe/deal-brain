@@ -18,8 +18,8 @@
 ## Frontend Listing Experience (Week 3)
 - [x] Update listing tables, cards, and detail surfaces to consume `listing_url` and refreshed schema types.
 - [x] Expand listing forms to capture `listing_url`/`other_urls` with validation and display supplemental link UI.
-- [ ] Implement ruleset selector and valuation tab with override controls.
-- [ ] Introduce Basic/Advanced valuation mode toggle with shared persistence.
+- [x] Implement ruleset selector and valuation tab with override controls.
+- [x] Introduce Basic/Advanced valuation mode toggle with shared persistence.
 
 ## QA & Launch Prep (Week 4)
 - [ ] Expand automated test coverage (backend + frontend) for link validation, rule priority, and overrides.

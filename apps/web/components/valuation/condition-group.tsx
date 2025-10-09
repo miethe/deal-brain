@@ -49,7 +49,6 @@ const ensureConditionIds = (items: any[]): any[] =>
     if (item?.is_group) {
       const children = Array.isArray(item.children) ? item.children : [];
       return {
-        logical_operator: "AND",
         ...item,
         id: nextId,
         logical_operator: item?.logical_operator ?? "AND",
@@ -58,8 +57,6 @@ const ensureConditionIds = (items: any[]): any[] =>
     }
 
     return {
-      operator: "equals",
-      logical_operator: "AND",
       ...item,
       id: nextId,
       operator: item?.operator ?? "equals",
