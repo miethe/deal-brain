@@ -20,6 +20,12 @@
 ## Current Phase: Phase 7 Complete ✅
 Focus: Multi-Pane Layout & Static Navigation
 
+### 2025-10-10 — Valuation Rules Remediation Planning
+- Reviewed request log `docs/project_plans/requests/10-10.md` to map rule-engine regressions in listings valuation.
+- Noted Celery task signature drift (`enqueue_listing_recalculation` vs `recalculate_listings_task`) blocking rule updates.
+- Captured UI gaps: per-unit action builder lacks metric selector; ruleset toggle state not persisting or visually contained.
+- Lesson: keep task payload parity and UX controls aligned with backend capabilities to surface valuation adjustments.
+
 ## Completed Tasks
 Phase 1 - Modal & Form System:
 - Enhanced modal-shell with size variants, preventClose, onClose

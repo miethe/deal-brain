@@ -1,6 +1,6 @@
 # Enhancements and Fixes
 
-Date: 10-9-25
+Date: 10-09-25
 
 The following requests and fixes are proposed to improve the user experience and functionality of the application. Each item needs to be evaluated and designed thoroughly for implementation into the app. The implementation of each should then be planned.
 
