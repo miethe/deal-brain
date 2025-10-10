@@ -126,6 +126,7 @@ class ValuationRuleGroup(Base, TimestampMixin):
     description: Mapped[str | None] = mapped_column(Text)
     display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
     weight: Mapped[float] = mapped_column(nullable=True, default=1.0)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     ruleset: Mapped[ValuationRuleset] = relationship(back_populates="rule_groups")
     rules: Mapped[list["ValuationRuleV2"]] = relationship(

@@ -19,7 +19,7 @@ import {
 } from "../ui/alert-dialog";
 import { useToast } from "../ui/use-toast";
 
-import { type RuleGroup, type Rule, deleteRule, duplicateRule, updateRule } from "../../lib/api/rules";
+import { type RuleGroup, type Rule, deleteRule, duplicateRule, updateRule, updateRuleGroup } from "../../lib/api/rules";
 
 interface RulesetCardProps {
   ruleGroup: RuleGroup;
@@ -94,6 +94,26 @@ export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, 
     },
   });
 
+  const toggleGroupMutation = useMutation({
+    mutationFn: (isActive: boolean) => updateRuleGroup(ruleGroup.id, { is_active: isActive }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["ruleset"] });
+      queryClient.invalidateQueries({ queryKey: ["rulesets"] });
+      toast({
+        title: variables ? "Group activated" : "Group deactivated",
+        description: `The "${ruleGroup.name}" group has been ${variables ? "enabled" : "disabled"}.`,
+      });
+      onRefresh();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update group status",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleDeleteClick = (rule: Rule) => {
     setRuleToDelete(rule);
     setDeleteDialogOpen(true);
@@ -163,6 +183,11 @@ export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, 
                   {ruleGroup.name}
                   <Badge className={categoryColor}>{ruleGroup.category}</Badge>
                   <Badge variant="outline">{ruleGroup.rules.length} rules</Badge>
+                  {!ruleGroup.is_active && (
+                    <Badge variant="destructive" className="text-xs">
+                      Disabled
+                    </Badge>
+                  )}
                 </CardTitle>
                 {ruleGroup.description && (
                   <p className="mt-1 text-sm text-muted-foreground">{ruleGroup.description}</p>
@@ -170,6 +195,22 @@ export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, 
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleGroupMutation.mutate(!ruleGroup.is_active);
+                }}
+                title={ruleGroup.is_active ? "Disable group" : "Enable group"}
+                disabled={toggleGroupMutation.isPending}
+              >
+                {ruleGroup.is_active ? (
+                  <PowerOff className="h-4 w-4" />
+                ) : (
+                  <Power className="h-4 w-4" />
+                )}
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"

@@ -87,6 +87,17 @@ class RuleGroupCreateRequest(BaseModel):
     description: str | None = None
     display_order: int = Field(100)
     weight: float = Field(1.0, ge=0.0, le=1.0)
+    is_active: bool = Field(True, description="Whether this group is enabled")
+
+
+class RuleGroupUpdateRequest(BaseModel):
+    """Request schema for updating a rule group"""
+    name: str | None = None
+    category: str | None = None
+    description: str | None = None
+    display_order: int | None = None
+    weight: float | None = Field(None, ge=0.0)
+    is_active: bool | None = None
 
 
 class RuleGroupResponse(BaseModel):
@@ -98,6 +109,7 @@ class RuleGroupResponse(BaseModel):
     description: str | None
     display_order: int
     weight: float
+    is_active: bool
     created_at: datetime
     updated_at: datetime
     rules: list[RuleResponse] = Field(default_factory=list)

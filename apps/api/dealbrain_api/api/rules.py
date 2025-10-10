@@ -13,6 +13,7 @@ from ..schemas.rules import (
     RulesetUpdateRequest,
     RulesetResponse,
     RuleGroupCreateRequest,
+    RuleGroupUpdateRequest,
     RuleGroupResponse,
     RuleCreateRequest,
     RuleUpdateRequest,
@@ -177,6 +178,7 @@ async def get_ruleset(
                 description=group.description,
                 display_order=group.display_order,
                 weight=group.weight,
+                is_active=group.is_active,
                 created_at=group.created_at,
                 updated_at=group.updated_at,
                 rules=rules,
@@ -263,6 +265,7 @@ async def create_rule_group(
         description=request.description,
         display_order=request.display_order,
         weight=request.weight,
+        is_active=request.is_active,
     )
 
     return RuleGroupResponse(
@@ -273,6 +276,7 @@ async def create_rule_group(
         description=group.description,
         display_order=group.display_order,
         weight=group.weight,
+        is_active=group.is_active,
         created_at=group.created_at,
         updated_at=group.updated_at,
         rules=[],
@@ -302,6 +306,7 @@ async def list_rule_groups(
             description=g.description,
             display_order=g.display_order,
             weight=g.weight,
+            is_active=g.is_active,
             created_at=g.created_at,
             updated_at=g.updated_at,
             rules=[],
@@ -370,9 +375,38 @@ async def get_rule_group(
         description=group.description,
         display_order=group.display_order,
         weight=group.weight,
+        is_active=group.is_active,
         created_at=group.created_at,
         updated_at=group.updated_at,
         rules=rules,
+    )
+
+
+@router.put("/rule-groups/{group_id}", response_model=RuleGroupResponse)
+async def update_rule_group(
+    group_id: int,
+    request: RuleGroupUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Update a rule group"""
+    service = RulesService()
+    group = await service.update_rule_group(session, group_id, request)
+
+    if not group:
+        raise HTTPException(status_code=404, detail="Rule group not found")
+
+    return RuleGroupResponse(
+        id=group.id,
+        ruleset_id=group.ruleset_id,
+        name=group.name,
+        category=group.category,
+        description=group.description,
+        display_order=group.display_order,
+        weight=group.weight,
+        is_active=group.is_active,
+        created_at=group.created_at,
+        updated_at=group.updated_at,
+        rules=[],
     )
 
 

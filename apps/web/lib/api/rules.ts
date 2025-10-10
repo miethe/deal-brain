@@ -48,6 +48,7 @@ export interface RuleGroup {
   description?: string;
   display_order: number;
   weight: number;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
   rules: Rule[];
@@ -116,6 +117,9 @@ export async function createRuleset(data: {
   description?: string;
   version?: string;
   metadata?: Record<string, any>;
+  priority?: number;
+  is_active?: boolean;
+  conditions?: Record<string, any>;
 }): Promise<Ruleset> {
   const response = await fetch(`${API_URL}/api/v1/rulesets`, {
     method: "POST",
@@ -168,6 +172,7 @@ export async function createRuleGroup(data: {
   description?: string;
   display_order?: number;
   weight?: number;
+  is_active?: boolean;
 }): Promise<RuleGroup> {
   const response = await fetch(`${API_URL}/api/v1/rule-groups`, {
     method: "POST",
@@ -175,6 +180,20 @@ export async function createRuleGroup(data: {
     body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error("Failed to create rule group");
+  return response.json();
+}
+
+export type RuleGroupUpdatePayload = Partial<
+  Pick<RuleGroup, "name" | "category" | "description" | "display_order" | "weight" | "is_active">
+>;
+
+export async function updateRuleGroup(id: number, data: RuleGroupUpdatePayload): Promise<RuleGroup> {
+  const response = await fetch(`${API_URL}/api/v1/rule-groups/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error("Failed to update rule group");
   return response.json();
 }
 

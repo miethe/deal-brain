@@ -349,6 +349,8 @@ class RuleEvaluationService:
         all_rules = []
 
         for group in groups:
+            if not group.is_active:
+                continue
             rules_stmt = (
                 select(ValuationRuleV2)
                 .where(ValuationRuleV2.group_id == group.id)

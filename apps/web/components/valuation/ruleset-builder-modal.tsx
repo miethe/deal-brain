@@ -16,6 +16,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { useToast } from "../ui/use-toast";
+import { Checkbox } from "../ui/checkbox";
 
 import { createRuleset } from "../../lib/api/rules";
 
@@ -29,6 +30,8 @@ export function RulesetBuilderModal({ open, onOpenChange, onSuccess }: RulesetBu
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [version, setVersion] = useState("1.0.0");
+  const [priority, setPriority] = useState(10);
+  const [isActive, setIsActive] = useState(true);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -39,6 +42,8 @@ export function RulesetBuilderModal({ open, onOpenChange, onSuccess }: RulesetBu
         name,
         description,
         version,
+        priority,
+        is_active: isActive,
       }),
     onSuccess: () => {
       toast({
@@ -62,6 +67,8 @@ export function RulesetBuilderModal({ open, onOpenChange, onSuccess }: RulesetBu
     setName("");
     setDescription("");
     setVersion("1.0.0");
+    setPriority(10);
+    setIsActive(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -111,6 +118,32 @@ export function RulesetBuilderModal({ open, onOpenChange, onSuccess }: RulesetBu
               onChange={(e) => setVersion(e.target.value)}
               placeholder="1.0.0"
             />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="priority">Priority</Label>
+              <Input
+                id="priority"
+                type="number"
+                min={0}
+                value={priority}
+                onChange={(e) => setPriority(Number.parseInt(e.target.value, 10) || 0)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Lower values evaluate before higher ones.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 pt-6">
+              <Checkbox
+                id="isActive"
+                checked={isActive}
+                onCheckedChange={(checked) => setIsActive(checked === true)}
+              />
+              <Label htmlFor="isActive" className="cursor-pointer select-none">
+                Active
+              </Label>
+            </div>
           </div>
 
             <DialogFooter className="px-6 py-4">

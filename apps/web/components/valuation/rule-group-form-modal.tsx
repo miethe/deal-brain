@@ -24,7 +24,9 @@ import {
 } from "../ui/select";
 import { useToast } from "../ui/use-toast";
 
-import { createRuleGroup, type RuleGroup } from "../../lib/api/rules";
+import { Checkbox } from "../ui/checkbox";
+
+import { createRuleGroup, type RuleGroup, updateRuleGroup } from "../../lib/api/rules";
 
 interface RuleGroupFormModalProps {
   open: boolean;
@@ -56,6 +58,7 @@ export function RuleGroupFormModal({
   const [category, setCategory] = useState("custom");
   const [displayOrder, setDisplayOrder] = useState(100);
   const [weight, setWeight] = useState(1.0);
+  const [isActive, setIsActive] = useState(true);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -70,25 +73,40 @@ export function RuleGroupFormModal({
       setCategory(ruleGroup.category);
       setDisplayOrder(ruleGroup.display_order);
       setWeight(ruleGroup.weight);
+      setIsActive(ruleGroup.is_active);
     } else {
       resetForm();
     }
   }, [ruleGroup, open]);
 
-  const createMutation = useMutation({
-    mutationFn: () =>
-      createRuleGroup({
+  const saveMutation = useMutation({
+    mutationFn: () => {
+      if (isEditing && ruleGroup) {
+        return updateRuleGroup(ruleGroup.id, {
+          name,
+          description,
+          category,
+          display_order: displayOrder,
+          weight,
+          is_active: isActive,
+        });
+      }
+      return createRuleGroup({
         ruleset_id: rulesetId,
         name,
         description,
         category,
         display_order: displayOrder,
         weight,
-      }),
+        is_active: isActive,
+      });
+    },
     onSuccess: () => {
       toast({
-        title: "Rule group created",
-        description: "The rule group has been created successfully",
+        title: isEditing ? "Rule group updated" : "Rule group created",
+        description: isEditing
+          ? "The rule group has been updated successfully"
+          : "The rule group has been created successfully",
       });
       resetForm();
       onOpenChange(false);
@@ -111,11 +129,12 @@ export function RuleGroupFormModal({
     setCategory("custom");
     setDisplayOrder(100);
     setWeight(1.0);
+    setIsActive(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate();
+    saveMutation.mutate();
   };
 
   return (
@@ -203,13 +222,26 @@ export function RuleGroupFormModal({
             </div>
           </div>
 
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="isActive"
+              checked={isActive}
+              onCheckedChange={(checked) => setIsActive(checked === true)}
+            />
+            <Label htmlFor="isActive" className="cursor-pointer select-none">
+              Active
+            </Label>
+          </div>
+
             <DialogFooter className="px-6 py-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!name || createMutation.isPending}>
-                {createMutation.isPending
-                  ? "Creating..."
+              <Button type="submit" disabled={!name || saveMutation.isPending}>
+                {saveMutation.isPending
+                  ? isEditing
+                    ? "Saving..."
+                    : "Creating..."
                   : isEditing
                   ? "Update Group"
                   : "Create Group"}

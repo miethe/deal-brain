@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Search, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Search, RefreshCw, Power, PowerOff } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { Separator } from "../../components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -17,14 +19,307 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Badge } from "../../components/ui/badge";
 import { useToast } from "../../components/ui/use-toast";
 
-import { fetchRulesets, fetchRuleset, type Ruleset, type RuleGroup, type Rule } from "../../lib/api/rules";
+import { fetchRulesets, fetchRuleset, updateRuleset, type Ruleset, type RuleGroup, type Rule, type Condition } from "../../lib/api/rules";
 import { RulesetCard } from "../../components/valuation/ruleset-card";
 import { RuleBuilderModal } from "../../components/valuation/rule-builder-modal";
 import { RulesetBuilderModal } from "../../components/valuation/ruleset-builder-modal";
 import { RuleGroupFormModal } from "../../components/valuation/rule-group-form-modal";
 import { BasicValuationForm } from "../../components/valuation/basic-valuation-form";
+import { ConditionGroup } from "../../components/valuation/condition-group";
 
 type Mode = "basic" | "advanced";
+
+type ConditionNode =
+  | (Condition & {
+      id: string;
+      is_group?: false;
+      children?: never;
+      logical_operator?: string;
+    })
+  | {
+      id: string;
+      is_group: true;
+      logical_operator?: string;
+      children: ConditionNode[];
+    };
+
+function generateNodeId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `cond-${Math.random().toString(36).slice(2, 11)}`;
+}
+
+function normalizeLogicalUpper(value?: string): "AND" | "OR" {
+  if (value && value.toLowerCase() === "or") {
+    return "OR";
+  }
+  return "AND";
+}
+
+function normalizeLogicalLower(value?: string): "and" | "or" {
+  return normalizeLogicalUpper(value) === "OR" ? "or" : "and";
+}
+
+function deserializeRulesetConditions(
+  raw: Record<string, any> | null | undefined,
+  fallback: "AND" | "OR" = "AND"
+): ConditionNode[] {
+  if (!raw || !Array.isArray(raw.conditions)) {
+    return [];
+  }
+
+  const currentLogical = normalizeLogicalUpper(
+    typeof raw.logical_operator === "string" ? raw.logical_operator : fallback
+  );
+
+  return raw.conditions
+    .map((entry: any) => {
+      if (entry && typeof entry === "object" && Array.isArray(entry.conditions)) {
+        const nestedLogical = normalizeLogicalUpper(
+          typeof entry.logical_operator === "string" ? entry.logical_operator : currentLogical
+        );
+        return {
+          id: generateNodeId(),
+          is_group: true,
+          logical_operator: nestedLogical,
+          children: deserializeRulesetConditions(entry, nestedLogical),
+        };
+      }
+
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      return {
+        id: generateNodeId(),
+        field_name: entry.field_name ?? "",
+        field_type: entry.field_type ?? "string",
+        operator: entry.operator ?? "equals",
+        value: entry.value,
+        logical_operator: currentLogical,
+      } as ConditionNode;
+    })
+    .filter(Boolean) as ConditionNode[];
+}
+
+function serializeRulesetConditions(nodes: ConditionNode[]): Record<string, any> | null {
+  if (!nodes.length) {
+    return null;
+  }
+
+  const logical = normalizeLogicalLower(nodes[0]?.logical_operator);
+  const conditions = nodes
+    .map((node) => {
+      if ("is_group" in node && node.is_group) {
+        const childPayload = serializeRulesetConditions(node.children ?? []);
+        if (!childPayload || !childPayload.conditions.length) {
+          return null;
+        }
+        return {
+          logical_operator: normalizeLogicalLower(node.logical_operator ?? childPayload.logical_operator),
+          conditions: childPayload.conditions,
+        };
+      }
+
+      if (!node.field_name) {
+        return null;
+      }
+
+      return {
+        field_name: node.field_name,
+        field_type: node.field_type ?? "string",
+        operator: node.operator ?? "equals",
+        value: node.value,
+      };
+    })
+    .filter(Boolean);
+
+  if (!conditions.length) {
+    return null;
+  }
+
+  return {
+    logical_operator: logical,
+    conditions,
+  };
+}
+
+interface RulesetSettingsCardProps {
+  ruleset: Ruleset | undefined;
+  onRefresh: () => void;
+}
+
+function RulesetSettingsCard({ ruleset, onRefresh }: RulesetSettingsCardProps) {
+  const { toast } = useToast();
+  const [priority, setPriority] = useState(ruleset?.priority ?? 10);
+  const [isActive, setIsActive] = useState(ruleset?.is_active ?? true);
+  const initialNodes = useMemo(
+    () => deserializeRulesetConditions(ruleset?.conditions),
+    [ruleset?.id, ruleset?.conditions]
+  );
+  const [conditionNodes, setConditionNodes] = useState<ConditionNode[]>(initialNodes);
+
+  useEffect(() => {
+    setPriority(ruleset?.priority ?? 10);
+    setIsActive(ruleset?.is_active ?? true);
+    setConditionNodes(initialNodes);
+  }, [ruleset?.id, ruleset?.priority, ruleset?.is_active, initialNodes]);
+
+  const initialSerialized = useMemo(() => {
+    const serialized = serializeRulesetConditions(initialNodes);
+    return JSON.stringify(serialized ?? null);
+  }, [initialNodes]);
+
+  const currentSerialized = useMemo(() => {
+    const serialized = serializeRulesetConditions(conditionNodes);
+    return JSON.stringify(serialized ?? null);
+  }, [conditionNodes]);
+
+  const hasPriorityChange = priority !== (ruleset?.priority ?? 10);
+  const hasActiveChange = isActive !== (ruleset?.is_active ?? true);
+  const hasConditionChange = currentSerialized !== initialSerialized;
+  const hasChanges = hasPriorityChange || hasActiveChange || hasConditionChange;
+
+  const mutation = useMutation({
+    mutationFn: (payload: Record<string, any>) => {
+      if (!ruleset) {
+        throw new Error("No ruleset selected");
+      }
+      return updateRuleset(ruleset.id, payload);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Ruleset updated",
+        description: "Priority and conditions saved successfully.",
+      });
+      onRefresh();
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: "Update failed",
+        description: error instanceof Error ? error.message : "Unable to update ruleset settings.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSave = () => {
+    if (!ruleset || !hasChanges) {
+      return;
+    }
+
+    const payload: Record<string, any> = {};
+    if (hasPriorityChange) {
+      payload.priority = priority;
+    }
+    if (hasActiveChange) {
+      payload.is_active = isActive;
+    }
+    if (hasConditionChange) {
+      payload.conditions = serializeRulesetConditions(conditionNodes) ?? {};
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return;
+    }
+
+    mutation.mutate(payload);
+  };
+
+  const handleReset = () => {
+    setPriority(ruleset?.priority ?? 10);
+    setIsActive(ruleset?.is_active ?? true);
+    setConditionNodes(initialNodes);
+  };
+
+  if (!ruleset) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            Ruleset Controls
+            <Badge variant="outline">Priority {priority}</Badge>
+            <Badge variant={isActive ? "secondary" : "destructive"}>
+              {isActive ? "Enabled" : "Disabled"}
+            </Badge>
+          </CardTitle>
+          <CardDescription>
+            Configure when <span className="font-medium">{ruleset.name}</span> applies to listings.
+          </CardDescription>
+        </div>
+        <Button
+          type="button"
+          variant={isActive ? "outline" : "default"}
+          size="sm"
+          onClick={() => setIsActive((value) => !value)}
+        >
+          {isActive ? (
+            <>
+              <PowerOff className="mr-2 h-4 w-4" />
+              Disable
+            </>
+          ) : (
+            <>
+              <Power className="mr-2 h-4 w-4" />
+              Enable
+            </>
+          )}
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="max-w-xs">
+          <Label htmlFor="ruleset-priority">Priority</Label>
+          <Input
+            id="ruleset-priority"
+            type="number"
+            min={0}
+            value={priority}
+            onChange={(event) => setPriority(Number.parseInt(event.target.value, 10) || 0)}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Lower numbers evaluate before higher ones when multiple rulesets are active.
+          </p>
+        </div>
+
+        <Separator />
+
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <Label>Conditions</Label>
+            <Badge variant="outline">
+              {conditionNodes.length} item{conditionNodes.length === 1 ? "" : "s"}
+            </Badge>
+          </div>
+          <ConditionGroup conditions={conditionNodes} onConditionsChange={setConditionNodes} />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleReset}
+            disabled={!hasChanges || mutation.isPending}
+          >
+            Reset
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={!hasChanges || mutation.isPending}
+          >
+            {mutation.isPending ? "Saving…" : "Save settings"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function ValuationRulesPage() {
   const [selectedRulesetId, setSelectedRulesetId] = useState<number | null>(null);
@@ -141,12 +436,15 @@ export default function ValuationRulesPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex flex-wrap items-center gap-2">
                 Active Ruleset
-                {selectedRuleset?.is_active && (
-                  <Badge className="ml-2">
-                    Active
-                  </Badge>
+                {selectedRuleset && (
+                  <>
+                    <Badge variant="outline">Priority {selectedRuleset.priority}</Badge>
+                    <Badge variant={selectedRuleset.is_active ? "secondary" : "destructive"}>
+                      {selectedRuleset.is_active ? "Enabled" : "Disabled"}
+                    </Badge>
+                  </>
                 )}
               </CardTitle>
               <CardDescription>
@@ -163,13 +461,14 @@ export default function ValuationRulesPage() {
               <SelectContent>
                 {rulesets.map((ruleset) => (
                   <SelectItem key={ruleset.id} value={ruleset.id.toString()}>
-                    <div className="flex items-center gap-2">
-                      {ruleset.name}
-                      {ruleset.is_active && (
-                        <Badge className="ml-2">
-                          Active
+                    <div className="flex flex-col">
+                      <span className="font-medium">{ruleset.name}</span>
+                      <div className="mt-1 flex items-center gap-2">
+                        <Badge variant="outline">Priority {ruleset.priority}</Badge>
+                        <Badge variant={ruleset.is_active ? "secondary" : "destructive"}>
+                          {ruleset.is_active ? "Enabled" : "Disabled"}
                         </Badge>
-                      )}
+                      </div>
                     </div>
                   </SelectItem>
                 ))}
@@ -213,6 +512,10 @@ export default function ValuationRulesPage() {
           </CardContent>
         )}
       </Card>
+
+      {selectedRuleset && (
+        <RulesetSettingsCard ruleset={selectedRuleset} onRefresh={handleRefresh} />
+      )}
 
       {mode === "basic" ? (
         <BasicValuationForm ruleset={selectedRuleset} onRefresh={handleRefresh} />

@@ -227,6 +227,7 @@ class RulesService:
         description: str | None = None,
         display_order: int = 100,
         weight: float = 1.0,
+        is_active: bool = True,
     ) -> ValuationRuleGroup:
         """Create a new rule group"""
         group = ValuationRuleGroup(
@@ -236,6 +237,7 @@ class RulesService:
             description=description,
             display_order=display_order,
             weight=weight,
+            is_active=is_active,
         )
 
         session.add(group)
@@ -258,6 +260,35 @@ class RulesService:
         )
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def update_rule_group(
+        self,
+        session: AsyncSession,
+        group_id: int,
+        updates: dict[str, Any] | BaseModel,
+        updated_by: str | None = None,
+    ) -> ValuationRuleGroup | None:
+        """Update a rule group"""
+        group = await self.get_rule_group(session, group_id)
+        if not group:
+            return None
+
+        if isinstance(updates, BaseModel):
+            updates = updates.model_dump(exclude_unset=True)
+        else:
+            updates = dict(updates)
+
+        filtered_updates = {key: value for key, value in updates.items() if value is not None}
+
+        for key, value in filtered_updates.items():
+            if hasattr(group, key):
+                setattr(group, key, value)
+
+        await session.commit()
+        await session.refresh(group)
+
+        enqueue_listing_recalculation(ruleset_id=group.ruleset_id, reason="rule_group_updated")
+        return group
 
     async def list_rule_groups(
         self,
