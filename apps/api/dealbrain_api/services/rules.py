@@ -1,6 +1,6 @@
 """Service layer for valuation rules CRUD operations"""
 
-from typing import Any
+from typing import Any, Mapping, Sequence
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -358,6 +358,7 @@ class RulesService:
 
         # Add actions
         if actions:
+            self._validate_actions_payload(actions)
             for idx, action_data in enumerate(actions):
                 action = ValuationRuleAction(
                     rule_id=rule.id,
@@ -481,6 +482,7 @@ class RulesService:
 
         # Update actions if provided
         if "actions" in updates:
+            self._validate_actions_payload(updates["actions"] or [])
             # Delete existing actions
             for action in rule.actions:
                 await session.delete(action)
@@ -547,6 +549,15 @@ class RulesService:
         return True
 
     # --- Helper methods ---
+
+    @staticmethod
+    def _validate_actions_payload(actions: Sequence[Mapping[str, Any]] | None) -> None:
+        """Ensure action payloads satisfy required fields."""
+        for action in actions or []:
+            action_type = action.get("action_type")
+            metric = action.get("metric")
+            if action_type == "per_unit" and not (metric and str(metric).strip()):
+                raise ValueError("Per-unit actions must include a metric.")
 
     async def _create_version_snapshot(
         self,

@@ -491,6 +491,7 @@ class TestApplyListingMetricsValuationRules:
         assert listing.adjusted_price_usd == pytest.approx(900.0, rel=0.001)
         breakdown = listing.valuation_breakdown or {}
         assert breakdown.get("ruleset", {}).get("id") == ruleset.id
+        assert breakdown.get("ruleset_name") == ruleset.name
         assert breakdown.get("matched_rules_count") == 1
         adjustments = breakdown.get("adjustments") or []
         assert len(adjustments) == 1

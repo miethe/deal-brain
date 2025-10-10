@@ -2,7 +2,8 @@
 
 from datetime import datetime
 from typing import Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+from dealbrain_core.rules import ActionType, ConditionOperator, LogicalOperator
 
 
 # --- Condition Schemas ---
@@ -27,6 +28,13 @@ class ActionSchema(BaseModel):
     unit_type: str | None = Field(None, description="Unit type for benchmark calculations")
     formula: str | None = Field(None, description="Custom formula")
     modifiers: dict[str, Any] = Field(default_factory=dict, description="Modifiers (condition multipliers, etc.)")
+
+    @model_validator(mode="after")
+    def validate_metric_requirements(self) -> "ActionSchema":
+        """Ensure metric is provided for metric-dependent action types."""
+        if self.action_type == "per_unit" and not (self.metric and str(self.metric).strip()):
+            raise ValueError("metric is required when action_type is 'per_unit'")
+        return self
 
 
 # --- Rule Schemas ---
@@ -297,3 +305,15 @@ class PackageInstallResponse(BaseModel):
     rule_groups_created: int
     rules_created: int
     warnings: list[str] = Field(default_factory=list)
+
+
+# --- Legacy aliases (backwards compatibility) ---
+
+RulesetCreate = RulesetCreateRequest
+RulesetUpdate = RulesetUpdateRequest
+RuleGroupCreate = RuleGroupCreateRequest
+RuleGroupUpdate = RuleGroupUpdateRequest
+RuleCreate = RuleCreateRequest
+RuleUpdate = RuleUpdateRequest
+ConditionCreate = ConditionSchema
+ActionCreate = ActionSchema

@@ -1,7 +1,7 @@
 """API endpoints for valuation rules management"""
 
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 import tempfile
@@ -423,17 +423,20 @@ async def create_rule(
     conditions = [c.dict() for c in request.conditions] if request.conditions else []
     actions = [a.dict() for a in request.actions] if request.actions else []
 
-    rule = await service.create_rule(
-        session=session,
-        group_id=request.group_id,
-        name=request.name,
-        description=request.description,
-        priority=request.priority,
-        evaluation_order=request.evaluation_order,
-        conditions=conditions,
-        actions=actions,
-        metadata=request.metadata,
-    )
+    try:
+        rule = await service.create_rule(
+            session=session,
+            group_id=request.group_id,
+            name=request.name,
+            description=request.description,
+            priority=request.priority,
+            evaluation_order=request.evaluation_order,
+            conditions=conditions,
+            actions=actions,
+            metadata=request.metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     return RuleResponse(
         id=rule.id,
@@ -574,7 +577,10 @@ async def update_rule(
     updates = {k: v for k, v in request.dict(exclude_unset=True).items() if v is not None}
 
     # No conversion needed - request.dict() already converts Pydantic objects to dicts
-    rule = await service.update_rule(session, rule_id, updates)
+    try:
+        rule = await service.update_rule(session, rule_id, updates)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")

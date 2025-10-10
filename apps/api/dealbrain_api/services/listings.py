@@ -201,9 +201,22 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
             logger.exception("Unexpected error evaluating rules for listing %s", listing.id)
 
     if evaluation_summary:
+        logger.debug(
+            "Rule evaluation produced adjustments",
+            extra={
+                "listing_id": listing.id,
+                "ruleset_id": evaluation_summary.get("ruleset_id"),
+                "matched_rules": evaluation_summary.get("matched_rules_count"),
+                "total_adjustment": evaluation_summary.get("total_adjustment"),
+            },
+        )
         listing.adjusted_price_usd = float(evaluation_summary.get("adjusted_price") or 0.0)
         listing.valuation_breakdown = _format_rule_evaluation_breakdown(evaluation_summary)
     else:
+        logger.debug(
+            "Falling back to legacy valuation path",
+            extra={"listing_id": listing.id, "reason": "rule_evaluation_empty"},
+        )
         # Eagerly load components to avoid lazy-load in async context for legacy valuation fallback.
         await session.refresh(listing, ["components"])
 

@@ -4,10 +4,40 @@ Integration tests for RulesService.
 Tests CRUD operations for rulesets, rule groups, and rules with database persistence.
 """
 
-import pytest
 from datetime import datetime
 from typing import Any
+import sys
+import types
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+
+if "celery" not in sys.modules:
+    class _DummyTask:
+        def __init__(self, func):
+            self._func = func
+
+        def __call__(self, *args, **kwargs):
+            return self._func(*args, **kwargs)
+
+        def delay(self, *args, **kwargs):
+            return self._func(*args, **kwargs)
+
+    class _StubCelery:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def config_from_object(self, *args, **kwargs):
+            return None
+
+        def task(self, *decorator_args, **decorator_kwargs):
+            def _decorator(func):
+                return _DummyTask(func)
+
+            return _decorator
+
+    celery_stub = types.ModuleType("celery")
+    celery_stub.Celery = _StubCelery
+    sys.modules["celery"] = celery_stub
 
 from dealbrain_api.models.core import ValuationRuleset, ValuationRuleGroup, ValuationRuleV2
 from dealbrain_api.services.rules import RulesService
@@ -322,6 +352,35 @@ class TestRuleCRUD:
         assert len(rule.actions) > 0
         assert recalculation_spy[-1]["reason"] == "rule_created"
         assert recalculation_spy[-1]["ruleset_id"] == ruleset.id
+
+    @pytest.mark.asyncio
+    async def test_create_per_unit_rule_requires_metric(
+        self,
+        db_session: AsyncSession,
+        rules_service: RulesService,
+        sample_ruleset_data: RulesetCreate,
+        sample_rule_group_data: RuleGroupCreate,
+    ):
+        """Per-unit actions without metrics should be rejected."""
+        ruleset = await rules_service.create_ruleset(db_session, sample_ruleset_data)
+        group = await rules_service.create_rule_group(
+            db_session, ruleset.id, sample_rule_group_data
+        )
+
+        with pytest.raises(ValueError, match="Per-unit actions must include a metric"):
+            await rules_service.create_rule(
+                db_session,
+                group.id,
+                name="Invalid Per Unit Rule",
+                category="ram",
+                evaluation_order=10,
+                actions=[
+                    {
+                        "action_type": "per_unit",
+                        "value_usd": 5.0,
+                    }
+                ],
+            )
 
     @pytest.mark.asyncio
     async def test_create_rule_with_nested_conditions(

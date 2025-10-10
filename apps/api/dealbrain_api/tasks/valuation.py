@@ -114,6 +114,7 @@ def recalculate_listings_task(
     ruleset_id: int | None = None,
     batch_size: int = 100,
     include_inactive: bool = False,
+    reason: str | None = None,
 ) -> dict[str, int]:
     """Celery task entry-point for listing recalculation."""
     normalized_ids = _normalize_listing_ids(listing_ids)
@@ -123,6 +124,7 @@ def recalculate_listings_task(
             "requested_ids": len(normalized_ids) or "all",
             "ruleset_id": ruleset_id,
             "batch_size": batch_size,
+            "reason": reason,
         },
     )
     return asyncio.run(
