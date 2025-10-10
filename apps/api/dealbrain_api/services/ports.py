@@ -29,7 +29,7 @@ async def get_or_create_ports_profile(
         joinedload(Listing.ports_profile).joinedload(PortsProfile.ports)
     )
     result = await session.execute(stmt)
-    listing = result.scalar_one_or_none()
+    listing = result.unique().scalar_one_or_none()
 
     if not listing:
         raise ValueError(f"Listing {listing_id} not found")

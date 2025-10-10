@@ -53,6 +53,8 @@ class Condition:
     ):
         self.field_name = field_name
         self.field_type = field_type
+        if isinstance(operator, str):
+            operator = operator.lower()
         self.operator = ConditionOperator(operator) if isinstance(operator, str) else operator
         self.value = value
 
@@ -188,7 +190,13 @@ class ConditionGroup:
         logical_operator: LogicalOperator | str = LogicalOperator.AND
     ):
         self.conditions = conditions
-        self.logical_operator = LogicalOperator(logical_operator) if isinstance(logical_operator, str) else logical_operator
+        if isinstance(logical_operator, str):
+            logical_operator = logical_operator.lower()
+        self.logical_operator = (
+            LogicalOperator(logical_operator)
+            if isinstance(logical_operator, str)
+            else logical_operator
+        )
 
     def evaluate(self, context: dict[str, Any]) -> bool:
         """

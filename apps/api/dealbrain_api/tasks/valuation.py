@@ -17,6 +17,7 @@ from dealbrain_core.enums import ListingStatus
 logger = logging.getLogger(__name__)
 
 RECALC_TASK_NAME = "valuation.recalculate_listings"
+_RECALC_LOOP: asyncio.AbstractEventLoop | None = None
 
 
 def _normalize_listing_ids(listing_ids: Iterable[int | str | None] | None) -> list[int]:
@@ -63,8 +64,8 @@ async def _recalculate_listings_async(
             stmt = stmt.where(Listing.status == ListingStatus.ACTIVE.value)
 
         ids_batch: list[int] = []
-
-        async for listing_id in session.stream_scalars(stmt):
+        stream = await session.stream_scalars(stmt)
+        async for listing_id in stream:
             ids_batch.append(listing_id)
             if len(ids_batch) >= batch_size:
                 await _process_batch(session, ids_batch, counters)
@@ -127,14 +128,23 @@ def recalculate_listings_task(
             "reason": reason,
         },
     )
-    return asyncio.run(
-        _recalculate_listings_async(
-            listing_ids=normalized_ids or None,
-            ruleset_id=ruleset_id,
-            batch_size=batch_size,
-            include_inactive=include_inactive,
+    global _RECALC_LOOP
+    loop = _RECALC_LOOP
+    if loop is None or loop.is_closed():
+        loop = asyncio.new_event_loop()
+        _RECALC_LOOP = loop
+    try:
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(
+            _recalculate_listings_async(
+                listing_ids=normalized_ids or None,
+                ruleset_id=ruleset_id,
+                batch_size=batch_size,
+                include_inactive=include_inactive,
+            )
         )
-    )
+    finally:
+        asyncio.set_event_loop(None)
 
 
 def enqueue_listing_recalculation(
