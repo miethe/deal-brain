@@ -82,11 +82,21 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
   const [mode, setMode] = useState<OverrideMode>(initialMode);
   const [selectedRulesetId, setSelectedRulesetId] = useState<number | null>(initialRulesetId);
   const [disabledRulesets, setDisabledRulesets] = useState<number[]>(initialDisabled);
+  const [baseline, setBaseline] = useState(() => ({
+    mode: initialMode,
+    rulesetId: initialRulesetId,
+    disabled: [...initialDisabled],
+  }));
 
   useEffect(() => {
     setMode(initialMode);
     setSelectedRulesetId(initialRulesetId);
     setDisabledRulesets(initialDisabled);
+    setBaseline({
+      mode: initialMode,
+      rulesetId: initialRulesetId,
+      disabled: [...initialDisabled],
+    });
   }, [initialMode, initialRulesetId, initialDisabled, listing.id]);
 
   useEffect(() => {
@@ -99,17 +109,17 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
     () => [...disabledRulesets].sort((a, b) => a - b),
     [disabledRulesets]
   );
-  const normalizedInitialDisabled = useMemo(
-    () => [...initialDisabled].sort((a, b) => a - b),
-    [initialDisabled]
+  const normalizedBaselineDisabled = useMemo(
+    () => [...baseline.disabled].sort((a, b) => a - b),
+    [baseline.disabled]
   );
 
   const disabledChanged =
-    normalizedDisabled.length !== normalizedInitialDisabled.length ||
-    normalizedDisabled.some((value, index) => value !== normalizedInitialDisabled[index]);
-  const modeChanged = mode !== initialMode;
+    normalizedDisabled.length !== normalizedBaselineDisabled.length ||
+    normalizedDisabled.some((value, index) => value !== normalizedBaselineDisabled[index]);
+  const modeChanged = mode !== baseline.mode;
   const effectiveRulesetCurrent = mode === "static" ? selectedRulesetId ?? null : null;
-  const effectiveRulesetInitial = initialMode === "static" ? initialRulesetId : null;
+  const effectiveRulesetInitial = baseline.mode === "static" ? baseline.rulesetId : null;
   const rulesetChanged = effectiveRulesetCurrent !== effectiveRulesetInitial;
 
   const hasChanges = disabledChanged || modeChanged || rulesetChanged;
@@ -128,9 +138,16 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
         description: "Listing overrides applied successfully.",
       });
       const nextDisabled = [...response.disabled_rulesets].sort((a, b) => a - b);
-      setMode(response.mode);
-      setSelectedRulesetId(response.ruleset_id ?? null);
+      const nextMode = response.mode as OverrideMode;
+      const nextRulesetId = response.ruleset_id ?? null;
+      setMode(nextMode);
+      setSelectedRulesetId(nextRulesetId);
       setDisabledRulesets(nextDisabled);
+      setBaseline({
+        mode: nextMode,
+        rulesetId: nextRulesetId,
+        disabled: [...nextDisabled],
+      });
     },
     onError: (error: unknown) => {
       toast({
@@ -159,9 +176,9 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
   };
 
   const handleReset = () => {
-    setMode(initialMode);
-    setSelectedRulesetId(initialRulesetId);
-    setDisabledRulesets(initialDisabled);
+    setMode(baseline.mode);
+    setSelectedRulesetId(baseline.rulesetId);
+    setDisabledRulesets([...baseline.disabled]);
   };
 
   const handleSave = () => {
@@ -202,19 +219,19 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
 
     if (mode === "static") {
       return (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <Label htmlFor="static-ruleset">Choose ruleset</Label>
           <Select
             value={selectedRulesetId?.toString() ?? ""}
             onValueChange={(value) => setSelectedRulesetId(value ? Number(value) : null)}
           >
-            <SelectTrigger id="static-ruleset">
+            <SelectTrigger id="static-ruleset" className="min-h-[52px] items-start py-3">
               <SelectValue placeholder="Select ruleset…" />
             </SelectTrigger>
             <SelectContent>
               {sortedRulesets.map((ruleset) => (
-                <SelectItem key={ruleset.id} value={ruleset.id.toString()}>
-                  <div className="flex items-center justify-between gap-3">
+                <SelectItem key={ruleset.id} value={ruleset.id.toString()} className="py-3">
+                  <div className="flex w-full items-start justify-between gap-3 text-left">
                     <span>{ruleset.name}</span>
                     <Badge variant="outline">Priority {ruleset.priority}</Badge>
                   </div>

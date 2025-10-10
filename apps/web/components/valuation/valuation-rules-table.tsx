@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { apiFetch } from "../../lib/utils";
+import { getPerUnitMetricLabel } from "../../lib/valuation-metrics";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 
@@ -60,7 +61,9 @@ export function ValuationRulesTable() {
               <TableRow key={rule.id}>
                 <TableCell className="font-medium">{rule.name}</TableCell>
                 <TableCell className="capitalize">{rule.component_type.replace(/_/g, " ")}</TableCell>
-                <TableCell className="capitalize">{rule.metric.replace(/_/g, " ")}</TableCell>
+                <TableCell className="capitalize">
+                  {getPerUnitMetricLabel(rule.metric) ?? rule.metric.replace(/_/g, " ")}
+                </TableCell>
                 <TableCell className="text-right">${rule.unit_value_usd.toFixed(2)}</TableCell>
                 <TableCell className="text-right">{rule.condition_new.toFixed(2)}</TableCell>
                 <TableCell className="text-right">{rule.condition_refurb.toFixed(2)}</TableCell>

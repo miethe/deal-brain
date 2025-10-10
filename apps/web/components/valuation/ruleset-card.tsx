@@ -20,6 +20,7 @@ import {
 import { useToast } from "../ui/use-toast";
 
 import { type RuleGroup, type Rule, deleteRule, duplicateRule, updateRule, updateRuleGroup } from "../../lib/api/rules";
+import { getPerUnitMetricLabel } from "../../lib/valuation-metrics";
 
 interface RulesetCardProps {
   ruleGroup: RuleGroup;
@@ -143,16 +144,25 @@ export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, 
   };
 
   const formatAction = (action: any) => {
-    if (action.action_type === 'fixed_value') {
-      return `Fixed adjustment: $${action.value_usd}`;
+    if (action.action_type === "fixed_value") {
+      const amount =
+        typeof action.value_usd === "number"
+          ? action.value_usd.toFixed(2)
+          : action.value_usd;
+      return `Fixed adjustment: $${amount}`;
     }
-    if (action.action_type === 'per_unit') {
-      return `${action.metric}: $${action.value_usd} per unit`;
+    if (action.action_type === "per_unit") {
+      const metricLabel = getPerUnitMetricLabel(action.metric) ?? action.metric ?? "metric";
+      const amount =
+        typeof action.value_usd === "number"
+          ? action.value_usd.toFixed(2)
+          : action.value_usd;
+      return `${metricLabel}: $${amount} per unit`;
     }
-    if (action.action_type === 'formula') {
+    if (action.action_type === "formula") {
       return `Formula: ${action.formula}`;
     }
-    return `${action.action_type}: ${action.metric || 'N/A'}`;
+    return `${action.action_type}: ${action.metric || "N/A"}`;
   };
 
   const categoryColors: Record<string, string> = {

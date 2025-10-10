@@ -1,0 +1,7 @@
+- [x] Review current valuation flow (`apply_listing_metrics`) and note gaps.
+- [x] Fix Celery task signature mismatch to accept optional `reason`.
+- [x] Ensure adjusted price persists when rules apply; add regression test.
+- [x] Add metric selector for `per_unit` actions and display updates.
+- [x] Enforce server validation for per-unit metric requirement.
+- [x] Stabilize ruleset selector state/layout and cover with tests.
+- [ ] Update documentation/context and run backend/frontend test suites.

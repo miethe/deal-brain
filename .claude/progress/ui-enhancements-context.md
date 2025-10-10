@@ -25,6 +25,9 @@ Focus: Multi-Pane Layout & Static Navigation
 - Noted Celery task signature drift (`enqueue_listing_recalculation` vs `recalculate_listings_task`) blocking rule updates.
 - Captured UI gaps: per-unit action builder lacks metric selector; ruleset toggle state not persisting or visually contained.
 - Lesson: keep task payload parity and UX controls aligned with backend capabilities to surface valuation adjustments.
+- Synced Celery task signatures and added valuation logging + regression tests with Celery stubs to keep recalculation stable in dev.
+- Added canonical per-unit metric selector with reusable options, backend validation, and service-level guardrails.
+- Stabilized listing override baseline handling, refreshed select layout, and covered reset flow with a React Testing Library spec.
 
 ## Completed Tasks
 Phase 1 - Modal & Form System:

@@ -7,6 +7,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Textarea } from "../ui/textarea";
+import { PER_UNIT_METRIC_OPTIONS, normalizePerUnitMetric } from "../../lib/valuation-metrics";
 
 const ACTION_TYPES = [
   { value: "fixed_value", label: "Fixed Value" },
@@ -20,6 +21,8 @@ interface ActionBuilderProps {
   actions: any[];
   onActionsChange: (actions: any[]) => void;
 }
+
+const CUSTOM_METRIC_VALUE = "__custom__";
 
 const generateId = () => {
   const cryptoApi = typeof globalThis !== "undefined" ? (globalThis as { crypto?: Crypto }).crypto : undefined;
@@ -92,7 +95,23 @@ export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) 
 
   const updateAction = (index: number, updates: any) => {
     const newActions = [...actions];
-    newActions[index] = { ...newActions[index], ...updates };
+    const previous = newActions[index] ?? {};
+    const next = { ...previous, ...updates };
+
+    if ("action_type" in updates) {
+      if (updates.action_type === "per_unit") {
+        const normalizedMetric = normalizePerUnitMetric(next.metric);
+        next.metric = normalizedMetric ?? PER_UNIT_METRIC_OPTIONS[0]?.value ?? "";
+      } else if (previous.action_type === "per_unit" && updates.action_type !== "per_unit") {
+        next.metric = undefined;
+      }
+    }
+
+    if (next.action_type === "per_unit" && !next.metric) {
+      next.metric = PER_UNIT_METRIC_OPTIONS[0]?.value ?? "";
+    }
+
+    newActions[index] = next;
     onActionsChange(newActions);
   };
 
@@ -143,6 +162,58 @@ export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) 
                   updateAction(index, { value_usd: parseFloat(e.target.value) || 0 })
                 }
               />
+            </div>
+          )}
+
+          {action.action_type === "per_unit" && (
+            <div className="space-y-2">
+              <Label>Metric</Label>
+              {(() => {
+                const normalizedMetric = normalizePerUnitMetric(action.metric);
+                const metricInOptions = PER_UNIT_METRIC_OPTIONS.some(
+                  (option) => option.value === normalizedMetric,
+                );
+                const selectedValue = metricInOptions
+                  ? normalizedMetric
+                  : action.metric
+                    ? CUSTOM_METRIC_VALUE
+                    : "";
+
+                return (
+                  <>
+                    <Select
+                      value={selectedValue ?? ""}
+                      onValueChange={(value) => {
+                        if (value === CUSTOM_METRIC_VALUE) {
+                          updateAction(index, { metric: action.metric ?? "" });
+                          return;
+                        }
+                        updateAction(index, { metric: value });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select metric" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PER_UNIT_METRIC_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value={CUSTOM_METRIC_VALUE}>Custom field…</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {selectedValue === CUSTOM_METRIC_VALUE && (
+                      <Input
+                        value={action.metric ?? ""}
+                        placeholder="Enter custom metric (e.g., custom.screen_size)"
+                        onChange={(event) => updateAction(index, { metric: event.target.value })}
+                        className="mt-2"
+                      />
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
 
