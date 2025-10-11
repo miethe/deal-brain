@@ -25,10 +25,32 @@ depends_on = None
 def upgrade() -> None:
     bind = op.get_bind()
 
-    ram_generation_enum = sa.Enum(RamGeneration, name="ram_generation")
-    storage_medium_enum = sa.Enum(StorageMedium, name="storage_medium")
-    ram_generation_enum.create(bind, checkfirst=True)
-    storage_medium_enum.create(bind, checkfirst=True)
+    # Create enum types using raw SQL with DO block to handle IF NOT EXISTS
+    # This is more reliable than using SQLAlchemy's enum creation
+    bind.execute(sa.text("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ram_generation') THEN
+                CREATE TYPE ram_generation AS ENUM (
+                    'ddr3', 'ddr4', 'ddr5', 
+                    'lpddr4', 'lpddr4x', 'lpddr5', 'lpddr5x', 
+                    'hbm2', 'hbm3', 
+                    'unknown'
+                );
+            END IF;
+        END$$;
+    """))
+    
+    bind.execute(sa.text("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'storage_medium') THEN
+                CREATE TYPE storage_medium AS ENUM (
+                    'nvme', 'sata_ssd', 'hdd', 'hybrid', 'emmc', 'ufs', 'unknown'
+                );
+            END IF;
+        END$$;
+    """))
 
     op.create_table(
         "ram_spec",
@@ -36,7 +58,14 @@ def upgrade() -> None:
         sa.Column("label", sa.String(length=128), nullable=True),
         sa.Column(
             "ddr_generation",
-            ram_generation_enum,
+            postgresql.ENUM(
+                'ddr3', 'ddr4', 'ddr5', 
+                'lpddr4', 'lpddr4x', 'lpddr5', 'lpddr5x', 
+                'hbm2', 'hbm3', 
+                'unknown',
+                name="ram_generation",
+                create_type=False
+            ),
             nullable=False,
             server_default=RamGeneration.UNKNOWN.value,
         ),
@@ -69,7 +98,11 @@ def upgrade() -> None:
         sa.Column("label", sa.String(length=128), nullable=True),
         sa.Column(
             "medium",
-            storage_medium_enum,
+            postgresql.ENUM(
+                'nvme', 'sata_ssd', 'hdd', 'hybrid', 'emmc', 'ufs', 'unknown',
+                name="storage_medium",
+                create_type=False
+            ),
             nullable=False,
             server_default=StorageMedium.UNKNOWN.value,
         ),
@@ -153,10 +186,10 @@ def downgrade() -> None:
     op.drop_table("storage_profile")
     op.drop_table("ram_spec")
 
-    storage_medium_enum = sa.Enum(StorageMedium, name="storage_medium")
-    ram_generation_enum = sa.Enum(RamGeneration, name="ram_generation")
-    storage_medium_enum.drop(bind, checkfirst=True)
-    ram_generation_enum.drop(bind, checkfirst=True)
+    # Drop enum types using raw SQL
+    # PostgreSQL will automatically prevent dropping if they're still in use
+    bind.execute(sa.text("DROP TYPE IF EXISTS storage_medium"))
+    bind.execute(sa.text("DROP TYPE IF EXISTS ram_generation"))
 
 
 def _backfill_components(bind: Any) -> None:
