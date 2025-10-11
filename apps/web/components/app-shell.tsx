@@ -15,7 +15,8 @@ const NAV_ITEMS = [
   { href: "/profiles", label: "Profiles" },
   { href: "/valuation-rules", label: "Valuation Rules" },
   { href: "/global-fields", label: "Global Fields" },
-  { href: "/import", label: "Import" }
+  { href: "/import", label: "Import" },
+  { href: "/admin", label: "Admin" }
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

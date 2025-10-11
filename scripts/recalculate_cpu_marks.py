@@ -14,71 +14,21 @@ from pathlib import Path
 api_path = Path(__file__).parent.parent / "apps" / "api"
 sys.path.insert(0, str(api_path))
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from dealbrain_api.db import session_scope
-from dealbrain_api.models.core import Listing
+from dealbrain_api.services.admin_tasks import recalculate_cpu_mark_metrics
 
 
 async def recalculate_all_cpu_marks() -> None:
     """Recalculate CPU Mark metrics for all listings with CPUs."""
     async with session_scope() as session:
-        # Fetch all listings with CPUs
-        result = await session.execute(
-            select(Listing).where(Listing.cpu_id.is_not(None))
-        )
-        listings = result.scalars().all()
+        summary = await recalculate_cpu_mark_metrics(session)
 
-        updated_count = 0
-        skipped_count = 0
-
-        print(f"Found {len(listings)} listings with CPUs")
-
-        for listing in listings:
-            # Eager load CPU relationship
-            await session.refresh(listing, ["cpu"])
-
-            if not listing.cpu:
-                print(f"  [SKIP] Listing {listing.id}: No CPU found")
-                skipped_count += 1
-                continue
-
-            if not listing.adjusted_price_usd:
-                print(f"  [SKIP] Listing {listing.id}: No adjusted price")
-                skipped_count += 1
-                continue
-
-            cpu = listing.cpu
-
-            # Calculate metrics
-            updated = False
-            if cpu.cpu_mark_single:
-                listing.dollar_per_cpu_mark_single = listing.adjusted_price_usd / cpu.cpu_mark_single
-                updated = True
-
-            if cpu.cpu_mark_multi:
-                listing.dollar_per_cpu_mark_multi = listing.adjusted_price_usd / cpu.cpu_mark_multi
-                updated = True
-
-            if updated:
-                single_str = f"{listing.dollar_per_cpu_mark_single:.4f}" if listing.dollar_per_cpu_mark_single else "N/A"
-                multi_str = f"{listing.dollar_per_cpu_mark_multi:.4f}" if listing.dollar_per_cpu_mark_multi else "N/A"
-                print(
-                    f"  [UPDATE] Listing {listing.id} ({listing.title[:50]}): "
-                    f"single={single_str}, multi={multi_str}"
-                )
-                updated_count += 1
-            else:
-                print(f"  [SKIP] Listing {listing.id}: No CPU Mark data available")
-                skipped_count += 1
-
-        await session.commit()
-
-        print(f"\nRecalculation complete:")
-        print(f"  Updated: {updated_count}")
-        print(f"  Skipped: {skipped_count}")
-        print(f"  Total:   {len(listings)}")
+    print("\nRecalculation complete:")
+    print(f"  Total listings processed: {summary.total}")
+    print(f"  Updated: {summary.updated}")
+    print(f"  Skipped (no CPU): {summary.skipped_no_cpu}")
+    print(f"  Skipped (no adjusted price): {summary.skipped_no_adjusted_price}")
+    print(f"  Skipped (no metrics available): {summary.skipped_no_metrics}")
 
 
 if __name__ == "__main__":

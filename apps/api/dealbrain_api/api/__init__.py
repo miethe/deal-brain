@@ -2,9 +2,23 @@
 
 from fastapi import APIRouter
 
-from . import catalog, custom_fields, dashboard, entities, field_data, fields, imports, listings, rankings, rules, settings
+from . import (
+    admin,
+    catalog,
+    custom_fields,
+    dashboard,
+    entities,
+    field_data,
+    fields,
+    imports,
+    listings,
+    rankings,
+    rules,
+    settings,
+)
 
 router = APIRouter()
+router.include_router(admin.router)
 router.include_router(catalog.router)
 router.include_router(listings.router)
 router.include_router(rankings.router)
