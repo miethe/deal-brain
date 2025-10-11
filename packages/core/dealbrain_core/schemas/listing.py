@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 from pydantic import AliasChoices, Field, field_validator
 
 from .base import DealBrainModel
-from .catalog import CpuRead, GpuRead
+from .catalog import CpuRead, GpuRead, RamSpecRead, StorageProfileRead
 from ..enums import ComponentType, Condition, ListingStatus
 
 
@@ -81,6 +81,12 @@ class ListingBase(DealBrainModel):
     cpu_id: int | None = None
     gpu_id: int | None = None
     ports_profile_id: int | None = None
+    ram_spec_id: int | None = None
+    primary_storage_profile_id: int | None = None
+    secondary_storage_profile_id: int | None = None
+    ram_spec: dict[str, Any] | None = Field(default=None, exclude=True)
+    primary_storage_profile: dict[str, Any] | None = Field(default=None, exclude=True)
+    secondary_storage_profile: dict[str, Any] | None = Field(default=None, exclude=True)
     device_model: str | None = None
     ram_gb: int = 0
     ram_notes: str | None = None
@@ -155,5 +161,10 @@ class ListingRead(ListingBase):
     components: list[ListingComponentRead] = Field(default_factory=list)
     cpu: CpuRead | None = None
     gpu: GpuRead | None = None
+    ram_spec: RamSpecRead | None = None
+    primary_storage_profile: StorageProfileRead | None = None
+    secondary_storage_profile: StorageProfileRead | None = None
+    ram_type: str | None = None
+    ram_speed_mhz: int | None = None
 
 ListingRead.model_rebuild()

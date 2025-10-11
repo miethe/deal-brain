@@ -8,7 +8,7 @@ from typing import Any
 from pydantic import Field
 
 from .base import DealBrainModel
-from ..enums import ComponentMetric, ComponentType
+from ..enums import ComponentMetric, ComponentType, RamGeneration, StorageMedium
 
 
 class CpuBase(DealBrainModel):
@@ -114,6 +114,48 @@ class PortsProfileRead(PortsProfileBase):
     created_at: datetime
     updated_at: datetime
     ports: list["PortRead"] = Field(default_factory=list)
+
+
+class RamSpecBase(DealBrainModel):
+    label: str | None = None
+    ddr_generation: RamGeneration = RamGeneration.UNKNOWN
+    speed_mhz: int | None = None
+    module_count: int | None = None
+    capacity_per_module_gb: int | None = None
+    total_capacity_gb: int | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
+    notes: str | None = None
+
+
+class RamSpecCreate(RamSpecBase):
+    pass
+
+
+class RamSpecRead(RamSpecBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class StorageProfileBase(DealBrainModel):
+    label: str | None = None
+    medium: StorageMedium = StorageMedium.UNKNOWN
+    interface: str | None = None
+    form_factor: str | None = None
+    capacity_gb: int | None = None
+    performance_tier: str | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
+    notes: str | None = None
+
+
+class StorageProfileCreate(StorageProfileBase):
+    pass
+
+
+class StorageProfileRead(StorageProfileBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
 
 
 class PortBase(DealBrainModel):

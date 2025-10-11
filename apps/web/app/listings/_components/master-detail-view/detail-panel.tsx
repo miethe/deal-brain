@@ -9,6 +9,7 @@ import { PerformanceBadges } from '../grid-view/performance-badges'
 import { KpiMetric } from './kpi-metric'
 import { KeyValue } from './key-value'
 import type { ListingRow } from '@/components/listings/listings-table'
+import { formatRamSummary, formatStorageSummary } from '@/components/listings/listing-formatters'
 
 interface DetailPanelProps {
   listing: ListingRow | undefined
@@ -25,6 +26,22 @@ export const DetailPanel = React.memo(function DetailPanel({
     if (savings < -10) return 'warn'
     return 'neutral'
   }, [listing])
+
+  const ramSummary = listing ? formatRamSummary(listing) : null
+  const primaryStorageSummary = listing
+    ? formatStorageSummary(
+        listing.primary_storage_profile ?? null,
+        listing.primary_storage_gb ?? null,
+        listing.primary_storage_type ?? null
+      )
+    : null
+  const secondaryStorageSummary = listing
+    ? formatStorageSummary(
+        listing.secondary_storage_profile ?? null,
+        listing.secondary_storage_gb ?? null,
+        listing.secondary_storage_type ?? null
+      )
+    : null
 
   // Format currency
   const formatCurrency = (value: number | null | undefined) => {
@@ -166,19 +183,15 @@ export const DetailPanel = React.memo(function DetailPanel({
           <div className="grid grid-cols-2 gap-4">
             <KeyValue
               label="RAM"
-              value={listing.ram_gb ? `${listing.ram_gb} GB` : '-'}
+              value={ramSummary || '-'}
             />
             <KeyValue
               label="Primary Storage"
-              value={listing.primary_storage_gb ? `${listing.primary_storage_gb} GB` : '-'}
-            />
-            <KeyValue
-              label="Storage Type"
-              value={listing.primary_storage_type || '-'}
+              value={primaryStorageSummary || '-'}
             />
             <KeyValue
               label="Secondary Storage"
-              value={listing.secondary_storage_gb ? `${listing.secondary_storage_gb} GB` : '-'}
+              value={secondaryStorageSummary || '-'}
             />
             {listing.gpu?.name && (
               <KeyValue

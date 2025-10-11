@@ -11,6 +11,19 @@ class Condition(str, Enum):
     USED = "used"
 
 
+class RamGeneration(str, Enum):
+    DDR3 = "ddr3"
+    DDR4 = "ddr4"
+    DDR5 = "ddr5"
+    LPDDR4 = "lpddr4"
+    LPDDR4X = "lpddr4x"
+    LPDDR5 = "lpddr5"
+    LPDDR5X = "lpddr5x"
+    HBM2 = "hbm2"
+    HBM3 = "hbm3"
+    UNKNOWN = "unknown"
+
+
 class ComponentType(str, Enum):
     RAM = "ram"
     SSD = "ssd"
@@ -25,6 +38,10 @@ class ComponentMetric(str, Enum):
     PER_GB = "per_gb"
     PER_TB = "per_tb"
     FLAT = "flat"
+    PER_RAM_SPEC_GB = "per_ram_spec_gb"
+    PER_RAM_SPEED = "per_ram_speed"
+    PER_PRIMARY_STORAGE_GB = "per_primary_storage_gb"
+    PER_SECONDARY_STORAGE_GB = "per_secondary_storage_gb"
 
 
 class ListingStatus(str, Enum):
@@ -51,11 +68,22 @@ class PortType(str, Enum):
     OTHER = "other"
 
 
+class StorageMedium(str, Enum):
+    NVME = "nvme"
+    SATA_SSD = "sata_ssd"
+    HDD = "hdd"
+    HYBRID = "hybrid"
+    EMMC = "emmc"
+    UFS = "ufs"
+    UNKNOWN = "unknown"
+
+
 __all__ = [
     "Condition",
+    "RamGeneration",
     "ComponentType",
     "ComponentMetric",
     "ListingStatus",
     "PortType",
+    "StorageMedium",
 ]
-

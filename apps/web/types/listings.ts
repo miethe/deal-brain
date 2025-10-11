@@ -72,6 +72,26 @@ export interface PortsProfileRecord {
   ports?: PortRecord[] | null;
 }
 
+export interface RamSpecRecord {
+  id: number;
+  label?: string | null;
+  ddr_generation?: string | null;
+  speed_mhz?: number | null;
+  module_count?: number | null;
+  capacity_per_module_gb?: number | null;
+  total_capacity_gb?: number | null;
+}
+
+export interface StorageProfileRecord {
+  id: number;
+  label?: string | null;
+  medium?: string | null;
+  interface?: string | null;
+  form_factor?: string | null;
+  capacity_gb?: number | null;
+  performance_tier?: string | null;
+}
+
 export interface ValuationAdjustmentAction {
   action_type?: string | null;
   metric?: string | null;
@@ -139,10 +159,18 @@ export interface ListingRecord {
   gpu_id?: number | null;
   gpu_name?: string | null;
   ram_gb?: number | null;
+  ram_spec_id?: number | null;
+  ram_spec?: RamSpecRecord | null;
+  ram_type?: string | null;
+  ram_speed_mhz?: number | null;
   primary_storage_gb?: number | null;
   primary_storage_type?: string | null;
+  primary_storage_profile_id?: number | null;
+  primary_storage_profile?: StorageProfileRecord | null;
   secondary_storage_gb?: number | null;
   secondary_storage_type?: string | null;
+  secondary_storage_profile_id?: number | null;
+  secondary_storage_profile?: StorageProfileRecord | null;
   manufacturer?: string | null;
   series?: string | null;
   model_number?: string | null;

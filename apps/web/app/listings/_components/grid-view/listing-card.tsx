@@ -6,6 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ListingRecord } from "@/types/listings";
+import { formatRamSummary, formatStorageSummary } from "@/components/listings/listing-formatters";
 import { PerformanceBadges } from "./performance-badges";
 import { useCatalogStore } from "@/stores/catalog-store";
 
@@ -63,6 +64,18 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
   // Format tags for display (max 2)
   const tags = listing.attributes?.tags as string[] | undefined;
   const displayTags = tags?.slice(0, 2) || [];
+
+  const ramSummary = formatRamSummary(listing);
+  const primaryStorageSummary = formatStorageSummary(
+    listing.primary_storage_profile ?? null,
+    listing.primary_storage_gb ?? null,
+    listing.primary_storage_type ?? null,
+  );
+  const secondaryStorageSummary = formatStorageSummary(
+    listing.secondary_storage_profile ?? null,
+    listing.secondary_storage_gb ?? null,
+    listing.secondary_storage_type ?? null,
+  );
 
   return (
     <Card
@@ -139,14 +152,9 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
 
         {/* Metadata Row */}
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
-          {listing.ram_gb && (
-            <span>{listing.ram_gb}GB RAM</span>
-          )}
-          {listing.primary_storage_gb && (
-            <span>
-              {listing.primary_storage_gb}GB {listing.primary_storage_type || "Storage"}
-            </span>
-          )}
+          {ramSummary && <span>{ramSummary}</span>}
+          {primaryStorageSummary && <span>{primaryStorageSummary}</span>}
+          {secondaryStorageSummary && <span>{secondaryStorageSummary}</span>}
           {listing.condition && (
             <span className="capitalize">{listing.condition}</span>
           )}

@@ -4,11 +4,11 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text, UniqueConstraint, func, Index
+from sqlalchemy import JSON, Boolean, Enum as SAEnum, ForeignKey, Integer, String, Text, UniqueConstraint, func, Index
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from dealbrain_core.enums import Condition, ListingStatus
+from dealbrain_core.enums import Condition, ListingStatus, RamGeneration, StorageMedium
 
 from ..db import Base
 
@@ -81,6 +81,75 @@ class Port(Base, TimestampMixin):
     spec_notes: Mapped[str | None] = mapped_column(String(255))
 
     profile: Mapped[PortsProfile] = relationship(back_populates="ports")
+
+
+class RamSpec(Base, TimestampMixin):
+    __tablename__ = "ram_spec"
+    __table_args__ = (
+        UniqueConstraint(
+            "ddr_generation",
+            "speed_mhz",
+            "module_count",
+            "capacity_per_module_gb",
+            "total_capacity_gb",
+            name="uq_ram_spec_dimensions",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    label: Mapped[str | None] = mapped_column(String(128))
+    ddr_generation: Mapped[RamGeneration] = mapped_column(
+        SAEnum(RamGeneration, name="ram_generation"),
+        nullable=False,
+        default=RamGeneration.UNKNOWN,
+    )
+    speed_mhz: Mapped[int | None] = mapped_column(Integer)
+    module_count: Mapped[int | None] = mapped_column(Integer)
+    capacity_per_module_gb: Mapped[int | None] = mapped_column(Integer)
+    total_capacity_gb: Mapped[int | None] = mapped_column(Integer)
+    attributes_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    listings: Mapped[list["Listing"]] = relationship(back_populates="ram_spec", lazy="selectin")
+
+
+class StorageProfile(Base, TimestampMixin):
+    __tablename__ = "storage_profile"
+    __table_args__ = (
+        UniqueConstraint(
+            "medium",
+            "interface",
+            "form_factor",
+            "capacity_gb",
+            "performance_tier",
+            name="uq_storage_profile_dimensions",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    label: Mapped[str | None] = mapped_column(String(128))
+    medium: Mapped[StorageMedium] = mapped_column(
+        SAEnum(StorageMedium, name="storage_medium"),
+        nullable=False,
+        default=StorageMedium.UNKNOWN,
+    )
+    interface: Mapped[str | None] = mapped_column(String(64))
+    form_factor: Mapped[str | None] = mapped_column(String(64))
+    capacity_gb: Mapped[int | None] = mapped_column(Integer)
+    performance_tier: Mapped[str | None] = mapped_column(String(64))
+    attributes_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    listings_primary: Mapped[list["Listing"]] = relationship(
+        back_populates="primary_storage_profile",
+        foreign_keys="Listing.primary_storage_profile_id",
+        lazy="selectin",
+    )
+    listings_secondary: Mapped[list["Listing"]] = relationship(
+        back_populates="secondary_storage_profile",
+        foreign_keys="Listing.secondary_storage_profile_id",
+        lazy="selectin",
+    )
 
 
 class Profile(Base, TimestampMixin):
@@ -249,6 +318,13 @@ class Listing(Base, TimestampMixin):
     cpu_id: Mapped[int | None] = mapped_column(ForeignKey("cpu.id"))
     gpu_id: Mapped[int | None] = mapped_column(ForeignKey("gpu.id"))
     ports_profile_id: Mapped[int | None] = mapped_column(ForeignKey("ports_profile.id"))
+    ram_spec_id: Mapped[int | None] = mapped_column(ForeignKey("ram_spec.id", ondelete="SET NULL"))
+    primary_storage_profile_id: Mapped[int | None] = mapped_column(
+        ForeignKey("storage_profile.id", ondelete="SET NULL")
+    )
+    secondary_storage_profile_id: Mapped[int | None] = mapped_column(
+        ForeignKey("storage_profile.id", ondelete="SET NULL")
+    )
     device_model: Mapped[str | None] = mapped_column(String(255))
     ram_gb: Mapped[int] = mapped_column(default=0)
     ram_notes: Mapped[str | None] = mapped_column(Text)
@@ -295,6 +371,25 @@ class Listing(Base, TimestampMixin):
     components: Mapped[list["ListingComponent"]] = relationship(back_populates="listing", cascade="all, delete-orphan", lazy="selectin")
     score_history: Mapped[list["ListingScoreSnapshot"]] = relationship(back_populates="listing", cascade="all, delete-orphan", lazy="selectin")
     ruleset: Mapped["ValuationRuleset | None"] = relationship(back_populates="listings", lazy="joined")
+    ram_spec: Mapped[RamSpec | None] = relationship(back_populates="listings", lazy="joined")
+    primary_storage_profile: Mapped[StorageProfile | None] = relationship(
+        back_populates="listings_primary",
+        lazy="joined",
+        foreign_keys=[primary_storage_profile_id],
+    )
+    secondary_storage_profile: Mapped[StorageProfile | None] = relationship(
+        back_populates="listings_secondary",
+        lazy="joined",
+        foreign_keys=[secondary_storage_profile_id],
+    )
+
+    @property
+    def ram_type(self) -> str | None:
+        return self.ram_spec.ddr_generation.value if self.ram_spec else None
+
+    @property
+    def ram_speed_mhz(self) -> int | None:
+        return self.ram_spec.speed_mhz if self.ram_spec else None
 
 
 class ListingComponent(Base, TimestampMixin):

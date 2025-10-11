@@ -3,6 +3,7 @@
 from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from dealbrain_core.rules import (
     RuleEvaluator,
@@ -49,7 +50,17 @@ class RuleEvaluationService:
             Dictionary with valuation results
         """
         # Get listing with related data
-        stmt = select(Listing).where(Listing.id == listing_id)
+        stmt = (
+            select(Listing)
+            .where(Listing.id == listing_id)
+            .options(
+                selectinload(Listing.cpu),
+                selectinload(Listing.gpu),
+                selectinload(Listing.ram_spec),
+                selectinload(Listing.primary_storage_profile),
+                selectinload(Listing.secondary_storage_profile),
+            )
+        )
         result = await session.execute(stmt)
         listing = result.scalar_one_or_none()
 

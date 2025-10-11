@@ -35,7 +35,7 @@ class ListingPartialUpdateRequest(BaseModel):
     @field_validator("fields", mode="before")
     @classmethod
     def coerce_reference_fields(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
-        """Coerce cpu_id and gpu_id to integers if they are strings."""
+        """Coerce reference identifiers to integers when provided as strings."""
         if v is None:
             return v
 
@@ -53,6 +53,13 @@ class ListingPartialUpdateRequest(BaseModel):
             elif isinstance(v["gpu_id"], str):
                 v["gpu_id"] = int(v["gpu_id"])
 
+        for key in ("ram_spec_id", "primary_storage_profile_id", "secondary_storage_profile_id"):
+            if key in v:
+                if v[key] is None or v[key] == "":
+                    v[key] = None
+                elif isinstance(v[key], str):
+                    v[key] = int(v[key])
+
         return v
 
 
@@ -60,6 +67,19 @@ class ListingBulkUpdateRequest(BaseModel):
     listing_ids: list[int] = Field(default_factory=list)
     fields: dict[str, Any] | None = None
     attributes: dict[str, Any] | None = None
+
+    @field_validator("fields", mode="before")
+    @classmethod
+    def coerce_bulk_reference_fields(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+        if v is None:
+            return v
+        for key in ("cpu_id", "gpu_id", "ram_spec_id", "primary_storage_profile_id", "secondary_storage_profile_id"):
+            if key in v:
+                if v[key] is None or v[key] == "":
+                    v[key] = None
+                elif isinstance(v[key], str):
+                    v[key] = int(v[key])
+        return v
 
 
 class ListingBulkUpdateResponse(BaseModel):

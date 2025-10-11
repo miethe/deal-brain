@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useCatalogStore } from '@/stores/catalog-store'
 import type { ListingRow } from '@/components/listings/listings-table'
+import { formatRamSummary, formatStorageSummary } from '@/components/listings/listing-formatters'
 
 interface DenseTableProps {
   listings: ListingRow[]
@@ -156,6 +157,20 @@ export const DenseTable = React.memo(function DenseTable({
               const listing = listings[virtualRow.index]
               const isSelected = selectedRows.has(listing.id)
               const isFocused = focusedIndex === virtualRow.index
+              const ramSummary = formatRamSummary(listing)
+              const primaryStorageSummary = formatStorageSummary(
+                listing.primary_storage_profile ?? null,
+                listing.primary_storage_gb ?? null,
+                listing.primary_storage_type ?? null
+              )
+              const secondaryStorageSummary = formatStorageSummary(
+                listing.secondary_storage_profile ?? null,
+                listing.secondary_storage_gb ?? null,
+                listing.secondary_storage_type ?? null
+              )
+              const specSummary = [ramSummary, primaryStorageSummary, secondaryStorageSummary]
+                .filter(Boolean)
+                .join(' • ')
 
               return (
                 <TableRow
@@ -184,10 +199,7 @@ export const DenseTable = React.memo(function DenseTable({
                             {listing.form_factor}
                           </Badge>
                         )}
-                        <span>
-                          {listing.ram_gb ? `${listing.ram_gb}GB` : ''}
-                          {listing.primary_storage_gb ? ` • ${listing.primary_storage_gb}GB` : ''}
-                        </span>
+                        {specSummary && <span>{specSummary}</span>}
                       </div>
                     </div>
                   </TableCell>

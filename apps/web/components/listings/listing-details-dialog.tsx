@@ -18,9 +18,10 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCatalogStore } from "@/stores/catalog-store";
 import { apiFetch } from "@/lib/utils";
-import { ListingRecord } from "@/types/listings";
+import type { ListingRecord } from "@/types/listings";
 import { PerformanceBadges } from "@/app/listings/_components/grid-view/performance-badges";
 import { ListingValuationTab } from "./listing-valuation-tab";
+import { formatRamSummary, formatStorageSummary } from "./listing-formatters";
 
 /**
  * Listing Details Dialog
@@ -79,6 +80,22 @@ export function ListingDetailsDialog() {
       return url;
     }
   };
+
+  const ramSummary = listing ? formatRamSummary(listing) : null;
+  const primaryStorageSummary = listing
+    ? formatStorageSummary(
+        listing.primary_storage_profile ?? null,
+        listing.primary_storage_gb ?? null,
+        listing.primary_storage_type ?? null,
+      )
+    : null;
+  const secondaryStorageSummary = listing
+    ? formatStorageSummary(
+        listing.secondary_storage_profile ?? null,
+        listing.secondary_storage_gb ?? null,
+        listing.secondary_storage_type ?? null,
+      )
+    : null;
 
   return (
     <Dialog open={isOpen} onOpenChange={closeDialog}>
@@ -191,18 +208,22 @@ export function ListingDetailsDialog() {
                       </span>
                     </>
                   )}
-                  {listing.ram_gb && (
+                  {ramSummary && (
                     <>
                       <span className="text-muted-foreground">RAM</span>
-                      <span className="font-medium">{listing.ram_gb}GB</span>
+                      <span className="font-medium">{ramSummary}</span>
                     </>
                   )}
-                  {listing.primary_storage_gb && (
+                  {primaryStorageSummary && (
                     <>
-                      <span className="text-muted-foreground">Storage</span>
-                      <span className="font-medium">
-                        {listing.primary_storage_gb}GB {listing.primary_storage_type || ""}
-                      </span>
+                      <span className="text-muted-foreground">Primary Storage</span>
+                      <span className="font-medium">{primaryStorageSummary}</span>
+                    </>
+                  )}
+                  {secondaryStorageSummary && (
+                    <>
+                      <span className="text-muted-foreground">Secondary Storage</span>
+                      <span className="font-medium">{secondaryStorageSummary}</span>
                     </>
                   )}
                   {listing.condition && (

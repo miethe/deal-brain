@@ -10,7 +10,13 @@ from sqlalchemy import select
 from dealbrain_core.schemas import SpreadsheetSeed
 
 from .db import Base, get_engine, session_scope
-from .models import Cpu, Gpu, Listing, ListingComponent, PortsProfile, Port, Profile
+from .models import Cpu, Gpu, Listing, PortsProfile, Port, Profile
+from .services.listings import (
+    apply_listing_metrics,
+    create_listing,
+    sync_listing_components,
+    update_listing,
+)
 from .settings import get_settings
 
 
@@ -78,20 +84,19 @@ async def apply_seed(seed: SpreadsheetSeed) -> None:
 
         for listing in seed.listings:
             existing = await session.scalar(select(Listing).where(Listing.title == listing.title))
-            data = listing.model_dump(exclude={"components"}, exclude_none=True)
-            # Map 'attributes' to 'attributes_json' for SQLAlchemy model
-            if 'attributes' in data:
-                data['attributes_json'] = data.pop('attributes')
-            if existing:
-                for field, value in data.items():
-                    setattr(existing, field, value)
-                existing.components.clear()
-            else:
-                existing = Listing(**data)
-                session.add(existing)
+            payload = listing.model_dump(exclude={"components"}, exclude_none=True)
+            components_payload = [component.model_dump(exclude_none=True) for component in (listing.components or [])]
 
-            for component in listing.components or []:
-                existing.components.append(ListingComponent(**component.model_dump(exclude_none=True)))
+            if existing:
+                await update_listing(session, existing, payload)
+                await sync_listing_components(session, existing, components_payload)
+                await apply_listing_metrics(session, existing)
+                await session.refresh(existing)
+            else:
+                created = await create_listing(session, payload)
+                await sync_listing_components(session, created, components_payload)
+                await apply_listing_metrics(session, created)
+                await session.refresh(created)
 
 
 async def seed_from_workbook(path: Path) -> None:

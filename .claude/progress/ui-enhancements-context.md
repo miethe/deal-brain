@@ -29,6 +29,12 @@ Focus: Multi-Pane Layout & Static Navigation
 - Added canonical per-unit metric selector with reusable options, backend validation, and service-level guardrails.
 - Stabilized listing override baseline handling, refreshed select layout, and covered reset flow with a React Testing Library spec.
 
+### 2025-10-11 — RAM/Storage Valuation Foundation
+- Landed Alembic migration `0017` to introduce normalized `ram_spec` and `storage_profile` tables, link them to listings, and backfill existing rows from legacy RAM/storage fields.
+- Extended listing services and seeds to auto-resolve specs and profiles on create/update flows, exposing `ram_type`, `ram_speed_mhz`, and profile references through FieldRegistry.
+- Enriched rule evaluation context and action metrics with RAM speed/capacity plus primary/secondary storage profile quantities for spec-based valuation rules.
+- Updated web types, listing detail surfaces, comparison views, and add-listing workflow to surface structured RAM/storage summaries and accept RAM spec inputs out of the box.
+
 ## Completed Tasks
 Phase 1 - Modal & Form System:
 - Enhanced modal-shell with size variants, preventClose, onClose

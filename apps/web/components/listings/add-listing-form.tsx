@@ -36,8 +36,28 @@ const CONDITIONS = [
 ];
 
 const DEFAULT_RAM_OPTIONS = [4, 8, 16, 32, 64, 128, 192, 256, 384, 512];
+const RAM_TYPE_OPTIONS = [
+  "DDR3",
+  "DDR4",
+  "DDR5",
+  "LPDDR4",
+  "LPDDR4X",
+  "LPDDR5",
+  "LPDDR5X",
+  "HBM2",
+  "HBM3"
+];
 const DEFAULT_STORAGE_CAPACITIES = [128, 256, 512, 1024, 2048, 4096];
-const DEFAULT_STORAGE_TYPES = ["NVMe SSD", "SATA SSD", "SATA HDD", "Hybrid SSHD", "U.2 SSD"];
+const DEFAULT_STORAGE_TYPES = [
+  "NVMe",
+  "NVMe SSD",
+  "SATA SSD",
+  "SATA HDD",
+  "Hybrid SSHD",
+  "eMMC",
+  "UFS",
+  "U.2 SSD"
+];
 
 const MANUFACTURER_OPTIONS = [
   "Dell",
@@ -198,12 +218,19 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
       []
     );
 
-    const payload = {
+    const ramType = sanitizeString(formData.get("ram_type"));
+    const ramSpeedMhz = parseNullableNumber(formData.get("ram_speed_mhz"));
+    const ramModuleCount = parseNullableNumber(formData.get("ram_module_count"));
+    const ramCapacityPerModule = parseNullableNumber(formData.get("ram_capacity_per_module_gb"));
+
+    const payload: Record<string, unknown> = {
       title: formData.get("title"),
       price_usd: Number(formData.get("price_usd")) || 0,
       condition: formData.get("condition") || "used",
       cpu_id: selectedCpuId ? Number(selectedCpuId) : null,
       ram_gb: parseNullableNumber(formData.get("ram_gb")),
+      ram_type: ramType,
+      ram_speed_mhz: ramSpeedMhz,
       primary_storage_gb: parseNullableNumber(formData.get("primary_storage_gb")) ?? 0,
       primary_storage_type: sanitizeString(formData.get("primary_storage_type")),
       secondary_storage_gb: parseNullableNumber(formData.get("secondary_storage_gb")),
@@ -216,6 +243,23 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
       listing_url: primaryLink || null,
       other_urls: uniqueSupplemental,
     };
+
+    const ramSpecInput: Record<string, unknown> = {};
+    if (ramType) {
+      ramSpecInput.ddr_generation = ramType;
+    }
+    if (ramSpeedMhz !== null) {
+      ramSpecInput.speed_mhz = ramSpeedMhz;
+    }
+    if (ramModuleCount !== null) {
+      ramSpecInput.module_count = ramModuleCount;
+    }
+    if (ramCapacityPerModule !== null) {
+      ramSpecInput.capacity_per_module_gb = ramCapacityPerModule;
+    }
+    if (Object.keys(ramSpecInput).length > 0) {
+      (payload as Record<string, unknown>).ram_spec = ramSpecInput;
+    }
 
     createListingMutation.mutate(payload, {
       onSuccess: async (listing: any) => {
@@ -593,6 +637,37 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
               ))}
             </datalist>
           </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="ram_type">RAM type</Label>
+              <Input id="ram_type" name="ram_type" list="ram-type-options" placeholder="DDR5" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ram_speed_mhz">RAM speed (MHz)</Label>
+              <Input id="ram_speed_mhz" name="ram_speed_mhz" type="number" min="0" placeholder="5600" />
+            </div>
+          </div>
+          <div className="grid gap-2 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="ram_module_count">Module count</Label>
+              <Input id="ram_module_count" name="ram_module_count" type="number" min="1" placeholder="2" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ram_capacity_per_module_gb">Capacity per module (GB)</Label>
+              <Input
+                id="ram_capacity_per_module_gb"
+                name="ram_capacity_per_module_gb"
+                type="number"
+                min="0"
+                placeholder="16"
+              />
+            </div>
+          </div>
+          <datalist id="ram-type-options">
+            {RAM_TYPE_OPTIONS.map((value) => (
+              <option key={value} value={value} />
+            ))}
+          </datalist>
           <div className="space-y-2">
             <Label htmlFor="primary_storage_gb">Primary storage (GB)</Label>
             <div className="flex items-center gap-2">

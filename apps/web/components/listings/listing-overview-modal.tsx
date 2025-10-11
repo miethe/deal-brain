@@ -12,6 +12,7 @@ import { PortsDisplay } from "./ports-display";
 import { apiFetch } from "../../lib/utils";
 import { useValuationThresholds } from "../../hooks/use-valuation-thresholds";
 import { ListingRecord } from "../../types/listings";
+import { formatRamSummary, formatStorageSummary } from "./listing-formatters";
 
 interface ListingOverviewModalProps {
   listingId: number | null;
@@ -121,15 +122,27 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <SpecRow label="CPU" value={listing.cpu_name} />
                   <SpecRow label="GPU" value={listing.gpu_name} />
-                  <SpecRow label="RAM" value={listing.ram_gb ? `${listing.ram_gb} GB` : null} />
+                  <SpecRow label="RAM" value={formatRamSummary(listing)} />
                   <SpecRow
-                    label="Storage"
-                    value={listing.primary_storage_gb ? `${listing.primary_storage_gb} GB ${listing.primary_storage_type || ''}`.trim() : null}
+                    label="Primary Storage"
+                    value={formatStorageSummary(
+                      listing.primary_storage_profile ?? null,
+                      listing.primary_storage_gb ?? null,
+                      listing.primary_storage_type ?? null,
+                    )}
                   />
-                  {listing.secondary_storage_gb && (
+                  {formatStorageSummary(
+                    listing.secondary_storage_profile ?? null,
+                    listing.secondary_storage_gb ?? null,
+                    listing.secondary_storage_type ?? null,
+                  ) && (
                     <SpecRow
                       label="Secondary Storage"
-                      value={`${listing.secondary_storage_gb} GB ${listing.secondary_storage_type || ''}`.trim()}
+                      value={formatStorageSummary(
+                        listing.secondary_storage_profile ?? null,
+                        listing.secondary_storage_gb ?? null,
+                        listing.secondary_storage_type ?? null,
+                      )}
                     />
                   )}
                 </div>

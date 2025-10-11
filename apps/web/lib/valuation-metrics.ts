@@ -13,15 +13,38 @@ export const PER_UNIT_METRIC_OPTIONS: PerUnitMetricOption[] = [
     description: "Uses the listing's RAM capacity in gigabytes.",
   },
   {
+    value: "ram_spec.total_capacity_gb",
+    label: "RAM Spec Capacity (GB)",
+    aliases: ["per_ram_spec_gb"],
+    description: "Resolved RAM capacity from the linked RAM specification.",
+  },
+  {
+    value: "ram_spec.speed_mhz",
+    label: "RAM Speed (MHz)",
+    aliases: ["per_ram_speed"],
+    description: "Resolved RAM speed from the linked RAM specification.",
+  },
+  {
     value: "primary_storage_gb",
     label: "Primary Storage (GB)",
     aliases: ["storage.primary_gb", "per_tb"],
     description: "Primary drive capacity in gigabytes (automatically converts TB).",
   },
   {
+    value: "storage.primary.capacity_gb",
+    label: "Primary Storage Profile (GB)",
+    aliases: ["per_primary_storage_gb"],
+    description: "Primary storage capacity resolved from the linked profile.",
+  },
+  {
     value: "secondary_storage_gb",
     label: "Secondary Storage (GB)",
     aliases: ["storage.secondary_gb"],
+  },
+  {
+    value: "storage.secondary.capacity_gb",
+    label: "Secondary Storage Profile (GB)",
+    aliases: ["per_secondary_storage_gb"],
   },
   {
     value: "cpu.cores",

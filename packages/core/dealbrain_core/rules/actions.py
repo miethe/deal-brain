@@ -106,6 +106,10 @@ class Action:
         metric_map = {
             "per_gb": "ram_gb",
             "per_tb": "primary_storage_gb",
+             "per_ram_spec_gb": "ram_spec.total_capacity_gb",
+            "per_ram_speed": "ram_spec.speed_mhz",
+            "per_primary_storage_gb": "storage.primary.capacity_gb",
+            "per_secondary_storage_gb": "storage.secondary.capacity_gb",
             "per_core": "cpu.cores",
             "per_thread": "cpu.threads",
             "quantity": "quantity",

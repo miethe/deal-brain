@@ -238,6 +238,9 @@ def build_context_from_listing(listing: Any) -> dict[str, Any]:
         if hasattr(listing, field):
             context[field] = getattr(listing, field)
 
+    context.setdefault("ram_type", getattr(listing, "ram_type", None))
+    context.setdefault("ram_speed_mhz", getattr(listing, "ram_speed_mhz", None))
+
     # CPU data (nested)
     if hasattr(listing, "cpu") and listing.cpu:
         context["cpu"] = {
@@ -263,6 +266,57 @@ def build_context_from_listing(listing: Any) -> dict[str, Any]:
             "gpu_mark": listing.gpu.gpu_mark,
             "metal_score": listing.gpu.metal_score,
         }
+
+    # RAM spec data
+    if hasattr(listing, "ram_spec") and listing.ram_spec:
+        ram_spec = listing.ram_spec
+        context["ram_spec"] = {
+            "id": ram_spec.id,
+            "label": ram_spec.label,
+            "ddr_generation": ram_spec.ddr_generation.value if getattr(ram_spec, "ddr_generation", None) else None,
+            "speed_mhz": ram_spec.speed_mhz,
+            "module_count": ram_spec.module_count,
+            "capacity_per_module_gb": ram_spec.capacity_per_module_gb,
+            "total_capacity_gb": ram_spec.total_capacity_gb,
+        }
+        context["ram_type"] = context.get("ram_type") or (
+            ram_spec.ddr_generation.value if getattr(ram_spec, "ddr_generation", None) else None
+        )
+        if ram_spec.speed_mhz is not None:
+            context["ram_speed_mhz"] = ram_spec.speed_mhz
+        if ram_spec.total_capacity_gb is not None:
+            context["ram_total_capacity_gb"] = ram_spec.total_capacity_gb
+    else:
+        context.setdefault("ram_spec", None)
+
+    def _serialize_storage(profile: Any) -> dict[str, Any] | None:
+        if not profile:
+            return None
+        medium = getattr(profile, "medium", None)
+        return {
+            "id": getattr(profile, "id", None),
+            "label": getattr(profile, "label", None),
+            "medium": medium.value if hasattr(medium, "value") else medium,
+            "interface": getattr(profile, "interface", None),
+            "form_factor": getattr(profile, "form_factor", None),
+            "capacity_gb": getattr(profile, "capacity_gb", None),
+            "performance_tier": getattr(profile, "performance_tier", None),
+        }
+
+    storage_primary = _serialize_storage(getattr(listing, "primary_storage_profile", None))
+    storage_secondary = _serialize_storage(getattr(listing, "secondary_storage_profile", None))
+    context["storage"] = {
+        "primary": storage_primary,
+        "secondary": storage_secondary,
+    }
+    if storage_primary and storage_primary.get("capacity_gb") is not None:
+        context.setdefault("primary_storage_gb", storage_primary["capacity_gb"])
+    if storage_secondary and storage_secondary.get("capacity_gb") is not None:
+        context.setdefault("secondary_storage_gb", storage_secondary["capacity_gb"])
+    if storage_primary and storage_primary.get("medium"):
+        context.setdefault("primary_storage_medium", storage_primary["medium"])
+    if storage_secondary and storage_secondary.get("medium"):
+        context.setdefault("secondary_storage_medium", storage_secondary["medium"])
 
     # Custom fields from attributes_json
     if hasattr(listing, "attributes_json") and listing.attributes_json:

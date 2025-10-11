@@ -14,6 +14,7 @@ import { Layers3, X } from 'lucide-react'
 import { PerformanceBadges } from '../grid-view/performance-badges'
 import { useCatalogStore } from '@/stores/catalog-store'
 import type { ListingRow } from '@/components/listings/listings-table'
+import { formatRamSummary, formatStorageSummary } from '@/components/listings/listing-formatters'
 
 interface CompareDrawerProps {
   listings: ListingRow[]
@@ -78,11 +79,24 @@ export const CompareDrawer = React.memo(function CompareDrawer({
         </SheetHeader>
         <div className="mt-6 h-[calc(100%-60px)] overflow-auto">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {listings.slice(0, 6).map((listing) => (
-              <div
-                key={listing.id}
-                className="relative space-y-3 rounded-lg border bg-background p-4"
-              >
+            {listings.slice(0, 6).map((listing) => {
+              const ramSummary = formatRamSummary(listing)
+              const primaryStorageSummary = formatStorageSummary(
+                listing.primary_storage_profile ?? null,
+                listing.primary_storage_gb ?? null,
+                listing.primary_storage_type ?? null
+              )
+              const secondaryStorageSummary = formatStorageSummary(
+                listing.secondary_storage_profile ?? null,
+                listing.secondary_storage_gb ?? null,
+                listing.secondary_storage_type ?? null
+              )
+
+              return (
+                <div
+                  key={listing.id}
+                  className="relative space-y-3 rounded-lg border bg-background p-4"
+                >
                 {/* Remove button */}
                 <Button
                   variant="ghost"
@@ -124,11 +138,12 @@ export const CompareDrawer = React.memo(function CompareDrawer({
 
                 {/* Hardware */}
                 <div className="flex flex-wrap gap-2 text-xs">
-                  {listing.ram_gb && (
-                    <Badge variant="secondary">{listing.ram_gb}GB RAM</Badge>
+                  {ramSummary && <Badge variant="secondary">{ramSummary}</Badge>}
+                  {primaryStorageSummary && (
+                    <Badge variant="secondary">{primaryStorageSummary}</Badge>
                   )}
-                  {listing.primary_storage_gb && (
-                    <Badge variant="secondary">{listing.primary_storage_gb}GB SSD</Badge>
+                  {secondaryStorageSummary && (
+                    <Badge variant="outline">{secondaryStorageSummary}</Badge>
                   )}
                   {listing.form_factor && (
                     <Badge variant="outline">{listing.form_factor}</Badge>
@@ -139,8 +154,9 @@ export const CompareDrawer = React.memo(function CompareDrawer({
                 <div>
                   <PerformanceBadges listing={listing} />
                 </div>
-              </div>
-            ))}
+                </div>
+              )
+            })}
           </div>
           {listings.length > 6 && (
             <p className="mt-4 text-center text-sm text-muted-foreground">

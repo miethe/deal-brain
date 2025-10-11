@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dealbrain_core.enums import Condition, ListingStatus
+from dealbrain_core.enums import Condition, ListingStatus, RamGeneration
 from dealbrain_core.schemas import ListingCreate, ListingRead
 
 from ..db import session_dependency
@@ -98,6 +98,13 @@ CORE_LISTING_FIELDS: list[ListingFieldSchema] = [
         editable=True,
     ),
     ListingFieldSchema(
+        key="ram_spec_id",
+        label="RAM Spec",
+        data_type="reference",
+        description="Linked RAM specification",
+        editable=True,
+    ),
+    ListingFieldSchema(
         key="gpu_id",
         label="GPU",
         data_type="reference",
@@ -110,6 +117,21 @@ CORE_LISTING_FIELDS: list[ListingFieldSchema] = [
         editable=True,
     ),
     ListingFieldSchema(
+        key="ram_type",
+        label="RAM Type",
+        data_type="enum",
+        editable=False,
+        options=[generation.value for generation in RamGeneration],
+        description="Resolved RAM generation from linked spec",
+    ),
+    ListingFieldSchema(
+        key="ram_speed_mhz",
+        label="RAM Speed (MHz)",
+        data_type="number",
+        editable=False,
+        description="Resolved RAM speed from linked spec",
+    ),
+    ListingFieldSchema(
         key="primary_storage_gb",
         label="Primary Storage (GB)",
         data_type="number",
@@ -119,7 +141,14 @@ CORE_LISTING_FIELDS: list[ListingFieldSchema] = [
         key="primary_storage_type",
         label="Primary Storage Type",
         data_type="enum",
-        options=["SSD", "HDD", "Hybrid"],
+        options=["NVMe", "SSD", "HDD", "Hybrid", "eMMC", "UFS"],
+        editable=True,
+    ),
+    ListingFieldSchema(
+        key="primary_storage_profile_id",
+        label="Primary Storage Profile",
+        data_type="reference",
+        description="Linked storage profile for the primary drive",
         editable=True,
     ),
     ListingFieldSchema(
@@ -131,7 +160,14 @@ CORE_LISTING_FIELDS: list[ListingFieldSchema] = [
         key="secondary_storage_type",
         label="Secondary Storage Type",
         data_type="enum",
-        options=["SSD", "HDD", "Hybrid"],
+        options=["NVMe", "SSD", "HDD", "Hybrid", "eMMC", "UFS"],
+    ),
+    ListingFieldSchema(
+        key="secondary_storage_profile_id",
+        label="Secondary Storage Profile",
+        data_type="reference",
+        description="Linked storage profile for the secondary drive",
+        editable=True,
     ),
     ListingFieldSchema(
         key="os_license",
