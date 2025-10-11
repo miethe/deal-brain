@@ -99,7 +99,7 @@ class RamSpec(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     label: Mapped[str | None] = mapped_column(String(128))
     ddr_generation: Mapped[RamGeneration] = mapped_column(
-        SAEnum(RamGeneration, name="ram_generation"),
+        SAEnum(RamGeneration, name="ram_generation", native_enum=True, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=RamGeneration.UNKNOWN,
     )
@@ -129,7 +129,7 @@ class StorageProfile(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     label: Mapped[str | None] = mapped_column(String(128))
     medium: Mapped[StorageMedium] = mapped_column(
-        SAEnum(StorageMedium, name="storage_medium"),
+        SAEnum(StorageMedium, name="storage_medium", native_enum=True, values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=StorageMedium.UNKNOWN,
     )
