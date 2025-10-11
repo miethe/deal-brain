@@ -11,17 +11,21 @@ from dealbrain_core.schemas import SpreadsheetSeed
 
 from .db import Base, get_engine, session_scope
 from .models import Cpu, Gpu, Listing, PortsProfile, Port, Profile
+from .seeds.component_catalog import seed_component_catalog
 from .services.listings import (
     apply_listing_metrics,
     create_listing,
     sync_listing_components,
     update_listing,
 )
+from .services.component_catalog import get_or_create_ram_spec, get_or_create_storage_profile
 from .settings import get_settings
 
 
 async def apply_seed(seed: SpreadsheetSeed) -> None:
     async with session_scope() as session:
+        await seed_component_catalog(session)
+
         for cpu in seed.cpus:
             existing = await session.scalar(select(Cpu).where(Cpu.name == cpu.name))
             data = cpu.model_dump(exclude_none=True)
@@ -81,6 +85,12 @@ async def apply_seed(seed: SpreadsheetSeed) -> None:
 
             for port in ports_profile.ports or []:
                 existing.ports.append(Port(**port.model_dump(exclude_none=True)))
+
+        for ram_spec in seed.ram_specs:
+            await get_or_create_ram_spec(session, ram_spec.model_dump(exclude_none=True))
+
+        for storage_profile in seed.storage_profiles:
+            await get_or_create_storage_profile(session, storage_profile.model_dump(exclude_none=True))
 
         for listing in seed.listings:
             existing = await session.scalar(select(Listing).where(Listing.title == listing.title))

@@ -16,7 +16,9 @@ from dealbrain_core.schemas import (
     ListingCreate,
     PortsProfileCreate,
     ProfileCreate,
+    RamSpecCreate,
     SpreadsheetSeed,
+    StorageProfileCreate,
 )
 
 JSONLike = dict[str, Any] | list[Any]
@@ -48,6 +50,16 @@ SUPPORTED_ENTITIES: dict[str, EntityConfig] = {
         "listings",
         lambda payload: ListingCreate.model_validate(payload),
         frozenset({"attributes", "components", "other_components"}),
+    ),
+    "ram_spec": EntityConfig(
+        "ram_specs",
+        lambda payload: RamSpecCreate.model_validate(payload),
+        frozenset({"attributes"}),
+    ),
+    "storage_profile": EntityConfig(
+        "storage_profiles",
+        lambda payload: StorageProfileCreate.model_validate(payload),
+        frozenset({"attributes"}),
     ),
 }
 

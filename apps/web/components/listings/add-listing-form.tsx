@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { apiFetch } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -13,6 +13,10 @@ import { ModalContent } from "../ui/modal-shell";
 import { CpuInfoPanel } from "./cpu-info-panel";
 import { PortsBuilder } from "./ports-builder";
 import { getCpu, recalculateListingMetrics, updateListingPorts, type CpuResponse, type PortEntry } from "../../lib/api/listings";
+import { RamSpecSelector } from "../forms/ram-spec-selector";
+import { StorageProfileSelector } from "../forms/storage-profile-selector";
+import { getRamGenerationLabel, getStorageMediumLabel } from "../../lib/component-catalog";
+import type { RamSpecRecord, StorageProfileRecord } from "../../types/listings";
 
 interface CpuOption {
   id: number;
@@ -112,6 +116,9 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
   const [listingUrl, setListingUrl] = useState("");
   const [otherLinks, setOtherLinks] = useState<Array<{ id: string; url: string; label: string }>>([]);
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [selectedRamSpec, setSelectedRamSpec] = useState<RamSpecRecord | null>(null);
+  const [selectedPrimaryProfile, setSelectedPrimaryProfile] = useState<StorageProfileRecord | null>(null);
+  const [selectedSecondaryProfile, setSelectedSecondaryProfile] = useState<StorageProfileRecord | null>(null);
 
   const [isCpuModalOpen, setCpuModalOpen] = useState(false);
   const [newCpuForm, setNewCpuForm] = useState({
@@ -124,6 +131,10 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
   });
 
   const ramInputRef = useRef<HTMLInputElement | null>(null);
+  const ramTypeRef = useRef<HTMLInputElement | null>(null);
+  const ramSpeedRef = useRef<HTMLInputElement | null>(null);
+  const ramModuleCountRef = useRef<HTMLInputElement | null>(null);
+  const ramCapacityPerModuleRef = useRef<HTMLInputElement | null>(null);
   const primaryStorageRef = useRef<HTMLInputElement | null>(null);
   const primaryTypeRef = useRef<HTMLInputElement | null>(null);
   const secondaryStorageRef = useRef<HTMLInputElement | null>(null);
@@ -175,6 +186,42 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
     }
   };
 
+  useEffect(() => {
+    if (selectedRamSpec?.total_capacity_gb != null && ramInputRef.current) {
+      ramInputRef.current.value = String(selectedRamSpec.total_capacity_gb);
+    }
+    if (selectedRamSpec && ramTypeRef.current) {
+      ramTypeRef.current.value = getRamGenerationLabel(selectedRamSpec.ddr_generation ?? null);
+    }
+    if (selectedRamSpec?.speed_mhz != null && ramSpeedRef.current) {
+      ramSpeedRef.current.value = String(selectedRamSpec.speed_mhz);
+    }
+    if (selectedRamSpec?.module_count != null && ramModuleCountRef.current) {
+      ramModuleCountRef.current.value = String(selectedRamSpec.module_count);
+    }
+    if (selectedRamSpec?.capacity_per_module_gb != null && ramCapacityPerModuleRef.current) {
+      ramCapacityPerModuleRef.current.value = String(selectedRamSpec.capacity_per_module_gb);
+    }
+  }, [selectedRamSpec]);
+
+  useEffect(() => {
+    if (selectedPrimaryProfile?.capacity_gb != null && primaryStorageRef.current) {
+      primaryStorageRef.current.value = String(selectedPrimaryProfile.capacity_gb);
+    }
+    if (selectedPrimaryProfile && primaryTypeRef.current) {
+      primaryTypeRef.current.value = getStorageMediumLabel(selectedPrimaryProfile.medium ?? null);
+    }
+  }, [selectedPrimaryProfile]);
+
+  useEffect(() => {
+    if (selectedSecondaryProfile?.capacity_gb != null && secondaryStorageRef.current) {
+      secondaryStorageRef.current.value = String(selectedSecondaryProfile.capacity_gb);
+    }
+    if (selectedSecondaryProfile && secondaryTypeRef.current) {
+      secondaryTypeRef.current.value = getStorageMediumLabel(selectedSecondaryProfile.medium ?? null);
+    }
+  }, [selectedSecondaryProfile]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -223,17 +270,21 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
     const ramModuleCount = parseNullableNumber(formData.get("ram_module_count"));
     const ramCapacityPerModule = parseNullableNumber(formData.get("ram_capacity_per_module_gb"));
 
+    const ramGb = parseNullableNumber(formData.get("ram_gb"));
+    const primaryStorageGb = parseNullableNumber(formData.get("primary_storage_gb")) ?? 0;
+    const secondaryStorageGb = parseNullableNumber(formData.get("secondary_storage_gb"));
+
     const payload: Record<string, unknown> = {
       title: formData.get("title"),
       price_usd: Number(formData.get("price_usd")) || 0,
       condition: formData.get("condition") || "used",
       cpu_id: selectedCpuId ? Number(selectedCpuId) : null,
-      ram_gb: parseNullableNumber(formData.get("ram_gb")),
+      ram_gb: ramGb,
       ram_type: ramType,
       ram_speed_mhz: ramSpeedMhz,
-      primary_storage_gb: parseNullableNumber(formData.get("primary_storage_gb")) ?? 0,
+      primary_storage_gb: primaryStorageGb,
       primary_storage_type: sanitizeString(formData.get("primary_storage_type")),
-      secondary_storage_gb: parseNullableNumber(formData.get("secondary_storage_gb")),
+      secondary_storage_gb: secondaryStorageGb,
       secondary_storage_type: sanitizeString(formData.get("secondary_storage_type")),
       // New metadata fields
       manufacturer: sanitizeString(formData.get("manufacturer")),
@@ -244,21 +295,43 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
       other_urls: uniqueSupplemental,
     };
 
-    const ramSpecInput: Record<string, unknown> = {};
-    if (ramType) {
-      ramSpecInput.ddr_generation = ramType;
+    if (selectedRamSpec) {
+      payload.ram_spec_id = selectedRamSpec.id;
+      payload.ram_gb = selectedRamSpec.total_capacity_gb ?? payload.ram_gb;
+      payload.ram_type = getRamGenerationLabel(selectedRamSpec.ddr_generation ?? null);
+      payload.ram_speed_mhz = selectedRamSpec.speed_mhz ?? payload.ram_speed_mhz;
+    } else {
+      const ramSpecInput: Record<string, unknown> = {};
+      if (ramType) {
+        ramSpecInput.ddr_generation = ramType;
+      }
+      if (ramSpeedMhz !== null) {
+        ramSpecInput.speed_mhz = ramSpeedMhz;
+      }
+      if (ramModuleCount !== null) {
+        ramSpecInput.module_count = ramModuleCount;
+      }
+      if (ramCapacityPerModule !== null) {
+        ramSpecInput.capacity_per_module_gb = ramCapacityPerModule;
+      }
+      if (ramGb !== null) {
+        ramSpecInput.total_capacity_gb = ramGb;
+      }
+      if (Object.keys(ramSpecInput).length > 0) {
+        (payload as Record<string, unknown>).ram_spec = ramSpecInput;
+      }
     }
-    if (ramSpeedMhz !== null) {
-      ramSpecInput.speed_mhz = ramSpeedMhz;
+
+    if (selectedPrimaryProfile) {
+      payload.primary_storage_profile_id = selectedPrimaryProfile.id;
+      payload.primary_storage_gb = selectedPrimaryProfile.capacity_gb ?? payload.primary_storage_gb;
+      payload.primary_storage_type = getStorageMediumLabel(selectedPrimaryProfile.medium ?? null);
     }
-    if (ramModuleCount !== null) {
-      ramSpecInput.module_count = ramModuleCount;
-    }
-    if (ramCapacityPerModule !== null) {
-      ramSpecInput.capacity_per_module_gb = ramCapacityPerModule;
-    }
-    if (Object.keys(ramSpecInput).length > 0) {
-      (payload as Record<string, unknown>).ram_spec = ramSpecInput;
+
+    if (selectedSecondaryProfile) {
+      payload.secondary_storage_profile_id = selectedSecondaryProfile.id;
+      payload.secondary_storage_gb = selectedSecondaryProfile.capacity_gb ?? payload.secondary_storage_gb;
+      payload.secondary_storage_type = getStorageMediumLabel(selectedSecondaryProfile.medium ?? null);
     }
 
     createListingMutation.mutate(payload, {
@@ -286,6 +359,18 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
           setListingUrl("");
           setOtherLinks([]);
           setLinkError(null);
+          setSelectedRamSpec(null);
+          setSelectedPrimaryProfile(null);
+          setSelectedSecondaryProfile(null);
+          if (ramInputRef.current) ramInputRef.current.value = "";
+          if (ramTypeRef.current) ramTypeRef.current.value = "";
+          if (ramSpeedRef.current) ramSpeedRef.current.value = "";
+          if (ramModuleCountRef.current) ramModuleCountRef.current.value = "";
+          if (ramCapacityPerModuleRef.current) ramCapacityPerModuleRef.current.value = "";
+          if (primaryStorageRef.current) primaryStorageRef.current.value = "";
+          if (primaryTypeRef.current) primaryTypeRef.current.value = "";
+          if (secondaryStorageRef.current) secondaryStorageRef.current.value = "";
+          if (secondaryTypeRef.current) secondaryTypeRef.current.value = "";
 
           // Call onSuccess callback if provided
           onSuccess?.();
@@ -624,6 +709,17 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
             </div>
           )}
           <div className="space-y-2">
+            <Label>RAM specification</Label>
+            <RamSpecSelector
+              value={selectedRamSpec}
+              onChange={setSelectedRamSpec}
+              disabled={createListingMutation.isPending}
+            />
+            <p className="text-xs text-muted-foreground">
+              Selecting a catalog spec keeps RAM totals consistent with valuation rules.
+            </p>
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="ram_gb">RAM (GB)</Label>
             <div className="flex items-center gap-2">
               <Input ref={ramInputRef} id="ram_gb" name="ram_gb" type="number" min="0" list="ram-options" placeholder="Select or type" />
@@ -640,17 +736,31 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
           <div className="grid gap-2 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="ram_type">RAM type</Label>
-              <Input id="ram_type" name="ram_type" list="ram-type-options" placeholder="DDR5" />
+              <Input id="ram_type" name="ram_type" list="ram-type-options" placeholder="DDR5" ref={ramTypeRef} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="ram_speed_mhz">RAM speed (MHz)</Label>
-              <Input id="ram_speed_mhz" name="ram_speed_mhz" type="number" min="0" placeholder="5600" />
+              <Input
+                id="ram_speed_mhz"
+                name="ram_speed_mhz"
+                type="number"
+                min="0"
+                placeholder="5600"
+                ref={ramSpeedRef}
+              />
             </div>
           </div>
           <div className="grid gap-2 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="ram_module_count">Module count</Label>
-              <Input id="ram_module_count" name="ram_module_count" type="number" min="1" placeholder="2" />
+              <Input
+                id="ram_module_count"
+                name="ram_module_count"
+                type="number"
+                min="1"
+                placeholder="2"
+                ref={ramModuleCountRef}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="ram_capacity_per_module_gb">Capacity per module (GB)</Label>
@@ -660,6 +770,7 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
                 type="number"
                 min="0"
                 placeholder="16"
+                ref={ramCapacityPerModuleRef}
               />
             </div>
           </div>
@@ -668,6 +779,18 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
               <option key={value} value={value} />
             ))}
           </datalist>
+          <div className="space-y-2">
+            <Label>Primary storage profile</Label>
+            <StorageProfileSelector
+              value={selectedPrimaryProfile}
+              onChange={setSelectedPrimaryProfile}
+              disabled={createListingMutation.isPending}
+              context="primary"
+            />
+            <p className="text-xs text-muted-foreground">
+              Profiles capture medium, interface, and capacity for accurate valuation metrics.
+            </p>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="primary_storage_gb">Primary storage (GB)</Label>
             <div className="flex items-center gap-2">
@@ -704,6 +827,16 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
                 Add new…
               </Button>
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Secondary storage profile</Label>
+            <StorageProfileSelector
+              value={selectedSecondaryProfile}
+              onChange={setSelectedSecondaryProfile}
+              disabled={createListingMutation.isPending}
+              context="secondary"
+            />
+            <p className="text-xs text-muted-foreground">Optional secondary drive configuration.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="secondary_storage_gb">Secondary storage (GB)</Label>

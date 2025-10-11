@@ -18,6 +18,7 @@ import { Textarea } from "../ui/textarea";
 import { useToast } from "../ui/use-toast";
 
 import { createRule, updateRule, type Rule, type Condition, type Action } from "../../lib/api/rules";
+import { track } from "../../lib/analytics";
 import { ConditionGroup } from "./condition-group";
 import { ActionBuilder } from "./action-builder";
 
@@ -55,7 +56,7 @@ export function RuleBuilderModal({ open, onOpenChange, groupId, rule, onSuccess 
   }, [rule, open]);
 
   const saveMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (): Promise<Rule> => {
       if (isEditing && rule) {
         return updateRule(rule.id, {
           name,
@@ -76,10 +77,16 @@ export function RuleBuilderModal({ open, onOpenChange, groupId, rule, onSuccess 
         });
       }
     },
-    onSuccess: () => {
+    onSuccess: (savedRule) => {
       toast({
         title: isEditing ? "Rule updated" : "Rule created",
         description: `The rule has been ${isEditing ? "updated" : "created"} successfully`,
+      });
+      track(isEditing ? "valuation_rule.updated" : "valuation_rule.created", {
+        rule_id: savedRule.id,
+        group_id: savedRule.group_id,
+        conditions: savedRule.conditions?.length ?? 0,
+        actions: savedRule.actions?.length ?? 0,
       });
       resetForm();
       onOpenChange(false);

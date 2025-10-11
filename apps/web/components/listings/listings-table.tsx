@@ -19,7 +19,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { apiFetch, ApiError } from "../../lib/utils";
-import { CpuRecord, ListingFieldSchema, ListingRecord, ListingSchemaResponse } from "../../types/listings";
+import { CpuRecord, ListingFieldSchema, ListingRecord, ListingSchemaResponse, RamSpecRecord, StorageProfileRecord } from "../../types/listings";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader } from "../ui/card";
 import { DataGrid, type ColumnMetaConfig } from "../ui/data-grid";
@@ -35,6 +35,9 @@ import { useConfirmation } from "../ui/confirmation-dialog";
 import { useValuationThresholds } from "@/hooks/use-valuation-thresholds";
 import { CpuTooltip } from "./cpu-tooltip";
 import { CpuDetailsModal } from "./cpu-details-modal";
+import { RamSpecSelector } from "../forms/ram-spec-selector";
+import { StorageProfileSelector } from "../forms/storage-profile-selector";
+import { getStorageMediumLabel } from "../../lib/component-catalog";
 
 // ListingRow is just an alias for ListingRecord - all fields come from the API
 type ListingRow = ListingRecord;
@@ -268,7 +271,11 @@ export function ListingsTable() {
   });
 
   const handleInlineSave = useCallback(
-    (listingId: number, field: FieldConfig, rawValue: string | string[] | boolean | number | null) => {
+    (
+      listingId: number,
+      field: FieldConfig,
+      rawValue: string | string[] | boolean | number | RamSpecRecord | StorageProfileRecord | null
+    ) => {
       const parsed = parseFieldValue(field, rawValue);
       inlineMutation.mutate({ listingId, field, value: parsed });
     },
@@ -394,6 +401,7 @@ export function ListingsTable() {
                   onSave={handleInlineSave}
                   isSaving={inlineMutation.isPending}
                   onCreateOption={handleCreateOption}
+                  listing={row.original}
                 />
               ) : (
                 <span className="font-medium text-foreground">{row.original.title}</span>
@@ -406,6 +414,7 @@ export function ListingsTable() {
                     value={row.original.gpu_id}
                     onSave={handleInlineSave}
                     isSaving={inlineMutation.isPending}
+                    listing={row.original}
                   />
                 </div>
               ) : (
@@ -440,6 +449,7 @@ export function ListingsTable() {
                   value={row.original.cpu_id}
                   onSave={handleInlineSave}
                   isSaving={inlineMutation.isPending}
+                  listing={row.original}
                 />
                 {cpu && (
                   <CpuTooltip
@@ -702,6 +712,7 @@ export function ListingsTable() {
               onSave={handleInlineSave}
               isSaving={inlineMutation.isPending}
               onCreateOption={handleCreateOption}
+              listing={row.original}
             />
           ),
           meta,
@@ -872,11 +883,16 @@ interface EditableCellProps {
   field: FieldConfig;
   value: unknown;
   isSaving: boolean;
-  onSave: (listingId: number, field: FieldConfig, value: string | string[] | boolean | number | null) => void;
+  onSave: (
+    listingId: number,
+    field: FieldConfig,
+    value: string | string[] | boolean | number | RamSpecRecord | StorageProfileRecord | null
+  ) => void;
   onCreateOption?: (fieldKey: string, value: string) => Promise<void>;
+  listing?: ListingRecord;
 }
 
-function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOption }: EditableCellProps) {
+function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOption, listing }: EditableCellProps) {
   const [draft, setDraft] = useState<string>(() => toEditableString(field, value));
 
   // Query for CPU/GPU options if this is a reference field
@@ -923,6 +939,32 @@ function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOptio
 
   // Handle reference fields (CPU/GPU)
   if (field.data_type === "reference") {
+    if (field.key === "ram_spec_id") {
+      const currentSpec = listing?.ram_spec ?? (value && typeof value === "object" ? (value as RamSpecRecord) : null);
+      return (
+        <RamSpecSelector
+          value={currentSpec ?? null}
+          onChange={(spec) => onSave(listingId, field, spec ?? null)}
+          disabled={isSaving}
+        />
+      );
+    }
+
+    if (field.key === "primary_storage_profile_id" || field.key === "secondary_storage_profile_id") {
+      const currentProfile = field.key === "primary_storage_profile_id"
+        ? listing?.primary_storage_profile ?? (value && typeof value === "object" ? (value as StorageProfileRecord) : null)
+        : listing?.secondary_storage_profile ?? (value && typeof value === "object" ? (value as StorageProfileRecord) : null);
+
+      return (
+        <StorageProfileSelector
+          value={currentProfile ?? null}
+          onChange={(profile) => onSave(listingId, field, profile ?? null)}
+          disabled={isSaving}
+          context={field.key === "primary_storage_profile_id" ? "primary" : "secondary"}
+        />
+      );
+    }
+
     const options = field.key === "cpu_id" ? cpuOptions : field.key === "gpu_id" ? gpuOptions : [];
     if (!options) {
       return <span className="text-sm text-muted-foreground">Loading...</span>;
@@ -1129,7 +1171,10 @@ function BulkEditPanel({ fieldConfigs, state, onChange, onSubmit, isSubmitting, 
   );
 }
 
-function parseFieldValue(field: FieldConfig, value: string | string[] | boolean | number | null): unknown {
+function parseFieldValue(
+  field: FieldConfig,
+  value: string | string[] | boolean | number | RamSpecRecord | StorageProfileRecord | null
+): unknown {
   if (value === null || value === "") {
     return null;
   }
@@ -1155,6 +1200,31 @@ function parseFieldValue(field: FieldConfig, value: string | string[] | boolean 
 }
 
 function buildUpdatePayload(field: FieldConfig, value: unknown) {
+  if (field.key === "ram_spec_id") {
+    const spec = value as RamSpecRecord | null;
+    return {
+      fields: {
+        ram_spec_id: spec ? spec.id : null,
+        ram_gb: spec?.total_capacity_gb ?? null,
+      },
+    };
+  }
+
+  if (field.key === "primary_storage_profile_id" || field.key === "secondary_storage_profile_id") {
+    const profile = value as StorageProfileRecord | null;
+    const profileId = profile ? profile.id : null;
+    const capacityKey = field.key === "primary_storage_profile_id" ? "primary_storage_gb" : "secondary_storage_gb";
+    const typeKey = field.key === "primary_storage_profile_id" ? "primary_storage_type" : "secondary_storage_type";
+
+    return {
+      fields: {
+        [field.key]: profileId,
+        [capacityKey]: profile?.capacity_gb ?? null,
+        [typeKey]: profile ? getStorageMediumLabel(profile.medium ?? null) : null,
+      },
+    };
+  }
+
   if (field.origin === "core") {
     return { fields: { [field.key]: value } };
   }

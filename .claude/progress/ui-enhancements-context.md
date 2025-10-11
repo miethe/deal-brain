@@ -24,6 +24,8 @@ Focus: Multi-Pane Layout & Static Navigation
 - Captured PRD/implementation plan for catalog-driven RAM/storage valuation under `docs/project_plans/enhancements/2025-10-11-ram-storage-valuation/`.
 - Established task tracker `.claude/progress/ram-storage-valuation-progress.md` to guide backend catalog APIs, importer/seed updates, frontend selectors, valuation builder upgrades, telemetry, and documentation.
 - No migrations planned per guidance; focus on leveraging existing schema (`ram_spec`, `storage_profile`) with enhanced services and UI.
+- Delivered catalog endpoints (`/v1/catalog/ram-specs`, `/v1/catalog/storage-profiles`), shared normalization helpers, importer updates, and canonical seed data for RAM/storage profiles.
+- Added reusable selectors with inline creation + analytics, wired them into listing creation and inline editing, and exposed `ram_spec` / `storage.*` fields to the valuation rule builder.
 
 ### 2025-10-10 — Valuation Rules Remediation Planning
 - Reviewed request log `docs/project_plans/requests/10-10.md` to map rule-engine regressions in listings valuation.

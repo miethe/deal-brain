@@ -7,7 +7,15 @@ from typing import List
 from pydantic import Field
 
 from .base import DealBrainModel
-from .catalog import CpuCreate, GpuCreate, PortsProfileCreate, ProfileCreate, ValuationRuleCreate
+from .catalog import (
+    CpuCreate,
+    GpuCreate,
+    PortsProfileCreate,
+    ProfileCreate,
+    RamSpecCreate,
+    StorageProfileCreate,
+    ValuationRuleCreate,
+)
 from .listing import ListingCreate
 
 
@@ -17,6 +25,8 @@ class SpreadsheetSeed(DealBrainModel):
     valuation_rules: List[ValuationRuleCreate] = Field(default_factory=list)
     profiles: List[ProfileCreate] = Field(default_factory=list)
     ports_profiles: List[PortsProfileCreate] = Field(default_factory=list)
+    ram_specs: List[RamSpecCreate] = Field(default_factory=list)
+    storage_profiles: List[StorageProfileCreate] = Field(default_factory=list)
     listings: List[ListingCreate] = Field(default_factory=list)
 
 

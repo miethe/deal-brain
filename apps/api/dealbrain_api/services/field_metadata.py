@@ -5,6 +5,8 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from dealbrain_core.enums import RamGeneration, StorageMedium
+
 from .field_registry import FieldRegistry
 
 
@@ -105,6 +107,57 @@ class FieldMetadataService:
                     FieldMetadata("metal_score", "Metal Score", "number", description="Metal benchmark score"),
                     FieldMetadata("name", "GPU Name", "string"),
                     FieldMetadata("manufacturer", "Manufacturer", "enum", options=["NVIDIA", "AMD", "Intel"]),
+                ],
+            )
+        )
+
+        generation_options = [generation.value for generation in RamGeneration]
+        storage_medium_options = [medium.value for medium in StorageMedium]
+
+        entities.append(
+            EntityMetadata(
+                key="ram_spec",
+                label="RAM Spec",
+                fields=[
+                    FieldMetadata(
+                        "ddr_generation",
+                        "Generation",
+                        "enum",
+                        description="DDR family resolved from linked RAM specification",
+                        options=generation_options,
+                    ),
+                    FieldMetadata("speed_mhz", "Speed (MHz)", "number"),
+                    FieldMetadata("total_capacity_gb", "Total Capacity (GB)", "number"),
+                    FieldMetadata("module_count", "Module Count", "number"),
+                    FieldMetadata("capacity_per_module_gb", "Capacity per Module (GB)", "number"),
+                ],
+            )
+        )
+
+        entities.append(
+            EntityMetadata(
+                key="storage.primary",
+                label="Storage · Primary",
+                fields=[
+                    FieldMetadata("medium", "Medium", "enum", options=storage_medium_options),
+                    FieldMetadata("capacity_gb", "Capacity (GB)", "number"),
+                    FieldMetadata("performance_tier", "Performance Tier", "string"),
+                    FieldMetadata("interface", "Interface", "string"),
+                    FieldMetadata("form_factor", "Form Factor", "string"),
+                ],
+            )
+        )
+
+        entities.append(
+            EntityMetadata(
+                key="storage.secondary",
+                label="Storage · Secondary",
+                fields=[
+                    FieldMetadata("medium", "Medium", "enum", options=storage_medium_options),
+                    FieldMetadata("capacity_gb", "Capacity (GB)", "number"),
+                    FieldMetadata("performance_tier", "Performance Tier", "string"),
+                    FieldMetadata("interface", "Interface", "string"),
+                    FieldMetadata("form_factor", "Form Factor", "string"),
                 ],
             )
         )
