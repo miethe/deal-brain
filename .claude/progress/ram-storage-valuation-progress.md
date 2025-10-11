@@ -1,10 +1,12 @@
-# RAM & Storage Valuation Enhancement – Progress Tracker
+# RAM & Storage Valuation Modernization — Task Tracker
 
-- [x] Audit current schema, services, and valuation flow for RAM/storage handling.
-- [x] Design and implement new RAM spec and storage profile database tables with ORM models.
-- [x] Update listings schema (FKs, default fields) and migrations; backfill legacy data.
-- [x] Extend listing services, importers, and seeds to resolve RAM specs and storage profiles.
-- [x] Enhance valuation engine (backend + core package) for spec-based pricing modifiers.
-- [x] Update frontend types, forms, and valuation UI for RAM/storage selectors and modifiers.
-- [ ] Write regression tests and QA checklist updates.
-- [ ] Refresh documentation and update progress/context notes.
+- [x] Review implementation plan scope and align with latest constraints
+- [ ] Backend: expose RAM spec and storage profile catalog APIs
+- [ ] Backend: update importer + seed workflows for catalog linkage
+- [ ] Backend: reinforce listing payload normalization & recalculation triggers
+- [ ] Frontend: build reusable RAM/Storage selector components
+- [ ] Frontend: integrate selectors into listing form and inline editor
+- [ ] Frontend: enhance valuation builder with RAM/Storage predicates & metrics
+- [ ] Telemetry: emit catalog usage and valuation rule events
+- [ ] Documentation: developer & user guidance for catalog-driven flows
+- [ ] Final QA pass and commits

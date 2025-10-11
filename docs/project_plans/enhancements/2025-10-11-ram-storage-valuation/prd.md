@@ -75,6 +75,4 @@ Deal Brain now persists normalized RAM specifications and storage profiles at th
 - Extend automated test suites across backend unit/integration and frontend component flows; include scenario coverage for DDR generation combinations and dual-drive setups.
 
 ## Rollout & Telemetry
-- Ship behind a feature flag controlling new selectors and valuation predicates; enable for staging data first.
-- Run a dry-run backfill in staging, compare analytics to confirm ≥95 % linkage success before production toggle.
-- Monitor telemetry dashboards for spec linkage rate, rule coverage, and valuation deltas; publish weekly rollout updates summarizing adoption and flagged gaps.
+- Deploy immediately without migration or rollouts, as the app is in active development.
