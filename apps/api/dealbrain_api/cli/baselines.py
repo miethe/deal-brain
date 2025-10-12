@@ -18,10 +18,10 @@ app = typer.Typer(help="Baseline valuation operations.")
 def load_baseline(
     source: Path = typer.Argument(..., exists=True, readable=True, help="Path to baseline JSON artifact"),
     actor: str = typer.Option("system", "--actor", "-a", help="Actor recorded in metadata/audit logs"),
-    ensure_basic_ruleset_id: int | None = typer.Option(
-        None,
+    ensure_basic_ruleset_id: int = typer.Option(
+        0,
         "--ensure-basic-for",
-        help="Ruleset ID that should contain a managed Basic · Adjustments group",
+        help="Ruleset ID that should contain a managed Basic · Adjustments group (0=none)",
     ),
     output_json: bool = typer.Option(
         False,
@@ -38,7 +38,7 @@ def load_baseline(
                 session,
                 source,
                 actor=actor,
-                ensure_basic_for_ruleset=ensure_basic_ruleset_id,
+                ensure_basic_for_ruleset=ensure_basic_ruleset_id if ensure_basic_ruleset_id > 0 else None,
             )
             return result.to_dict()
 

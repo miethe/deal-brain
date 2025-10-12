@@ -234,8 +234,9 @@ class BaselineLoaderService:
     async def _find_ruleset_by_hash(
         self, session: AsyncSession, source_hash: str
     ) -> ValuationRuleset | None:
+        from sqlalchemy import cast, String
         stmt = select(ValuationRuleset).where(
-            ValuationRuleset.metadata_json["source_hash"].astext == source_hash
+            cast(ValuationRuleset.metadata_json["source_hash"], String) == source_hash
         )
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
@@ -243,8 +244,9 @@ class BaselineLoaderService:
     async def _deactivate_previous_baseline_rulesets(
         self, session: AsyncSession, keep_ruleset_id: int
     ) -> None:
+        from sqlalchemy import cast, String
         stmt = select(ValuationRuleset).where(
-            ValuationRuleset.metadata_json["system_baseline"].astext == "true"
+            cast(ValuationRuleset.metadata_json["system_baseline"], String) == "true"
         )
         result = await session.execute(stmt)
         for ruleset in result.scalars():
@@ -256,12 +258,13 @@ class BaselineLoaderService:
     async def _resolve_target_ruleset(
         self, session: AsyncSession, ruleset_id: int | None
     ) -> ValuationRuleset | None:
+        from sqlalchemy import cast, String
         if ruleset_id:
             return await session.get(ValuationRuleset, ruleset_id)
 
         stmt = (
             select(ValuationRuleset)
-            .where(ValuationRuleset.metadata_json["system_baseline"].astext != "true")
+            .where(cast(ValuationRuleset.metadata_json["system_baseline"], String) != "true")
             .order_by(ValuationRuleset.priority.asc(), ValuationRuleset.id.asc())
         )
         result = await session.execute(stmt)

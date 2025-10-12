@@ -1,0 +1,329 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2025-10-12T14:00:00Z",
+  "description": "Deal Brain System Baseline Valuation Rules v1.0",
+  "entities": {
+    "Listing": [
+      {
+        "id": "base_adjustment",
+        "proper_name": "Base Adjustment",
+        "description": "Baseline additive adjustment applied to all listings",
+        "explanation": "Default offset to account for market conditions and overhead.",
+        "valuation_buckets": [
+          {
+            "label": "Default",
+            "min_usd": 15,
+            "max_usd": 30,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": "Applied uniformly across all listings",
+        "nullable": false
+      },
+      {
+        "id": "condition_multiplier",
+        "proper_name": "Condition Multiplier",
+        "description": "Value adjustment based on listing condition",
+        "explanation": "Refurbished and used items are discounted relative to new.",
+        "valuation_buckets": [
+          {
+            "label": "New",
+            "min_usd": 1.0,
+            "max_usd": 1.0,
+            "Formula": null
+          },
+          {
+            "label": "Refurbished",
+            "min_usd": 0.75,
+            "max_usd": 0.85,
+            "Formula": null
+          },
+          {
+            "label": "Used",
+            "min_usd": 0.60,
+            "max_usd": 0.75,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "multiplier",
+        "dependencies": ["listing.condition"],
+        "notes": "Applied as percentage of base value",
+        "nullable": false
+      }
+    ],
+    "CPU": [
+      {
+        "id": "cpu_mark_multi",
+        "proper_name": "CPU Mark (Multi-Thread)",
+        "description": "PassMark multi-thread score valuation",
+        "explanation": "Baseline uplift based on multi-thread benchmark performance.",
+        "valuation_buckets": null,
+        "Formula": "clamp((cpu_mark_multi/1000)*3.6, 160, 260)",
+        "unit": "USD",
+        "dependencies": ["cpu.cpu_mark_multi"],
+        "notes": "Scaled per 1000 points, clamped to realistic range",
+        "nullable": true
+      },
+      {
+        "id": "cpu_mark_single",
+        "proper_name": "CPU Mark (Single-Thread)",
+        "description": "PassMark single-thread score valuation",
+        "explanation": "Additional value for strong single-core performance.",
+        "valuation_buckets": null,
+        "Formula": "clamp((cpu_mark_single/100)*5.2, 0, 80)",
+        "unit": "USD",
+        "dependencies": ["cpu.cpu_mark_single"],
+        "notes": "Scaled per 100 points, bonus for high single-thread",
+        "nullable": true
+      },
+      {
+        "id": "cores",
+        "proper_name": "Core Count Adjustment",
+        "description": "Additional value for multi-core configurations",
+        "explanation": "Higher core counts provide better multitasking and workload handling.",
+        "valuation_buckets": [
+          {
+            "label": "4-6 cores",
+            "min_usd": 0,
+            "max_usd": 10,
+            "Formula": null
+          },
+          {
+            "label": "8-12 cores",
+            "min_usd": 10,
+            "max_usd": 25,
+            "Formula": null
+          },
+          {
+            "label": "16+ cores",
+            "min_usd": 25,
+            "max_usd": 50,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": ["cpu.cores"],
+        "notes": "Tiered adjustment based on core count ranges",
+        "nullable": true
+      }
+    ],
+    "GPU": [
+      {
+        "id": "igpu_uplift",
+        "proper_name": "Integrated GPU Uplift",
+        "description": "Value bonus for high-performance integrated graphics",
+        "explanation": "Modern iGPUs (RDNA3, Xe-LPG) provide significant graphics capability.",
+        "valuation_buckets": [
+          {
+            "label": "High-Performance iGPU",
+            "min_usd": 10,
+            "max_usd": 30,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": ["gpu.igpu_mark", "gpu.model"],
+        "notes": "Applied when igpu_mark >= 2000 or model in {RDNA3, Xe-LPG}",
+        "nullable": true
+      }
+    ],
+    "RamSpec": [
+      {
+        "id": "ram_capacity",
+        "proper_name": "RAM Capacity",
+        "description": "Value based on total RAM in GB",
+        "explanation": "More RAM provides better performance for multitasking and heavy workloads.",
+        "valuation_buckets": [
+          {
+            "label": "8GB",
+            "min_usd": 0,
+            "max_usd": 5,
+            "Formula": null
+          },
+          {
+            "label": "16GB",
+            "min_usd": 5,
+            "max_usd": 15,
+            "Formula": null
+          },
+          {
+            "label": "32GB",
+            "min_usd": 15,
+            "max_usd": 35,
+            "Formula": null
+          },
+          {
+            "label": "64GB+",
+            "min_usd": 35,
+            "max_usd": 80,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": ["ram_spec.total_capacity_gb"],
+        "notes": "Tiered adjustment based on capacity ranges",
+        "nullable": true
+      },
+      {
+        "id": "ram_speed",
+        "proper_name": "RAM Speed",
+        "description": "Value adjustment for faster RAM speeds",
+        "explanation": "DDR5 and high-speed DDR4 provide better performance.",
+        "valuation_buckets": [
+          {
+            "label": "DDR4 < 3200MHz",
+            "min_usd": -5,
+            "max_usd": 0,
+            "Formula": null
+          },
+          {
+            "label": "DDR4 >= 3200MHz",
+            "min_usd": 0,
+            "max_usd": 5,
+            "Formula": null
+          },
+          {
+            "label": "DDR5",
+            "min_usd": 5,
+            "max_usd": 15,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": ["ram_spec.ddr_generation", "ram_spec.speed_mhz"],
+        "notes": "Generation and speed-based adjustment",
+        "nullable": true
+      }
+    ],
+    "StorageProfile": [
+      {
+        "id": "storage_capacity",
+        "proper_name": "Storage Capacity",
+        "description": "Value based on total storage in GB",
+        "explanation": "More storage provides better usability and flexibility.",
+        "valuation_buckets": [
+          {
+            "label": "256GB",
+            "min_usd": 0,
+            "max_usd": 5,
+            "Formula": null
+          },
+          {
+            "label": "512GB",
+            "min_usd": 5,
+            "max_usd": 15,
+            "Formula": null
+          },
+          {
+            "label": "1TB",
+            "min_usd": 15,
+            "max_usd": 30,
+            "Formula": null
+          },
+          {
+            "label": "2TB+",
+            "min_usd": 30,
+            "max_usd": 70,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": ["storage_profile.primary_capacity_gb", "storage_profile.secondary_capacity_gb"],
+        "notes": "Combined primary + secondary capacity",
+        "nullable": true
+      },
+      {
+        "id": "storage_medium",
+        "proper_name": "Storage Medium",
+        "description": "Value adjustment based on storage type",
+        "explanation": "NVMe SSDs are faster than SATA SSDs, which are much faster than HDDs.",
+        "valuation_buckets": [
+          {
+            "label": "HDD",
+            "min_usd": -20,
+            "max_usd": -10,
+            "Formula": null
+          },
+          {
+            "label": "SATA SSD",
+            "min_usd": 0,
+            "max_usd": 10,
+            "Formula": null
+          },
+          {
+            "label": "NVMe SSD",
+            "min_usd": 10,
+            "max_usd": 25,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": ["storage_profile.primary_medium"],
+        "notes": "Based on primary storage medium",
+        "nullable": true
+      }
+    ],
+    "PortsProfile": [
+      {
+        "id": "thunderbolt_presence",
+        "proper_name": "Thunderbolt Port",
+        "description": "Value bonus for Thunderbolt connectivity",
+        "explanation": "Thunderbolt provides high-speed data transfer and display connectivity.",
+        "valuation_buckets": [
+          {
+            "label": "Thunderbolt Present",
+            "min_usd": 15,
+            "max_usd": 30,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": ["ports_profile.has_thunderbolt"],
+        "notes": "Applied when any Thunderbolt port exists",
+        "nullable": true
+      },
+      {
+        "id": "usb_port_count",
+        "proper_name": "USB Port Count",
+        "description": "Value adjustment based on total USB ports",
+        "explanation": "More ports provide better connectivity and expansion options.",
+        "valuation_buckets": [
+          {
+            "label": "< 4 ports",
+            "min_usd": -5,
+            "max_usd": 0,
+            "Formula": null
+          },
+          {
+            "label": "4-6 ports",
+            "min_usd": 0,
+            "max_usd": 5,
+            "Formula": null
+          },
+          {
+            "label": "7+ ports",
+            "min_usd": 5,
+            "max_usd": 15,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": ["ports_profile.total_usb_count"],
+        "notes": "Combined USB-A and USB-C count",
+        "nullable": true
+      }
+    ]
+  }
+}

@@ -42,8 +42,18 @@ Focus: Multi-Pane Layout & Static Navigation
 - Enriched rule evaluation context and action metrics with RAM speed/capacity plus primary/secondary storage profile quantities for spec-based valuation rules.
 - Updated web types, listing detail surfaces, comparison views, and add-listing workflow to surface structured RAM/storage summaries and accept RAM spec inputs out of the box.
 
-### 2025-10-12 — Baseline Valuation Kickoff
-- Reviewed basic valuation PRD and architecture references, created implementation roadmap, and opened `.claude/progress/basic-valuation-enhance-progress.md` to track execution.
+### 2025-10-12 — Baseline Valuation Implementation (Workstream 1 Complete)
+- Reviewed basic valuation PRD and architecture references, created implementation roadmap
+- **Completed Workstream 1: Data Modeling & Baseline Ingestion**
+  - Added `metadata_json` JSONB column to `valuation_rule_group` with `entity_key` index (migration 0018)
+  - Implemented `BaselineLoaderService` with hash-based idempotency for JSON→rules mapping
+  - Created CLI command (`python -m dealbrain_api.cli baselines load`) and Celery task for ingestion
+  - Fixed circular import in tasks module using lazy imports
+  - Fixed SQLAlchemy JSONB query syntax (cast to String for comparisons)
+  - Created comprehensive sample baseline JSON (6 entities, 12 field definitions)
+  - Written 3 unit tests for baseline loader (95%+ coverage target)
+  - **Known Issue**: Recalculation task fails without Redis; baseline creation succeeds but triggers event loop error
+  - **Next**: Fix recalculation task to gracefully handle missing Redis, then proceed to Workstream 2 (Evaluation Precedence)
 
 ## Completed Tasks
 Phase 1 - Modal & Form System:
