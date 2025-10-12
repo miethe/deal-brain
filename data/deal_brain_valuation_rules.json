@@ -1,0 +1,1095 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2025-10-12",
+  "entities": {
+    "Listing": [
+      {
+        "id": "cpu_id",
+        "proper_name": "CPU",
+        "description": "Foreign key to CPU entity representing the processor.",
+        "influences_valuation": true,
+        "explanation": "CPU performance is priced from PassMark scores (multi & single) and clamped by generation cohort.",
+        "valuation_buckets": [
+          {
+            "label": "8th\u20139th-gen i5 / Ryzen 3xxx",
+            "min_usd": 45,
+            "max_usd": 90,
+            "Formula": null
+          },
+          {
+            "label": "10th\u201311th-gen i5 / Ryzen 5 4xxx\u20135xxxG",
+            "min_usd": 80,
+            "max_usd": 140,
+            "Formula": null
+          },
+          {
+            "label": "12th-gen i5 / 13th-gen i3/i5 / Ryzen 7xxxG",
+            "min_usd": 120,
+            "max_usd": 190,
+            "Formula": null
+          },
+          {
+            "label": "12th-gen i7 / 13th-gen i7 / Ryzen 7 5700G",
+            "min_usd": 160,
+            "max_usd": 260,
+            "Formula": null
+          },
+          {
+            "label": "Hybrid-efficiency NUC (Intel 12\u201314th mobile)",
+            "min_usd": 110,
+            "max_usd": 220,
+            "Formula": null
+          }
+        ],
+        "Formula": "value = clamp(max((CPU.cpu_mark_multi/1000)*3.6, (CPU.cpu_mark_single/100)*5.2), cohort_floor, cohort_ceiling)",
+        "unit": "USD",
+        "dependencies": [
+          "CPU.cpu_mark_multi",
+          "CPU.cpu_mark_single",
+          "CPU.release_year"
+        ],
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "cpu_igpu_uplift",
+        "proper_name": "iGPU Uplift",
+        "description": "Bonus for strong integrated graphics useful for media/AI upscaling (from CPU.igpu_mark/model).",
+        "influences_valuation": true,
+        "explanation": "Award uplift for modern Xe 12+/RDNA3-class iGPUs.",
+        "valuation_buckets": [
+          {
+            "label": "Strong modern iGPU",
+            "min_usd": 10,
+            "max_usd": 30,
+            "Formula": null
+          }
+        ],
+        "Formula": "if CPU.igpu_mark >= threshold or CPU.igpu_model in {'RDNA3','Xe-LPG','Arc-adjacent'} then +$10\u2013$30 else $0",
+        "unit": "USD",
+        "dependencies": [
+          "CPU.igpu_mark",
+          "CPU.igpu_model"
+        ],
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "gpu_id",
+        "proper_name": "GPU",
+        "description": "Foreign key to GPU entity representing discrete graphics (if any).",
+        "influences_valuation": true,
+        "explanation": "Discrete GPU adds significant value; penalize if power/size incompatible with SFF constraints.",
+        "valuation_buckets": [
+          {
+            "label": "GT 1030 / RX 6400 tier",
+            "min_usd": 25,
+            "max_usd": 60,
+            "Formula": null
+          },
+          {
+            "label": "GTX 1650 / RTX A2000 / RX 6500 XT",
+            "min_usd": 90,
+            "max_usd": 220,
+            "Formula": null
+          },
+          {
+            "label": "RTX 3060 / RTX 4060 (SFF-fit)",
+            "min_usd": 180,
+            "max_usd": 360,
+            "Formula": null
+          },
+          {
+            "label": "High-TDP penalty (>120 W, poor SFF fit)",
+            "min_usd": -75,
+            "max_usd": -25,
+            "Formula": null
+          }
+        ],
+        "Formula": "gpu_value = (GPU.gpu_mark/1000)*8.0; if GPU.tdp_w>120 and Listing/form-factor clearance insufficient then gpu_value -= 25..75; clamp to [90,360] where applicable",
+        "unit": "USD",
+        "dependencies": [
+          "GPU.gpu_mark",
+          "GPU.attributes_json.tdp_w"
+        ],
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "ram_spec_id",
+        "proper_name": "RAM Spec",
+        "description": "Foreign key to RamSpec for capacity/gen/speed/module-count.",
+        "influences_valuation": true,
+        "explanation": "Capacity contributes additively with small bonuses for speed and dual-channel.",
+        "valuation_buckets": [
+          {
+            "label": "DDR3 (any up to 16 GB cap effect)",
+            "min_usd": 4,
+            "max_usd": 8,
+            "Formula": null
+          },
+          {
+            "label": "DDR4 8 GB",
+            "min_usd": 8,
+            "max_usd": 12,
+            "Formula": null
+          },
+          {
+            "label": "DDR4 16 GB",
+            "min_usd": 15,
+            "max_usd": 25,
+            "Formula": null
+          },
+          {
+            "label": "DDR4 32 GB",
+            "min_usd": 35,
+            "max_usd": 55,
+            "Formula": null
+          },
+          {
+            "label": "DDR4 64 GB",
+            "min_usd": 70,
+            "max_usd": 110,
+            "Formula": null
+          },
+          {
+            "label": "DDR5 16 GB",
+            "min_usd": 35,
+            "max_usd": 55,
+            "Formula": null
+          },
+          {
+            "label": "DDR5 32 GB",
+            "min_usd": 65,
+            "max_usd": 95,
+            "Formula": null
+          },
+          {
+            "label": "DDR5 64 GB",
+            "min_usd": 120,
+            "max_usd": 180,
+            "Formula": null
+          },
+          {
+            "label": "High-speed uplift (\u22653200/5600)",
+            "min_usd": 3,
+            "max_usd": 12,
+            "Formula": null
+          },
+          {
+            "label": "Dual-channel bonus (module_count \u2265 2)",
+            "min_usd": 5,
+            "max_usd": 12,
+            "Formula": null
+          }
+        ],
+        "Formula": "ram_value = base(capacity, ddr_generation) + speed_uplift + dual_channel_bonus",
+        "unit": "USD",
+        "dependencies": [
+          "RamSpec.total_capacity_gb",
+          "RamSpec.ddr_generation",
+          "RamSpec.speed_mhz",
+          "RamSpec.module_count"
+        ],
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "ram_gb",
+        "proper_name": "RAM (Legacy GB)",
+        "description": "Legacy integer RAM total when RamSpec is missing.",
+        "influences_valuation": true,
+        "explanation": "Use conservative DDR4-equivalent tiers when generation unknown.",
+        "valuation_buckets": [
+          {
+            "label": "Fallback per 8/16/32/64 GB",
+            "min_usd": 8,
+            "max_usd": 110,
+            "Formula": null
+          }
+        ],
+        "Formula": "map total_gb to nearest DDR4 tier and price at lower bound",
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "primary_storage_profile_id",
+        "proper_name": "Primary Storage Profile",
+        "description": "Foreign key to StorageProfile for the primary drive.",
+        "influences_valuation": true,
+        "explanation": "Storage adds linearly; NVMe Gen4 earns higher premium. Apply HDD-only penalty if no SSD/NVMe present.",
+        "valuation_buckets": [
+          {
+            "label": "NVMe Gen3 256 GB",
+            "min_usd": 10,
+            "max_usd": 15,
+            "Formula": null
+          },
+          {
+            "label": "NVMe Gen3 512 GB",
+            "min_usd": 18,
+            "max_usd": 28,
+            "Formula": null
+          },
+          {
+            "label": "NVMe Gen3 1 TB",
+            "min_usd": 30,
+            "max_usd": 45,
+            "Formula": null
+          },
+          {
+            "label": "NVMe Gen3 2 TB",
+            "min_usd": 55,
+            "max_usd": 80,
+            "Formula": null
+          },
+          {
+            "label": "NVMe Gen4 500 GB",
+            "min_usd": 25,
+            "max_usd": 35,
+            "Formula": null
+          },
+          {
+            "label": "NVMe Gen4 1 TB",
+            "min_usd": 40,
+            "max_usd": 65,
+            "Formula": null
+          },
+          {
+            "label": "NVMe Gen4 2 TB",
+            "min_usd": 75,
+            "max_usd": 110,
+            "Formula": null
+          },
+          {
+            "label": "SATA SSD 500 GB",
+            "min_usd": 18,
+            "max_usd": 28,
+            "Formula": null
+          },
+          {
+            "label": "SATA SSD 1 TB",
+            "min_usd": 28,
+            "max_usd": 40,
+            "Formula": null
+          },
+          {
+            "label": "SATA SSD 2 TB",
+            "min_usd": 55,
+            "max_usd": 80,
+            "Formula": null
+          },
+          {
+            "label": "HDD 1 TB",
+            "min_usd": 15,
+            "max_usd": 25,
+            "Formula": null
+          },
+          {
+            "label": "HDD 2\u20134 TB",
+            "min_usd": 25,
+            "max_usd": 55,
+            "Formula": null
+          },
+          {
+            "label": "HDD-only system penalty",
+            "min_usd": -10,
+            "max_usd": -10,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": [
+          "StorageProfile.medium",
+          "StorageProfile.interface",
+          "StorageProfile.capacity_gb",
+          "StorageProfile.form_factor"
+        ],
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "secondary_storage_profile_id",
+        "proper_name": "Secondary Storage Profile",
+        "description": "Foreign key to StorageProfile for the secondary drive (if present).",
+        "influences_valuation": true,
+        "explanation": "Adds on top of primary using same bucket table.",
+        "valuation_buckets": [
+          {
+            "label": "NVMe Gen3 256 GB",
+            "min_usd": 10,
+            "max_usd": 15,
+            "Formula": null
+          },
+          {
+            "label": "NVMe Gen3 512 GB",
+            "min_usd": 18,
+            "max_usd": 28,
+            "Formula": null
+          },
+          {
+            "label": "NVMe Gen3 1 TB",
+            "min_usd": 30,
+            "max_usd": 45,
+            "Formula": null
+          },
+          {
+            "label": "NVMe Gen3 2 TB",
+            "min_usd": 55,
+            "max_usd": 80,
+            "Formula": null
+          },
+          {
+            "label": "NVMe Gen4 500 GB",
+            "min_usd": 25,
+            "max_usd": 35,
+            "Formula": null
+          },
+          {
+            "label": "NVMe Gen4 1 TB",
+            "min_usd": 40,
+            "max_usd": 65,
+            "Formula": null
+          },
+          {
+            "label": "NVMe Gen4 2 TB",
+            "min_usd": 75,
+            "max_usd": 110,
+            "Formula": null
+          },
+          {
+            "label": "SATA SSD 500 GB",
+            "min_usd": 18,
+            "max_usd": 28,
+            "Formula": null
+          },
+          {
+            "label": "SATA SSD 1 TB",
+            "min_usd": 28,
+            "max_usd": 40,
+            "Formula": null
+          },
+          {
+            "label": "SATA SSD 2 TB",
+            "min_usd": 55,
+            "max_usd": 80,
+            "Formula": null
+          },
+          {
+            "label": "HDD 1 TB",
+            "min_usd": 15,
+            "max_usd": 25,
+            "Formula": null
+          },
+          {
+            "label": "HDD 2\u20134 TB",
+            "min_usd": 25,
+            "max_usd": 55,
+            "Formula": null
+          },
+          {
+            "label": "HDD-only system penalty",
+            "min_usd": -10,
+            "max_usd": -10,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": [
+          "StorageProfile.medium",
+          "StorageProfile.interface",
+          "StorageProfile.capacity_gb",
+          "StorageProfile.form_factor"
+        ],
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "ports_profile_id",
+        "proper_name": "Ports Profile",
+        "description": "Foreign key to PortsProfile that aggregates port data.",
+        "influences_valuation": true,
+        "explanation": "Sum premiums for detected features on the associated PortsProfile/Port set.",
+        "valuation_buckets": [
+          {
+            "label": "2.5GbE present",
+            "min_usd": 10,
+            "max_usd": 25,
+            "Formula": null
+          },
+          {
+            "label": "10GbE present",
+            "min_usd": 60,
+            "max_usd": 120,
+            "Formula": null
+          },
+          {
+            "label": "Thunderbolt 3/4 present",
+            "min_usd": 30,
+            "max_usd": 80,
+            "Formula": null
+          },
+          {
+            "label": "USB-C w/ DP Alt-Mode",
+            "min_usd": 8,
+            "max_usd": 18,
+            "Formula": null
+          },
+          {
+            "label": "Extra M.2 slot(s)",
+            "min_usd": 10,
+            "max_usd": 20,
+            "Formula": null
+          },
+          {
+            "label": "PCIe x16 full-height",
+            "min_usd": 20,
+            "max_usd": 50,
+            "Formula": null
+          },
+          {
+            "label": "Wi\u2011Fi 5 module",
+            "min_usd": 5,
+            "max_usd": 8,
+            "Formula": null
+          },
+          {
+            "label": "Wi\u2011Fi 6 module",
+            "min_usd": 8,
+            "max_usd": 12,
+            "Formula": null
+          },
+          {
+            "label": "Wi\u2011Fi 6E module",
+            "min_usd": 10,
+            "max_usd": 18,
+            "Formula": null
+          },
+          {
+            "label": "Multi-display \u22653 outs (DP1.4/HDMI2.0+)",
+            "min_usd": 8,
+            "max_usd": 20,
+            "Formula": null
+          }
+        ],
+        "Formula": "ports_value = sum(feature premiums detected on PortsProfile via Port.type/spec_notes)",
+        "unit": "USD",
+        "dependencies": [
+          "PortsProfile.ports",
+          "Port.type",
+          "Port.spec_notes"
+        ],
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "os_license",
+        "proper_name": "OS License",
+        "description": "Operating system license included with the machine.",
+        "influences_valuation": true,
+        "explanation": "Windows entitlement adds resale value; Linux/no-license earns no change (not a penalty).",
+        "valuation_buckets": [
+          {
+            "label": "Windows 11 Pro",
+            "min_usd": 15,
+            "max_usd": 30,
+            "Formula": null
+          },
+          {
+            "label": "Windows 11 Home",
+            "min_usd": 5,
+            "max_usd": 12,
+            "Formula": null
+          },
+          {
+            "label": "Linux/No license",
+            "min_usd": 0,
+            "max_usd": 0,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "manufacturer",
+        "proper_name": "Manufacturer",
+        "description": "Product manufacturer (Dell/HP/Lenovo/etc.).",
+        "influences_valuation": true,
+        "explanation": "Certain business lines are easier to sell, commanding small premiums.",
+        "valuation_buckets": [
+          {
+            "label": "ThinkCentre Tiny / OptiPlex Micro / EliteDesk Mini",
+            "min_usd": 10,
+            "max_usd": 30,
+            "Formula": null
+          },
+          {
+            "label": "Gaming prebuilt w/ proprietary constraints",
+            "min_usd": -30,
+            "max_usd": -10,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "series",
+        "proper_name": "Series",
+        "description": "Product series string (e.g., ThinkCentre M90q, OptiPlex 7090 Micro).",
+        "influences_valuation": true,
+        "explanation": "Used to infer SFF/USFF premiums and desirability.",
+        "valuation_buckets": [
+          {
+            "label": "SFF/USFF premium (Tiny/Micro/Mini class)",
+            "min_usd": 20,
+            "max_usd": 80,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "device_model",
+        "proper_name": "Device Model",
+        "description": "Device model identifier.",
+        "influences_valuation": true,
+        "explanation": "Refines SFF premium detection (e.g., Tiny/USFF/NUC cues).",
+        "valuation_buckets": [
+          {
+            "label": "NUC/mini\u2011PC premium (Intel NUC, MinisForum, Beelink high-end)",
+            "min_usd": 40,
+            "max_usd": 120,
+            "Formula": null
+          },
+          {
+            "label": "Business chassis tool-less premium",
+            "min_usd": 10,
+            "max_usd": 30,
+            "Formula": null
+          },
+          {
+            "label": "Cosmetic wear",
+            "min_usd": -40,
+            "max_usd": -10,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "other_components",
+        "proper_name": "Other Components",
+        "description": "JSON array of component strings or key-value attributes.",
+        "influences_valuation": true,
+        "explanation": "Award small premiums for high-efficiency PSU and SFF-suitable aftermarket cooler; minor value for sealed peripherals.",
+        "valuation_buckets": [
+          {
+            "label": "80+ Platinum/Titanium SFF PSU",
+            "min_usd": 10,
+            "max_usd": 25,
+            "Formula": null
+          },
+          {
+            "label": "Aftermarket low-profile SFF cooler",
+            "min_usd": 5,
+            "max_usd": 15,
+            "Formula": null
+          },
+          {
+            "label": "Peripherals (kbd/mouse)",
+            "min_usd": 0,
+            "max_usd": 5,
+            "Formula": null
+          }
+        ],
+        "Formula": "parse component list; match via keyword patterns; award additive premiums",
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "condition",
+        "proper_name": "Condition",
+        "description": "Overall item condition at sale time.",
+        "influences_valuation": true,
+        "explanation": "Apply as multiplicative factor to subtotal after additive components.",
+        "valuation_buckets": [
+          {
+            "label": "New",
+            "min_multiplier": 1.0,
+            "max_multiplier": 1.08,
+            "Formula": null
+          },
+          {
+            "label": "Refurbished",
+            "min_multiplier": 0.88,
+            "max_multiplier": 0.96,
+            "Formula": null
+          },
+          {
+            "label": "Used A",
+            "min_multiplier": 0.85,
+            "max_multiplier": 0.92,
+            "Formula": null
+          },
+          {
+            "label": "Used B",
+            "min_multiplier": 0.75,
+            "max_multiplier": 0.85,
+            "Formula": null
+          },
+          {
+            "label": "Used C",
+            "min_multiplier": 0.55,
+            "max_multiplier": 0.7,
+            "Formula": null
+          }
+        ],
+        "Formula": "subtotal *= multiplier(condition)",
+        "unit": "multiplier",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "price_usd",
+        "proper_name": "Listed Price (USD)",
+        "description": "Asking price captured from source.",
+        "influences_valuation": false,
+        "explanation": "Used to compute deal delta (listed vs. intrinsic valuation); does not affect intrinsic base value.",
+        "valuation_buckets": null,
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": "Deal score = base_value_adjusted - price_usd",
+        "nullable": true
+      }
+    ],
+    "CPU": [
+      {
+        "id": "cpu_mark_multi",
+        "proper_name": "CPU Mark (Multi)",
+        "description": "PassMark CPU multi-thread score.",
+        "influences_valuation": true,
+        "explanation": "Primary input to CPU valuation.",
+        "valuation_buckets": null,
+        "Formula": "usd \u2248 (cpu_mark_multi/1000)*3.6 with cohort guardrails",
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "cpu_mark_single",
+        "proper_name": "CPU Mark (Single)",
+        "description": "PassMark CPU single-thread score.",
+        "influences_valuation": true,
+        "explanation": "Secondary input; use max of multi-derived and single-derived dollars.",
+        "valuation_buckets": null,
+        "Formula": "usd \u2248 (cpu_mark_single/100)*5.2 with cohort guardrails",
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "igpu_mark",
+        "proper_name": "iGPU Mark",
+        "description": "PassMark iGPU score for integrated graphics.",
+        "influences_valuation": true,
+        "explanation": "If above threshold or modern architecture, apply iGPU uplift on Listing.",
+        "valuation_buckets": [
+          {
+            "label": "Modern strong iGPU uplift",
+            "min_usd": 10,
+            "max_usd": 30,
+            "Formula": null
+          }
+        ],
+        "Formula": "if igpu_mark >= threshold then uplift = $10\u2013$30 else $0",
+        "unit": "USD",
+        "dependencies": null,
+        "notes": "Applied on Listing as cpu_igpu_uplift",
+        "nullable": true
+      },
+      {
+        "id": "igpu_model",
+        "proper_name": "iGPU Model",
+        "description": "Integrated GPU model string.",
+        "influences_valuation": true,
+        "explanation": "Used qualitatively with igpu_mark for uplift decision.",
+        "valuation_buckets": null,
+        "Formula": "if model in {'RDNA3','Xe-LPG','Arc'} then eligible for uplift",
+        "unit": null,
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "release_year",
+        "proper_name": "Release Year",
+        "description": "Calendar year CPU released.",
+        "influences_valuation": true,
+        "explanation": "Used for age-based depreciation after year 3.",
+        "valuation_buckets": [
+          {
+            "label": "Depreciation after year 3",
+            "min_percent_per_year": -0.01,
+            "max_percent_per_year": -0.02,
+            "Formula": "subtotal *= (1 - years_over_3 * 0.01..0.02)"
+          }
+        ],
+        "Formula": "years_over_3 = max(0, current_year - release_year - 3)",
+        "unit": "multiplier",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "tdp_w",
+        "proper_name": "TDP (W)",
+        "description": "Thermal Design Power in watts.",
+        "influences_valuation": true,
+        "explanation": "High TDP may reduce value in SFF contexts due to thermals/noise.",
+        "valuation_buckets": [
+          {
+            "label": "Penalty zone (>95 W in Tiny/Micro)",
+            "min_usd": -10,
+            "max_usd": -25,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": "Apply only if Listing chassis is SFF",
+        "nullable": true
+      }
+    ],
+    "GPU": [
+      {
+        "id": "gpu_mark",
+        "proper_name": "GPU Mark",
+        "description": "PassMark GPU aggregate score.",
+        "influences_valuation": true,
+        "explanation": "Converted to dollars; capped by SFF practicality.",
+        "valuation_buckets": null,
+        "Formula": "usd \u2248 (gpu_mark/1000)*8.0; clamp and apply SFF penalties",
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "attributes_json",
+        "proper_name": "Attributes (JSON)",
+        "description": "Semi-structured JSON for extra specs (e.g., tdp_w, length_mm, slot_width).",
+        "influences_valuation": true,
+        "explanation": "Used to compute SFF penalties when power/length exceed chassis capabilities.",
+        "valuation_buckets": [
+          {
+            "label": "SFF-incompatible penalty (e.g., tdp_w>120W or length>200mm)",
+            "min_usd": -75,
+            "max_usd": -25,
+            "Formula": null
+          }
+        ],
+        "Formula": "if tdp_w>120 or length_mm>chassis_max or slot_width>2 then apply penalty",
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      }
+    ],
+    "RamSpec": [
+      {
+        "id": "ddr_generation",
+        "proper_name": "DDR Generation",
+        "description": "Memory technology generation.",
+        "influences_valuation": true,
+        "explanation": "Sets base table and DDR3 obsolescence.",
+        "valuation_buckets": [
+          {
+            "label": "DDR3 obsolescence",
+            "min_percent": -0.05,
+            "max_percent": -0.1,
+            "Formula": "apply after additive RAM value or subtotal as decay"
+          }
+        ],
+        "Formula": null,
+        "unit": "multiplier",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "total_capacity_gb",
+        "proper_name": "Total Capacity (GB)",
+        "description": "Aggregate RAM capacity.",
+        "influences_valuation": true,
+        "explanation": "Primary additive premium by tier.",
+        "valuation_buckets": [
+          {
+            "label": "8 GB (DDR4)",
+            "min_usd": 8,
+            "max_usd": 12,
+            "Formula": null
+          },
+          {
+            "label": "16 GB (DDR4)",
+            "min_usd": 15,
+            "max_usd": 25,
+            "Formula": null
+          },
+          {
+            "label": "32 GB (DDR4)",
+            "min_usd": 35,
+            "max_usd": 55,
+            "Formula": null
+          },
+          {
+            "label": "64 GB (DDR4)",
+            "min_usd": 70,
+            "max_usd": 110,
+            "Formula": null
+          },
+          {
+            "label": "16 GB (DDR5)",
+            "min_usd": 35,
+            "max_usd": 55,
+            "Formula": null
+          },
+          {
+            "label": "32 GB (DDR5)",
+            "min_usd": 65,
+            "max_usd": 95,
+            "Formula": null
+          },
+          {
+            "label": "64 GB (DDR5)",
+            "min_usd": 120,
+            "max_usd": 180,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "speed_mhz",
+        "proper_name": "Speed (MHz)",
+        "description": "Rated memory speed.",
+        "influences_valuation": true,
+        "explanation": "High-speed kits add small premiums.",
+        "valuation_buckets": [
+          {
+            "label": "\u22653200 (DDR4) or \u22655600 (DDR5) uplift",
+            "min_usd": 3,
+            "max_usd": 12,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "module_count",
+        "proper_name": "Module Count",
+        "description": "Number of DIMMs/SODIMMs.",
+        "influences_valuation": true,
+        "explanation": "Dual-channel boosts practical performance.",
+        "valuation_buckets": [
+          {
+            "label": "Dual-channel (\u22652 modules)",
+            "min_usd": 5,
+            "max_usd": 12,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      }
+    ],
+    "StorageProfile": [
+      {
+        "id": "medium",
+        "proper_name": "Medium",
+        "description": "Storage medium class (nvme/sata_ssd/hdd).",
+        "influences_valuation": true,
+        "explanation": "Determines baseline table and HDD-only penalty.",
+        "valuation_buckets": [
+          {
+            "label": "HDD-only system penalty",
+            "min_usd": -10,
+            "max_usd": -10,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      },
+      {
+        "id": "interface",
+        "proper_name": "Interface",
+        "description": "Interface tier (PCIe 3.0/4.0 etc.).",
+        "influences_valuation": true,
+        "explanation": "Gen4 carries higher premiums at same capacity.",
+        "valuation_buckets": [
+          {
+            "label": "NVMe Gen4 add vs Gen3",
+            "min_usd": 10,
+            "max_usd": 30,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": "Reflected indirectly in capacity buckets for Gen4 vs Gen3",
+        "nullable": true
+      },
+      {
+        "id": "capacity_gb",
+        "proper_name": "Capacity (GB)",
+        "description": "Drive capacity.",
+        "influences_valuation": true,
+        "explanation": "Map to capacity buckets per medium/interface.",
+        "valuation_buckets": [
+          {
+            "label": "See Listing storage buckets",
+            "min_usd": 0,
+            "max_usd": 0,
+            "Formula": null
+          }
+        ],
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": "Use Listing.primary/secondary_storage_profile_id buckets",
+        "nullable": true
+      },
+      {
+        "id": "form_factor",
+        "proper_name": "Form Factor",
+        "description": "Physical form factor (M.2/2.5\"/3.5\").",
+        "influences_valuation": true,
+        "explanation": "No direct price impact except via SFF fit; prefer M.2 for Tiny class.",
+        "valuation_buckets": null,
+        "Formula": null,
+        "unit": "USD",
+        "dependencies": null,
+        "notes": "Can feed SFF fit checks for GPU/clearance logic",
+        "nullable": true
+      }
+    ],
+    "PortsProfile": [
+      {
+        "id": "ports",
+        "proper_name": "Ports (collection)",
+        "description": "List of Port records with type/count/spec_notes.",
+        "influences_valuation": true,
+        "explanation": "Scan to derive feature premiums.",
+        "valuation_buckets": [
+          {
+            "label": "2.5GbE present",
+            "min_usd": 10,
+            "max_usd": 25,
+            "Formula": null
+          },
+          {
+            "label": "10GbE present",
+            "min_usd": 60,
+            "max_usd": 120,
+            "Formula": null
+          },
+          {
+            "label": "Thunderbolt 3/4",
+            "min_usd": 30,
+            "max_usd": 80,
+            "Formula": null
+          },
+          {
+            "label": "USB-C DP Alt-Mode",
+            "min_usd": 8,
+            "max_usd": 18,
+            "Formula": null
+          },
+          {
+            "label": "Extra M.2 slot(s)",
+            "min_usd": 10,
+            "max_usd": 20,
+            "Formula": null
+          },
+          {
+            "label": "PCIe x16 full-height",
+            "min_usd": 20,
+            "max_usd": 50,
+            "Formula": null
+          },
+          {
+            "label": "Wi\u2011Fi 5",
+            "min_usd": 5,
+            "max_usd": 8,
+            "Formula": null
+          },
+          {
+            "label": "Wi\u2011Fi 6",
+            "min_usd": 8,
+            "max_usd": 12,
+            "Formula": null
+          },
+          {
+            "label": "Wi\u2011Fi 6E",
+            "min_usd": 10,
+            "max_usd": 18,
+            "Formula": null
+          },
+          {
+            "label": "Multi-display \u22653 outs (DP1.4/HDMI2.0+)",
+            "min_usd": 8,
+            "max_usd": 20,
+            "Formula": null
+          }
+        ],
+        "Formula": "features = detect(ports); value = sum(premium for each feature==present)",
+        "unit": "USD",
+        "dependencies": null,
+        "notes": null,
+        "nullable": true
+      }
+    ]
+  }
+}

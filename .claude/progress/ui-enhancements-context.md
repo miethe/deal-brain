@@ -906,3 +906,190 @@ Completed full implementation of performance metrics and data enrichment feature
 17. Comprehensive documentation critical for user adoption and maintainability
 18. Testing infrastructure requires dedicated sprint when not pre-configured
 19. Deferred manual testing aligns with deployment validation workflow
+
+---
+
+## Field Mapping Analysis (2025-10-11)
+
+### Overview
+Comprehensive field mapping analysis completed across the entire Deal Brain stack to document all entity fields from Database → Backend → Frontend. Generated reference document at `/mnt/containers/deal-brain/docs/technical/core-fields-mapping.md`.
+
+### Analysis Scope
+**Entities Mapped (13 total):**
+- **Core Entities:** Listing, CPU, GPU, RamSpec, StorageProfile, ListingComponent, PortsProfile, Port
+- **Valuation System:** ValuationRuleset, ValuationRuleGroup, ValuationRuleV2, ValuationRuleCondition, ValuationRuleAction
+- **Supporting:** Profile, ApplicationSettings, CustomFieldDefinition
+- **Import/Export:** ImportSession
+- **Enumerations:** Condition, ListingStatus, RamGeneration, StorageMedium, ComponentType, PortType
+
+**Layers Analyzed:**
+1. **Database:** SQLAlchemy models (`apps/api/dealbrain_api/models/core.py`)
+2. **Backend:** Pydantic schemas (`packages/core/dealbrain_core/schemas/`)
+3. **Frontend:** TypeScript types (`apps/web/types/`, `apps/web/lib/api/`)
+4. **API:** JSON keys in HTTP requests/responses
+
+### Key Findings
+
+#### 1. Strengths (Field Consistency)
+✅ **Excellent Consistency:**
+- **Timestamp Pattern:** All entities use `TimestampMixin` with `created_at` and `updated_at`
+- **Custom Fields Architecture:** Unified `attributes_json` pattern across 8 entities
+- **Type Safety:** Strong typing in Python (Pydantic) and TypeScript
+- **Relationship Handling:** Consistent nested object serialization (lazy joined relationships)
+- **Enum Management:** Centralized enums in `dealbrain_core.enums`
+- **JSON Field Naming:** Backend uses `*_json` suffix, API removes it (clean separation)
+
+#### 2. Identified Discrepancies
+
+**⚠️ Port Field Naming Inconsistency (High Priority)**
+- **DB:** `type`, `count`, `spec_notes`
+- **Frontend:** `port_type`, `quantity`, `version`/`notes`
+- **Impact:** Requires mapping in API layer, potential confusion
+- **Recommendation:** Standardize to `port_type`, `count`, `spec_notes` across all layers
+
+**⚠️ ListingComponent `rule_id` Field (Medium Priority)**
+- **Issue:** Field exists in Pydantic schema but NOT in SQLAlchemy model
+- **Location:** `packages/core/dealbrain_core/schemas/listing.py`
+- **Impact:** Field appears in API but cannot be persisted to database
+- **Recommendation:** Either add `rule_id` column to DB or remove from schema
+
+**⚠️ Performance Metrics Dual System (Low Priority)**
+- **Legacy:** `dollar_per_cpu_mark`, `dollar_per_single_mark`
+- **New:** `dollar_per_cpu_mark_single/multi` with `_adjusted` variants
+- **Impact:** Potential confusion about which metrics to use
+- **Recommendation:** Deprecate legacy metrics once new system fully validated
+- **Status:** Coexistence is acceptable during transition
+
+#### 3. Field Count Summary
+
+| Entity | Total Fields | Computed | Relationships | Custom Fields |
+|--------|--------------|----------|---------------|---------------|
+| Listing | 65+ | 2 (ram_type, ram_speed_mhz) | 8 | ✓ |
+| CPU | 15 | 0 | 1 | ✓ |
+| GPU | 7 | 0 | 1 | ✓ |
+| RamSpec | 9 | 0 | 1 | ✓ |
+| StorageProfile | 10 | 0 | 2 | ✓ |
+| ListingComponent | 8 | 0 | 1 | ✗ |
+| PortsProfile | 5 | 0 | 2 | ✓ |
+| Port | 6 | 0 | 1 | ✗ |
+| ValuationRuleset | 11 | 0 | 2 | ✗ |
+| ValuationRuleGroup | 10 | 0 | 2 | ✗ |
+| ValuationRuleV2 | 11 | 0 | 4 | ✗ |
+| Profile | 7 | 0 | 1 | ✗ |
+| CustomFieldDefinition | 16 | 0 | 1 | ✗ |
+
+**Total Core Fields Across Stack:** 180+ fields mapped
+
+#### 4. Enumeration Consistency
+✅ **All enums use lowercase values:**
+- `Condition`: "new", "refurb", "used"
+- `RamGeneration`: "ddr3", "ddr4", "ddr5", etc.
+- `StorageMedium`: "nvme", "sata_ssd", "hdd", etc.
+- Frontend handles display formatting (uppercase, proper casing)
+
+#### 5. Relationship Patterns
+✅ **Consistent nested object serialization:**
+- `Listing.cpu` → API: `cpu: CpuRecord | null`
+- `Listing.ram_spec` → API: `ram_spec: RamSpecRecord | null`
+- `Listing.ports_profile` → API: `ports_profile: PortsProfileRecord | null`
+- Pattern: SQLAlchemy `lazy="joined"` or `lazy="selectin"` → JSON nested objects
+
+### Documentation Output
+
+**Generated:** `/mnt/containers/deal-brain/docs/technical/core-fields-mapping.md`
+
+**Content Sections:**
+1. Overview & Mapping Key
+2. Core Entities (detailed field tables)
+3. Valuation System (rule engine fields)
+4. Supporting Entities (profiles, settings, custom fields)
+5. Import/Export Entities
+6. Enumerations (complete reference)
+7. Discrepancies & Notes (actionable findings)
+8. Summary & Field Count
+
+**Format:**
+- Comprehensive markdown tables with 7 columns per entity
+- Field Name | DB Column | Backend Type | Frontend Type | API Key | Description | Constraints
+- Visual indicators: ✓ (consistent), ⚠ (different), ✗ (missing), → (computed)
+
+### Architectural Insights
+
+**Custom Fields Architecture:**
+- Pattern: `attributes_json` (DB) → `attributes` (API)
+- Supported entities: Listing, CPU, GPU, RamSpec, StorageProfile, PortsProfile
+- Storage: PostgreSQL JSON column with default={}
+- Flexibility: Allows dynamic fields without schema changes
+
+**Computed Fields:**
+- `Listing.ram_type` → Derived from `ram_spec.ddr_generation`
+- `Listing.ram_speed_mhz` → Derived from `ram_spec.speed_mhz`
+- Pattern: SQLAlchemy `@property` decorators, not stored in DB
+
+**Performance Metrics Evolution:**
+- Phase 1 (Legacy): `dollar_per_cpu_mark`, `dollar_per_single_mark`
+- Phase 2 (Current): Dual metrics with base/adjusted variants
+- All metrics nullable, computed by services layer
+
+### Action Items (Recommended)
+
+**High Priority:**
+1. Standardize Port field naming across stack (Backend PR)
+2. Resolve ListingComponent.rule_id inconsistency (Add to DB or remove from schema)
+
+**Medium Priority:**
+3. Document migration path from legacy to new performance metrics
+4. Add field mapping validation tests (ensure DB ↔ API consistency)
+
+**Low Priority:**
+5. Consider adding computed field documentation to models
+6. Evaluate if PassMark fields should be exposed in CPU API
+
+### Technical Debt Identified
+
+1. **Port Field Naming:** Requires refactor across 4 layers (DB, Backend, API, Frontend)
+2. **ListingComponent.rule_id:** Ghost field in schema without DB backing
+3. **Dual Metrics System:** Transition period complexity
+4. **PassMark Fields:** Exposed in DB/Backend but not in Frontend types
+
+### Key Learnings
+
+1. **Comprehensive mapping reveals subtle inconsistencies** that might be missed in code review
+2. **Field naming standards should be enforced** across all layers from initial design
+3. **Computed fields need explicit documentation** to avoid confusion with stored fields
+4. **Migration periods benefit from explicit dual-system documentation**
+5. **Type consistency across stack (Python ↔ TypeScript)** is excellent with Pydantic
+6. **JSON field naming convention** (`*_json` in DB, clean name in API) works well
+7. **Custom fields architecture** provides excellent extensibility without schema bloat
+
+### Reference for Developers
+
+**When Adding New Fields:**
+1. Check `/mnt/containers/deal-brain/docs/technical/core-fields-mapping.md` for patterns
+2. Ensure DB column name matches across all layers
+3. Use `*_json` suffix for JSON columns in DB
+4. Add to appropriate Pydantic schema (Create/Read)
+5. Update TypeScript types in `apps/web/types/`
+6. Test API serialization matches expected keys
+7. Document if computed/derived field
+
+**When Modifying Existing Fields:**
+1. Check field mapping document for dependencies
+2. Update all 4 layers: DB → Backend → API → Frontend
+3. Consider backward compatibility
+4. Update tests and documentation
+5. Check for enum value changes
+
+### Conclusion
+
+The field mapping analysis reveals a **well-architected system with excellent consistency** in most areas. The identified discrepancies are minor and can be addressed incrementally. The custom fields architecture provides excellent flexibility, and the type safety across Python/TypeScript boundaries is exemplary.
+
+**Status:** ✅ Analysis complete, actionable findings documented, reference guide ready for team use.
+
+**Next Steps:**
+1. Review findings with backend team
+2. Prioritize Port field naming refactor
+3. Resolve ListingComponent.rule_id inconsistency
+4. Use field mapping doc as onboarding reference
+
+---

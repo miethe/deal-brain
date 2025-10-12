@@ -9,17 +9,17 @@ from sqlalchemy import select
 
 from dealbrain_core.schemas import SpreadsheetSeed
 
-from .db import Base, get_engine, session_scope
-from .models import Cpu, Gpu, Listing, PortsProfile, Port, Profile
-from .seeds.component_catalog import seed_component_catalog
-from .services.listings import (
+from ..db import Base, get_engine, session_scope
+from ..models import Cpu, Gpu, Listing, PortsProfile, Port, Profile
+from .component_catalog import seed_component_catalog
+from ..services.listings import (
     apply_listing_metrics,
     create_listing,
     sync_listing_components,
     update_listing,
 )
-from .services.component_catalog import get_or_create_ram_spec, get_or_create_storage_profile
-from .settings import get_settings
+from ..services.component_catalog import get_or_create_ram_spec, get_or_create_storage_profile
+from ..settings import get_settings
 
 
 async def apply_seed(seed: SpreadsheetSeed) -> None:
@@ -111,7 +111,7 @@ async def apply_seed(seed: SpreadsheetSeed) -> None:
 
 async def seed_from_workbook(path: Path) -> None:
     # Import lazily so CLI scripts without spreadsheet dependencies can rely on apply_seed.
-    from .importers import SpreadsheetImporter
+    from ..importers import SpreadsheetImporter
 
     importer = SpreadsheetImporter(path)
     seed, summary = importer.load()
