@@ -51,7 +51,8 @@ class BaselineLoaderService:
     """Map curated baseline JSON into system rulesets."""
 
     def __init__(self, rules_service: RulesService | None = None) -> None:
-        self.rules_service = rules_service or RulesService()
+        # Disable recalculation during baseline ingestion to avoid Redis dependency
+        self.rules_service = rules_service or RulesService(trigger_recalculation=False)
 
     async def load_from_path(
         self,

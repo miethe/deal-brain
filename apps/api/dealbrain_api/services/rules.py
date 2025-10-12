@@ -29,6 +29,20 @@ from ..tasks import enqueue_listing_recalculation
 class RulesService:
     """Service for managing valuation rules"""
 
+    def __init__(self, *, trigger_recalculation: bool = True) -> None:
+        """Initialize rules service.
+
+        Args:
+            trigger_recalculation: If False, skip enqueuing recalculation tasks.
+                                  Useful for batch operations or when Redis is unavailable.
+        """
+        self._trigger_recalculation = trigger_recalculation
+
+    def _enqueue_recalc(self, ruleset_id: int, reason: str) -> None:
+        """Conditionally enqueue listing recalculation."""
+        if self._trigger_recalculation:
+            enqueue_listing_recalculation(ruleset_id=ruleset_id, reason=reason)
+
     # --- Ruleset operations ---
 
     async def create_ruleset(
@@ -100,7 +114,7 @@ class RulesService:
             changes={"ruleset_id": ruleset.id, "name": name}
         )
 
-        enqueue_listing_recalculation(ruleset_id=ruleset.id, reason="ruleset_created")
+        self._enqueue_recalc(ruleset.id, "ruleset_created")
         return ruleset
 
     async def get_ruleset(
@@ -187,7 +201,7 @@ class RulesService:
             changes={"ruleset_id": ruleset_id, "updates": updates}
         )
 
-        enqueue_listing_recalculation(ruleset_id=ruleset_id, reason="ruleset_updated")
+        self._enqueue_recalc(ruleset_id, "ruleset_updated")
         return ruleset
 
     async def delete_ruleset(
@@ -213,7 +227,7 @@ class RulesService:
         await session.delete(ruleset)
         await session.commit()
 
-        enqueue_listing_recalculation(ruleset_id=ruleset_id, reason="ruleset_deleted")
+        self._enqueue_recalc(ruleset_id, "ruleset_deleted")
         return True
 
     # --- Rule Group operations ---
@@ -268,7 +282,7 @@ class RulesService:
         await session.commit()
         await session.refresh(group)
 
-        enqueue_listing_recalculation(ruleset_id=ruleset_id, reason="rule_group_created")
+        self._enqueue_recalc(ruleset_id, "rule_group_created")
         return group
 
     async def get_rule_group(
@@ -317,7 +331,7 @@ class RulesService:
         await session.commit()
         await session.refresh(group)
 
-        enqueue_listing_recalculation(ruleset_id=group.ruleset_id, reason="rule_group_updated")
+        self._enqueue_recalc(group.ruleset_id, "rule_group_updated")
         return group
 
     async def list_rule_groups(
@@ -417,7 +431,7 @@ class RulesService:
             changes={"rule_name": name, "group_id": group_id}
         )
 
-        enqueue_listing_recalculation(ruleset_id=ruleset_id, reason="rule_created")
+        self._enqueue_recalc(ruleset_id, "rule_created")
         return rule
 
     async def get_rule(
@@ -547,7 +561,7 @@ class RulesService:
             changes=updates
         )
 
-        enqueue_listing_recalculation(ruleset_id=ruleset_id, reason="rule_updated")
+        self._enqueue_recalc(ruleset_id, "rule_updated")
         return rule
 
     async def delete_rule(
@@ -575,7 +589,7 @@ class RulesService:
         await session.delete(rule)
         await session.commit()
 
-        enqueue_listing_recalculation(ruleset_id=ruleset_id, reason="rule_deleted")
+        self._enqueue_recalc(ruleset_id, "rule_deleted")
         return True
 
     # --- Helper methods ---
