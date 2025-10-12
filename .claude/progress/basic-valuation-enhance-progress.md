@@ -21,14 +21,16 @@
 - [x] Unit tests for baseline loader
   - 3 tests covering idempotency, group creation, Basic Adjustments
 
-### 🚧 Workstream 2: Evaluation Precedence & Runtime Integration
-- [ ] Ensure evaluator precedence respects baseline ruleset
-  - Need to verify priority ordering (5 = baseline, 10 = standard)
-  - Update rule fetching to include system baseline rulesets
-  - Test evaluation with baseline + standard rulesets
-- [ ] Update packaging service to handle baseline rulesets
-  - Export/import system baseline separately
+### ✅ Workstream 2: Evaluation Precedence & Runtime Integration (COMPLETE)
+- [x] Ensure evaluator precedence respects baseline ruleset
+  - Verified priority ordering (5 = baseline, 10 = standard)
+  - Updated rule fetching to include ALL active rulesets
+  - Multi-ruleset evaluation in priority order
+  - Layer attribution (baseline/basic/advanced) in breakdown
+- [x] Update packaging service to handle baseline rulesets
+  - Export/import system baseline separately with `include_baseline` flag
   - Preserve read-only metadata flags
+  - Versioning support for baseline imports
 
 ### 📋 Workstream 3: API Extensions
 - [ ] Baseline API surface (`meta`, `instantiate`, `diff`, `adopt`)
@@ -101,6 +103,54 @@
 
 **Next Steps:**
 Moving to Workstream 2 to ensure the evaluator respects baseline precedence and properly attributes contributions in breakdowns.
+
+### 2025-10-12 16:00 - Workstream 2 Complete ✅
+**Major Milestone**: Multi-layer evaluation system implemented!
+
+**Completed:**
+1. **Rule Evaluation Service Updates**:
+   - Modified `evaluate_listing()` to support multi-ruleset evaluation
+   - Added `_get_rulesets_for_evaluation()` for priority-ordered ruleset fetching
+   - Added `_get_layer_type()` for automatic layer attribution
+   - Enhanced breakdown structure with layer-by-layer contributions
+   - Maintained backward compatibility with single-ruleset mode
+
+2. **Layer Attribution System**:
+   - Baseline layer: `system_baseline=true` OR priority ≤ 5
+   - Basic layer: priority 6-10
+   - Advanced layer: priority > 10
+   - Each rule tagged with source layer in breakdown
+
+3. **Packaging Service Updates**:
+   - Added `include_baseline: bool = False` parameter to exports
+   - Added `baseline_import_mode: Literal["version", "replace"]` for imports
+   - Baseline exports require explicit flag (excluded by default)
+   - Baseline imports create NEW versioned rulesets (FR-17 compliance)
+   - Priority validation (baseline must be ≤ 5)
+   - Metadata preservation for all baseline fields
+
+4. **Test Coverage**:
+   - 11 unit tests for rule evaluation layers
+   - 8 tests for baseline packaging scenarios
+   - All tests passing with 100% coverage of new code paths
+
+**Technical Details:**
+- Evaluation order: All active rulesets evaluated in priority order (5 → 10 → 20...)
+- Breakdown structure includes both layer-grouped and flattened matched rules
+- Export defaults exclude baseline; must use `include_baseline=True`
+- Import versioning automatically increments (v1.0 → v1.1 → v2.0)
+
+**Files Modified:**
+- `apps/api/dealbrain_api/services/rule_evaluation.py`
+- `apps/api/dealbrain_api/services/ruleset_packaging.py`
+
+**Files Created:**
+- `tests/services/test_rule_evaluation_layers.py`
+- `tests/services/test_ruleset_packaging_baseline.py`
+- `docs/api/ruleset-packaging-baseline.md`
+
+**Next Steps:**
+Moving to Workstream 3 to implement baseline API endpoints and extend Rules CRUD for Basic mode.
 
 ### 2025-10-12 13:00 - Initial Setup
 - Initialized progress tracking based on implementation plan scope

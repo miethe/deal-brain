@@ -1,5 +1,6 @@
 """Service for evaluating rules against listings with caching"""
 
+from datetime import datetime
 from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,15 +40,18 @@ class RuleEvaluationService:
         ruleset_id: int | None = None
     ) -> dict[str, Any]:
         """
-        Evaluate a listing against a ruleset.
+        Evaluate a listing against one or more rulesets.
+
+        If ruleset_id is provided, only that ruleset is evaluated.
+        Otherwise, evaluates all active rulesets in priority order.
 
         Args:
             session: Database session
             listing_id: Listing ID to evaluate
-            ruleset_id: Ruleset to use (uses active ruleset if None)
+            ruleset_id: Specific ruleset to use (optional)
 
         Returns:
-            Dictionary with valuation results
+            Dictionary with valuation results including layer attribution
         """
         # Get listing with related data
         stmt = (
@@ -75,57 +79,97 @@ class RuleEvaluationService:
             if isinstance(ruleset_id, (int, str)) and str(ruleset_id).isdigit()
         }
 
-        # Get ruleset
-        if ruleset_id is None:
-            ruleset = None
-            if listing.ruleset_id:
-                ruleset = await self._get_ruleset(session, listing.ruleset_id)
-                if ruleset and not ruleset.is_active:
-                    ruleset = None
-
-            if not ruleset:
-                ruleset = await self._match_ruleset_for_context(session, context, disabled_rulesets)
-
-            if not ruleset:
-                ruleset = await self._get_active_ruleset(session, disabled_rulesets)
-        else:
+        # Get rulesets to evaluate
+        if ruleset_id is not None:
+            # Evaluate specific ruleset only
             ruleset = await self._get_ruleset(session, ruleset_id)
+            if not ruleset:
+                raise ValueError(f"Ruleset {ruleset_id} not found")
+            rulesets_to_evaluate = [ruleset]
+        else:
+            # Get all applicable rulesets in priority order
+            rulesets_to_evaluate = await self._get_rulesets_for_evaluation(
+                session, context, disabled_rulesets
+            )
 
-        if not ruleset:
-            raise ValueError("No active ruleset found")
+        if not rulesets_to_evaluate:
+            raise ValueError("No active rulesets found")
 
-        # Get all rules from ruleset
-        rules = await self._get_rules_from_ruleset(session, ruleset.id)
+        # Evaluate all rulesets in order and combine results
+        all_evaluation_results = []
+        matched_rules_by_layer = {}
+        total_adjustment = 0.0
 
-        # Evaluate rules
-        evaluation_results = self.evaluator.evaluate_ruleset(rules, context)
+        for ruleset in rulesets_to_evaluate:
+            # Determine layer type from ruleset metadata
+            layer_type = self._get_layer_type(ruleset)
 
-        # Calculate total adjustment
-        summary = self.evaluator.calculate_total_adjustment(evaluation_results)
+            # Get all rules from this ruleset
+            rules = await self._get_rules_from_ruleset(session, ruleset.id)
 
-        # Calculate adjusted price
-        original_price = listing.price_usd
-        total_adjustment = summary["total_adjustment"]
+            if not rules:
+                continue
+
+            # Evaluate rules from this ruleset
+            evaluation_results = self.evaluator.evaluate_ruleset(rules, context)
+
+            # Calculate adjustment for this layer
+            layer_summary = self.evaluator.calculate_total_adjustment(evaluation_results)
+            layer_adjustment = layer_summary["total_adjustment"]
+
+            # Track results by layer
+            if layer_summary["matched_rules"]:
+                matched_rules_by_layer[layer_type] = {
+                    "ruleset_id": ruleset.id,
+                    "ruleset_name": ruleset.name,
+                    "priority": ruleset.priority,
+                    "adjustment": layer_adjustment,
+                    "matched_rules": layer_summary["matched_rules"]
+                }
+
+            # Add to cumulative results
+            total_adjustment += layer_adjustment
+            all_evaluation_results.extend([
+                {
+                    "rule_id": r.rule_id,
+                    "rule_name": r.rule_name,
+                    "ruleset_id": ruleset.id,
+                    "ruleset_name": ruleset.name,
+                    "layer": layer_type,
+                    "matched": r.matched,
+                    "adjustment_value": r.adjustment_value,
+                    "error": r.error,
+                }
+                for r in evaluation_results
+            ])
+
+        # Calculate adjusted price (ensure consistent types)
+        original_price = float(listing.price_usd) if listing.price_usd else 0.0
         adjusted_price = original_price + total_adjustment
+
+        # Count total matched rules across all layers
+        total_matched_rules = sum(
+            len(layer["matched_rules"])
+            for layer in matched_rules_by_layer.values()
+        )
 
         return {
             "listing_id": listing_id,
             "original_price": original_price,
             "total_adjustment": total_adjustment,
             "adjusted_price": adjusted_price,
-            "ruleset_id": ruleset.id,
-            "ruleset_name": ruleset.name,
-            "matched_rules_count": summary["matched_rules_count"],
-            "matched_rules": summary["matched_rules"],
-            "evaluation_results": [
+            "matched_rules_count": total_matched_rules,
+            "layers": matched_rules_by_layer,  # New: breakdown by layer
+            "matched_rules": self._flatten_matched_rules(matched_rules_by_layer),
+            "evaluation_results": all_evaluation_results,
+            "rulesets_evaluated": [
                 {
-                    "rule_id": r.rule_id,
-                    "rule_name": r.rule_name,
-                    "matched": r.matched,
-                    "adjustment_value": r.adjustment_value,
-                    "error": r.error,
+                    "id": rs.id,
+                    "name": rs.name,
+                    "priority": rs.priority,
+                    "layer": self._get_layer_type(rs)
                 }
-                for r in evaluation_results
+                for rs in rulesets_to_evaluate
             ]
         }
 
@@ -136,12 +180,12 @@ class RuleEvaluationService:
         ruleset_id: int | None = None
     ) -> list[dict[str, Any]]:
         """
-        Evaluate multiple listings against a ruleset.
+        Evaluate multiple listings against rulesets.
 
         Args:
             session: Database session
             listing_ids: List of listing IDs
-            ruleset_id: Ruleset to use (uses active ruleset if None)
+            ruleset_id: Specific ruleset to use (uses all active if None)
 
         Returns:
             List of evaluation results
@@ -168,12 +212,12 @@ class RuleEvaluationService:
         commit: bool = True
     ) -> dict[str, Any]:
         """
-        Evaluate and apply ruleset to a listing, updating adjusted_price_usd and valuation_breakdown.
+        Evaluate and apply rulesets to a listing, updating adjusted_price_usd and valuation_breakdown.
 
         Args:
             session: Database session
             listing_id: Listing ID
-            ruleset_id: Ruleset to apply
+            ruleset_id: Specific ruleset to apply (uses all active if None)
             commit: Whether to commit changes
 
         Returns:
@@ -189,11 +233,14 @@ class RuleEvaluationService:
 
         if listing:
             listing.adjusted_price_usd = result["adjusted_price"]
+
+            # Enhanced breakdown with layer attribution
             listing.valuation_breakdown = {
-                "ruleset_id": result["ruleset_id"],
-                "ruleset_name": result["ruleset_name"],
                 "total_adjustment": result["total_adjustment"],
-                "matched_rules": result["matched_rules"],
+                "layers": result["layers"],  # Layer-by-layer breakdown
+                "matched_rules": result["matched_rules"],  # Flattened list for compatibility
+                "rulesets_evaluated": result["rulesets_evaluated"],
+                "evaluated_at": datetime.utcnow().isoformat()
             }
 
             if commit:
@@ -209,11 +256,11 @@ class RuleEvaluationService:
         batch_size: int = 100
     ) -> dict[str, Any]:
         """
-        Apply ruleset to all active listings in batches.
+        Apply rulesets to all active listings in batches.
 
         Args:
             session: Database session
-            ruleset_id: Ruleset to apply
+            ruleset_id: Specific ruleset to apply (uses all active if None)
             batch_size: Number of listings to process at once
 
         Returns:
@@ -271,12 +318,60 @@ class RuleEvaluationService:
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def _get_rulesets_for_evaluation(
+        self,
+        session: AsyncSession,
+        context: dict[str, Any],
+        excluded_ids: set[int]
+    ) -> list[ValuationRuleset]:
+        """
+        Get all active rulesets that should be evaluated, ordered by priority.
+
+        This implements the multi-layered evaluation approach:
+        1. System baseline rulesets (priority=5)
+        2. Standard/user rulesets (priority=10+)
+
+        Args:
+            session: Database session
+            context: Evaluation context for conditional ruleset matching
+            excluded_ids: Set of ruleset IDs to exclude
+
+        Returns:
+            List of rulesets ordered by priority (ascending)
+        """
+        # Get all active rulesets ordered by priority
+        stmt = (
+            select(ValuationRuleset)
+            .where(ValuationRuleset.is_active == True)
+            .order_by(
+                ValuationRuleset.priority.asc(),
+                ValuationRuleset.created_at.asc()
+            )
+        )
+        result = await session.execute(stmt)
+        all_rulesets = list(result.scalars().all())
+
+        # Filter out excluded rulesets and those that don't match context
+        applicable_rulesets = []
+        for ruleset in all_rulesets:
+            if ruleset.id in excluded_ids:
+                continue
+
+            # Check if ruleset has conditions and if they match
+            if ruleset.conditions_json:
+                if not self._ruleset_matches_context(ruleset, context):
+                    continue
+
+            applicable_rulesets.append(ruleset)
+
+        return applicable_rulesets
+
     async def _get_active_ruleset(
         self,
         session: AsyncSession,
         excluded_ids: set[int],
     ) -> ValuationRuleset | None:
-        """Get first active ruleset"""
+        """Get first active ruleset (legacy single-ruleset mode)"""
         stmt = (
             select(ValuationRuleset)
             .where(ValuationRuleset.is_active == True)
@@ -403,6 +498,47 @@ class RuleEvaluationService:
                 })
 
         return all_rules
+
+    def _get_layer_type(self, ruleset: ValuationRuleset) -> str:
+        """
+        Determine the layer type based on ruleset metadata and priority.
+
+        Returns:
+            Layer type: 'baseline', 'basic', or 'advanced'
+        """
+        metadata = ruleset.metadata_json or {}
+
+        # Check if it's a system baseline ruleset
+        if metadata.get("system_baseline") is True:
+            return "baseline"
+
+        # Check priority ranges (baseline=5, standard=10+)
+        if ruleset.priority <= 5:
+            return "baseline"
+        elif ruleset.priority <= 10:
+            return "basic"
+        else:
+            return "advanced"
+
+    def _flatten_matched_rules(self, matched_rules_by_layer: dict[str, Any]) -> list[dict]:
+        """
+        Flatten the layer-based matched rules into a single list for backward compatibility.
+
+        Args:
+            matched_rules_by_layer: Dictionary of layer -> matched rules
+
+        Returns:
+            Flattened list of matched rules with layer attribution
+        """
+        flattened = []
+        for layer_type, layer_data in matched_rules_by_layer.items():
+            for rule in layer_data["matched_rules"]:
+                rule_with_layer = rule.copy()
+                rule_with_layer["layer"] = layer_type
+                rule_with_layer["ruleset_id"] = layer_data["ruleset_id"]
+                rule_with_layer["ruleset_name"] = layer_data["ruleset_name"]
+                flattened.append(rule_with_layer)
+        return flattened
 
     def clear_cache(self):
         """Clear evaluation cache"""

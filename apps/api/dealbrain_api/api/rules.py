@@ -181,6 +181,7 @@ async def get_ruleset(
                 is_active=group.is_active,
                 created_at=group.created_at,
                 updated_at=group.updated_at,
+                metadata=group.metadata_json,
                 rules=rules,
             )
         )
