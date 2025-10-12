@@ -42,6 +42,9 @@ Focus: Multi-Pane Layout & Static Navigation
 - Enriched rule evaluation context and action metrics with RAM speed/capacity plus primary/secondary storage profile quantities for spec-based valuation rules.
 - Updated web types, listing detail surfaces, comparison views, and add-listing workflow to surface structured RAM/storage summaries and accept RAM spec inputs out of the box.
 
+### 2025-10-12 — Baseline Valuation Kickoff
+- Reviewed basic valuation PRD and architecture references, created implementation roadmap, and opened `.claude/progress/basic-valuation-enhance-progress.md` to track execution.
+
 ## Completed Tasks
 Phase 1 - Modal & Form System:
 - Enhanced modal-shell with size variants, preventClose, onClose
