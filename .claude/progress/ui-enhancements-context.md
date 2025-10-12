@@ -909,6 +909,207 @@ Completed full implementation of performance metrics and data enrichment feature
 
 ---
 
+## Valuation Rules Architecture Documentation (2025-10-12)
+
+### Overview
+Comprehensive architecture documentation created for the Valuation Rules system, covering database schema, backend services, frontend integration, core domain logic, and data flows.
+
+**Generated:** `/mnt/containers/deal-brain/docs/architecture/valuation-rules.md` (2,800+ lines)
+
+### Documentation Scope
+
+**Content Sections:**
+1. Overview and key capabilities
+2. System architecture with layer diagrams
+3. Database schema (4-level hierarchy model)
+4. Core domain logic (rules evaluation engine)
+5. Backend services (5 specialized services)
+6. Frontend architecture (Basic/Advanced modes)
+7. Listing integration (valuation display)
+8. Data flow diagrams (3 complete flows)
+9. API endpoints (25+ endpoints documented)
+10. Future enhancements roadmap
+
+### Key Architecture Components
+
+**Hierarchy Model:**
+```
+Ruleset (priority, is_active, conditions_json)
+  └─ RuleGroup[] (category, display_order, weight)
+      └─ Rule[] (evaluation_order, priority, is_active)
+          ├─ Condition[] (nested, AND/OR logic)
+          └─ Action[] (fixed_value, per_unit, formula)
+```
+
+**Core Services:**
+- **RulesService:** CRUD operations, validation, cascade management
+- **RuleEvaluationService:** Evaluate listings, apply rulesets, batch processing
+- **RulePreviewService:** Statistical analysis, sample listings
+- **RulesetPackagingService:** Import/export, conflict resolution
+- **FieldMetadataService:** Entity/field metadata for rule builder
+
+**Frontend Modes:**
+- **Basic Mode:** Simplified UI (baseline/condition adjustments) → generates managed rules
+- **Advanced Mode:** Full hierarchy visualization, inline editing, drag-and-drop
+
+**Condition System:**
+- 12 operators (equals, gt, lt, in, contains, regex, etc.)
+- Nested groups with AND/OR logic
+- Dot notation field access (e.g., `cpu.cores`, `ram_spec.speed_mhz`)
+
+**Action System:**
+- **fixed_value:** Constant adjustment (e.g., -$50)
+- **per_unit:** Multiplied by metric (e.g., -$2.5 × ram_gb)
+- **formula:** Custom expressions via FormulaEngine
+
+### Rule Evaluation Flow
+
+```
+1. Fetch listing with related data (CPU, GPU, RAM, storage)
+2. Build context dictionary (flattened listing + nested entities)
+3. Select ruleset:
+   - Use listing.ruleset_id if active
+   - Match ruleset conditions against context
+   - Else use default active ruleset
+4. Fetch all active rules from rule groups (sorted by evaluation_order)
+5. For each rule:
+   - Evaluate conditions (ConditionGroup handles AND/OR)
+   - If matched, execute actions (ActionEngine)
+   - Aggregate adjustments
+6. Calculate total_adjustment
+7. Update listing.adjusted_price_usd and valuation_breakdown
+8. Commit to database
+```
+
+### Data Flow Diagrams
+
+**Documented Flows:**
+1. **Rule Creation:** User → Frontend → RulesService → Database (with versioning/audit)
+2. **Listing Valuation:** Listing Save → RuleEvaluationService → RuleEvaluator → Update Listing
+3. **Rule Preview:** User → Frontend → RulePreviewService → Statistics/Samples
+
+### Frontend Integration
+
+**Page Structure:** `/valuation-rules`
+- Mode Toggle (Basic/Advanced)
+- Ruleset Selector + Stats
+- Ruleset Settings (priority, conditions)
+- Mode-specific content (BasicValuationForm or Advanced rule hierarchy)
+
+**Listing Display:**
+- **ValuationCell:** Color-coded adjusted price with delta badge
+- **ValuationBreakdownModal:** Detailed rule-by-rule breakdown
+- **Threshold Configuration:** Stored in ApplicationSettings
+
+### Key Concepts Documented
+
+1. **Rule Priority vs Evaluation Order:** Clarified distinction and usage
+2. **Ruleset Conditions vs Rule Conditions:** Different purposes, automatic selection
+3. **Adjustment Semantics:** Negative = deduction, positive = premium
+4. **Version History:** Snapshots + audit logs for compliance
+5. **Basic Mode Syncing:** Managed rules with `basic_managed` metadata flag
+
+### API Endpoints (25+ Documented)
+
+**Rulesets:** Create, list, get, update, delete (5 endpoints)
+**Rule Groups:** Create, list, update, delete (4 endpoints)
+**Rules:** Create, list, get, update, delete, duplicate (6 endpoints)
+**Evaluation:** Preview, evaluate, apply (3 endpoints)
+**Audit:** Audit log retrieval (1 endpoint)
+**Packaging:** Export, import (2 endpoints)
+
+### Future Enhancements Roadmap
+
+**Planned Features:**
+- Rule templates and bulk actions
+- Conditional actions and rule dependencies
+- A/B testing and ML-assisted tuning
+- Rule scheduling (time-based activation)
+
+**Performance Optimizations:**
+- Redis caching for ruleset structures
+- Background async processing for bulk operations
+- Materialized views for match statistics
+- Strategic indexes for condition fields
+
+**UI Enhancements:**
+- Drag-and-drop reordering
+- Impact visualization (charts)
+- Condition builder autocomplete
+- Inline editing (no modals)
+- Ruleset comparison tool
+
+### Configuration & Testing
+
+**Application Settings:**
+- Valuation thresholds in `application_settings` table
+- Backend service: `ApplicationSettingsService.get_valuation_thresholds()`
+- Frontend hook: `useValuationThresholds()`
+
+**Testing Strategy:**
+- Unit tests: Condition evaluation, action calculation, formula parsing
+- Integration tests: Full evaluation flow, cascades, API contracts
+- E2E tests: Rule creation via UI, valuation recalculation, breakdown modal
+
+### Troubleshooting Guide
+
+**Common Issues Documented:**
+- Rules not matching listings (field name/operator issues)
+- Adjusted price not updating (active flags, disabled rulesets)
+- Basic mode desync (manual edits in Advanced mode)
+- Performance degradation (rule count optimization)
+
+### Technical Insights
+
+**Design Decisions:**
+- **Nested Conditions:** `parent_condition_id` enables complex AND/OR trees
+- **Ruleset Conditions:** Automatic ruleset selection based on context
+- **Action Flexibility:** `modifiers_json` provides future extensibility
+- **Soft Deletes:** Versioning captures historical states
+
+**Context Building:**
+- Flattens listing + related entities into single dict
+- Supports nested field access for conditions
+- Includes custom fields from `attributes_json`
+
+### Key Learnings
+
+1. **Hierarchical architecture** balances organization with flexibility
+2. **Dual-mode UI** (Basic/Advanced) serves different user skill levels
+3. **Explainable valuation** (breakdown modal) builds user trust
+4. **Core domain logic separation** enables code reuse (CLI + API)
+5. **Preview functionality** allows confident rule tuning
+6. **Audit trail** ensures compliance and rollback capability
+
+### Reference for Developers
+
+**When Working with Rules:**
+1. Review `/mnt/containers/deal-brain/docs/architecture/valuation-rules.md`
+2. Understand hierarchy: Ruleset → Group → Rule → Conditions/Actions
+3. Use `build_context_from_listing()` for evaluation context
+4. Test condition logic with `RuleEvaluator` in isolation
+5. Check ruleset conditions for automatic selection
+6. Verify Basic mode managed rules have `basic_managed` metadata
+
+**When Adding Features:**
+1. Check Future Enhancements section for planned patterns
+2. Maintain separation: Core logic in `packages/core/dealbrain_core/rules/`
+3. Update both Basic and Advanced mode UIs if applicable
+4. Add versioning for rule changes
+5. Update audit logs for traceability
+
+### Status
+
+✅ **Documentation complete** - 2,800+ lines covering full architecture
+✅ **All major components documented** - Database, Backend, Frontend, Core logic
+✅ **Data flows diagrammed** - 3 complete flow diagrams
+✅ **API reference complete** - 25+ endpoints with examples
+✅ **Future roadmap included** - Features, optimizations, UI enhancements
+✅ **Troubleshooting guide** - Common issues and resolutions
+✅ **Ready for team reference** - Onboarding and planning resource
+
+---
+
 ## Field Mapping Analysis (2025-10-11)
 
 ### Overview
