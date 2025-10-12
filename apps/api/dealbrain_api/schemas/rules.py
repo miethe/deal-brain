@@ -96,6 +96,7 @@ class RuleGroupCreateRequest(BaseModel):
     display_order: int = Field(100)
     weight: float = Field(1.0, ge=0.0, le=1.0)
     is_active: bool = Field(True, description="Whether this group is enabled")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary metadata for the group")
 
 
 class RuleGroupUpdateRequest(BaseModel):
@@ -106,6 +107,9 @@ class RuleGroupUpdateRequest(BaseModel):
     display_order: int | None = None
     weight: float | None = Field(None, ge=0.0)
     is_active: bool | None = None
+    metadata: dict[str, Any] | None = Field(
+        None, description="Arbitrary metadata for the group"
+    )
 
 
 class RuleGroupResponse(BaseModel):
@@ -120,6 +124,7 @@ class RuleGroupResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    metadata: dict[str, Any]
     rules: list[RuleResponse] = Field(default_factory=list)
 
     class Config:

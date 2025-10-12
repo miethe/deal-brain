@@ -266,6 +266,7 @@ async def create_rule_group(
         display_order=request.display_order,
         weight=request.weight,
         is_active=request.is_active,
+        metadata=request.metadata,
     )
 
     return RuleGroupResponse(
@@ -279,6 +280,7 @@ async def create_rule_group(
         is_active=group.is_active,
         created_at=group.created_at,
         updated_at=group.updated_at,
+        metadata=group.metadata_json,
         rules=[],
     )
 
@@ -309,6 +311,7 @@ async def list_rule_groups(
             is_active=g.is_active,
             created_at=g.created_at,
             updated_at=g.updated_at,
+            metadata=g.metadata_json,
             rules=[],
         )
         for g in groups
@@ -378,6 +381,7 @@ async def get_rule_group(
         is_active=group.is_active,
         created_at=group.created_at,
         updated_at=group.updated_at,
+        metadata=group.metadata_json,
         rules=rules,
     )
 
@@ -406,6 +410,7 @@ async def update_rule_group(
         is_active=group.is_active,
         created_at=group.created_at,
         updated_at=group.updated_at,
+        metadata=group.metadata_json,
         rules=[],
     )
 

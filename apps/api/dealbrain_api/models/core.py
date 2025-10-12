@@ -196,6 +196,7 @@ class ValuationRuleGroup(Base, TimestampMixin):
     display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
     weight: Mapped[float] = mapped_column(nullable=True, default=1.0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
     ruleset: Mapped[ValuationRuleset] = relationship(back_populates="rule_groups")
     rules: Mapped[list["ValuationRuleV2"]] = relationship(

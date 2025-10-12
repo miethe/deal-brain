@@ -102,6 +102,7 @@ class RulesetPackagingService:
                 description=group.description,
                 display_order=group.display_order,
                 weight=float(group.weight) if group.weight else 1.0,
+                metadata_json=group.metadata_json,
                 created_at=group.created_at,
                 updated_at=group.updated_at
             )
@@ -287,7 +288,8 @@ class RulesetPackagingService:
                 category=group_export.category,
                 description=group_export.description,
                 display_order=group_export.display_order,
-                weight=group_export.weight
+                weight=group_export.weight,
+                metadata_json=group_export.metadata_json,
             )
             session.add(new_group)
             await session.flush()

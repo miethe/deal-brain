@@ -222,14 +222,37 @@ class RulesService:
         self,
         session: AsyncSession,
         ruleset_id: int,
-        name: str,
-        category: str,
+        name: str | BaseModel | dict[str, Any],
+        category: str | None = None,
         description: str | None = None,
         display_order: int = 100,
         weight: float = 1.0,
         is_active: bool = True,
+        metadata: dict[str, Any] | None = None,
     ) -> ValuationRuleGroup:
         """Create a new rule group"""
+        payload: dict[str, Any] | None = None
+        if isinstance(name, BaseModel):
+            payload = name.model_dump(exclude_unset=True)
+        elif isinstance(name, dict):
+            payload = dict(name)
+
+        if payload is not None:
+            ruleset_id = payload.get("ruleset_id", ruleset_id)
+            extracted_name = payload.get("name")
+            if not extracted_name:
+                raise ValueError("Rule group name is required")
+            name = extracted_name
+            category = payload.get("category", category)
+            description = payload.get("description", description)
+            display_order = payload.get("display_order", display_order)
+            weight = payload.get("weight", weight)
+            is_active = payload.get("is_active", is_active)
+            metadata = payload.get("metadata", metadata)
+
+        if not category:
+            raise ValueError("Rule group category is required")
+
         group = ValuationRuleGroup(
             ruleset_id=ruleset_id,
             name=name,
@@ -238,6 +261,7 @@ class RulesService:
             display_order=display_order,
             weight=weight,
             is_active=is_active,
+            metadata_json=metadata or {},
         )
 
         session.add(group)
@@ -278,11 +302,17 @@ class RulesService:
         else:
             updates = dict(updates)
 
+        metadata_marker = object()
+        metadata_payload = updates.pop("metadata", metadata_marker)
+
         filtered_updates = {key: value for key, value in updates.items() if value is not None}
 
         for key, value in filtered_updates.items():
             if hasattr(group, key):
                 setattr(group, key, value)
+
+        if metadata_payload is not metadata_marker:
+            group.metadata_json = metadata_payload or {}
 
         await session.commit()
         await session.refresh(group)

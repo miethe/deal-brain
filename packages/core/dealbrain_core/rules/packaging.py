@@ -62,6 +62,9 @@ class RuleGroupExport(BaseModel):
     description: Optional[str]
     display_order: int
     weight: float
+     metadata_json: Dict[str, Any] = Field(
+        default_factory=dict, description="Arbitrary metadata for the group"
+    )
     created_at: datetime
     updated_at: datetime
 
