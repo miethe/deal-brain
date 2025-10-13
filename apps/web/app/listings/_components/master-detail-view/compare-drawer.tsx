@@ -113,11 +113,11 @@ export const CompareDrawer = React.memo(function CompareDrawer({
                   <div className="mt-1 flex items-baseline gap-2">
                     <span
                       className={`text-xl font-bold ${getValuationColor(
-                        listing.price_usd_adjusted,
+                        listing.adjusted_price_usd,
                         listing.price_usd
                       )}`}
                     >
-                      {formatCurrency(listing.price_usd_adjusted)}
+                      {formatCurrency(listing.adjusted_price_usd)}
                     </span>
                     <span className="text-sm text-muted-foreground">
                       {formatMetric(listing.dollar_per_cpu_mark_multi_adjusted)} /MT

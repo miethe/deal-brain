@@ -49,7 +49,7 @@ export const CatalogTab = React.memo(function CatalogTab({
       }
 
       // Price range filter
-      const price = listing.price_usd_adjusted ?? listing.price_usd ?? 0
+      const price = listing.adjusted_price_usd ?? listing.price_usd ?? 0
       if (price > filters.priceRange) {
         return false
       }

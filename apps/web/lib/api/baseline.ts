@@ -39,7 +39,9 @@ export async function instantiateBaseline(
  * Compare current baseline with candidate baseline
  */
 export async function diffBaseline(candidate: BaselineMetadata | string): Promise<DiffResponse> {
-  const payload = typeof candidate === "string" ? { candidate_json: candidate } : { candidate };
+  const payload = typeof candidate === "string"
+    ? { candidate_json: JSON.parse(candidate) }
+    : { candidate_json: candidate };
   return apiFetch<DiffResponse>(`${BASE_PATH}/diff`, {
     method: "POST",
     body: JSON.stringify(payload),
@@ -126,7 +128,9 @@ export async function validateBaseline(baseline: BaselineMetadata | string): Pro
   errors?: string[];
   warnings?: string[];
 }> {
-  const payload = typeof baseline === "string" ? { baseline_json: baseline } : { baseline };
+  const payload = typeof baseline === "string"
+    ? { baseline_json: JSON.parse(baseline) }
+    : { baseline_json: baseline };
   return apiFetch<{
     valid: boolean;
     errors?: string[];

@@ -217,8 +217,8 @@ export const DenseTable = React.memo(function DenseTable({
                   <TableCell className="text-right font-medium">
                     {formatCurrency(listing.price_usd)}
                   </TableCell>
-                  <TableCell className={`text-right font-medium ${getValuationColor(listing.price_usd_adjusted, listing.price_usd)}`}>
-                    {formatCurrency(listing.price_usd_adjusted)}
+                  <TableCell className={`text-right font-medium ${getValuationColor(listing.adjusted_price_usd, listing.price_usd)}`}>
+                    {formatCurrency(listing.adjusted_price_usd)}
                   </TableCell>
                   <TableCell className="text-right text-sm">
                     {formatMetric(listing.dollar_per_cpu_mark_single_adjusted)}

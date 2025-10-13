@@ -20,7 +20,56 @@ import {
 } from "../ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { diffBaseline, adoptBaseline, validateBaseline } from "@/lib/api/baseline";
-import type { BaselineMetadata, DiffResponse, DiffEntityChange, DiffFieldChange } from "@/types/baseline";
+import type { BaselineMetadata, DiffResponse, BaselineFieldDiff } from "@/types/baseline";
+
+// Legacy types for UI compatibility
+interface DiffFieldChange {
+  field_name: string;
+  change_type: "added" | "changed" | "removed";
+  current_value?: any;
+  candidate_value?: any;
+  old_value?: any;
+  new_value?: any;
+}
+
+interface DiffEntityChange {
+  entity_key: string;
+  entity_name: string;
+  fields: DiffFieldChange[];
+}
+
+// Transform flat diff response to grouped format for UI
+function transformDiffResponse(diff: DiffResponse): { changes: DiffEntityChange[] } {
+  const entityMap = new Map<string, DiffFieldChange[]>();
+
+  const allFields = [
+    ...diff.added.map(f => ({ ...f, change_type: "added" as const })),
+    ...diff.changed.map(f => ({ ...f, change_type: "changed" as const })),
+    ...diff.removed.map(f => ({ ...f, change_type: "removed" as const })),
+  ];
+
+  allFields.forEach((field) => {
+    if (!entityMap.has(field.entity_key)) {
+      entityMap.set(field.entity_key, []);
+    }
+    entityMap.get(field.entity_key)!.push({
+      field_name: field.field_name,
+      change_type: field.change_type,
+      current_value: field.old_value,
+      candidate_value: field.new_value,
+      old_value: field.old_value,
+      new_value: field.new_value,
+    });
+  });
+
+  return {
+    changes: Array.from(entityMap.entries()).map(([entity_key, fields]) => ({
+      entity_key,
+      entity_name: entity_key, // Use key as name for now
+      fields,
+    })),
+  };
+}
 
 type WizardStep = "upload" | "diff" | "adopt" | "complete";
 
@@ -34,6 +83,7 @@ export function DiffAdoptWizard({ onComplete, className }: DiffAdoptWizardProps)
   const [candidateJson, setCandidateJson] = useState("");
   const [candidateMetadata, setCandidateMetadata] = useState<BaselineMetadata | null>(null);
   const [diffResult, setDiffResult] = useState<DiffResponse | null>(null);
+  const [diffResultUI, setDiffResultUI] = useState<{ changes: DiffEntityChange[] } | null>(null);
   const [selectedChanges, setSelectedChanges] = useState<Set<string>>(new Set());
   const [recalculateValuations, setRecalculateValuations] = useState(true);
   const [adoptResult, setAdoptResult] = useState<any>(null);
@@ -76,20 +126,20 @@ export function DiffAdoptWizard({ onComplete, className }: DiffAdoptWizardProps)
     mutationFn: (json: string) => diffBaseline(json),
     onSuccess: (result) => {
       setDiffResult(result);
+      const transformedResult = transformDiffResponse(result);
+      setDiffResultUI(transformedResult);
       setStep("diff");
 
       // Pre-select all changes
       const allChangeIds = new Set<string>();
-      result.changes.forEach((entityChange) => {
-        entityChange.fields.forEach((fieldChange) => {
-          allChangeIds.add(`${entityChange.entity_key}:${fieldChange.field_name}`);
-        });
+      [...result.added, ...result.changed, ...result.removed].forEach((fieldDiff) => {
+        allChangeIds.add(`${fieldDiff.entity_key}:${fieldDiff.field_name}`);
       });
       setSelectedChanges(allChangeIds);
 
       toast({
         title: "Diff complete",
-        description: `Found ${result.summary.added_count + result.summary.changed_count + result.summary.removed_count} changes`,
+        description: `Found ${result.summary.total_changes} changes`,
       });
     },
     onError: (error: Error) => {
@@ -106,23 +156,15 @@ export function DiffAdoptWizard({ onComplete, className }: DiffAdoptWizardProps)
     mutationFn: () => {
       if (!candidateMetadata) throw new Error("No candidate baseline");
 
-      const selectedByEntity = new Map<string, string[]>();
-      selectedChanges.forEach((changeId) => {
-        const [entityKey, fieldName] = changeId.split(":");
-        if (!selectedByEntity.has(entityKey)) {
-          selectedByEntity.set(entityKey, []);
-        }
-        selectedByEntity.get(entityKey)!.push(fieldName);
-      });
+      // Convert selected changes from "entity:field" format to "entity.field" format
+      const selectedFieldIds = Array.from(selectedChanges).map((changeId) =>
+        changeId.replace(":", ".")
+      );
 
       return adoptBaseline({
-        candidate_baseline: candidateMetadata,
-        selected_changes: Array.from(selectedByEntity.entries()).map(([entity_key, field_names]) => ({
-          entity_key,
-          field_names,
-        })),
-        recalculate_valuations: recalculateValuations,
-        backup_current: true,
+        candidate_json: candidateMetadata,
+        selected_changes: selectedFieldIds.length > 0 ? selectedFieldIds : undefined,
+        trigger_recalculation: recalculateValuations,
       });
     },
     onSuccess: (result) => {
@@ -338,7 +380,7 @@ export function DiffAdoptWizard({ onComplete, className }: DiffAdoptWizardProps)
 
               {["added", "changed", "removed"].map((changeType) => (
                 <TabsContent key={changeType} value={changeType} className="space-y-4">
-                  {diffResult.changes
+                  {diffResultUI && diffResultUI.changes
                     .filter((ec) => ec.fields.some((f) => f.change_type === changeType))
                     .map((entityChange) => (
                       <DiffEntityCard
@@ -350,9 +392,9 @@ export function DiffAdoptWizard({ onComplete, className }: DiffAdoptWizardProps)
                         onToggleEntity={toggleEntityChanges}
                       />
                     ))}
-                  {diffResult.changes.filter((ec) =>
+                  {(!diffResultUI || diffResultUI.changes.filter((ec) =>
                     ec.fields.some((f) => f.change_type === changeType)
-                  ).length === 0 && (
+                  ).length === 0) && (
                     <div className="py-8 text-center text-sm text-muted-foreground">
                       No {changeType} fields
                     </div>

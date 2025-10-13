@@ -40,7 +40,7 @@ import { StorageProfileSelector } from "../forms/storage-profile-selector";
 import { getStorageMediumLabel } from "../../lib/component-catalog";
 
 // ListingRow is just an alias for ListingRecord - all fields come from the API
-type ListingRow = ListingRecord;
+export type ListingRow = ListingRecord;
 
 interface BulkEditState {
   fieldKey: string;

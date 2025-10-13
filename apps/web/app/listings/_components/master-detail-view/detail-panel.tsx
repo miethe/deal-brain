@@ -20,8 +20,8 @@ export const DetailPanel = React.memo(function DetailPanel({
 }: DetailPanelProps) {
   // Calculate valuation accent
   const valuationAccent = useMemo(() => {
-    if (!listing?.price_usd || !listing?.price_usd_adjusted) return 'neutral'
-    const savings = ((listing.price_usd - listing.price_usd_adjusted) / listing.price_usd) * 100
+    if (!listing?.price_usd || !listing?.adjusted_price_usd) return 'neutral'
+    const savings = ((listing.price_usd - listing.adjusted_price_usd) / listing.price_usd) * 100
     if (savings > 15) return 'good'
     if (savings < -10) return 'warn'
     return 'neutral'
@@ -115,7 +115,7 @@ export const DetailPanel = React.memo(function DetailPanel({
           />
           <KpiMetric
             label="Adjusted Price"
-            value={formatCurrency(listing.price_usd_adjusted)}
+            value={formatCurrency(listing.adjusted_price_usd)}
             accent={valuationAccent}
           />
           <KpiMetric

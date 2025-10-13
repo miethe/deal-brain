@@ -5,37 +5,40 @@
 export type BaselineFieldType = "scalar" | "presence" | "multiplier" | "formula";
 
 export interface BaselineField {
-  name: string;
-  field_type: BaselineFieldType;
-  description: string;
+  field_name: string;
+  field_type: string;
+  proper_name?: string;
+  description?: string;
   explanation?: string;
-  baseline_min?: number;
-  baseline_max?: number;
-  formula?: string;
-  formula_vars?: string[];
   unit?: string;
-  constraints?: {
-    min?: number;
-    max?: number;
-    step?: number;
-  };
-  metadata?: Record<string, any>;
+  min_value?: number;
+  max_value?: number;
+  formula?: string;
+  dependencies?: string[] | null;
+  nullable: boolean;
+  notes?: string;
+  valuation_buckets?: Array<{
+    label: string;
+    Formula: string | null;
+    max_usd: number;
+    min_usd: number;
+  }> | null;
 }
 
 export interface BaselineEntity {
   entity_key: string;
-  entity_name: string;
-  description: string;
   fields: BaselineField[];
-  metadata?: Record<string, any>;
 }
 
 export interface BaselineMetadata {
-  schema_version: string;
-  source: string;
-  generated_at: string;
+  version: string;
   entities: BaselineEntity[];
-  metadata?: Record<string, any>;
+  source_hash: string;
+  is_active: boolean;
+  schema_version?: string;
+  generated_at?: string;
+  ruleset_id?: number;
+  ruleset_name?: string;
 }
 
 export interface FieldOverride {
@@ -72,56 +75,46 @@ export interface InstantiateResponse {
 
 export type DiffChangeType = "added" | "changed" | "removed";
 
-export interface DiffFieldChange {
-  field_name: string;
-  change_type: DiffChangeType;
-  current_value?: any;
-  candidate_value?: any;
-  current_min?: number;
-  candidate_min?: number;
-  current_max?: number;
-  candidate_max?: number;
-  current_formula?: string;
-  candidate_formula?: string;
-}
-
-export interface DiffEntityChange {
+export interface BaselineFieldDiff {
   entity_key: string;
-  entity_name: string;
-  fields: DiffFieldChange[];
+  field_name: string;
+  proper_name?: string;
+  change_type: DiffChangeType;
+  old_value?: any;
+  new_value?: any;
+  value_diff?: any;
 }
 
 export interface DiffResponse {
-  has_changes: boolean;
+  added: BaselineFieldDiff[];
+  changed: BaselineFieldDiff[];
+  removed: BaselineFieldDiff[];
   summary: {
     added_count: number;
     changed_count: number;
     removed_count: number;
+    total_changes: number;
   };
-  changes: DiffEntityChange[];
-  metadata?: {
-    current_version?: string;
-    candidate_version?: string;
-  };
+  current_version?: string;
+  candidate_version?: string;
 }
 
 export interface AdoptRequest {
-  candidate_baseline: BaselineMetadata | string; // JSON string or object
-  selected_changes?: {
-    entity_key: string;
-    field_names: string[];
-  }[];
-  recalculate_valuations?: boolean;
-  backup_current?: boolean;
+  candidate_json: Record<string, any>; // Candidate baseline JSON structure
+  selected_changes?: string[]; // List of field IDs to adopt (entity.field format)
+  trigger_recalculation?: boolean;
+  actor?: string;
 }
 
 export interface AdoptResponse {
-  success: boolean;
-  message: string;
+  new_ruleset_id: number;
   new_version: string;
   changes_applied: number;
-  backup_created?: boolean;
   recalculation_job_id?: string;
+  adopted_fields: string[];
+  skipped_fields: string[];
+  previous_ruleset_id?: number;
+  audit_log_id?: number;
 }
 
 export interface PreviewImpactStats {

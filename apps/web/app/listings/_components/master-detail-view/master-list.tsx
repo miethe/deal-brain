@@ -117,11 +117,11 @@ export const MasterList = React.memo(function MasterList({
                       <span className="font-semibold">{listing.title || 'Untitled'}</span>
                       <span
                         className={`shrink-0 text-sm ${getValuationColor(
-                          listing.price_usd_adjusted,
+                          listing.adjusted_price_usd,
                           listing.price_usd
                         )}`}
                       >
-                        {formatCurrency(listing.price_usd_adjusted)}
+                        {formatCurrency(listing.adjusted_price_usd)}
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground">

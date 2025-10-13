@@ -27,13 +27,13 @@ export function BaselineFieldCard({
 }: BaselineFieldCardProps) {
   const hasOverride = override && override.is_enabled;
   const [localValue, setLocalValue] = useState<number | undefined>(
-    override?.override_value ?? override?.override_min ?? field.baseline_min
+    override?.override_value ?? override?.override_min ?? field.min_value
   );
 
   const handleValueChange = (newValue: number) => {
     setLocalValue(newValue);
 
-    if (field.field_type === "scalar" || field.field_type === "multiplier") {
+    if (field.field_type === "scalar" || field.field_type === "multiplier" || field.field_type === "USD") {
       onOverrideChange({ override_value: newValue, is_enabled: true });
     } else if (field.field_type === "presence") {
       onOverrideChange({ override_min: newValue, is_enabled: true });
@@ -41,16 +41,16 @@ export function BaselineFieldCard({
   };
 
   const handleIncrement = () => {
-    const step = field.constraints?.step ?? 1;
-    const max = field.constraints?.max;
+    const step = 1;
+    const max = field.max_value;
     const newValue = (localValue ?? 0) + step;
     if (max !== undefined && newValue > max) return;
     handleValueChange(newValue);
   };
 
   const handleDecrement = () => {
-    const step = field.constraints?.step ?? 1;
-    const min = field.constraints?.min;
+    const step = 1;
+    const min = field.min_value;
     const newValue = (localValue ?? 0) - step;
     if (min !== undefined && newValue < min) return;
     handleValueChange(newValue);
@@ -59,7 +59,7 @@ export function BaselineFieldCard({
   const calculateDelta = (): number | null => {
     if (!hasOverride) return null;
 
-    const baselineValue = field.baseline_min ?? 0;
+    const baselineValue = field.min_value ?? 0;
     const overrideValue = override?.override_value ?? override?.override_min ?? 0;
 
     return overrideValue - baselineValue;
@@ -93,12 +93,12 @@ export function BaselineFieldCard({
                   handleValueChange(val);
                 }
               }}
-              step={field.constraints?.step ?? 1}
-              min={field.constraints?.min}
-              max={field.constraints?.max}
+              step={1}
+              min={field.min_value}
+              max={field.max_value}
               disabled={disabled}
               className="h-8 w-24 text-center"
-              aria-label={`${field.name} value`}
+              aria-label={`${field.proper_name || field.field_name} value`}
             />
             <Button
               type="button"
@@ -121,13 +121,13 @@ export function BaselineFieldCard({
         return (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Label htmlFor={`${field.name}-min`} className="text-xs">
+              <Label htmlFor={`${field.field_name}-min`} className="text-xs">
                 Min Range
               </Label>
               <Input
-                id={`${field.name}-min`}
+                id={`${field.field_name}-min`}
                 type="number"
-                value={override?.override_min ?? field.baseline_min ?? ""}
+                value={override?.override_min ?? field.min_value ?? ""}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value);
                   if (!isNaN(val)) {
@@ -139,13 +139,13 @@ export function BaselineFieldCard({
               />
             </div>
             <div className="flex items-center gap-2">
-              <Label htmlFor={`${field.name}-max`} className="text-xs">
+              <Label htmlFor={`${field.field_name}-max`} className="text-xs">
                 Max Range
               </Label>
               <Input
-                id={`${field.name}-max`}
+                id={`${field.field_name}-max`}
                 type="number"
-                value={override?.override_max ?? field.baseline_max ?? ""}
+                value={override?.override_max ?? field.max_value ?? ""}
                 onChange={(e) => {
                   const val = parseFloat(e.target.value);
                   if (!isNaN(val)) {
@@ -182,7 +182,7 @@ export function BaselineFieldCard({
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
             <CardTitle className="flex items-center gap-2 text-base">
-              {field.name}
+              {field.proper_name || field.field_name}
               {field.explanation && (
                 <TooltipProvider>
                   <Tooltip>
@@ -221,14 +221,14 @@ export function BaselineFieldCard({
             Baseline
           </Label>
           <div className="space-y-1 text-sm">
-            {field.baseline_min !== undefined && field.baseline_max !== undefined ? (
+            {field.min_value !== undefined && field.max_value !== undefined ? (
               <div>
-                Range: {field.baseline_min} - {field.baseline_max}
+                Range: {field.min_value} - {field.max_value}
                 {field.unit && ` ${field.unit}`}
               </div>
-            ) : field.baseline_min !== undefined ? (
+            ) : field.min_value !== undefined ? (
               <div>
-                Value: {field.baseline_min}
+                Value: {field.min_value}
                 {field.unit && ` ${field.unit}`}
               </div>
             ) : null}

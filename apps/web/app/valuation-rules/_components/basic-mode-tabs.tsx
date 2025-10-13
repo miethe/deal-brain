@@ -14,16 +14,16 @@ import { getBaselineMetadata } from "@/lib/api/baseline";
 import type { BaselineEntity } from "@/types/baseline";
 
 const ENTITY_TABS = [
-  { key: "listing", label: "Listing", description: "Base listing properties" },
-  { key: "cpu", label: "CPU", description: "Processor valuation" },
-  { key: "gpu", label: "GPU", description: "Graphics card valuation" },
-  { key: "ram", label: "RAM", description: "Memory valuation" },
-  { key: "storage", label: "Storage", description: "Storage device valuation" },
-  { key: "ports", label: "Ports", description: "Connectivity valuation" },
+  { key: "Listing", label: "Listing", description: "Base listing properties" },
+  { key: "CPU", label: "CPU", description: "Processor valuation" },
+  { key: "GPU", label: "GPU", description: "Graphics card valuation" },
+  { key: "RamSpec", label: "RAM", description: "Memory valuation" },
+  { key: "StorageProfile", label: "Storage", description: "Storage device valuation" },
+  { key: "PortsProfile", label: "Ports", description: "Connectivity valuation" },
 ];
 
 export function BasicModeTabs() {
-  const [activeTab, setActiveTab] = useState<string>("listing");
+  const [activeTab, setActiveTab] = useState<string>("Listing");
 
   // Fetch baseline metadata
   const {
