@@ -44,17 +44,17 @@
   - API endpoints updated with proper error handling
   - Comprehensive test suite for all features
 
-### 🎨 Workstream 4: UI Enhancements
-- [ ] Replace Basic UI with entity-driven baseline overrides + preview
+### ✅ Workstream 4: UI Enhancements (COMPLETE)
+- [x] Replace Basic UI with entity-driven baseline overrides + preview
   - Entity tabs (Listing, CPU, GPU, RAM, Storage, Ports)
   - Per-field override controls (scalar, presence, formula coefficients)
-  - Preview impact on sample listings
-  - Reset to baseline functionality
-- [ ] Implement admin Diff & Adopt wizard in UI
-  - Upload new baseline JSON
-  - Show added/changed/removed buckets
-  - Select which changes to apply
-  - Create new versioned ruleset
+  - Preview impact on sample listings with debounced updates
+  - Reset to baseline functionality (per field and bulk)
+- [x] Implement admin Diff & Adopt wizard in UI
+  - Upload new baseline JSON (file or paste)
+  - Show added/changed/removed in diff view
+  - Select which changes to apply (checkbox controls)
+  - Create new versioned ruleset with recalculation option
 
 ### 🔍 Workstream 5: Observability & Quality
 - [ ] Telemetry, audit logging, and health checks for baseline layers
@@ -207,6 +207,81 @@ Moving to Workstream 3 to implement baseline API endpoints and extend Rules CRUD
 
 **Next Steps:**
 Moving to Workstream 4 to implement the Basic UI with entity-driven baseline overrides and preview functionality.
+
+### 2025-10-12 20:00 - Workstream 4 Complete ✅
+**Major Milestone**: Basic Valuation UI fully implemented!
+
+**Completed:**
+1. **API Client & Types** (`apps/web/lib/api/baseline.ts`, `apps/web/types/baseline.ts`):
+   - Complete REST API client with 11 methods
+   - Full TypeScript types for baseline system
+   - Methods for metadata, overrides, diff, adopt, preview, export
+
+2. **Entity Tabs Layout** (`apps/web/app/valuation-rules/_components/basic-mode-tabs.tsx`):
+   - 6 entity tabs: Listing, CPU, GPU, RAM, Storage, Ports
+   - Dynamic field loading with React Query
+   - Bulk controls (Reset All, Save All)
+   - Responsive mobile-first design
+   - Integration with Preview Impact panel
+
+3. **Baseline Field Card** (`apps/web/components/valuation/baseline-field-card.tsx`):
+   - Type-specific override controls (scalar, presence, multiplier, formula)
+   - Delta badges with color coding (green/red)
+   - Reset functionality per field
+   - Accessibility features (keyboard nav, ARIA labels)
+   - Explanations and tooltips for baseline values
+
+4. **Override State Management** (`apps/web/hooks/use-baseline-overrides.ts`):
+   - Custom React hook with local state + React Query
+   - Auto-save mode with debouncing
+   - Bulk operations (reset all, save all)
+   - Unsaved changes detection
+   - Cache invalidation strategies
+
+5. **Preview Impact Panel** (`apps/web/components/valuation/preview-impact-panel.tsx`):
+   - Real-time impact visualization with statistics grid
+   - Sample listings table (100 listings) with before/after pricing
+   - Debounced updates (500ms) on override changes
+   - Loading states, error handling, currency formatting
+   - Match rate and delta statistics (min/avg/max)
+
+6. **Diff & Adopt Wizard** (`apps/web/components/valuation/diff-adopt-wizard.tsx`):
+   - Multi-step wizard (Upload → Diff → Review → Complete)
+   - JSON file upload or paste input
+   - Visual diff with added/changed/removed tabs
+   - Selective adoption with checkbox controls
+   - Recalculation trigger option
+   - Success state with new version info
+
+7. **Page Integration** (`apps/web/app/valuation-rules/page.tsx`):
+   - Mode toggle: Basic | Advanced
+   - Diff & Adopt button and modal for admins
+   - Conditional rendering based on mode
+   - Cache invalidation for both systems
+   - URL params or local storage for mode persistence
+
+**Technical Details:**
+- Mobile-first responsive design with stacking layouts
+- WCAG AA compliant (keyboard nav, ARIA, semantic HTML)
+- Performance optimized (React Query caching, memoization, debouncing)
+- Error handling with toast notifications and loading states
+- Follows shadcn/ui design system
+- Type-safe with full TypeScript coverage
+
+**Files Created:**
+- `apps/web/types/baseline.ts` (220 lines)
+- `apps/web/lib/api/baseline.ts` (320 lines)
+- `apps/web/hooks/use-baseline-overrides.ts` (180 lines)
+- `apps/web/components/valuation/baseline-field-card.tsx` (380 lines)
+- `apps/web/app/valuation-rules/_components/basic-mode-tabs.tsx` (280 lines)
+- `apps/web/components/valuation/preview-impact-panel.tsx` (310 lines)
+- `apps/web/components/valuation/diff-adopt-wizard.tsx` (540 lines)
+
+**Files Modified:**
+- `apps/web/app/valuation-rules/page.tsx` (mode toggle integration)
+
+**Next Steps:**
+Moving to Workstream 5 to add telemetry, observability, and finalize test coverage and documentation.
 
 ### 2025-10-12 13:00 - Initial Setup
 - Initialized progress tracking based on implementation plan scope

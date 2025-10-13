@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, RefreshCw, Power, PowerOff } from "lucide-react";
+import { Plus, Search, RefreshCw, Power, PowerOff, FileJson } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "../../components/ui/button";
@@ -17,6 +17,7 @@ import {
 } from "../../components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
+import { Dialog, DialogContent, DialogTrigger } from "../../components/ui/dialog";
 import { useToast } from "../../components/ui/use-toast";
 
 import { fetchRulesets, fetchRuleset, updateRuleset, type Ruleset, type RuleGroup, type Rule, type Condition } from "../../lib/api/rules";
@@ -26,6 +27,8 @@ import { RulesetBuilderModal } from "../../components/valuation/ruleset-builder-
 import { RuleGroupFormModal } from "../../components/valuation/rule-group-form-modal";
 import { BasicValuationForm } from "../../components/valuation/basic-valuation-form";
 import { ConditionGroup } from "../../components/valuation/condition-group";
+import { BasicModeTabs } from "./_components/basic-mode-tabs";
+import { DiffAdoptWizard } from "../../components/valuation/diff-adopt-wizard";
 
 type Mode = "basic" | "advanced";
 
@@ -327,6 +330,7 @@ export default function ValuationRulesPage() {
   const [isRuleBuilderOpen, setIsRuleBuilderOpen] = useState(false);
   const [isRulesetBuilderOpen, setIsRulesetBuilderOpen] = useState(false);
   const [isGroupFormOpen, setIsGroupFormOpen] = useState(false);
+  const [isDiffWizardOpen, setIsDiffWizardOpen] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
   const [editingGroup, setEditingGroup] = useState<RuleGroup | null>(null);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
@@ -391,6 +395,8 @@ export default function ValuationRulesPage() {
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ["rulesets"] });
     queryClient.invalidateQueries({ queryKey: ["ruleset", selectedRulesetId] });
+    queryClient.invalidateQueries({ queryKey: ["baseline-metadata"] });
+    queryClient.invalidateQueries({ queryKey: ["baseline-overrides"] });
     toast({
       title: "Refreshed",
       description: "Rules data has been refreshed",
@@ -420,105 +426,125 @@ export default function ValuationRulesPage() {
         </div>
         <div className="flex items-center gap-2">
           <ModeToggle mode={mode} onChange={handleModeChange} />
+          <Dialog open={isDiffWizardOpen} onOpenChange={setIsDiffWizardOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <FileJson className="mr-2 h-4 w-4" />
+                Diff & Adopt
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DiffAdoptWizard
+                onComplete={() => {
+                  setIsDiffWizardOpen(false);
+                  handleRefresh();
+                }}
+              />
+            </DialogContent>
+          </Dialog>
           <Button variant="outline" size="sm" onClick={handleRefresh}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <Button onClick={() => setIsRulesetBuilderOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Ruleset
-          </Button>
+          {mode === "advanced" && (
+            <Button onClick={() => setIsRulesetBuilderOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Ruleset
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Ruleset Selector & Stats */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <CardTitle className="flex flex-wrap items-center gap-2">
-                Active Ruleset
-                {selectedRuleset && (
-                  <>
-                    <Badge variant="outline">Priority {selectedRuleset.priority}</Badge>
-                    <Badge variant={selectedRuleset.is_active ? "secondary" : "destructive"}>
-                      {selectedRuleset.is_active ? "Enabled" : "Disabled"}
-                    </Badge>
-                  </>
-                )}
-              </CardTitle>
-              <CardDescription>
-                {selectedRuleset?.description || "Select a ruleset to manage rules"}
-              </CardDescription>
-            </div>
-            <Select
-              value={selectedRulesetId?.toString()}
-              onValueChange={(value) => setSelectedRulesetId(parseInt(value))}
-            >
-              <SelectTrigger className="w-[300px]">
-                <SelectValue placeholder="Select ruleset..." />
-              </SelectTrigger>
-              <SelectContent>
-                {rulesets.map((ruleset) => (
-                  <SelectItem key={ruleset.id} value={ruleset.id.toString()}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{ruleset.name}</span>
-                      <div className="mt-1 flex items-center gap-2">
-                        <Badge variant="outline">Priority {ruleset.priority}</Badge>
-                        <Badge variant={ruleset.is_active ? "secondary" : "destructive"}>
-                          {ruleset.is_active ? "Enabled" : "Disabled"}
-                        </Badge>
+      {/* Ruleset Selector & Stats (Only in Advanced Mode) */}
+      {mode === "advanced" && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <CardTitle className="flex flex-wrap items-center gap-2">
+                  Active Ruleset
+                  {selectedRuleset && (
+                    <>
+                      <Badge variant="outline">Priority {selectedRuleset.priority}</Badge>
+                      <Badge variant={selectedRuleset.is_active ? "secondary" : "destructive"}>
+                        {selectedRuleset.is_active ? "Enabled" : "Disabled"}
+                      </Badge>
+                    </>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  {selectedRuleset?.description || "Select a ruleset to manage rules"}
+                </CardDescription>
+              </div>
+              <Select
+                value={selectedRulesetId?.toString()}
+                onValueChange={(value) => setSelectedRulesetId(parseInt(value))}
+              >
+                <SelectTrigger className="w-[300px]">
+                  <SelectValue placeholder="Select ruleset..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {rulesets.map((ruleset) => (
+                    <SelectItem key={ruleset.id} value={ruleset.id.toString()}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{ruleset.name}</span>
+                        <div className="mt-1 flex items-center gap-2">
+                          <Badge variant="outline">Priority {ruleset.priority}</Badge>
+                          <Badge variant={ruleset.is_active ? "secondary" : "destructive"}>
+                            {ruleset.is_active ? "Enabled" : "Disabled"}
+                          </Badge>
+                        </div>
                       </div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        {selectedRuleset && (
-          <CardContent>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
-                <div className="text-sm text-muted-foreground">Version</div>
-                <div className="text-2xl font-semibold">{selectedRuleset.version}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Rule Groups</div>
-                <div className="text-2xl font-semibold">
-                  {selectedRuleset.rule_groups.length}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Total Rules</div>
-                <div className="text-2xl font-semibold">
-                  {selectedRuleset.rule_groups.reduce(
-                    (sum, group) => sum + group.rules.length,
-                    0
-                  )}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Active Rules</div>
-                <div className="text-2xl font-semibold">
-                  {selectedRuleset.rule_groups.reduce(
-                    (sum, group) =>
-                      sum + group.rules.filter((r) => r.is_active).length,
-                    0
-                  )}
-                </div>
-              </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </CardContent>
-        )}
-      </Card>
+          </CardHeader>
+          {selectedRuleset && (
+            <CardContent>
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <div className="text-sm text-muted-foreground">Version</div>
+                  <div className="text-2xl font-semibold">{selectedRuleset.version}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Rule Groups</div>
+                  <div className="text-2xl font-semibold">
+                    {selectedRuleset.rule_groups.length}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Total Rules</div>
+                  <div className="text-2xl font-semibold">
+                    {selectedRuleset.rule_groups.reduce(
+                      (sum, group) => sum + group.rules.length,
+                      0
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Active Rules</div>
+                  <div className="text-2xl font-semibold">
+                    {selectedRuleset.rule_groups.reduce(
+                      (sum, group) =>
+                        sum + group.rules.filter((r) => r.is_active).length,
+                      0
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
 
-      {selectedRuleset && (
+      {mode === "advanced" && selectedRuleset && (
         <RulesetSettingsCard ruleset={selectedRuleset} onRefresh={handleRefresh} />
       )}
 
       {mode === "basic" ? (
-        <BasicValuationForm ruleset={selectedRuleset} onRefresh={handleRefresh} />
+        <BasicModeTabs />
       ) : (
         <>
           {/* Search and Actions */}
