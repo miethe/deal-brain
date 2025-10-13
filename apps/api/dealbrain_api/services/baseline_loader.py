@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.core import ValuationRuleAudit, ValuationRuleGroup, ValuationRuleset
 from .rules import RulesService
+from .baseline_audit import BaselineAuditService
 
 BASIC_GROUP_NAME = "Basic · Adjustments"
 BASIC_GROUP_CATEGORY = "baseline"
@@ -60,6 +61,7 @@ class BaselineLoaderService:
     def __init__(self, rules_service: RulesService | None = None) -> None:
         # Disable recalculation during baseline ingestion to avoid Redis dependency
         self.rules_service = rules_service or RulesService(trigger_recalculation=False)
+        self.audit_service = BaselineAuditService()
 
     async def load_from_path(
         self,
@@ -182,6 +184,21 @@ class BaselineLoaderService:
             await self.ensure_basic_adjustments_group(
                 session, ensure_basic_for_ruleset, actor=actor
             )
+
+        # Log successful instantiation
+        await self.audit_service.log_instantiation(
+            session=session,
+            actor=actor,
+            source_hash=source_hash,
+            version=version,
+            ruleset_id=ruleset.id,
+            success=True,
+            payload={
+                "created_groups": created_groups,
+                "created_rules": created_rules,
+                "source_reference": source_reference,
+            }
+        )
 
         return BaselineLoadResult(
             status="created",

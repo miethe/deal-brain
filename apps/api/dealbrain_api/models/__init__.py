@@ -1,5 +1,6 @@
 """SQLAlchemy models for Deal Brain."""
 
+from .baseline_audit import BaselineAuditLog
 from .core import (
     Cpu,
     CustomFieldDefinition,
@@ -27,6 +28,7 @@ from .core import (
 )
 
 __all__ = [
+    "BaselineAuditLog",
     "Cpu",
     "CustomFieldDefinition",
     "CustomFieldAttributeHistory",

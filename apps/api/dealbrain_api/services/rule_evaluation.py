@@ -1,10 +1,13 @@
 """Service for evaluating rules against listings with caching"""
 
+import logging
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from prometheus_client import Counter, Histogram, Gauge
 
 from dealbrain_core.rules import (
     RuleEvaluator,
@@ -21,6 +24,35 @@ from ..models.core import (
     ValuationRuleGroup,
     ValuationRuleV2,
     Listing,
+)
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
+# Prometheus metrics
+valuation_layer_events = Counter(
+    "valuation_layer_contributions_total",
+    "Total valuation layer contribution events",
+    ["layer", "ruleset_name"]
+)
+
+valuation_layer_delta = Histogram(
+    "valuation_layer_delta_usd",
+    "Valuation layer delta in USD",
+    ["layer", "ruleset_name"],
+    buckets=[0, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]
+)
+
+valuation_evaluation_duration = Histogram(
+    "valuation_evaluation_duration_seconds",
+    "Time taken to evaluate valuation rules",
+    ["ruleset_name"]
+)
+
+listings_by_layer = Gauge(
+    "listings_influenced_by_layer",
+    "Number of listings influenced by each valuation layer",
+    ["layer"]
 )
 
 VALUATION_DISABLED_RULESETS_KEY = "valuation_disabled_rulesets"
@@ -99,6 +131,7 @@ class RuleEvaluationService:
         all_evaluation_results = []
         matched_rules_by_layer = {}
         total_adjustment = 0.0
+        cumulative_adjustment = 0.0
 
         for ruleset in rulesets_to_evaluate:
             # Determine layer type from ruleset metadata
@@ -110,15 +143,40 @@ class RuleEvaluationService:
             if not rules:
                 continue
 
-            # Evaluate rules from this ruleset
-            evaluation_results = self.evaluator.evaluate_ruleset(rules, context)
+            # Evaluate rules from this ruleset with timing
+            with valuation_evaluation_duration.labels(ruleset_name=ruleset.name).time():
+                evaluation_results = self.evaluator.evaluate_ruleset(rules, context)
 
             # Calculate adjustment for this layer
             layer_summary = self.evaluator.calculate_total_adjustment(evaluation_results)
             layer_adjustment = layer_summary["total_adjustment"]
 
-            # Track results by layer
+            # Update cumulative adjustment
+            cumulative_adjustment += layer_adjustment
+
+            # Emit telemetry event for layer contribution
             if layer_summary["matched_rules"]:
+                matched_rule_ids = [r["rule_id"] for r in layer_summary["matched_rules"]]
+
+                # Emit telemetry event
+                telemetry_event = {
+                    "listing_id": listing_id,
+                    "layer": layer_type,
+                    "ruleset_id": ruleset.id,
+                    "ruleset_name": ruleset.name,
+                    "rule_ids": matched_rule_ids,
+                    "delta_usd": float(layer_adjustment),
+                    "cumulative_usd": float(cumulative_adjustment),
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+
+                # Log the telemetry event
+                logger.info("valuation.layer_contribution", extra=telemetry_event)
+
+                # Update Prometheus metrics
+                valuation_layer_events.labels(layer=layer_type, ruleset_name=ruleset.name).inc()
+                valuation_layer_delta.labels(layer=layer_type, ruleset_name=ruleset.name).observe(abs(layer_adjustment))
+
                 matched_rules_by_layer[layer_type] = {
                     "ruleset_id": ruleset.id,
                     "ruleset_name": ruleset.name,
