@@ -42,6 +42,19 @@ from .custom_field import (
     CustomFieldDefinitionRead,
     CustomFieldDefinitionUpdate,
 )
+from .baseline import (
+    BaselineFieldMetadata,
+    BaselineEntityMetadata,
+    BaselineMetadataResponse,
+    BaselineInstantiateRequest,
+    BaselineInstantiateResponse,
+    BaselineFieldDiff,
+    BaselineDiffSummary,
+    BaselineDiffRequest,
+    BaselineDiffResponse,
+    BaselineAdoptRequest,
+    BaselineAdoptResponse,
+)
 
 __all__ = [
     "DealBrainModel",
@@ -80,4 +93,15 @@ __all__ = [
     "CustomFieldDefinitionCreate",
     "CustomFieldDefinitionRead",
     "CustomFieldDefinitionUpdate",
+    "BaselineFieldMetadata",
+    "BaselineEntityMetadata",
+    "BaselineMetadataResponse",
+    "BaselineInstantiateRequest",
+    "BaselineInstantiateResponse",
+    "BaselineFieldDiff",
+    "BaselineDiffSummary",
+    "BaselineDiffRequest",
+    "BaselineDiffResponse",
+    "BaselineAdoptRequest",
+    "BaselineAdoptResponse",
 ]

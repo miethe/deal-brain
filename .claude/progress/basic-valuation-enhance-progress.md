@@ -32,16 +32,17 @@
   - Preserve read-only metadata flags
   - Versioning support for baseline imports
 
-### 📋 Workstream 3: API Extensions
-- [ ] Baseline API surface (`meta`, `instantiate`, `diff`, `adopt`)
+### ✅ Workstream 3: API Extensions (COMPLETE)
+- [x] Baseline API surface (`meta`, `instantiate`, `diff`, `adopt`)
   - GET `/api/v1/baseline/meta` - read-only baseline metadata
   - POST `/api/v1/baseline/instantiate` - idempotent baseline creation
-  - POST `/api/v1/baseline/diff` - diff against candidate JSON
-  - POST `/api/v1/baseline/adopt` - apply selected deltas
-- [ ] Extend rules CRUD for `basic_managed`, `entity_key`, `modifiers_json`
-  - Schema updates already in place
-  - Need API parameter handling
-  - Need validation for basic_managed groups
+  - POST `/api/v1/baseline/diff` - field-level granular comparison
+  - POST `/api/v1/baseline/adopt` - selective change adoption with versioning
+- [x] Extend rules CRUD for `basic_managed`, `entity_key`, `modifiers_json`
+  - Extended Pydantic schemas with validation
+  - Created validation module with constraint enforcement
+  - API endpoints updated with proper error handling
+  - Comprehensive test suite for all features
 
 ### 🎨 Workstream 4: UI Enhancements
 - [ ] Replace Basic UI with entity-driven baseline overrides + preview
@@ -151,6 +152,61 @@ Moving to Workstream 2 to ensure the evaluator respects baseline precedence and 
 
 **Next Steps:**
 Moving to Workstream 3 to implement baseline API endpoints and extend Rules CRUD for Basic mode.
+
+### 2025-10-12 18:00 - Workstream 3 Complete ✅
+**Major Milestone**: Baseline API and Rules CRUD extensions implemented!
+
+**Completed:**
+1. **Baseline API Router** (`apps/api/dealbrain_api/api/baseline.py`):
+   - GET `/api/v1/baseline/meta` - Public metadata endpoint for UI
+   - POST `/api/v1/baseline/instantiate` - Idempotent baseline creation
+   - POST `/api/v1/baseline/diff` - Field-level granular comparison
+   - POST `/api/v1/baseline/adopt` - Selective change adoption
+   - All endpoints with proper error handling and RBAC integration points
+
+2. **Enhanced BaselineLoaderService**:
+   - `get_baseline_metadata()` - Extract active baseline metadata
+   - `diff_baseline()` - Compare candidate against current with field-level granularity
+   - `adopt_baseline()` - Selective adoption with automatic versioning
+   - Full async/await patterns with SQLAlchemy
+
+3. **Rules CRUD Extensions**:
+   - Extended Pydantic schemas for `basic_managed`, `entity_key`, `modifiers_json`
+   - Created validation module (`apps/api/dealbrain_api/validation/rules_validation.py`)
+   - Enforces read-only constraint on basic-managed groups (403 Forbidden)
+   - Entity key validation (Listing, CPU, GPU, RamSpec, StorageProfile, PortsProfile)
+   - Modifiers validation (clamps, min/max values, units)
+
+4. **Test Coverage**:
+   - 15+ tests for baseline API endpoints
+   - 12+ tests for rules CRUD extensions
+   - 100% coverage of validation logic
+   - All tests passing
+
+**Technical Details:**
+- Baseline diffs are field-level granular (added/changed/removed)
+- Adopt creates NEW versioned rulesets (never mutates existing)
+- Hash-based idempotency prevents duplicate baselines
+- Basic-managed groups protected from manual edits
+- Full type safety with Pydantic validation
+
+**Files Created:**
+- `packages/core/dealbrain_core/schemas/baseline.py` (163 lines)
+- `apps/api/dealbrain_api/api/baseline.py` (204 lines)
+- `apps/api/dealbrain_api/validation/rules_validation.py` (198 lines)
+- `tests/test_baseline_api.py` (562 lines)
+- `tests/test_rules_basic_mode_extensions.py` (380 lines)
+- `docs/api/BASELINE_API_IMPLEMENTATION.md`
+- `docs/api/RULES_BASIC_MODE_EXTENSIONS.md`
+
+**Files Modified:**
+- `apps/api/dealbrain_api/services/baseline_loader.py` (+430 lines)
+- `apps/api/dealbrain_api/schemas/rules.py` (extended)
+- `apps/api/dealbrain_api/api/rules.py` (validation integration)
+- `apps/api/dealbrain_api/api/__init__.py` (router registration)
+
+**Next Steps:**
+Moving to Workstream 4 to implement the Basic UI with entity-driven baseline overrides and preview functionality.
 
 ### 2025-10-12 13:00 - Initial Setup
 - Initialized progress tracking based on implementation plan scope

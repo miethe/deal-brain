@@ -9,12 +9,19 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from dealbrain_core.schemas.baseline import (
+    BaselineDiffResponse,
+    BaselineDiffSummary,
+    BaselineEntityMetadata,
+    BaselineFieldDiff,
+    BaselineFieldMetadata,
+    BaselineMetadataResponse,
+)
+from sqlalchemy import String, cast, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models.core import ValuationRuleGroup, ValuationRuleset
+from ..models.core import ValuationRuleAudit, ValuationRuleGroup, ValuationRuleset
 from .rules import RulesService
-
 
 BASIC_GROUP_NAME = "Basic · Adjustments"
 BASIC_GROUP_CATEGORY = "baseline"
@@ -235,7 +242,7 @@ class BaselineLoaderService:
     async def _find_ruleset_by_hash(
         self, session: AsyncSession, source_hash: str
     ) -> ValuationRuleset | None:
-        from sqlalchemy import cast, String
+        from sqlalchemy import String, cast
         stmt = select(ValuationRuleset).where(
             cast(ValuationRuleset.metadata_json["source_hash"], String) == source_hash
         )
@@ -245,7 +252,7 @@ class BaselineLoaderService:
     async def _deactivate_previous_baseline_rulesets(
         self, session: AsyncSession, keep_ruleset_id: int
     ) -> None:
-        from sqlalchemy import cast, String
+        from sqlalchemy import String, cast
         stmt = select(ValuationRuleset).where(
             cast(ValuationRuleset.metadata_json["system_baseline"], String) == "true"
         )
@@ -259,7 +266,7 @@ class BaselineLoaderService:
     async def _resolve_target_ruleset(
         self, session: AsyncSession, ruleset_id: int | None
     ) -> ValuationRuleset | None:
-        from sqlalchemy import cast, String
+        from sqlalchemy import String, cast
         if ruleset_id:
             return await session.get(ValuationRuleset, ruleset_id)
 
@@ -272,7 +279,9 @@ class BaselineLoaderService:
         return result.scalars().first()
 
     @staticmethod
-    def _build_rule_metadata(field: dict[str, Any], entity_key: str, source_hash: str) -> dict[str, Any]:
+    def _build_rule_metadata(
+        field: dict[str, Any], entity_key: str, source_hash: str
+    ) -> dict[str, Any]:
         return {
             "system_baseline": True,
             "entity_key": entity_key,
@@ -333,3 +342,422 @@ class BaselineLoaderService:
             except ValueError:
                 suffix = str(generated_at).replace("-", "").replace(":", "")
         return f"{schema_version}.{suffix}"
+
+    async def get_baseline_metadata(
+        self,
+        session: AsyncSession,
+    ) -> BaselineMetadataResponse | None:
+        """Extract metadata from the currently active baseline ruleset.
+
+        Returns:
+            BaselineMetadataResponse if active baseline exists, None otherwise.
+        """
+        # Find active baseline ruleset
+        stmt = select(ValuationRuleset).where(
+            cast(ValuationRuleset.metadata_json["system_baseline"], String) == "true",
+            ValuationRuleset.is_active.is_(True)
+        )
+        result = await session.execute(stmt)
+        ruleset = result.scalar_one_or_none()
+
+        if not ruleset:
+            return None
+
+        # Extract metadata from ruleset
+        metadata = ruleset.metadata_json or {}
+        source_hash = metadata.get("source_hash", "")
+        schema_version = metadata.get("schema_version", "1.0")
+        generated_at = metadata.get("generated_at")
+
+        # Reconstruct entities from rule groups
+        entities: list[BaselineEntityMetadata] = []
+
+        for group in ruleset.rule_groups:
+            group_meta = group.metadata_json or {}
+            entity_key = group_meta.get("entity_key", "Unknown")
+
+            fields: list[BaselineFieldMetadata] = []
+
+            for rule in group.rules:
+                rule_meta = rule.metadata_json or {}
+
+                # Extract min/max from valuation buckets if present
+                min_value = None
+                max_value = None
+                valuation_buckets = rule_meta.get("valuation_buckets")
+
+                if valuation_buckets and isinstance(valuation_buckets, list):
+                    min_vals = [
+                        b.get("min_usd") for b in valuation_buckets if b.get("min_usd") is not None
+                    ]
+                    max_vals = [
+                        b.get("max_usd") for b in valuation_buckets if b.get("max_usd") is not None
+                    ]
+                    if min_vals:
+                        min_value = min(min_vals)
+                    if max_vals:
+                        max_value = max(max_vals)
+
+                field = BaselineFieldMetadata(
+                    field_name=rule_meta.get("field_id", rule.name),
+                    field_type=rule_meta.get("unit", "USD"),
+                    proper_name=rule_meta.get("proper_name"),
+                    description=rule_meta.get("description"),
+                    explanation=rule_meta.get("explanation"),
+                    unit=rule_meta.get("unit"),
+                    min_value=min_value,
+                    max_value=max_value,
+                    formula=rule_meta.get("formula_text"),
+                    dependencies=rule_meta.get("dependencies"),
+                    nullable=rule_meta.get("nullable", False),
+                    notes=rule_meta.get("notes"),
+                    valuation_buckets=valuation_buckets,
+                )
+                fields.append(field)
+
+            if fields:
+                entities.append(BaselineEntityMetadata(
+                    entity_key=entity_key,
+                    fields=fields,
+                ))
+
+        return BaselineMetadataResponse(
+            version=ruleset.version,
+            entities=entities,
+            source_hash=source_hash,
+            is_active=ruleset.is_active,
+            schema_version=schema_version,
+            generated_at=generated_at,
+            ruleset_id=ruleset.id,
+            ruleset_name=ruleset.name,
+        )
+
+    async def diff_baseline(
+        self,
+        session: AsyncSession,
+        candidate_json: dict[str, Any],
+    ) -> BaselineDiffResponse:
+        """Compare candidate baseline against the current active baseline.
+
+        Args:
+            session: Database session
+            candidate_json: Candidate baseline JSON structure
+
+        Returns:
+            BaselineDiffResponse with added, changed, and removed fields
+        """
+        # Get current baseline metadata
+        current_metadata = await self.get_baseline_metadata(session)
+
+        # Build current fields map for comparison
+        current_fields: dict[str, dict[str, Any]] = {}
+        current_version = None
+
+        if current_metadata:
+            current_version = current_metadata.version
+            for entity in current_metadata.entities:
+                for field in entity.fields:
+                    field_key = f"{entity.entity_key}.{field.field_name}"
+                    current_fields[field_key] = {
+                        "entity_key": entity.entity_key,
+                        "field_name": field.field_name,
+                        "proper_name": field.proper_name,
+                        "description": field.description,
+                        "explanation": field.explanation,
+                        "unit": field.unit,
+                        "min_value": field.min_value,
+                        "max_value": field.max_value,
+                        "formula": field.formula,
+                        "dependencies": field.dependencies,
+                        "nullable": field.nullable,
+                        "notes": field.notes,
+                        "valuation_buckets": field.valuation_buckets,
+                    }
+
+        # Build candidate fields map
+        candidate_fields: dict[str, dict[str, Any]] = {}
+        candidate_entities = candidate_json.get("entities", {})
+
+        for entity_key, fields in candidate_entities.items():
+            if not isinstance(fields, (list, tuple)):
+                continue
+
+            for field in fields:
+                field_id = field.get("id")
+                if not field_id:
+                    continue
+
+                field_key = f"{entity_key}.{field_id}"
+
+                # Extract min/max from valuation buckets
+                min_value = None
+                max_value = None
+                valuation_buckets = field.get("valuation_buckets")
+
+                if valuation_buckets and isinstance(valuation_buckets, list):
+                    min_vals = [
+                        b.get("min_usd") for b in valuation_buckets if b.get("min_usd") is not None
+                    ]
+                    max_vals = [
+                        b.get("max_usd") for b in valuation_buckets if b.get("max_usd") is not None
+                    ]
+                    if min_vals:
+                        min_value = min(min_vals)
+                    if max_vals:
+                        max_value = max(max_vals)
+
+                candidate_fields[field_key] = {
+                    "entity_key": entity_key,
+                    "field_name": field_id,
+                    "proper_name": field.get("proper_name"),
+                    "description": field.get("description"),
+                    "explanation": field.get("explanation"),
+                    "unit": field.get("unit"),
+                    "min_value": min_value,
+                    "max_value": max_value,
+                    "formula": field.get("Formula"),
+                    "dependencies": field.get("dependencies"),
+                    "nullable": field.get("nullable", False),
+                    "notes": field.get("notes"),
+                    "valuation_buckets": valuation_buckets,
+                }
+
+        # Calculate diffs
+        added: list[BaselineFieldDiff] = []
+        changed: list[BaselineFieldDiff] = []
+        removed: list[BaselineFieldDiff] = []
+
+        # Find added and changed
+        for field_key, candidate_field in candidate_fields.items():
+            if field_key not in current_fields:
+                # Field is added
+                added.append(BaselineFieldDiff(
+                    entity_key=candidate_field["entity_key"],
+                    field_name=candidate_field["field_name"],
+                    proper_name=candidate_field["proper_name"],
+                    change_type="added",
+                    old_value=None,
+                    new_value=candidate_field,
+                ))
+            else:
+                # Check if field changed
+                current_field = current_fields[field_key]
+                value_diff = self._calculate_field_diff(current_field, candidate_field)
+
+                if value_diff:
+                    changed.append(BaselineFieldDiff(
+                        entity_key=candidate_field["entity_key"],
+                        field_name=candidate_field["field_name"],
+                        proper_name=candidate_field["proper_name"],
+                        change_type="changed",
+                        old_value=current_field,
+                        new_value=candidate_field,
+                        value_diff=value_diff,
+                    ))
+
+        # Find removed
+        for field_key, current_field in current_fields.items():
+            if field_key not in candidate_fields:
+                removed.append(BaselineFieldDiff(
+                    entity_key=current_field["entity_key"],
+                    field_name=current_field["field_name"],
+                    proper_name=current_field["proper_name"],
+                    change_type="removed",
+                    old_value=current_field,
+                    new_value=None,
+                ))
+
+        summary = BaselineDiffSummary(
+            added_count=len(added),
+            changed_count=len(changed),
+            removed_count=len(removed),
+            total_changes=len(added) + len(changed) + len(removed),
+        )
+
+        candidate_version = self._derive_version(
+            candidate_json, self._calculate_hash(candidate_json)
+        )
+
+        return BaselineDiffResponse(
+            added=added,
+            changed=changed,
+            removed=removed,
+            summary=summary,
+            current_version=current_version,
+            candidate_version=candidate_version,
+        )
+
+    async def adopt_baseline(
+        self,
+        session: AsyncSession,
+        candidate_json: dict[str, Any],
+        selected_changes: list[str] | None = None,
+        actor: str | None = "system",
+    ) -> dict[str, Any]:
+        """Adopt selected changes from candidate baseline, creating a new version.
+
+        Args:
+            session: Database session
+            candidate_json: Candidate baseline JSON structure
+            selected_changes: Optional list of field IDs to adopt (entity.field format)
+                            If None, all changes are adopted
+            actor: User/system actor performing adoption
+
+        Returns:
+            Dict with adoption results including new ruleset ID, version, and audit log
+        """
+        # Get diff to understand what's changing
+        diff_result = await self.diff_baseline(session, candidate_json)
+
+        # Determine which changes to apply
+        if selected_changes is None:
+            # Adopt all changes
+            fields_to_adopt = set()
+            for diff in diff_result.added + diff_result.changed:
+                fields_to_adopt.add(f"{diff.entity_key}.{diff.field_name}")
+        else:
+            fields_to_adopt = set(selected_changes)
+
+        # Filter candidate_json to only include selected fields
+        filtered_entities: dict[str, list[dict[str, Any]]] = {}
+        candidate_entities = candidate_json.get("entities", {})
+
+        for entity_key, fields in candidate_entities.items():
+            if not isinstance(fields, (list, tuple)):
+                continue
+
+            filtered_fields = []
+            for field in fields:
+                field_id = field.get("id")
+                if not field_id:
+                    continue
+
+                field_key = f"{entity_key}.{field_id}"
+                if field_key in fields_to_adopt:
+                    filtered_fields.append(field)
+
+            if filtered_fields:
+                filtered_entities[entity_key] = filtered_fields
+
+        # Create filtered baseline payload
+        filtered_payload = {
+            "schema_version": candidate_json.get("schema_version", "1.0"),
+            "generated_at": datetime.utcnow().isoformat(),
+            "description": f"Adopted baseline changes - {len(fields_to_adopt)} fields",
+            "entities": filtered_entities,
+        }
+
+        # Get current baseline ruleset ID before deactivation
+        stmt = select(ValuationRuleset).where(
+            cast(ValuationRuleset.metadata_json["system_baseline"], String) == "true",
+            ValuationRuleset.is_active.is_(True)
+        )
+        result = await session.execute(stmt)
+        previous_ruleset = result.scalar_one_or_none()
+        previous_ruleset_id = previous_ruleset.id if previous_ruleset else None
+
+        # Load the filtered baseline as a new ruleset
+        load_result = await self.load_from_payload(
+            session,
+            filtered_payload,
+            actor=actor,
+            source_reference="adopted_from_candidate",
+        )
+
+        # Create audit log entry
+        audit_entry = ValuationRuleAudit(
+            rule_id=None,  # Ruleset-level change
+            action="baseline_adopted",
+            actor=actor,
+            changes_json={
+                "previous_ruleset_id": previous_ruleset_id,
+                "new_ruleset_id": load_result.ruleset_id,
+                "adopted_fields": list(fields_to_adopt),
+                "total_changes": len(fields_to_adopt),
+                "diff_summary": {
+                    "added": len(
+                        [
+                            d
+                            for d in diff_result.added
+                            if f"{d.entity_key}.{d.field_name}" in fields_to_adopt
+                        ]
+                    ),
+                    "changed": len(
+                        [
+                            d
+                            for d in diff_result.changed
+                            if f"{d.entity_key}.{d.field_name}" in fields_to_adopt
+                        ]
+                    ),
+                },
+            },
+            impact_summary={
+                "ruleset_created": load_result.status == "created",
+                "groups_created": load_result.created_groups,
+                "rules_created": load_result.created_rules,
+            },
+        )
+        session.add(audit_entry)
+        await session.commit()
+        await session.refresh(audit_entry)
+
+        # Calculate skipped fields
+        all_candidate_fields = set()
+        for entity_key, fields in candidate_entities.items():
+            if isinstance(fields, (list, tuple)):
+                for field in fields:
+                    field_id = field.get("id")
+                    if field_id:
+                        all_candidate_fields.add(f"{entity_key}.{field_id}")
+
+        skipped_fields = list(all_candidate_fields - fields_to_adopt)
+
+        return {
+            "new_ruleset_id": load_result.ruleset_id,
+            "new_version": load_result.version,
+            "changes_applied": len(fields_to_adopt),
+            "recalculation_job_id": None,  # Implemented by caller if needed
+            "adopted_fields": list(fields_to_adopt),
+            "skipped_fields": skipped_fields,
+            "previous_ruleset_id": previous_ruleset_id,
+            "audit_log_id": audit_entry.id,
+        }
+
+    @staticmethod
+    def _calculate_field_diff(
+        current: dict[str, Any],
+        candidate: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Calculate specific differences between current and candidate field definitions.
+
+        Returns:
+            Dict of changed attributes, or None if no changes detected
+        """
+        changes: dict[str, Any] = {}
+
+        # Compare relevant attributes
+        compare_attrs = [
+            "description",
+            "explanation",
+            "unit",
+            "min_value",
+            "max_value",
+            "formula",
+            "dependencies",
+            "nullable",
+            "notes",
+            "valuation_buckets",
+        ]
+
+        for attr in compare_attrs:
+            current_val = current.get(attr)
+            candidate_val = candidate.get(attr)
+
+            # Handle None vs empty list/dict comparisons
+            if current_val != candidate_val:
+                changes[attr] = {
+                    "old": current_val,
+                    "new": candidate_val,
+                }
+
+        return changes if changes else None

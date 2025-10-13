@@ -34,6 +34,13 @@ from ..services.rules import RulesService
 from ..services.rule_evaluation import RuleEvaluationService
 from ..services.rule_preview import RulePreviewService
 from ..services.ruleset_packaging import RulesetPackagingService
+from ..validation.rules_validation import (
+    validate_basic_managed_group,
+    validate_entity_key,
+    validate_modifiers_json,
+    extract_metadata_fields,
+    merge_metadata_fields,
+)
 from dealbrain_core.rules.packaging import (
     RulesetPackage,
     create_package_metadata
@@ -169,6 +176,9 @@ async def get_ruleset(
             for rule in group.rules
         ]
 
+        # Extract basic_managed and entity_key from metadata
+        basic_managed, entity_key = extract_metadata_fields(group.metadata_json)
+
         rule_groups.append(
             RuleGroupResponse(
                 id=group.id,
@@ -182,6 +192,8 @@ async def get_ruleset(
                 created_at=group.created_at,
                 updated_at=group.updated_at,
                 metadata=group.metadata_json,
+                basic_managed=basic_managed,
+                entity_key=entity_key,
                 rules=rules,
             )
         )
@@ -257,6 +269,16 @@ async def create_rule_group(
     session: AsyncSession = Depends(get_session),
 ):
     """Create a new rule group"""
+    # Validate entity key if provided
+    validate_entity_key(request.entity_key)
+
+    # Merge basic_managed and entity_key into metadata
+    metadata = merge_metadata_fields(
+        existing_metadata=request.metadata,
+        basic_managed=request.basic_managed,
+        entity_key=request.entity_key
+    )
+
     service = RulesService()
     group = await service.create_rule_group(
         session=session,
@@ -267,8 +289,11 @@ async def create_rule_group(
         display_order=request.display_order,
         weight=request.weight,
         is_active=request.is_active,
-        metadata=request.metadata,
+        metadata=metadata,
     )
+
+    # Extract basic_managed and entity_key from metadata for response
+    basic_managed, entity_key = extract_metadata_fields(group.metadata_json)
 
     return RuleGroupResponse(
         id=group.id,
@@ -282,6 +307,8 @@ async def create_rule_group(
         created_at=group.created_at,
         updated_at=group.updated_at,
         metadata=group.metadata_json,
+        basic_managed=basic_managed,
+        entity_key=entity_key,
         rules=[],
     )
 
@@ -300,23 +327,31 @@ async def list_rule_groups(
         category=category,
     )
 
-    return [
-        RuleGroupResponse(
-            id=g.id,
-            ruleset_id=g.ruleset_id,
-            name=g.name,
-            category=g.category,
-            description=g.description,
-            display_order=g.display_order,
-            weight=g.weight,
-            is_active=g.is_active,
-            created_at=g.created_at,
-            updated_at=g.updated_at,
-            metadata=g.metadata_json,
-            rules=[],
+    result = []
+    for g in groups:
+        # Extract basic_managed and entity_key from metadata
+        basic_managed, entity_key = extract_metadata_fields(g.metadata_json)
+
+        result.append(
+            RuleGroupResponse(
+                id=g.id,
+                ruleset_id=g.ruleset_id,
+                name=g.name,
+                category=g.category,
+                description=g.description,
+                display_order=g.display_order,
+                weight=g.weight,
+                is_active=g.is_active,
+                created_at=g.created_at,
+                updated_at=g.updated_at,
+                metadata=g.metadata_json,
+                basic_managed=basic_managed,
+                entity_key=entity_key,
+                rules=[],
+            )
         )
-        for g in groups
-    ]
+
+    return result
 
 
 @router.get("/rule-groups/{group_id}", response_model=RuleGroupResponse)
@@ -371,6 +406,9 @@ async def get_rule_group(
         for rule in group.rules
     ]
 
+    # Extract basic_managed and entity_key from metadata
+    basic_managed, entity_key = extract_metadata_fields(group.metadata_json)
+
     return RuleGroupResponse(
         id=group.id,
         ruleset_id=group.ruleset_id,
@@ -383,6 +421,8 @@ async def get_rule_group(
         created_at=group.created_at,
         updated_at=group.updated_at,
         metadata=group.metadata_json,
+        basic_managed=basic_managed,
+        entity_key=entity_key,
         rules=rules,
     )
 
@@ -395,10 +435,38 @@ async def update_rule_group(
 ):
     """Update a rule group"""
     service = RulesService()
-    group = await service.update_rule_group(session, group_id, request)
 
-    if not group:
+    # First get the group to check if it's basic-managed
+    existing_group = await service.get_rule_group(session, group_id)
+    if not existing_group:
         raise HTTPException(status_code=404, detail="Rule group not found")
+
+    # Check if group is basic-managed (prevent manual edits)
+    validate_basic_managed_group(existing_group.metadata_json, "update")
+
+    # Validate entity key if provided
+    validate_entity_key(request.entity_key)
+
+    # Prepare update data
+    updates = request.model_dump(exclude_unset=True)
+
+    # Handle basic_managed and entity_key separately
+    basic_managed = updates.pop("basic_managed", None)
+    entity_key = updates.pop("entity_key", None)
+
+    # Merge metadata fields
+    if basic_managed is not None or entity_key is not None or "metadata" in updates:
+        updates["metadata"] = merge_metadata_fields(
+            existing_metadata=existing_group.metadata_json,
+            basic_managed=basic_managed,
+            entity_key=entity_key,
+            additional_metadata=updates.get("metadata")
+        )
+
+    group = await service.update_rule_group(session, group_id, updates)
+
+    # Extract basic_managed and entity_key from metadata for response
+    basic_managed, entity_key = extract_metadata_fields(group.metadata_json)
 
     return RuleGroupResponse(
         id=group.id,
@@ -412,6 +480,8 @@ async def update_rule_group(
         created_at=group.created_at,
         updated_at=group.updated_at,
         metadata=group.metadata_json,
+        basic_managed=basic_managed,
+        entity_key=entity_key,
         rules=[],
     )
 
@@ -425,6 +495,16 @@ async def create_rule(
 ):
     """Create a new valuation rule"""
     service = RulesService()
+
+    # Check if the parent group is basic-managed
+    group = await service.get_rule_group(session, request.group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Rule group not found")
+
+    # Validate modifiers for each action
+    if request.actions:
+        for action in request.actions:
+            validate_modifiers_json(action.modifiers, action.action_type)
 
     conditions = [c.dict() for c in request.conditions] if request.conditions else []
     actions = [a.dict() for a in request.actions] if request.actions else []
@@ -580,6 +660,21 @@ async def update_rule(
     """Update a valuation rule"""
     service = RulesService()
 
+    # Get the existing rule to check its parent group
+    existing_rule = await service.get_rule(session, rule_id)
+    if not existing_rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    # Check if the parent group is basic-managed
+    group = await service.get_rule_group(session, existing_rule.group_id)
+    if group:
+        validate_basic_managed_group(group.metadata_json, "update rule in")
+
+    # Validate modifiers for each action
+    if request.actions:
+        for action in request.actions:
+            validate_modifiers_json(action.modifiers, action.action_type)
+
     updates = {k: v for k, v in request.dict(exclude_unset=True).items() if v is not None}
 
     # No conversion needed - request.dict() already converts Pydantic objects to dicts
@@ -636,6 +731,17 @@ async def delete_rule(
 ):
     """Delete a valuation rule"""
     service = RulesService()
+
+    # Get the existing rule to check its parent group
+    existing_rule = await service.get_rule(session, rule_id)
+    if not existing_rule:
+        raise HTTPException(status_code=404, detail="Rule not found")
+
+    # Check if the parent group is basic-managed
+    group = await service.get_rule_group(session, existing_rule.group_id)
+    if group:
+        validate_basic_managed_group(group.metadata_json, "delete rule from")
+
     success = await service.delete_rule(session, rule_id)
 
     if not success:

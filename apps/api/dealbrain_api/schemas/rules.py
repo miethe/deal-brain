@@ -27,7 +27,10 @@ class ActionSchema(BaseModel):
     value_usd: float | None = Field(None, description="Value in USD")
     unit_type: str | None = Field(None, description="Unit type for benchmark calculations")
     formula: str | None = Field(None, description="Custom formula")
-    modifiers: dict[str, Any] = Field(default_factory=dict, description="Modifiers (condition multipliers, etc.)")
+    modifiers: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Modifiers including min_usd, max_usd, clamp flag, explanation, formula_notes, unit"
+    )
 
     @model_validator(mode="after")
     def validate_metric_requirements(self) -> "ActionSchema":
@@ -97,6 +100,15 @@ class RuleGroupCreateRequest(BaseModel):
     weight: float = Field(1.0, ge=0.0, le=1.0)
     is_active: bool = Field(True, description="Whether this group is enabled")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary metadata for the group")
+    basic_managed: bool | None = Field(None, description="Whether this group is managed by Basic mode")
+    entity_key: str | None = Field(None, description="Entity type for basic-managed groups (Listing, CPU, GPU, etc.)")
+
+    @model_validator(mode="after")
+    def validate_basic_managed_requirements(self) -> "RuleGroupCreateRequest":
+        """Ensure basic_managed groups have entity_key."""
+        if self.basic_managed and not self.entity_key:
+            raise ValueError("entity_key is required when basic_managed is true")
+        return self
 
 
 class RuleGroupUpdateRequest(BaseModel):
@@ -110,6 +122,15 @@ class RuleGroupUpdateRequest(BaseModel):
     metadata: dict[str, Any] | None = Field(
         None, description="Arbitrary metadata for the group"
     )
+    basic_managed: bool | None = Field(None, description="Whether this group is managed by Basic mode")
+    entity_key: str | None = Field(None, description="Entity type for basic-managed groups (Listing, CPU, GPU, etc.)")
+
+    @model_validator(mode="after")
+    def validate_basic_managed_requirements(self) -> "RuleGroupUpdateRequest":
+        """Ensure basic_managed groups have entity_key."""
+        if self.basic_managed is not None and self.basic_managed and not self.entity_key:
+            raise ValueError("entity_key is required when basic_managed is true")
+        return self
 
 
 class RuleGroupResponse(BaseModel):
@@ -125,6 +146,8 @@ class RuleGroupResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     metadata: dict[str, Any]
+    basic_managed: bool | None = None
+    entity_key: str | None = None
     rules: list[RuleResponse] = Field(default_factory=list)
 
     class Config:
