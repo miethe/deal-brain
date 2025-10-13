@@ -14,8 +14,6 @@ from ..models.core import (
     ValuationRuleset,
     ValuationRuleV2,
     ValuationRuleGroup,
-    BaselineAuditLog,
-    EntityFieldValue,
 )
 
 logger = logging.getLogger(__name__)
@@ -142,48 +140,27 @@ class BaselineMetricsService:
 
         Returns:
             Dictionary with churn metrics
+
+        Note:
+            This method currently returns placeholder data until the EntityFieldValue
+            model is implemented. This is part of the baseline valuation enhancement
+            feature and will be fully functional once the field value storage model
+            is created.
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
-
-        # Count total overrides
-        total_stmt = select(func.count(EntityFieldValue.id)).where(
-            EntityFieldValue.is_override == True
+        # TODO: Implement once EntityFieldValue model is created
+        # This model will track baseline field overrides for churn rate calculation
+        logger.warning(
+            "calculate_override_churn called but EntityFieldValue model not yet implemented"
         )
-        total_result = await session.execute(total_stmt)
-        total_overrides = total_result.scalar() or 0
-
-        # Count changed overrides in period
-        changed_stmt = select(func.count(EntityFieldValue.id)).where(
-            and_(
-                EntityFieldValue.is_override == True,
-                EntityFieldValue.updated_at >= cutoff_date,
-                EntityFieldValue.updated_at != EntityFieldValue.created_at
-            )
-        )
-        changed_result = await session.execute(changed_stmt)
-        changed_overrides = changed_result.scalar() or 0
-
-        # Count new overrides in period
-        new_stmt = select(func.count(EntityFieldValue.id)).where(
-            and_(
-                EntityFieldValue.is_override == True,
-                EntityFieldValue.created_at >= cutoff_date
-            )
-        )
-        new_result = await session.execute(new_stmt)
-        new_overrides = new_result.scalar() or 0
-
-        churn_rate = 0.0
-        if total_overrides > 0:
-            churn_rate = (changed_overrides / total_overrides) * 100
 
         return {
             "period_days": days_back,
-            "total_overrides": total_overrides,
-            "new_overrides": new_overrides,
-            "changed_overrides": changed_overrides,
-            "churn_rate_percent": round(churn_rate, 2),
-            "calculated_at": datetime.utcnow().isoformat()
+            "total_overrides": 0,
+            "new_overrides": 0,
+            "changed_overrides": 0,
+            "churn_rate_percent": 0.0,
+            "calculated_at": datetime.utcnow().isoformat(),
+            "note": "EntityFieldValue model not yet implemented - placeholder data"
         }
 
     async def get_baseline_summary(

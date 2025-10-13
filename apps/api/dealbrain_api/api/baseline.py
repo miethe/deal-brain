@@ -1,6 +1,8 @@
 """API endpoints for baseline valuation management"""
 
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from dealbrain_core.schemas.baseline import (
     BaselineAdoptRequest,
@@ -44,6 +46,18 @@ async def get_baseline_metadata(
         )
 
     return metadata
+
+
+@router.get("/metadata", response_model=BaselineMetadataResponse | None)
+async def get_baseline_metadata_alias(
+    session: AsyncSession = Depends(get_session),
+):
+    """Alias for /meta endpoint for backwards compatibility.
+
+    Returns:
+        BaselineMetadataResponse if active baseline exists, None otherwise
+    """
+    return await get_baseline_metadata(session)
 
 
 # --- Baseline Instantiation Endpoint ---
@@ -202,3 +216,177 @@ async def adopt_baseline(
         previous_ruleset_id=adopt_result.get("previous_ruleset_id"),
         audit_log_id=adopt_result.get("audit_log_id"),
     )
+
+
+# --- Field Override Endpoints (Stub implementations) ---
+
+@router.get("/overrides/{entity_key}")
+async def get_entity_overrides(
+    entity_key: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """Get all field overrides for an entity.
+
+    TODO: Implement full override management via Basic Adjustments group.
+    For now, returns empty list to allow UI to load.
+
+    Args:
+        entity_key: Entity identifier (e.g., 'listing', 'cpu', 'gpu')
+
+    Returns:
+        List of field overrides (currently empty stub)
+    """
+    # Stub: Return empty list for now
+    # TODO: Query ValuationRuleGroup where group_name='Basic · Adjustments'
+    # and metadata_json->entity_key = entity_key, extract modifiers_json
+    return []
+
+
+@router.post("/overrides")
+async def upsert_field_override(
+    override: dict[str, Any],
+    session: AsyncSession = Depends(get_session),
+):
+    """Create or update a field override.
+
+    TODO: Implement by updating modifiers_json in Basic Adjustments group.
+    For now, returns the input unchanged.
+
+    Args:
+        override: Field override data (field_name, entity_key, override_value, etc.)
+
+    Returns:
+        The created/updated override (currently echo stub)
+    """
+    # Stub: Echo back the input
+    # TODO: Update ValuationRuleGroup modifiers_json for the specified entity/field
+    return override
+
+
+@router.delete("/overrides/{entity_key}/{field_name}")
+async def delete_field_override(
+    entity_key: str,
+    field_name: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """Delete a specific field override (reset to baseline).
+
+    TODO: Implement by removing field from modifiers_json.
+
+    Args:
+        entity_key: Entity identifier
+        field_name: Field name to reset
+
+    Returns:
+        Success status
+    """
+    # Stub: Return success
+    # TODO: Remove field from modifiers_json in Basic Adjustments group
+    return {"status": "deleted", "entity_key": entity_key, "field_name": field_name}
+
+
+@router.delete("/overrides/{entity_key}")
+async def delete_entity_overrides(
+    entity_key: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """Delete all overrides for an entity.
+
+    TODO: Implement by clearing modifiers_json for entity.
+
+    Args:
+        entity_key: Entity identifier
+
+    Returns:
+        Success status
+    """
+    # Stub: Return success
+    # TODO: Clear all modifiers_json for entity in Basic Adjustments group
+    return {"status": "deleted", "entity_key": entity_key, "count": 0}
+
+
+# --- Preview Impact Endpoint (Stub) ---
+
+@router.get("/preview")
+async def preview_impact(
+    entity_key: str | None = None,
+    sample_size: int = 100,
+    session: AsyncSession = Depends(get_session),
+):
+    """Preview the impact of current overrides on listings.
+
+    TODO: Implement by running evaluation with/without overrides.
+    For now, returns stub data.
+
+    Args:
+        entity_key: Optional entity filter
+        sample_size: Number of listings to sample
+
+    Returns:
+        Preview statistics and sample listings
+    """
+    # Stub: Return minimal structure
+    return {
+        "statistics": {
+            "total_listings": 0,
+            "matched_count": 0,
+            "match_percentage": 0.0,
+            "avg_delta": 0.0,
+            "min_delta": 0.0,
+            "max_delta": 0.0,
+            "median_delta": 0.0,
+        },
+        "samples": [],
+        "generated_at": datetime.utcnow().isoformat(),
+    }
+
+
+# --- Export Endpoint (Stub) ---
+
+@router.get("/export")
+async def export_baseline(
+    session: AsyncSession = Depends(get_session),
+):
+    """Export current baseline configuration including overrides.
+
+    TODO: Implement by serializing active baseline + overrides.
+
+    Returns:
+        Baseline metadata with current overrides applied
+    """
+    # Stub: Delegate to metadata endpoint for now
+    service = BaselineLoaderService()
+    metadata = await service.get_baseline_metadata(session)
+
+    if metadata is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active baseline to export"
+        )
+
+    return metadata
+
+
+# --- Validate Endpoint (Stub) ---
+
+@router.post("/validate")
+async def validate_baseline(
+    payload: dict[str, Any],
+    session: AsyncSession = Depends(get_session),
+):
+    """Validate a baseline JSON structure.
+
+    TODO: Implement schema validation and constraint checking.
+
+    Args:
+        payload: Contains baseline_json or baseline object
+
+    Returns:
+        Validation result with errors/warnings
+    """
+    # Stub: Always return valid for now
+    return {
+        "valid": True,
+        "errors": [],
+        "warnings": [],
+    }

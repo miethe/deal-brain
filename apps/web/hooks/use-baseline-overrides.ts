@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { FieldOverride } from "@/types/baseline";
 import {
@@ -23,6 +23,8 @@ export function useBaselineOverrides({ entityKey, autoSave = false }: UseBaselin
   // Track local overrides state
   const [localOverrides, setLocalOverrides] = useState<Map<string, FieldOverride>>(new Map());
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const isInitializedRef = useRef(false);
+  const lastServerDataRef = useRef<string>("");
 
   // Fetch existing overrides from server
   const { data: serverOverrides = [], isLoading } = useQuery({
@@ -31,14 +33,35 @@ export function useBaselineOverrides({ entityKey, autoSave = false }: UseBaselin
     staleTime: 30000, // 30 seconds
   });
 
-  // Initialize local state from server data
+  // Reset initialization when entity changes
   useEffect(() => {
-    const map = new Map<string, FieldOverride>();
-    serverOverrides.forEach((override) => {
-      map.set(override.field_name, override);
-    });
-    setLocalOverrides(map);
+    isInitializedRef.current = false;
+    lastServerDataRef.current = "";
+    setLocalOverrides(new Map());
     setHasUnsavedChanges(false);
+  }, [entityKey]);
+
+  // Initialize local state from server data only when data actually changes
+  useEffect(() => {
+    // Create a stable string representation to detect actual data changes
+    const serverDataKey = JSON.stringify(serverOverrides);
+
+    // Only update if data has actually changed or this is first initialization
+    if (lastServerDataRef.current !== serverDataKey) {
+      lastServerDataRef.current = serverDataKey;
+
+      const map = new Map<string, FieldOverride>();
+      serverOverrides.forEach((override) => {
+        map.set(override.field_name, override);
+      });
+      setLocalOverrides(map);
+
+      // Only reset unsaved changes flag if this is initialization, not a refetch
+      if (!isInitializedRef.current) {
+        setHasUnsavedChanges(false);
+        isInitializedRef.current = true;
+      }
+    }
   }, [serverOverrides]);
 
   // Mutation for upserting override
