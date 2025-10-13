@@ -296,13 +296,63 @@ class BaselineLoaderService:
         return result.scalars().first()
 
     @staticmethod
+    def _derive_field_type(field: dict[str, Any]) -> str:
+        """Derive the field type from the field structure.
+        
+        Args:
+            field: Field definition from baseline JSON
+            
+        Returns:
+            Field type: "formula", "multiplier", or "scalar"
+        """
+        # Check if it's a formula field
+        formula = field.get("Formula")
+        if formula and isinstance(formula, str) and formula.strip():
+            return "formula"
+        
+        # Check if it's a multiplier field
+        unit = field.get("unit")
+        if isinstance(unit, str) and unit.lower() == "multiplier":
+            return "multiplier"
+        
+        # Default to scalar (includes valuation_buckets and simple USD values)
+        return "scalar"
+
+    @staticmethod
+    def _derive_field_type_from_metadata(rule_meta: dict[str, Any]) -> str:
+        """Derive the field type from rule metadata (for legacy rules without field_type).
+        
+        Args:
+            rule_meta: Rule metadata dictionary
+            
+        Returns:
+            Field type: "formula", "multiplier", or "scalar"
+        """
+        # Check if it's a formula field
+        formula_text = rule_meta.get("formula_text")
+        if formula_text and isinstance(formula_text, str) and formula_text.strip():
+            return "formula"
+        
+        # Check if it's a multiplier field
+        unit = rule_meta.get("unit")
+        if isinstance(unit, str) and unit.lower() == "multiplier":
+            return "multiplier"
+        
+        # Default to scalar
+        return "scalar"
+
+    @staticmethod
     def _build_rule_metadata(
         field: dict[str, Any], entity_key: str, source_hash: str
     ) -> dict[str, Any]:
+        # Derive field type from structure
+        field_type = BaselineLoaderService._derive_field_type(field)
+        
         return {
             "system_baseline": True,
             "entity_key": entity_key,
             "field_id": field.get("id"),
+            "field_type": field_type,
             "proper_name": field.get("proper_name"),
             "description": field.get("description"),
             "explanation": field.get("explanation"),
@@ -415,9 +465,15 @@ class BaselineLoaderService:
                     if max_vals:
                         max_value = max(max_vals)
 
+                # Get or derive field_type
+                field_type = rule_meta.get("field_type")
+                if not field_type:
+                    # Fallback: derive from metadata for legacy rules
+                    field_type = BaselineLoaderService._derive_field_type_from_metadata(rule_meta)
+
                 field = BaselineFieldMetadata(
                     field_name=rule_meta.get("field_id", rule.name),
-                    field_type=rule_meta.get("unit", "USD"),
+                    field_type=field_type,
                     proper_name=rule_meta.get("proper_name"),
                     description=rule_meta.get("description"),
                     explanation=rule_meta.get("explanation"),
