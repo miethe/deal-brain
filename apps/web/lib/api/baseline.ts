@@ -12,6 +12,8 @@ import type {
   AdoptResponse,
   PreviewImpactResponse,
   FieldOverride,
+  HydrateBaselineRequest,
+  HydrateBaselineResponse,
 } from "@/types/baseline";
 
 const BASE_PATH = "/api/v1/baseline";
@@ -139,4 +141,24 @@ export async function validateBaseline(baseline: BaselineMetadata | string): Pro
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+/**
+ * Hydrate placeholder baseline rules for Advanced mode editing
+ */
+export async function hydrateBaselineRules(
+  rulesetId: number,
+  actor?: string
+): Promise<HydrateBaselineResponse> {
+  const request: HydrateBaselineRequest = {
+    actor: actor || "system"
+  };
+
+  return apiFetch<HydrateBaselineResponse>(
+    `${BASE_PATH}/rulesets/${rulesetId}/hydrate`,
+    {
+      method: "POST",
+      body: JSON.stringify(request),
+    }
+  );
 }

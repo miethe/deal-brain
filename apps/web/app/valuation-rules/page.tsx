@@ -29,6 +29,8 @@ import { BasicValuationForm } from "../../components/valuation/basic-valuation-f
 import { ConditionGroup } from "../../components/valuation/condition-group";
 import { BasicModeTabs } from "./_components/basic-mode-tabs";
 import { DiffAdoptWizard } from "../../components/valuation/diff-adopt-wizard";
+import { HydrationBanner } from "./_components/hydration-banner";
+import { hydrateBaselineRules } from "../../lib/api/baseline";
 
 type Mode = "basic" | "advanced";
 
@@ -352,6 +354,51 @@ export default function ValuationRulesPage() {
     enabled: !!selectedRulesetId,
   });
 
+  // Extract all rules from rule groups
+  const allRules = useMemo(() => {
+    if (!selectedRuleset?.rule_groups) return [];
+    return selectedRuleset.rule_groups.flatMap(group => group.rules);
+  }, [selectedRuleset]);
+
+  // Detect placeholder rules (not yet hydrated)
+  const hasPlaceholderRules = useMemo(() => {
+    return allRules.some(rule =>
+      rule.metadata?.baseline_placeholder === true &&
+      rule.metadata?.hydrated !== true
+    );
+  }, [allRules]);
+
+  // Detect already-hydrated rules
+  const hasHydratedRules = useMemo(() => {
+    return allRules.some(rule =>
+      rule.metadata?.hydrated === true
+    );
+  }, [allRules]);
+
+  // Hydration mutation
+  const hydrateMutation = useMutation({
+    mutationFn: () => hydrateBaselineRules(selectedRulesetId!, "system"),
+    onSuccess: (result) => {
+      toast({
+        title: "Baseline Rules Prepared",
+        description: `Created ${result.created_rule_count} rules from ${result.hydrated_rule_count} baseline fields.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["ruleset", selectedRulesetId] });
+      queryClient.invalidateQueries({ queryKey: ["rulesets"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Hydration Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleHydrate = async () => {
+    await hydrateMutation.mutateAsync();
+  };
+
   // Auto-select active ruleset on load
   useEffect(() => {
     if (rulesets.length > 0 && !selectedRulesetId) {
@@ -403,16 +450,54 @@ export default function ValuationRulesPage() {
     });
   };
 
-  // Filter rule groups by search
-  const filteredRuleGroups = selectedRuleset?.rule_groups.filter((group) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      group.name.toLowerCase().includes(query) ||
-      group.category.toLowerCase().includes(query) ||
-      group.rules.some((rule) => rule.name.toLowerCase().includes(query))
-    );
-  });
+  // Filter rule groups by search and apply rule filtering for Advanced mode
+  const filteredRuleGroups = useMemo(() => {
+    if (!selectedRuleset?.rule_groups) return [];
+
+    return selectedRuleset.rule_groups
+      .map((group) => {
+        // Filter rules in Advanced mode
+        let filteredRules = group.rules;
+
+        if (mode === "advanced") {
+          filteredRules = group.rules.filter((rule) => {
+            // Hide foreign key rules
+            if (rule.metadata?.is_foreign_key_rule === true) {
+              return false;
+            }
+            // Hide deactivated placeholders
+            if (rule.metadata?.hydrated === true && !rule.is_active) {
+              return false;
+            }
+            return true;
+          });
+        }
+
+        // Apply search filter
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          const groupMatches =
+            group.name.toLowerCase().includes(query) ||
+            group.category.toLowerCase().includes(query);
+
+          const ruleMatches = filteredRules.filter((rule) =>
+            rule.name.toLowerCase().includes(query)
+          );
+
+          if (!groupMatches && ruleMatches.length === 0) {
+            return null;
+          }
+
+          // If group matches, show all filtered rules; otherwise show only matching rules
+          if (!groupMatches) {
+            return { ...group, rules: ruleMatches };
+          }
+        }
+
+        return { ...group, rules: filteredRules };
+      })
+      .filter((group): group is RuleGroup => group !== null && group.rules.length > 0);
+  }, [selectedRuleset, searchQuery, mode]);
 
   return (
     <div className="space-y-6">
@@ -541,6 +626,15 @@ export default function ValuationRulesPage() {
 
       {mode === "advanced" && selectedRuleset && (
         <RulesetSettingsCard ruleset={selectedRuleset} onRefresh={handleRefresh} />
+      )}
+
+      {/* Hydration Banner - Show in Advanced mode when placeholders exist and not yet hydrated */}
+      {mode === "advanced" && hasPlaceholderRules && !hasHydratedRules && selectedRulesetId && (
+        <HydrationBanner
+          rulesetId={selectedRulesetId}
+          onHydrate={handleHydrate}
+          isHydrating={hydrateMutation.isPending}
+        />
       )}
 
       {mode === "basic" ? (

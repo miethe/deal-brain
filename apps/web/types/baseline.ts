@@ -143,3 +143,22 @@ export interface PreviewImpactResponse {
   samples: PreviewListingSample[];
   generated_at: string;
 }
+
+export interface HydrateBaselineRequest {
+  actor?: string;
+}
+
+export interface HydrationSummaryItem {
+  original_rule_id: number;
+  field_name: string;
+  field_type: string;
+  expanded_rule_ids: number[];
+}
+
+export interface HydrateBaselineResponse {
+  status: string;
+  ruleset_id: number;
+  hydrated_rule_count: number;
+  created_rule_count: number;
+  hydration_summary: HydrationSummaryItem[];
+}

@@ -105,45 +105,54 @@ Implement baseline rule hydration to enable full editing of baseline rules in Ad
 
 ## Phase 3: Frontend Detection & UI (2 days)
 
-### Task 3.1: Detect Placeholder Rules ⏳
-- [ ] Add placeholder detection logic
-- [ ] Add hydrated rules detection
-- [ ] Memoize for performance
+### Task 3.1: Detect Placeholder Rules ✅
+- [x] Add placeholder detection logic
+- [x] Add hydrated rules detection
+- [x] Memoize for performance
 - **Assigned to:** ui-engineer
-- **Status:** Pending
+- **Status:** Complete
+- **Location:** `apps/web/app/valuation-rules/page.tsx` (hasPlaceholderRules, hasHydratedRules hooks)
 
-### Task 3.2: Create Hydration Banner Component ⏳
-- [ ] Create HydrationBanner component
-- [ ] Add info alert with CTA button
-- [ ] Show loading state during hydration
-- [ ] Dismiss after success
+### Task 3.2: Create Hydration Banner Component ✅
+- [x] Create HydrationBanner component
+- [x] Add info alert with CTA button
+- [x] Show loading state during hydration
+- [x] Dismiss after success
+- [x] Accessibility features (ARIA labels)
 - **Assigned to:** ui-engineer
-- **Status:** Pending
+- **Status:** Complete
+- **File:** `apps/web/app/valuation-rules/_components/hydration-banner.tsx` (NEW)
 
-### Task 3.3: Implement Hydration Mutation ⏳
-- [ ] Create API client function
-- [ ] Configure mutation hook
-- [ ] Add success toast with counts
-- [ ] Add error handling with toast
-- [ ] Invalidate rules query on success
+### Task 3.3: Implement Hydration Mutation ✅
+- [x] Create API client function
+- [x] Configure mutation hook
+- [x] Add success toast with counts
+- [x] Add error handling with toast
+- [x] Invalidate rules query on success
 - **Assigned to:** ui-engineer
-- **Status:** Pending
+- **Status:** Complete
+- **Files:**
+  - `apps/web/lib/api/baseline.ts` (hydrateBaselineRules function)
+  - `apps/web/types/baseline.ts` (TypeScript types)
+  - `apps/web/app/valuation-rules/page.tsx` (mutation hook)
 
-### Task 3.4: Filter Foreign Key Rules in Advanced Mode ⏳
-- [ ] Filter rules with is_foreign_key_rule flag
-- [ ] Hide deactivated placeholders
-- [ ] Add optional toggle for system rules
-- [ ] Memoize filter logic
+### Task 3.4: Filter Foreign Key Rules in Advanced Mode ✅
+- [x] Filter rules with is_foreign_key_rule flag
+- [x] Hide deactivated placeholders
+- [x] Memoize filter logic
+- [x] Filter at both rule and group level
 - **Assigned to:** ui-engineer
-- **Status:** Pending
+- **Status:** Complete
+- **Location:** `apps/web/app/valuation-rules/page.tsx` (filteredRuleGroups hook)
 
-### Task 3.5: Integration with Existing Advanced Mode ⏳
-- [ ] Show banner only in Advanced mode
-- [ ] Show banner only for non-hydrated placeholders
-- [ ] Filter rules before passing to Advanced mode
-- [ ] Ensure state updates trigger re-render
+### Task 3.5: Integration with Existing Advanced Mode ✅
+- [x] Show banner only in Advanced mode
+- [x] Show banner only for non-hydrated placeholders
+- [x] Filter rules before passing to Advanced mode
+- [x] Ensure state updates trigger re-render
 - **Assigned to:** ui-engineer
-- **Status:** Pending
+- **Status:** Complete
+- **Integration:** All components working together seamlessly
 
 ## Phase 4: Testing & Documentation (1 day)
 
