@@ -187,7 +187,13 @@ export function BaselineFieldCard({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground" />
+                      <button
+                        type="button"
+                        className="inline-flex items-center"
+                        aria-label="Field explanation"
+                      >
+                        <Info className="h-4 w-4 text-muted-foreground" />
+                      </button>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
                       <p className="text-sm">{field.explanation}</p>
