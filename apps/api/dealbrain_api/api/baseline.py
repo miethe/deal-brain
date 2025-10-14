@@ -12,6 +12,9 @@ from dealbrain_core.schemas.baseline import (
     BaselineInstantiateRequest,
     BaselineInstantiateResponse,
     BaselineMetadataResponse,
+    HydrateBaselineRequest,
+    HydrateBaselineResponse,
+    HydrationSummaryItem,
 )
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -216,6 +219,78 @@ async def adopt_baseline(
         previous_ruleset_id=adopt_result.get("previous_ruleset_id"),
         audit_log_id=adopt_result.get("audit_log_id"),
     )
+
+
+# --- Baseline Hydration Endpoint ---
+
+@router.post("/rulesets/{ruleset_id}/hydrate", response_model=HydrateBaselineResponse)
+async def hydrate_baseline_rules(
+    ruleset_id: int,
+    request: HydrateBaselineRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """Hydrate placeholder baseline rules for Advanced mode editing.
+
+    Converts compact baseline placeholder rules into expanded, editable rules
+    with explicit conditions and actions. This enables the transition from
+    Basic mode (compact baseline) to Advanced mode (full rule editing).
+
+    Requires: baseline:admin permission (RBAC integration point)
+
+    Args:
+        ruleset_id: ID of the ruleset containing placeholder rules to hydrate
+        request: Contains optional actor field
+
+    Returns:
+        HydrateBaselineResponse with status, counts, and hydration summary
+
+    Raises:
+        HTTPException: 404 if ruleset not found, 500 if hydration fails
+    """
+    from ..services.baseline_hydration import BaselineHydrationService
+    from ..models.core import ValuationRuleset
+    from sqlalchemy import select
+
+    # Verify ruleset exists
+    stmt = select(ValuationRuleset).where(ValuationRuleset.id == ruleset_id)
+    result = await session.execute(stmt)
+    ruleset = result.scalar_one_or_none()
+
+    if not ruleset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Ruleset {ruleset_id} not found"
+        )
+
+    # Hydrate rules
+    service = BaselineHydrationService()
+    try:
+        hydration_result = await service.hydrate_baseline_rules(
+            session=session,
+            ruleset_id=ruleset_id,
+            actor=request.actor or "system"
+        )
+
+        return HydrateBaselineResponse(
+            status=hydration_result.status,
+            ruleset_id=hydration_result.ruleset_id,
+            hydrated_rule_count=hydration_result.hydrated_rule_count,
+            created_rule_count=hydration_result.created_rule_count,
+            hydration_summary=[
+                HydrationSummaryItem(
+                    original_rule_id=item["original_rule_id"],
+                    field_name=item["field_name"],
+                    field_type=item["field_type"],
+                    expanded_rule_ids=item["expanded_rule_ids"],
+                )
+                for item in hydration_result.hydration_summary
+            ],
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to hydrate baseline rules: {str(e)}",
+        ) from e
 
 
 # --- Field Override Endpoints (Stub implementations) ---

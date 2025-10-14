@@ -81,21 +81,27 @@ Implement baseline rule hydration to enable full editing of baseline rules in Ad
 
 ## Phase 2: API Endpoints (1 day)
 
-### Task 2.1: Create Hydration Endpoint ⏳
-- [ ] Create `/baseline/rulesets/{ruleset_id}/hydrate` endpoint
-- [ ] Define request/response schemas
-- [ ] Implement error handling
-- [ ] Return proper HTTP status codes
+### Task 2.1: Create Hydration Endpoint ✅
+- [x] Create `/baseline/rulesets/{ruleset_id}/hydrate` endpoint
+- [x] Define request/response schemas
+- [x] Implement error handling
+- [x] Return proper HTTP status codes
 - **Assigned to:** python-backend-engineer
-- **Status:** Pending
+- **Status:** Complete
+- **Files:**
+  - `packages/core/dealbrain_core/schemas/baseline.py` (schemas)
+  - `apps/api/dealbrain_api/api/baseline.py` (endpoint)
+- **URL:** `POST /api/v1/baseline/rulesets/{ruleset_id}/hydrate`
 
-### Task 2.2: Integration Tests ⏳
-- [ ] Test successful hydration flow
-- [ ] Test invalid ruleset (404)
-- [ ] Test idempotency
-- [ ] Validate response structure
+### Task 2.2: Integration Tests ✅
+- [x] Test successful hydration flow
+- [x] Test invalid ruleset (404)
+- [x] Test idempotency
+- [x] Validate response structure
+- [x] Additional tests (default actor, empty ruleset, full workflow)
 - **Assigned to:** python-backend-engineer
-- **Status:** Pending
+- **Status:** Complete
+- **File:** `tests/test_baseline_hydration_api.py` (7 tests, all passing)
 
 ## Phase 3: Frontend Detection & UI (2 days)
 
