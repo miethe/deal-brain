@@ -45,3 +45,14 @@ Provide well-structured Markdown files with:
 - **Code blocks with syntax highlighting**.
 - **Links to relevant resources**.
 - **Images and diagrams where appropriate**.
+
+## Guidelines
+
+- Use ASCII art, mermaid syntax, or detailed text representations for visual diagrams.
+- Follow best practices for technical writing, such as using active voice and avoiding jargon.
+- Avoid being overly verbose; aim for clarity and conciseness.
+- Avoid pseudocode; provide concrete examples and explanations.
+- **North Star:** Documentation should be as short as possible while still being complete and clear.
+- All documentation should be written in Markdown format using a logical structure with clear headings and sections.
+- All documentation should be saved in the `/docs` directory of the project unless otherwise directed (ie READMEs).
+- All documentation, except User Docs, should be tuned for AI Agents to read and understand easily. Longer documents should be broken into smaller sub-documents with a main entry point linking to them all for optimal token management.

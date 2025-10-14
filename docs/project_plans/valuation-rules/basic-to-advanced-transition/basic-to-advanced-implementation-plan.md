@@ -7,14 +7,14 @@
 
 ## Overview
 
-Implement baseline rule hydration to enable full editing of baseline rules in Advanced mode. This plan follows the hydration strategy defined in ADR-0003.
+Implement baseline rule hydration to enable full editing of baseline rules in Advanced mode. This plan follows the hydration strategy defined in [ADR-0003](../../../architecture/adr/0003-baseline-rule-hydration-strategy.md).
 
 ## Prerequisites
 
 - ✅ Multiplier action bug fixed (value_usd: 0.0 handling)
 - ✅ Duplicate dollar sign UI bug fixed
 - ✅ PRD and ADR approved
-- ⏳ Development environment running
+- ✅ Development environment running
 
 ## Phase 1: Backend - Hydration Service (2 days)
 
@@ -843,5 +843,3 @@ async def dehydrate_rules(
 
 1. Review and approve this implementation plan
 2. Assign tasks to team (backend-architect, ui-engineer)
-3. Create tracking issues in project management system
-4. Kick off Phase 1 development
