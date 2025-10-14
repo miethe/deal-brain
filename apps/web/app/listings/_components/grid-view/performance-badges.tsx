@@ -58,7 +58,7 @@ export const PerformanceBadges = memo(function PerformanceBadges({
         <Tooltip>
           <TooltipTrigger asChild>
             <Badge variant="secondary" className="text-xs font-mono">
-              ${formatMetric(dollarPerSingleRaw)} /ST
+              {formatMetric(dollarPerSingleRaw)} /ST
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
@@ -70,7 +70,7 @@ export const PerformanceBadges = memo(function PerformanceBadges({
         <Tooltip>
           <TooltipTrigger asChild>
             <Badge variant="secondary" className="text-xs font-mono">
-              ${formatMetric(dollarPerMultiRaw)} /MT
+              {formatMetric(dollarPerMultiRaw)} /MT
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
@@ -88,7 +88,7 @@ export const PerformanceBadges = memo(function PerformanceBadges({
                 isAdjustedBetter(dollarPerSingleAdjusted, dollarPerSingleRaw)
               )}`}
             >
-              adj ${formatMetric(dollarPerSingleAdjusted)} /ST
+              adj {formatMetric(dollarPerSingleAdjusted)} /ST
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
@@ -109,7 +109,7 @@ export const PerformanceBadges = memo(function PerformanceBadges({
                 isAdjustedBetter(dollarPerMultiAdjusted, dollarPerMultiRaw)
               )}`}
             >
-              adj ${formatMetric(dollarPerMultiAdjusted)} /MT
+              adj {formatMetric(dollarPerMultiAdjusted)} /MT
             </Badge>
           </TooltipTrigger>
           <TooltipContent>

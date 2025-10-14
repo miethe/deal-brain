@@ -80,7 +80,7 @@ description: Generate comprehensive analysis and documentation of entire codebas
 @.gitignore
 
 ### Main Application Entry Points
-!`find . -name "index.js" -o -name "index.ts" -o -name "main.js" -o -name "main.ts" -o -name "app.js" -o -name "app.ts" -o -name "server.js" -o -name "server.ts" | grep -v node_modules | head -5 | while read file; do echo "=== $file ==="; head -50 "$file"; echo; done`
+!`find . -name "index.js" -o -name "index.ts" -o -name "main.js" -o -name "main.ts" -o -name "app.js" -o -name "app.ts" -o -name "server.js" -o -name "server.ts" | grep -v node_modules | head -5`
 
 ## Your Task
 
@@ -162,4 +162,8 @@ Provide:
 
 Think deeply about the codebase structure and provide comprehensive insights that would be valuable for new developers joining the project or for architectural decision-making.
 
-At the end, write all of the output into a file called "codebase_analysis.md"
+## Output Instructions
+
+At the end, write all of the output into a new directory within `/docs` called `codebase_analysis/` and create a file called "codebase_analysis.md" inside it. This file should serve as the main entry point for the analysis documentation. Make sure to include links to any other relevant files or diagrams you create as part of this analysis. 
+
+The "codebase_analysis.md" file should be well-structured with a table of contents and clear sections for each part of the analysis, with each section linking to a more detailed file. This allows for saving tokens for AI Agents so that they can only load the sub-files for the specific sections they need to work on.

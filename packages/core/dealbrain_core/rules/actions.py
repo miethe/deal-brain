@@ -64,7 +64,8 @@ class Action:
         elif self.action_type == ActionType.MULTIPLIER:
             # Apply multiplier to existing base value
             base_amount = self._get_field_value(context, "adjusted_price_usd") or 0.0
-            multiplier = (self.value_usd or 100.0) / 100.0
+            # Use explicit None check to distinguish 0.0 (no adjustment) from unset (100% default)
+            multiplier = (self.value_usd if self.value_usd is not None else 100.0) / 100.0
             base_value = base_amount * multiplier
 
         elif self.action_type == ActionType.ADDITIVE:

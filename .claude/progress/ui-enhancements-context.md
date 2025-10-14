@@ -1318,3 +1318,117 @@ The field mapping analysis reveals a **well-architected system with excellent co
 4. Use field mapping doc as onboarding reference
 
 ---
+
+
+## Bug Fixes and Remediation (2025-10-14)
+
+### Critical Bug Fix: Valuation Calculation 300% Adjustment
+
+**Issue Identified:**
+Every listing showed a +300% adjustment from Baseline rules. When DDR Generation, Condition, and Release Year rules were active, each contributed approximately $300 (for a $300 listing), resulting in $900 total adjustment (300%).
+
+**Root Cause:**
+The multiplier action calculation in `/mnt/containers/deal-brain/packages/core/dealbrain_core/rules/actions.py` line 67 had a Python falsy value bug:
+```python
+# BUGGY CODE:
+multiplier = (self.value_usd or 100.0) / 100.0
+```
+
+When `value_usd = 0.0` (placeholder baseline rules), `0.0 or 100.0` evaluates to `100.0` because `0.0` is falsy in Python. This resulted in a 1.0x multiplier being applied to the current adjusted price, adding the full price as an adjustment.
+
+**Fix Applied:**
+```python
+# FIXED CODE:
+multiplier = (self.value_usd if self.value_usd is not None else 100.0) / 100.0
+```
+
+Using explicit `is not None` check distinguishes between:
+- `value_usd = 0.0` → 0% multiplier (no adjustment) ✓
+- `value_usd = None` → 100% default multiplier ✓
+
+**Impact:**
+- Baseline placeholder rules now correctly produce $0 adjustment
+- Existing multiplier rules with configured values unaffected
+- No data migration required
+
+**Files Modified:**
+- `packages/core/dealbrain_core/rules/actions.py` (line 67-68)
+
+---
+
+### Minor UI Fix: Duplicate Dollar Signs
+
+**Issue Identified:**
+Performance metric badges showed duplicate dollar signs: `$$0.150 /ST` instead of `$0.150 /ST`
+
+**Root Cause:**
+The `formatMetric()` function in `/mnt/containers/deal-brain/apps/web/app/listings/_components/grid-view/performance-badges.tsx` already adds the dollar sign, but the badge rendering added another one.
+
+**Fix Applied:**
+Removed the extra `$` prefix from lines 61, 73, 91, and 112:
+```typescript
+// BEFORE:
+<Badge>${formatMetric(dollarPerSingleRaw)} /ST</Badge>
+
+// AFTER:
+<Badge>{formatMetric(dollarPerSingleRaw)} /ST</Badge>
+```
+
+**Impact:**
+- Clean display: `$0.150 /ST` instead of `$$0.150 /ST`
+- Affects all 4 performance badges ($/ST, $/MT, adj $/ST, adj $/MT)
+
+**Files Modified:**
+- `apps/web/app/listings/_components/grid-view/performance-badges.tsx` (lines 61, 73, 91, 112)
+
+---
+
+### Major Design: Basic to Advanced Mode Transition
+
+**Issue Identified:**
+When switching from Basic to Advanced mode in the Valuation Rules page, Baseline rules appear empty:
+- 0 conditions shown
+- 1 action with blank value
+- Priority and RuleGroups exist correctly
+- Unable to edit beyond Basic mode overrides
+
+**Root Cause:**
+Baseline rules are created as **placeholders** by `BaselineLoaderService`:
+- `conditions: []` (empty array)
+- `value_usd: 0.0` (placeholder)
+- Metadata contains field configuration (`valuation_buckets`, `formula_text`) but not converted to executable conditions/actions
+
+For example, DDR Generation field with "DDR3: 0.7x, DDR4: 1.0x, DDR5: 1.3x" stored in metadata is not expanded into:
+- Rule 1: Condition (ddr_generation = ddr3) → Action (0.7x multiplier)
+- Rule 2: Condition (ddr_generation = ddr4) → Action (1.0x multiplier)
+- Rule 3: Condition (ddr_generation = ddr5) → Action (1.3x multiplier)
+
+**Solution Designed:**
+Implemented **on-demand baseline rule hydration** via ADR-0003 and comprehensive PRD.
+
+**Hydration Strategy:**
+1. **User-Initiated:** Require explicit user action (banner + button in Advanced mode)
+2. **Expanded Rules:** Create new `ValuationRuleV2` records for each expanded rule
+3. **One Rule Per Enum Value:** For enum multiplier fields (e.g., DDR Generation)
+4. **Preserve Metadata:** Link expanded rules to original via `hydration_source_rule_id`
+5. **Hide Foreign Key Rules:** Filter rules with `is_foreign_key_rule: true` in Advanced UI
+
+**Documents Created:**
+- **PRD:** `/mnt/containers/deal-brain/docs/project_plans/valuation-rules/basic-to-advanced-transition-prd.md` (400+ lines)
+- **ADR-0003:** `/mnt/containers/deal-brain/docs/architecture/adr/0003-baseline-rule-hydration-strategy.md` (comprehensive architecture decision)
+- **Implementation Plan:** `/mnt/containers/deal-brain/docs/project_plans/valuation-rules/basic-to-advanced-implementation-plan.md` (5-6 day plan, 5 phases)
+
+**Status:**
+- ✅ Bug fixes completed (multiplier, duplicate $)
+- ✅ Design documents completed
+- ⏳ Implementation plan ready for execution
+- 📋 Estimated: 5-6 days for full implementation
+
+**Next Steps:**
+1. Review PRD and ADR with stakeholders
+2. Assign implementation to backend-architect + ui-engineer
+3. Execute Phase 1 (backend hydration service)
+4. Continue sequential phases per implementation plan
+
+---
+
