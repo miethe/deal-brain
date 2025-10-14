@@ -24,7 +24,16 @@ def get_engine() -> AsyncEngine:
     global _engine
     if _engine is None:
         settings = get_settings()
-        _engine = create_async_engine(settings.database_url, echo=False, future=True)
+        _engine = create_async_engine(
+            settings.database_url,
+            echo=False,
+            future=True,
+            pool_pre_ping=True,  # Test connections before using them
+            connect_args={
+                "prepared_statement_cache_size": 0,  # Disable prepared statement cache
+                "statement_cache_size": 0,  # Disable statement cache
+            },
+        )
     return _engine
 
 
