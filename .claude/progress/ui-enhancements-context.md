@@ -55,6 +55,17 @@ Focus: Multi-Pane Layout & Static Navigation
   - **Known Issue**: Recalculation task fails without Redis; baseline creation succeeds but triggers event loop error
   - **Next**: Fix recalculation task to gracefully handle missing Redis, then proceed to Workstream 2 (Evaluation Precedence)
 
+### 2025-10-14 — React Warnings & UI Fixes
+- **Issue**: Nested button DOM validation warning in baseline field card tooltips
+- **Root Cause**: Radix UI `TooltipTrigger` with `asChild` prop requires proper interactive element, was wrapping icon directly
+- **Resolution**: Wrapped `Info` icon in `<button>` element with proper accessibility attributes
+  - Added `type="button"` to prevent form submission
+  - Added `aria-label="Field explanation"` for screen readers
+  - Maintained inline display with CSS class
+- **Files Modified**: `apps/web/components/valuation/baseline-field-card.tsx`
+- **Commit**: `1f7e8c6` - fix: resolve nested button React warning in baseline field card tooltip
+- **Impact**: Resolved browser console warning, improved accessibility compliance
+
 ## Completed Tasks
 Phase 1 - Modal & Form System:
 - Enhanced modal-shell with size variants, preventClose, onClose
