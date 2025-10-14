@@ -31,21 +31,26 @@ def drop_all_tables(engine):
 def drop_all_enums(engine):
     # Only works for PostgreSQL
     with engine.connect() as conn:
-        result = conn.execute(text("""
-            SELECT t.typname
-            FROM pg_type t
-            JOIN pg_enum e ON t.oid = e.enumtypid
-            JOIN pg_namespace n ON n.oid = t.typnamespace
-            WHERE n.nspname = 'public'
-            GROUP BY t.typname
+        # Use PL/pgSQL block to properly drop all enums with proper quoting
+        conn.execute(text("""
+            DO $$
+            DECLARE
+                r RECORD;
+            BEGIN
+                FOR r IN (
+                    SELECT n.nspname, t.typname
+                    FROM pg_type t
+                    JOIN pg_enum e ON t.oid = e.enumtypid
+                    JOIN pg_namespace n ON n.oid = t.typnamespace
+                    WHERE n.nspname = current_schema()
+                    GROUP BY n.nspname, t.typname
+                ) LOOP
+                    EXECUTE 'DROP TYPE IF EXISTS ' || quote_ident(r.nspname) || '.' || quote_ident(r.typname) || ' CASCADE';
+                END LOOP;
+            END $$;
         """))
-        enums = [row[0] for row in result]
-        for enum in enums:
-            try:
-                conn.execute(text(f'DROP TYPE IF EXISTS "{enum}" CASCADE;'))
-                print(f"Dropped enum type: {enum}")
-            except Exception as e:
-                print(f"Failed to drop enum {enum}: {e}")
+        conn.commit()
+        print("All enum types dropped.")
 
 def main():
     settings = get_settings()
