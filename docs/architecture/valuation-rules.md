@@ -404,7 +404,544 @@ ValuationRulesPage
 - Can be manually triggered via "Apply Ruleset" action
 - Background jobs can batch-process all listings
 
+## Baseline Rule Hydration
+
+### Overview
+
+**Purpose:** Convert placeholder baseline rules into fully expanded rule structures for Advanced Mode editing.
+
+Baseline rules created in Basic Mode are stored as **placeholders** with minimal structure:
+- Empty conditions arrays
+- Actions with `value_usd: 0.0`
+- Configuration stored in `metadata_json` (valuation buckets, formulas, etc.)
+
+To enable full editing in Advanced Mode, these placeholders must be **hydrated** — expanded into complete rules with explicit conditions and actions.
+
+### BaselineHydrationService
+
+**Location:** `apps/api/dealbrain_api/services/baseline_hydration.py`
+
+**Responsibilities:**
+- Detect placeholder baseline rules via metadata flags
+- Expand placeholders into executable rule structures
+- Maintain metadata linking between original and expanded rules
+- Ensure idempotent hydration (prevent duplicate expansions)
+- Preserve valuation calculations (hydration is value-neutral)
+
+**Key Methods:**
+
+```python
+class BaselineHydrationService:
+    async def hydrate_baseline_rules(
+        self,
+        session: AsyncSession,
+        ruleset_id: int,
+        actor: str = "system"
+    ) -> HydrationResult:
+        """
+        Hydrate all placeholder baseline rules in a ruleset.
+
+        Returns:
+            HydrationResult with status, counts, and summary
+        """
+
+    async def hydrate_single_rule(
+        self,
+        session: AsyncSession,
+        rule_id: int,
+        actor: str = "system"
+    ) -> list[ValuationRuleV2]:
+        """
+        Hydrate a single placeholder rule.
+
+        May return multiple rules (enum expansion).
+        """
+```
+
+**HydrationResult Structure:**
+
+```python
+@dataclass
+class HydrationResult:
+    status: str  # "success" or "error"
+    ruleset_id: int
+    hydrated_rule_count: int  # Number of placeholders processed
+    created_rule_count: int   # Total new rules created
+    hydration_summary: list[dict[str, Any]]  # Per-rule expansion details
+```
+
+### Hydration Strategies
+
+The service uses different strategies based on field type:
+
+#### Strategy 1: Enum Multiplier Fields
+
+**Field Types:** DDR Generation, Condition, Release Year, etc.
+
+**Input (Placeholder):**
+```json
+{
+  "id": 101,
+  "name": "DDR Generation",
+  "conditions": [],
+  "actions": [{
+    "action_type": "multiplier",
+    "value_usd": 0.0
+  }],
+  "metadata_json": {
+    "baseline_placeholder": true,
+    "field_type": "enum_multiplier",
+    "valuation_buckets": {
+      "ddr3": 0.7,
+      "ddr4": 1.0,
+      "ddr5": 1.3
+    },
+    "field_id": "ram_spec.ddr_generation"
+  }
+}
+```
+
+**Output (Expanded):**
+Creates **one rule per enum value**:
+
+```json
+[
+  {
+    "id": 102,
+    "name": "DDR Generation: DDR3",
+    "conditions": [{
+      "field": "ram_spec.ddr_generation",
+      "operator": "equals",
+      "value": "ddr3"
+    }],
+    "actions": [{
+      "action_type": "multiplier",
+      "value_usd": 70.0,  // 0.7 * 100
+      "modifiers": {"original_multiplier": 0.7}
+    }],
+    "metadata_json": {
+      "hydration_source_rule_id": 101,
+      "enum_value": "ddr3",
+      "field_type": "enum_multiplier"
+    }
+  },
+  // Similar rules for ddr4, ddr5...
+]
+```
+
+**Key Points:**
+- Multipliers converted to percentages (×100 for storage)
+- Each rule independently editable
+- Original multiplier preserved in action modifiers
+- Field path copied from metadata to condition
+
+#### Strategy 2: Formula Fields
+
+**Field Types:** RAM Capacity calculation, composite formulas
+
+**Input (Placeholder):**
+```json
+{
+  "id": 201,
+  "name": "Total RAM Capacity",
+  "conditions": [],
+  "actions": [{"action_type": "multiplier", "value_usd": 0.0}],
+  "metadata_json": {
+    "baseline_placeholder": true,
+    "field_type": "formula",
+    "formula_text": "ram_capacity_gb * base_price_per_gb"
+  }
+}
+```
+
+**Output (Expanded):**
+Creates **single rule with formula action**:
+
+```json
+{
+  "id": 202,
+  "name": "Total RAM Capacity",
+  "conditions": [],  // Always applies
+  "actions": [{
+    "action_type": "formula",
+    "formula": "ram_capacity_gb * base_price_per_gb",
+    "value_usd": null
+  }],
+  "metadata_json": {
+    "hydration_source_rule_id": 201,
+    "field_type": "formula"
+  }
+}
+```
+
+**Key Points:**
+- Formula text copied verbatim
+- No conditions (always applies to all listings)
+- Formula editable in Advanced Mode formula builder
+
+#### Strategy 3: Fixed Value Fields
+
+**Field Types:** Base depreciation, flat adjustments
+
+**Input (Placeholder):**
+```json
+{
+  "id": 301,
+  "name": "Base Depreciation",
+  "conditions": [],
+  "actions": [{"action_type": "fixed_value", "value_usd": 0.0}],
+  "metadata_json": {
+    "baseline_placeholder": true,
+    "field_type": "fixed",
+    "default_value": -50.0
+  }
+}
+```
+
+**Output (Expanded):**
+Creates **single rule with fixed value**:
+
+```json
+{
+  "id": 302,
+  "name": "Base Depreciation",
+  "conditions": [],
+  "actions": [{
+    "action_type": "fixed_value",
+    "value_usd": -50.0,
+    "modifiers": {}
+  }],
+  "metadata_json": {
+    "hydration_source_rule_id": 301,
+    "field_type": "fixed"
+  }
+}
+```
+
+**Key Points:**
+- Value extracted from metadata `default_value`
+- No conditions (always applies)
+- Directly editable value in Advanced Mode
+
+### Metadata Structure and Tracking
+
+**Placeholder Rule Metadata (Before Hydration):**
+
+```json
+{
+  "baseline_placeholder": true,
+  "field_type": "enum_multiplier" | "formula" | "fixed",
+  "field_id": "ram_spec.ddr_generation",
+  "valuation_buckets": {...},  // For enum types
+  "formula_text": "...",       // For formula types
+  "default_value": -50.0,      // For fixed types
+  "proper_name": "DDR Generation",
+  "description": "...",
+  "explanation": "..."
+}
+```
+
+**Placeholder Rule Metadata (After Hydration):**
+
+```json
+{
+  "baseline_placeholder": true,
+  "hydrated": true,
+  "hydrated_at": "2025-10-14T10:00:00Z",
+  "hydrated_by": "user@example.com",
+  // Original metadata preserved for audit
+  "field_type": "enum_multiplier",
+  "valuation_buckets": {...}
+}
+```
+
+**Expanded Rule Metadata:**
+
+```json
+{
+  "hydration_source_rule_id": 101,
+  "enum_value": "ddr3",  // For enum expansions
+  "field_type": "enum_multiplier"
+}
+```
+
+**Key Metadata Fields:**
+- `baseline_placeholder`: Identifies original baseline rules
+- `hydrated`: Marks placeholder as already processed (prevents re-hydration)
+- `hydrated_at` / `hydrated_by`: Audit trail
+- `hydration_source_rule_id`: Links expanded rules back to source
+- `is_foreign_key_rule`: Marks system-managed rules (hidden in Advanced UI)
+
+### Hydration Process Flow
+
+**Trigger:** User clicks "Prepare Baseline Rules for Editing" in Advanced Mode
+
+```
+1. Frontend Detection
+   └─ Check rules for baseline_placeholder: true && hydrated: false
+   └─ Show hydration banner if placeholders detected
+
+2. User Action
+   └─ Click "Prepare Baseline Rules for Editing" button
+   └─ POST /api/v1/baseline/rulesets/{ruleset_id}/hydrate
+       └─ Request: { actor: "user@example.com" }
+
+3. Backend Processing (BaselineHydrationService)
+   ├─ Query all placeholder rules in ruleset
+   ├─ For each placeholder:
+   │   ├─ Skip if already hydrated
+   │   ├─ Determine field_type from metadata
+   │   ├─ Route to appropriate strategy:
+   │   │   ├─ Enum → _hydrate_enum_multiplier()
+   │   │   ├─ Formula → _hydrate_formula()
+   │   │   └─ Fixed → _hydrate_fixed()
+   │   ├─ Create expanded rules via RulesService
+   │   ├─ Mark original as hydrated (is_active=false)
+   │   └─ Update metadata with hydration timestamps
+   └─ Commit transaction
+
+4. Response to Frontend
+   └─ Return HydrationResult:
+       {
+         "status": "success",
+         "ruleset_id": 1,
+         "hydrated_rule_count": 12,
+         "created_rule_count": 18,
+         "hydration_summary": [...]
+       }
+
+5. Frontend Updates
+   ├─ Display success toast with counts
+   ├─ Hide hydration banner
+   ├─ Invalidate rules query (React Query)
+   └─ Re-render Advanced Mode with expanded rules
+```
+
+### Idempotency and Safety
+
+**Idempotent Hydration:**
+- Service checks `hydrated: true` flag before processing
+- Prevents duplicate rule creation on multiple hydration attempts
+- Returns appropriate message if already hydrated
+
+**Transaction Safety:**
+- All hydration operations wrapped in database transaction
+- Rollback on error (no partial hydration)
+- Original placeholders never deleted (only deactivated)
+
+**Valuation Preservation:**
+- Hydration is designed to be value-neutral
+- Adjusted prices remain identical before and after
+- Multiplier conversions preserve original values (0.7 → 70.0%)
+- Conditions and actions match original logic exactly
+
+**Audit Trail:**
+- `hydrated_at` and `hydrated_by` recorded
+- Original placeholder metadata preserved
+- `ValuationRuleVersion` snapshot created
+- `ValuationRuleAudit` entry logged
+
+### Foreign Key Rule Handling
+
+**Problem:** RAM Spec and GPU rules reference foreign entities and cannot be directly edited.
+
+**Solution:**
+- Mark foreign key rules with `is_foreign_key_rule: true` in metadata
+- Filter these rules out of Advanced Mode UI by default
+- Exclude from hydration process
+- Optional "Show System Rules" toggle for visibility (view-only)
+
+**Example:**
+```json
+{
+  "id": 401,
+  "name": "RAM Spec: 16GB DDR4",
+  "metadata_json": {
+    "is_foreign_key_rule": true,
+    "ram_spec_id": 15
+  }
+}
+```
+
+### Performance Considerations
+
+**Rule Proliferation:**
+- Enum fields can create multiple rules (3-5 typically)
+- Example: DDR Generation (3 rules) + Condition (4 rules) + Release Year (5 rules) = 12 rules from 3 placeholders
+- Mitigated by:
+  - Visual grouping in UI
+  - Collapse/expand functionality
+  - Search and filtering
+
+**Database Impact:**
+- Additional rule records created
+- Original placeholders retained (marked inactive)
+- Typical ruleset: +50-100 rules after hydration
+- Performance impact negligible (rules loaded once, cached)
+
+**Hydration Speed:**
+- Small ruleset (10 rules): <1 second
+- Medium ruleset (50 rules): <3 seconds
+- Large ruleset (100+ rules): <5 seconds
+- Batch rule creation optimized within single transaction
+
+### Error Handling
+
+**Common Errors:**
+- Invalid metadata structure → Skip rule with warning
+- Missing valuation_buckets → Log error, skip rule
+- Database constraint violation → Rollback transaction
+- Network timeout → Return error, allow retry
+
+**Error Response:**
+```json
+{
+  "status": "error",
+  "error_message": "Failed to hydrate rule 101: Invalid metadata",
+  "ruleset_id": 1,
+  "hydrated_rule_count": 0,
+  "created_rule_count": 0
+}
+```
+
+**Frontend Error Handling:**
+- Display error toast with user-friendly message
+- Keep hydration banner visible (allow retry)
+- Log detailed error for debugging
+
+### Future Enhancements
+
+**Phase 5: Dehydration** (Planned)
+- Reverse hydration process
+- Reactivate placeholder rules
+- Delete expanded rules
+- Restore Basic Mode editability
+
+**Re-hydration:**
+- Update expanded rules when enum values change
+- Smart diff to preserve manual edits
+- Merge new values with existing rules
+
+**Selective Hydration:**
+- Hydrate specific rules instead of entire ruleset
+- Useful for large rulesets with mixed editing needs
+
 ## Data Flow Diagrams
+
+### Baseline Rule Hydration Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ User switches to Advanced Mode                              │
+└─────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+              ┌────────────────────────┐
+              │ Frontend detects       │
+              │ placeholder rules      │
+              │ (baseline_placeholder  │
+              │  && !hydrated)         │
+              └────────────────────────┘
+                           │
+                           ▼
+              ┌────────────────────────────────┐
+              │ Show hydration banner:         │
+              │ "Baseline Rules Need           │
+              │  Preparation"                  │
+              │ [Prepare Rules Button]         │
+              └────────────────────────────────┘
+                           │
+                           ▼
+              ┌────────────────────────────────┐
+              │ User clicks "Prepare Rules"    │
+              └────────────────────────────────┘
+                           │
+                           ▼
+        ┌──────────────────────────────────────────────┐
+        │ POST /api/v1/baseline/rulesets/{id}/hydrate  │
+        │ { actor: "user@example.com" }                │
+        └──────────────────────────────────────────────┘
+                           │
+                           ▼
+        ┌──────────────────────────────────────────────┐
+        │ BaselineHydrationService.hydrate_baseline_   │
+        │ rules(session, ruleset_id, actor)            │
+        │                                               │
+        │ For each placeholder rule:                   │
+        │  1. Load rule and metadata                   │
+        │  2. Check hydrated flag (skip if true)       │
+        │  3. Determine field_type                     │
+        │  4. Route to strategy:                       │
+        │     - Enum → create N rules                  │
+        │     - Formula → create 1 rule                │
+        │     - Fixed → create 1 rule                  │
+        │  5. Link via hydration_source_rule_id        │
+        │  6. Deactivate original placeholder          │
+        │  7. Mark as hydrated with timestamps         │
+        └──────────────────────────────────────────────┘
+                           │
+                           ▼
+              ┌────────────────────────────┐
+              │ Commit transaction         │
+              │ Return HydrationResult     │
+              └────────────────────────────┘
+                           │
+                           ▼
+              ┌────────────────────────────────┐
+              │ Frontend receives response     │
+              │ - Show success toast           │
+              │ - Hide banner                  │
+              │ - Invalidate rules cache       │
+              │ - Re-render with expanded rules│
+              └────────────────────────────────┘
+                           │
+                           ▼
+              ┌────────────────────────────┐
+              │ Advanced Mode displays     │
+              │ expanded rules with        │
+              │ conditions and actions     │
+              └────────────────────────────┘
+```
+
+### DDR Generation Hydration Example
+
+**Before:**
+```
+ValuationRuleV2 (id=101)
+├─ name: "DDR Generation"
+├─ conditions: [] (empty)
+├─ actions: [{ type: "multiplier", value_usd: 0.0 }]
+└─ metadata: {
+     baseline_placeholder: true,
+     field_type: "enum_multiplier",
+     valuation_buckets: { ddr3: 0.7, ddr4: 1.0, ddr5: 1.3 }
+   }
+```
+
+**After Hydration:**
+```
+Original (id=101) - DEACTIVATED
+├─ is_active: false
+└─ metadata: { hydrated: true, hydrated_at: "...", ... }
+
+Expanded Rule 1 (id=102)
+├─ name: "DDR Generation: DDR3"
+├─ conditions: [{ field: "ram_spec.ddr_generation", op: "equals", value: "ddr3" }]
+├─ actions: [{ type: "multiplier", value_usd: 70.0 }]
+└─ metadata: { hydration_source_rule_id: 101, enum_value: "ddr3" }
+
+Expanded Rule 2 (id=103)
+├─ name: "DDR Generation: DDR4"
+├─ conditions: [{ field: "ram_spec.ddr_generation", op: "equals", value: "ddr4" }]
+├─ actions: [{ type: "multiplier", value_usd: 100.0 }]
+└─ metadata: { hydration_source_rule_id: 101, enum_value: "ddr4" }
+
+Expanded Rule 3 (id=104)
+├─ name: "DDR Generation: DDR5"
+├─ conditions: [{ field: "ram_spec.ddr_generation", op: "equals", value: "ddr5" }]
+├─ actions: [{ type: "multiplier", value_usd: 130.0 }]
+└─ metadata: { hydration_source_rule_id: 101, enum_value: "ddr5" }
+```
 
 ### Rule Creation Flow
 
@@ -535,6 +1072,39 @@ This is a **subtractive model** for valuation (deductions from base price).
 ### Packaging
 - `POST /api/v1/rulesets/{id}/export` - Export as JSON package
 - `POST /api/v1/rulesets/import` - Import package (file upload)
+
+### Baseline Hydration
+- `POST /api/v1/baseline/rulesets/{ruleset_id}/hydrate` - Hydrate placeholder baseline rules
+
+**Request Schema:**
+```json
+{
+  "actor": "user@example.com"  // Optional, defaults to "system"
+}
+```
+
+**Response Schema:**
+```json
+{
+  "status": "success" | "error",
+  "ruleset_id": 1,
+  "hydrated_rule_count": 12,      // Number of placeholders hydrated
+  "created_rule_count": 18,       // Total expanded rules created
+  "hydration_summary": [
+    {
+      "original_rule_id": 101,
+      "field_name": "DDR Generation",
+      "field_type": "enum_multiplier",
+      "expanded_rule_ids": [102, 103, 104]
+    }
+  ]
+}
+```
+
+**Error Codes:**
+- `200`: Success
+- `404`: Ruleset not found
+- `500`: Hydration failed (transaction rolled back)
 
 ## Future Enhancements
 
