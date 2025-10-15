@@ -1,9 +1,12 @@
 """Safe formula parser and evaluator for custom calculations"""
 
 import ast
+import logging
 import math
 import operator
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class FormulaParser:
@@ -46,6 +49,8 @@ class FormulaParser:
         "pow": pow,
         "floor": math.floor,
         "ceil": math.ceil,
+        # Custom functions
+        "clamp": lambda value, min_val, max_val: max(min_val, min(max_val, value)),
     }
 
     def parse(self, formula: str) -> ast.Expression:
@@ -197,8 +202,18 @@ class FormulaEngine:
         # Evaluate
         try:
             result = eval(compile(tree, '<formula>', 'eval'), {"__builtins__": {}}, eval_context)
-            return float(result)
+            result_float = float(result)
+            logger.debug(
+                f"Formula evaluated successfully: {formula} = {result_float}",
+                extra={"formula": formula, "result": result_float, "context_keys": list(context.keys())}
+            )
+            return result_float
         except Exception as e:
+            logger.error(
+                f"Formula evaluation failed: {formula}",
+                extra={"formula": formula, "error": str(e), "context_keys": list(context.keys())},
+                exc_info=True
+            )
             raise ValueError(f"Formula evaluation failed: {e}")
 
     def _build_eval_context(self, context: dict[str, Any]) -> dict[str, Any]:

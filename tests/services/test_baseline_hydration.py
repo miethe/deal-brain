@@ -849,3 +849,332 @@ async def test_fixed_field_default_value_zero(
     assert len(expanded_rules) == 1
     action = expanded_rules[0].actions[0]
     assert action.value_usd == 0.0
+
+
+# --- Comprehensive Integration Tests for All Strategies ---
+
+
+async def test_comprehensive_all_strategies_non_null_values(
+    db_session: AsyncSession,
+    hydration_service: BaselineHydrationService,
+):
+    """Comprehensive test verifying all hydration strategies produce non-null values."""
+    # Create ruleset and group
+    ruleset = ValuationRuleset(name="Comprehensive Test Ruleset", version="1.0.0")
+    db_session.add(ruleset)
+    await db_session.commit()
+
+    group = ValuationRuleGroup(
+        ruleset_id=ruleset.id, name="Comprehensive Test Group", category="test", display_order=1
+    )
+    db_session.add(group)
+    await db_session.commit()
+
+    # Test 1: enum_multiplier with proper values
+    enum_rule = ValuationRuleV2(
+        group_id=group.id,
+        name="DDR Generation Multiplier",
+        description="RAM DDR generation multipliers",
+        priority=100,
+        evaluation_order=100,
+        metadata_json={
+            "baseline_placeholder": True,
+            "field_type": "enum_multiplier",
+            "field_id": "ram_spec.ddr_generation",
+            "valuation_buckets": {
+                "DDR3": 0.7,
+                "DDR4": 1.0,
+                "DDR5": 1.3,
+            },
+        },
+    )
+    db_session.add(enum_rule)
+
+    # Test 2: formula with proper formula text
+    formula_rule = ValuationRuleV2(
+        group_id=group.id,
+        name="RAM Capacity Formula",
+        description="RAM capacity pricing",
+        priority=200,
+        evaluation_order=200,
+        metadata_json={
+            "baseline_placeholder": True,
+            "field_type": "formula",
+            "formula_text": "ram_spec.total_capacity_gb * 2.5",
+        },
+    )
+    db_session.add(formula_rule)
+
+    # Test 3: fixed with default_value
+    fixed_rule = ValuationRuleV2(
+        group_id=group.id,
+        name="Base Depreciation",
+        description="Fixed depreciation",
+        priority=50,
+        evaluation_order=50,
+        metadata_json={
+            "baseline_placeholder": True,
+            "field_type": "fixed",
+            "default_value": -25.0,
+        },
+    )
+    db_session.add(fixed_rule)
+
+    await db_session.commit()
+
+    # Hydrate all rules
+    enum_expanded = await hydration_service.hydrate_single_rule(db_session, enum_rule.id)
+    formula_expanded = await hydration_service.hydrate_single_rule(db_session, formula_rule.id)
+    fixed_expanded = await hydration_service.hydrate_single_rule(db_session, fixed_rule.id)
+
+    # Verify enum_multiplier rules
+    assert len(enum_expanded) == 3, "Should create 3 rules for 3 enum values"
+    for rule in enum_expanded:
+        assert rule.is_active is True
+        assert len(rule.conditions) == 1, "Each enum rule should have one condition"
+        assert len(rule.actions) == 1, "Each enum rule should have one action"
+        action = rule.actions[0]
+        assert action.action_type == "multiplier"
+        assert action.value_usd is not None, "Enum multiplier action value_usd should not be null"
+        assert action.value_usd > 0.0, "Enum multiplier value should be positive"
+        assert rule.metadata_json["hydration_source_rule_id"] == enum_rule.id
+
+    # Verify specific enum values
+    ddr3_rule = next(r for r in enum_expanded if "DDR3" in r.name)
+    assert ddr3_rule.actions[0].value_usd == 70.0  # 0.7 * 100
+
+    ddr4_rule = next(r for r in enum_expanded if "DDR4" in r.name)
+    assert ddr4_rule.actions[0].value_usd == 100.0  # 1.0 * 100
+
+    ddr5_rule = next(r for r in enum_expanded if "DDR5" in r.name)
+    assert ddr5_rule.actions[0].value_usd == 130.0  # 1.3 * 100
+
+    # Verify formula rule
+    assert len(formula_expanded) == 1, "Should create 1 formula rule"
+    formula_rule_expanded = formula_expanded[0]
+    assert formula_rule_expanded.is_active is True
+    assert len(formula_rule_expanded.conditions) == 0, "Formula rule should have no conditions"
+    assert len(formula_rule_expanded.actions) == 1, "Formula rule should have one action"
+    formula_action = formula_rule_expanded.actions[0]
+    assert formula_action.action_type == "formula"
+    assert formula_action.formula == "ram_spec.total_capacity_gb * 2.5"
+    assert formula_action.value_usd is None, "Formula action value_usd should be None (uses formula)"
+    assert formula_rule_expanded.metadata_json["hydration_source_rule_id"] == formula_rule.id
+
+    # Verify fixed rule
+    assert len(fixed_expanded) == 1, "Should create 1 fixed rule"
+    fixed_rule_expanded = fixed_expanded[0]
+    assert fixed_rule_expanded.is_active is True
+    assert len(fixed_rule_expanded.conditions) == 0, "Fixed rule should have no conditions"
+    assert len(fixed_rule_expanded.actions) == 1, "Fixed rule should have one action"
+    fixed_action = fixed_rule_expanded.actions[0]
+    assert fixed_action.action_type == "fixed_value"
+    assert fixed_action.value_usd is not None, "Fixed action value_usd should not be null"
+    assert fixed_action.value_usd == -25.0
+    assert fixed_rule_expanded.metadata_json["hydration_source_rule_id"] == fixed_rule.id
+
+
+async def test_fixed_value_multiple_key_variants(
+    db_session: AsyncSession,
+    hydration_service: BaselineHydrationService,
+):
+    """Test that fixed value strategy checks multiple key variants."""
+    # Create ruleset and group
+    ruleset = ValuationRuleset(name="Key Variants Test Ruleset", version="1.0.0")
+    db_session.add(ruleset)
+    await db_session.commit()
+
+    group = ValuationRuleGroup(
+        ruleset_id=ruleset.id, name="Test Group Variants", category="test", display_order=1
+    )
+    db_session.add(group)
+    await db_session.commit()
+
+    # Test 1: default_value key
+    rule1 = ValuationRuleV2(
+        group_id=group.id,
+        name="Rule with default_value",
+        priority=100,
+        evaluation_order=100,
+        metadata_json={
+            "baseline_placeholder": True,
+            "field_type": "fixed",
+            "default_value": 10.0,
+        },
+    )
+    db_session.add(rule1)
+
+    # Test 2: Default key (capitalized)
+    rule2 = ValuationRuleV2(
+        group_id=group.id,
+        name="Rule with Default",
+        priority=100,
+        evaluation_order=100,
+        metadata_json={
+            "baseline_placeholder": True,
+            "field_type": "fixed",
+            "Default": 20.0,
+        },
+    )
+    db_session.add(rule2)
+
+    # Test 3: value key
+    rule3 = ValuationRuleV2(
+        group_id=group.id,
+        name="Rule with value",
+        priority=100,
+        evaluation_order=100,
+        metadata_json={
+            "baseline_placeholder": True,
+            "field_type": "fixed",
+            "value": 30.0,
+        },
+    )
+    db_session.add(rule3)
+
+    await db_session.commit()
+
+    # Hydrate all
+    expanded1 = await hydration_service.hydrate_single_rule(db_session, rule1.id)
+    expanded2 = await hydration_service.hydrate_single_rule(db_session, rule2.id)
+    expanded3 = await hydration_service.hydrate_single_rule(db_session, rule3.id)
+
+    # Verify each rule extracted the correct value
+    assert expanded1[0].actions[0].value_usd == 10.0
+    assert expanded2[0].actions[0].value_usd == 20.0
+    assert expanded3[0].actions[0].value_usd == 30.0
+
+
+async def test_enum_multiplier_with_null_values(
+    db_session: AsyncSession,
+    hydration_service: BaselineHydrationService,
+):
+    """Test that enum_multiplier handles null multiplier values gracefully."""
+    # Create ruleset and group
+    ruleset = ValuationRuleset(name="Null Values Test Ruleset", version="1.0.0")
+    db_session.add(ruleset)
+    await db_session.commit()
+
+    group = ValuationRuleGroup(
+        ruleset_id=ruleset.id, name="Test Group Null", category="test", display_order=1
+    )
+    db_session.add(group)
+    await db_session.commit()
+
+    # Create rule with one null multiplier
+    rule = ValuationRuleV2(
+        group_id=group.id,
+        name="Enum with Null",
+        priority=100,
+        evaluation_order=100,
+        metadata_json={
+            "baseline_placeholder": True,
+            "field_type": "enum_multiplier",
+            "field_id": "test.field",
+            "valuation_buckets": {
+                "valid": 1.0,
+                "null_value": None,  # This should be skipped
+                "another_valid": 1.5,
+            },
+        },
+    )
+    db_session.add(rule)
+    await db_session.commit()
+
+    # Hydrate
+    expanded = await hydration_service.hydrate_single_rule(db_session, rule.id)
+
+    # Should only create 2 rules (skipping the null one)
+    assert len(expanded) == 2
+    rule_names = {r.name for r in expanded}
+    assert "Enum with Null: valid" in rule_names
+    assert "Enum with Null: another_valid" in rule_names
+    assert "Enum with Null: null_value" not in rule_names
+
+    # Verify values are non-null
+    for rule in expanded:
+        assert rule.actions[0].value_usd is not None
+
+
+async def test_metadata_preservation_all_strategies(
+    db_session: AsyncSession,
+    hydration_service: BaselineHydrationService,
+):
+    """Test that all strategies properly preserve metadata in hydrated rules."""
+    # Create ruleset and group
+    ruleset = ValuationRuleset(name="Metadata Test Ruleset", version="1.0.0")
+    db_session.add(ruleset)
+    await db_session.commit()
+
+    group = ValuationRuleGroup(
+        ruleset_id=ruleset.id, name="Metadata Test Group", category="test", display_order=1
+    )
+    db_session.add(group)
+    await db_session.commit()
+
+    # Create rules with custom metadata
+    enum_rule = ValuationRuleV2(
+        group_id=group.id,
+        name="Enum Rule",
+        priority=100,
+        evaluation_order=100,
+        metadata_json={
+            "baseline_placeholder": True,
+            "field_type": "enum_multiplier",
+            "field_id": "test.enum",
+            "valuation_buckets": {"A": 1.0, "B": 1.2},
+            "custom_key": "custom_value",
+        },
+    )
+    db_session.add(enum_rule)
+
+    formula_rule = ValuationRuleV2(
+        group_id=group.id,
+        name="Formula Rule",
+        priority=200,
+        evaluation_order=200,
+        metadata_json={
+            "baseline_placeholder": True,
+            "field_type": "formula",
+            "formula_text": "test.value * 2",
+            "custom_formula_key": "formula_metadata",
+        },
+    )
+    db_session.add(formula_rule)
+
+    fixed_rule = ValuationRuleV2(
+        group_id=group.id,
+        name="Fixed Rule",
+        priority=50,
+        evaluation_order=50,
+        metadata_json={
+            "baseline_placeholder": True,
+            "field_type": "fixed",
+            "default_value": 15.0,
+            "custom_fixed_key": "fixed_metadata",
+        },
+    )
+    db_session.add(fixed_rule)
+
+    await db_session.commit()
+
+    # Hydrate all
+    enum_expanded = await hydration_service.hydrate_single_rule(db_session, enum_rule.id)
+    formula_expanded = await hydration_service.hydrate_single_rule(db_session, formula_rule.id)
+    fixed_expanded = await hydration_service.hydrate_single_rule(db_session, fixed_rule.id)
+
+    # Verify metadata preservation for enum rules
+    for rule in enum_expanded:
+        assert "hydration_source_rule_id" in rule.metadata_json
+        assert rule.metadata_json["hydration_source_rule_id"] == enum_rule.id
+        assert "field_type" in rule.metadata_json
+        assert rule.metadata_json["field_type"] == "enum_multiplier"
+        assert "enum_value" in rule.metadata_json
+
+    # Verify metadata preservation for formula rule
+    assert formula_expanded[0].metadata_json["hydration_source_rule_id"] == formula_rule.id
+    assert formula_expanded[0].metadata_json["field_type"] == "formula"
+
+    # Verify metadata preservation for fixed rule
+    assert fixed_expanded[0].metadata_json["hydration_source_rule_id"] == fixed_rule.id
+    assert fixed_expanded[0].metadata_json["field_type"] == "fixed"

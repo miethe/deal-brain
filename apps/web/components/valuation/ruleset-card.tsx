@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Plus, Edit, Copy, Trash2, Power, PowerOff } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Edit, Copy, Trash2, Power, PowerOff, Lock } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,9 +29,10 @@ interface RulesetCardProps {
   onEditGroup: (group: RuleGroup) => void;
   onEditRule: (rule: Rule) => void;
   onRefresh: () => void;
+  showSystemRules?: boolean;
 }
 
-export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, onRefresh }: RulesetCardProps) {
+export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, onRefresh, showSystemRules = false }: RulesetCardProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [expandedRules, setExpandedRules] = useState<Set<number>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -258,10 +260,16 @@ export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, 
                 .sort((a, b) => a.evaluation_order - b.evaluation_order)
                 .map((rule) => {
                   const isRuleExpanded = expandedRules.has(rule.id);
+                  const isForeignKeyRule = rule.metadata?.is_foreign_key_rule === true;
+                  const isSystemRule = isForeignKeyRule;
                   return (
                     <div
                       key={rule.id}
-                      className="rounded-lg border bg-card transition-colors hover:bg-accent/50"
+                      className={`rounded-lg border transition-colors ${
+                        isSystemRule
+                          ? "bg-muted/50 border-muted-foreground/30"
+                          : "bg-card hover:bg-accent/50"
+                      }`}
                     >
                       <div className="group flex items-center justify-between p-4">
                         <div className="flex flex-1 items-start gap-3">
@@ -279,7 +287,35 @@ export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, 
                           </Button>
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium">{rule.name}</span>
+                              {isSystemRule && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Lock className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>System-managed rule (read-only)</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
+                              <span className={`font-medium ${isSystemRule ? "text-muted-foreground" : ""}`}>
+                                {rule.name}
+                              </span>
+                              {isSystemRule && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="secondary" className="text-xs cursor-help">
+                                        System Rule
+                                      </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Foreign key rule cannot be edited directly</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                               {!rule.is_active && (
                                 <Badge variant="secondary" className="text-xs">
                                   Inactive
@@ -301,47 +337,56 @@ export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, 
                         </div>
 
                         <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onEditRule(rule)}
-                            title="Edit"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              toggleActiveMutation.mutate({
-                                id: rule.id,
-                                isActive: !rule.is_active,
-                              })
-                            }
-                            title={rule.is_active ? "Deactivate" : "Activate"}
-                          >
-                            {rule.is_active ? (
-                              <PowerOff className="h-4 w-4" />
-                            ) : (
-                              <Power className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => duplicateMutation.mutate(rule.id)}
-                            title="Duplicate"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteClick(rule)}
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {isSystemRule ? (
+                            <div className="flex items-center gap-2 px-3 py-1 text-xs text-muted-foreground">
+                              <Lock className="h-3 w-3" />
+                              <span>Read-only system rule</span>
+                            </div>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onEditRule(rule)}
+                                title="Edit"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  toggleActiveMutation.mutate({
+                                    id: rule.id,
+                                    isActive: !rule.is_active,
+                                  })
+                                }
+                                title={rule.is_active ? "Deactivate" : "Activate"}
+                              >
+                                {rule.is_active ? (
+                                  <PowerOff className="h-4 w-4" />
+                                ) : (
+                                  <Power className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => duplicateMutation.mutate(rule.id)}
+                                title="Duplicate"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteClick(rule)}
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
 

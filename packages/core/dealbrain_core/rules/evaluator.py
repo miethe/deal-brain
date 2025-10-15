@@ -1,12 +1,15 @@
 """Rule evaluator orchestrates condition checking and action execution"""
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any
 
 from .actions import Action, ActionEngine
 from .conditions import Condition, ConditionGroup
 from .formula import FormulaEngine
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -83,6 +86,15 @@ class RuleEvaluator:
             )
 
         except Exception as e:
+            logger.error(
+                f"Rule evaluation failed for rule {rule_id}: {str(e)}",
+                extra={
+                    "rule_id": rule_id,
+                    "rule_name": rule_name,
+                    "error_type": type(e).__name__,
+                },
+                exc_info=True
+            )
             return RuleEvaluationResult(
                 rule_id=rule_id,
                 rule_name=rule_name,

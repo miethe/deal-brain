@@ -101,7 +101,7 @@ export function RuleGroupFormModal({
         is_active: isActive,
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: isEditing ? "Rule group updated" : "Rule group created",
         description: isEditing
@@ -109,9 +109,16 @@ export function RuleGroupFormModal({
           : "The rule group has been created successfully",
       });
       resetForm();
+
+      // Invalidate and refetch queries before closing the modal
+      await queryClient.invalidateQueries({ queryKey: ["ruleset", rulesetId] });
+      await queryClient.invalidateQueries({ queryKey: ["rulesets"] });
+
+      // Wait a brief moment for the refetch to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Now close the modal and call onSuccess
       onOpenChange(false);
-      queryClient.invalidateQueries({ queryKey: ["ruleset", rulesetId] });
-      queryClient.invalidateQueries({ queryKey: ["rulesets"] });
       onSuccess();
     },
     onError: (error: Error) => {

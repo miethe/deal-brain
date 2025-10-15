@@ -8,6 +8,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Separator } from "../../components/ui/separator";
+import { Checkbox } from "../../components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -337,6 +338,7 @@ export default function ValuationRulesPage() {
   const [editingGroup, setEditingGroup] = useState<RuleGroup | null>(null);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
   const [mode, setMode] = useState<Mode>("basic");
+  const [showSystemRules, setShowSystemRules] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -461,8 +463,8 @@ export default function ValuationRulesPage() {
 
         if (mode === "advanced") {
           filteredRules = group.rules.filter((rule) => {
-            // Hide foreign key rules
-            if (rule.metadata?.is_foreign_key_rule === true) {
+            // Hide foreign key rules unless toggle is on
+            if (!showSystemRules && rule.metadata?.is_foreign_key_rule === true) {
               return false;
             }
             // Hide deactivated placeholders
@@ -497,7 +499,7 @@ export default function ValuationRulesPage() {
         return { ...group, rules: filteredRules };
       })
       .filter((group): group is RuleGroup => group !== null && group.rules.length > 0);
-  }, [selectedRuleset, searchQuery, mode]);
+  }, [selectedRuleset, searchQuery, mode, showSystemRules]);
 
   return (
     <div className="space-y-6">
@@ -642,28 +644,46 @@ export default function ValuationRulesPage() {
       ) : (
         <>
           {/* Search and Actions */}
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search rules, groups, or categories..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search rules, groups, or categories..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              {selectedRulesetId && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditingGroup(null);
+                    setIsGroupFormOpen(true);
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Group
+                </Button>
+              )}
             </div>
-            {selectedRulesetId && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setEditingGroup(null);
-                  setIsGroupFormOpen(true);
-                }}
+
+            {/* System Rules Toggle */}
+            <div className="flex items-center gap-2 px-1">
+              <Checkbox
+                id="show-system-rules"
+                checked={showSystemRules}
+                onCheckedChange={(checked) => setShowSystemRules(checked === true)}
+                aria-label="Show system rules"
+              />
+              <Label
+                htmlFor="show-system-rules"
+                className="text-sm text-muted-foreground cursor-pointer"
               >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Group
-              </Button>
-            )}
+                Show system rules (read-only foreign key rules)
+              </Label>
+            </div>
           </div>
 
           {/* Rule Groups */}
@@ -683,6 +703,7 @@ export default function ValuationRulesPage() {
                   onEditGroup={handleEditGroup}
                   onEditRule={handleEditRule}
                   onRefresh={handleRefresh}
+                  showSystemRules={showSystemRules}
                 />
               ))}
             </div>
@@ -698,7 +719,10 @@ export default function ValuationRulesPage() {
                   <Button
                     variant="outline"
                     className="mt-4"
-                    onClick={() => setIsRulesetBuilderOpen(true)}
+                    onClick={() => {
+                      setEditingGroup(null);
+                      setIsGroupFormOpen(true);
+                    }}
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Rule Group

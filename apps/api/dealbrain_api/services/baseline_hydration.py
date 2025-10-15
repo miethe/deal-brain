@@ -6,6 +6,7 @@ and formula_text) into expanded, editable rules with explicit conditions and act
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -15,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.core import ValuationRuleGroup, ValuationRuleV2
 from .rules import RulesService
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -177,9 +180,39 @@ class BaselineHydrationService:
         valuation_buckets = rule.metadata_json.get("valuation_buckets", {})
         field_path = rule.metadata_json.get("field_id")  # e.g., "ram_spec.ddr_generation"
 
+        # Validate required fields
+        if not field_path:
+            logger.warning(
+                f"No field_id found in enum_multiplier rule {rule.id}. "
+                f"Metadata keys: {list(rule.metadata_json.keys())}"
+            )
+            return []
+
+        if not valuation_buckets:
+            logger.warning(
+                f"Empty valuation_buckets for enum_multiplier rule {rule.id}"
+            )
+            return []
+
         expanded_rules = []
 
         for enum_value, multiplier in valuation_buckets.items():
+            # Validate multiplier is not None and can be converted to float
+            if multiplier is None:
+                logger.warning(
+                    f"Null multiplier for enum value '{enum_value}' in rule {rule.id}. Skipping."
+                )
+                continue
+
+            try:
+                multiplier_float = float(multiplier)
+            except (TypeError, ValueError) as e:
+                logger.warning(
+                    f"Invalid multiplier value '{multiplier}' for enum value '{enum_value}' "
+                    f"in rule {rule.id}: {str(e)}. Skipping."
+                )
+                continue
+
             # Create condition
             condition = {
                 "field_name": field_path,
@@ -195,11 +228,11 @@ class BaselineHydrationService:
             # but action value_usd expects percentage (70.0)
             action = {
                 "action_type": "multiplier",
-                "value_usd": float(multiplier) * 100.0,
+                "value_usd": multiplier_float * 100.0,
                 "metric": None,
                 "unit_type": None,
                 "formula": None,
-                "modifiers": {"original_multiplier": multiplier},
+                "modifiers": {"original_multiplier": multiplier_float},
             }
 
             # Create rule
@@ -239,10 +272,38 @@ class BaselineHydrationService:
         Returns:
             List containing single formula rule
         """
-        formula_text = rule.metadata_json.get("formula_text")
+        # Check multiple possible formula keys
+        formula_text = (
+            rule.metadata_json.get("formula_text") or
+            rule.metadata_json.get("Formula") or
+            rule.metadata_json.get("formula")
+        )
 
         if not formula_text:
-            # No formula, fall back to fixed value
+            logger.warning(
+                f"No formula found in metadata for rule {rule.id}. "
+                f"Metadata keys: {list(rule.metadata_json.keys())}"
+            )
+            # Fall back to fixed strategy
+            return await self._hydrate_fixed(session, rule, actor)
+
+        # Validate that the formula can be parsed
+        try:
+            from dealbrain_core.rules.formula import FormulaEngine
+            engine = FormulaEngine()
+            # Try to parse the formula to ensure it's valid
+            engine.parser.parse(formula_text)
+            logger.info(
+                f"Formula validated successfully for rule {rule.id}",
+                extra={"rule_id": rule.id, "formula": formula_text}
+            )
+        except Exception as e:
+            logger.error(
+                f"Formula validation failed for rule {rule.id}: {str(e)}",
+                extra={"rule_id": rule.id, "formula": formula_text, "error": str(e)},
+                exc_info=True
+            )
+            # Fall back to fixed strategy if formula is invalid
             return await self._hydrate_fixed(session, rule, actor)
 
         action = {
@@ -285,12 +346,35 @@ class BaselineHydrationService:
         Returns:
             List containing single fixed value rule
         """
-        # Extract value from metadata or use 0.0
-        base_value = rule.metadata_json.get("default_value", 0.0)
+        # Extract value from metadata - check multiple possible keys
+        # Try different key variants that may be present in metadata
+        base_value = None
+        for key in ["default_value", "Default", "value", "Value"]:
+            if key in rule.metadata_json:
+                base_value = rule.metadata_json[key]
+                break
+
+        # If still no value found, use 0.0 as safe fallback
+        if base_value is None:
+            logger.warning(
+                f"No default value found in metadata for fixed rule {rule.id}. "
+                f"Using 0.0 as fallback. Metadata keys: {list(rule.metadata_json.keys())}"
+            )
+            base_value = 0.0
+
+        # Convert to float with validation
+        try:
+            value_float = float(base_value)
+        except (TypeError, ValueError) as e:
+            logger.warning(
+                f"Invalid default value '{base_value}' in fixed rule {rule.id}: {str(e)}. "
+                f"Using 0.0 as fallback."
+            )
+            value_float = 0.0
 
         action = {
             "action_type": "fixed_value",
-            "value_usd": float(base_value),
+            "value_usd": value_float,
             "metric": None,
             "unit_type": None,
             "formula": None,
