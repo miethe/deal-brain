@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import session_dependency
-from ..services.custom_fields import CustomFieldService, FieldDependencyError, UNSET
+from ..services import field_values as field_values_service
+from ..services.custom_fields import UNSET, CustomFieldService, FieldDependencyError
 from .schemas.fields import (
     FieldAuditEntry,
     FieldAuditResponse,
@@ -17,7 +20,10 @@ from .schemas.fields import (
     FieldUpdateRequest,
     FieldUsageRecord,
     FieldUsageResponse,
+    FieldValuesResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/fields", tags=["fields"])
 service = CustomFieldService()
@@ -194,6 +200,51 @@ async def field_usage(
 ) -> FieldUsageResponse:
     summaries = await service.list_usage(db, entity=entity)
     return FieldUsageResponse(usage=[_serialize_usage(summary) for summary in summaries])
+
+
+@router.get(
+    "/{field_name}/values",
+    response_model=FieldValuesResponse,
+    summary="Get distinct values for a field",
+    description="Returns distinct values for a given field to power autocomplete functionality",
+)
+async def get_field_values(
+    field_name: str,
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of values to return"),
+    search: str | None = Query(None, description="Optional search filter"),
+    db: AsyncSession = Depends(session_dependency),
+) -> FieldValuesResponse:
+    """
+    Get distinct values for a field across all entities.
+
+    **Examples:**
+    - `/fields/listing.condition/values` -> ["New", "Like New", "Good", "Fair"]
+    - `/fields/cpu.manufacturer/values?limit=5` -> ["Intel", "AMD", "Apple", ...]
+    - `/fields/listing.seller/values?search=ebay` -> ["ebay_seller_1", "ebay_seller_2"]
+    """
+    try:
+        values = await field_values_service.get_field_distinct_values(
+            session=db,
+            field_name=field_name,
+            limit=limit,
+            search=search,
+        )
+
+        return FieldValuesResponse(
+            field_name=field_name,
+            values=values,
+            count=len(values),
+        )
+
+    except ValueError as e:
+        logger.warning(f"Invalid field request: {field_name} - {str(e)}")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Error fetching field values: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve field values",
+        ) from e
 
 
 __all__ = ["router"]

@@ -100,6 +100,7 @@ export function ConditionRow({ condition, onChange, onRemove }: ConditionRowProp
           <div key="value">
             <ValueInput
               fieldType={fieldType}
+              fieldName={condition.field_name}
               options={condition.options}
               value={condition.value}
               onChange={(value) => onChange({ value })}

@@ -1,18 +1,28 @@
 "use client";
 
+import { useMemo } from "react";
 import { Input } from "../ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Checkbox } from "../ui/checkbox";
+import { ComboBox } from "../forms/combobox";
+import { useFieldValues } from "@/hooks/use-field-values";
 
 interface ValueInputProps {
   fieldType: string;
+  fieldName?: string; // Full field name like "listing.condition"
   options?: string[];
   value: any;
   onChange: (value: any) => void;
   operator?: string; // For multi-value operators like "in"
 }
 
-export function ValueInput({ fieldType, options, value, onChange, operator }: ValueInputProps) {
+export function ValueInput({
+  fieldType,
+  fieldName,
+  options,
+  value,
+  onChange,
+  operator,
+}: ValueInputProps) {
   // Multi-value operators (in, not_in)
   if (operator === "in" || operator === "not_in") {
     return (
@@ -25,21 +35,46 @@ export function ValueInput({ fieldType, options, value, onChange, operator }: Va
     );
   }
 
-  // Dropdown fields
-  if (fieldType === "enum" && options && options.length > 0) {
+  // Fetch field values for autocomplete (enum and string fields)
+  const shouldFetchValues = (fieldType === "enum" || fieldType === "string") && !!fieldName;
+
+  const { data: fieldValuesData, isLoading: isLoadingFieldValues } = useFieldValues({
+    fieldName: fieldName || null,
+    limit: 100,
+    enabled: shouldFetchValues,
+  });
+
+  // Combine static options with fetched values
+  const comboOptions = useMemo(() => {
+    const values = new Set<string>();
+
+    // Add static options (if provided)
+    if (options) {
+      options.forEach((opt) => values.add(opt));
+    }
+
+    // Add fetched values
+    if (fieldValuesData?.values) {
+      fieldValuesData.values.forEach((val) => values.add(val));
+    }
+
+    return Array.from(values).map((val) => ({
+      label: val,
+      value: val,
+    }));
+  }, [options, fieldValuesData?.values]);
+
+  // Enum fields or string fields with autocomplete
+  if ((fieldType === "enum" || fieldType === "string") && comboOptions.length > 0) {
     return (
-      <Select value={value?.toString()} onValueChange={onChange}>
-        <SelectTrigger>
-          <SelectValue placeholder="Select value..." />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option} value={option}>
-              {option}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <ComboBox
+        options={comboOptions}
+        value={value?.toString() || ""}
+        onChange={onChange}
+        placeholder={isLoadingFieldValues ? "Loading..." : "Select or type..."}
+        enableInlineCreate={fieldType === "string"} // Allow custom values for string fields
+        className="w-full"
+      />
     );
   }
 
@@ -52,7 +87,9 @@ export function ValueInput({ fieldType, options, value, onChange, operator }: Va
           checked={value === true}
           onCheckedChange={(checked) => onChange(checked === true)}
         />
-        <label htmlFor="boolean-value" className="text-sm">True</label>
+        <label htmlFor="boolean-value" className="text-sm">
+          True
+        </label>
       </div>
     );
   }
@@ -69,7 +106,7 @@ export function ValueInput({ fieldType, options, value, onChange, operator }: Va
     );
   }
 
-  // Default: string input
+  // Default: string input (fallback when no autocomplete data available)
   return (
     <Input
       type="text"

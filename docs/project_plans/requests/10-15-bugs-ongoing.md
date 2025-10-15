@@ -104,3 +104,7 @@ INFO:     10.0.2.218:64839 - "GET /v1/catalog/cpus/4653 HTTP/1.1" 404 Not Found
 ### Dashboard
 
 - The Dashboard should more clearly indicate the values of the Listings in each section. This entire page needs a reskin.
+
+## Refactors
+
+- `rules.py`: There seems to be much duplicated code and complexity in this file. It should be refactored to improve readability and maintainability. Consider breaking down large functions into smaller, more focused functions, and removing or abstracting any redundant code.
