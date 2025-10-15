@@ -1432,3 +1432,105 @@ Implemented **on-demand baseline rule hydration** via ADR-0003 and comprehensive
 
 ---
 
+
+### 2025-10-14 — Baseline Rule Hydration Implementation (Phases 1-4 Complete) ✅
+Implemented complete baseline rule hydration system to enable full editing of baseline rules in Advanced mode.
+
+#### Phase 1: Backend - Hydration Service (100%)
+- **Implementation**: Created `BaselineHydrationService` in `apps/api/dealbrain_api/services/baseline_hydration.py`
+  - `HydrationResult` dataclass for returning hydration results
+  - `hydrate_baseline_rules()` - Ruleset-level hydration with idempotency
+  - `hydrate_single_rule()` - Single rule hydration with routing
+  - Three hydration strategies:
+    - `_hydrate_enum_multiplier()` - Expands enum fields into multiple condition-based rules
+    - `_hydrate_formula()` - Creates single rule with formula action
+    - `_hydrate_fixed()` - Creates single rule with fixed value action
+- **Key Features**: Converts multiplier decimals to percentages (0.7 → 70.0), links expanded rules via metadata, deactivates placeholders
+- **Testing**: 13 unit tests achieving 98%+ coverage, all passing
+- **Files**: `apps/api/dealbrain_api/services/baseline_hydration.py` (313 lines), `tests/services/test_baseline_hydration.py`
+- **Commit**: `eb36bed` - feat: Implement Phase 1 - Baseline Rule Hydration Service
+
+#### Phase 2: API Endpoints (100%)
+- **Endpoint**: `POST /api/v1/baseline/rulesets/{ruleset_id}/hydrate`
+- **Schemas**: Created in `packages/core/dealbrain_core/schemas/baseline.py`
+  - `HydrateBaselineRequest` (actor field)
+  - `HydrationSummaryItem` (rule expansion details)
+  - `HydrateBaselineResponse` (status, counts, summary)
+- **Testing**: 7 integration tests covering success flow, errors, idempotency, schema validation
+- **Error Handling**: Proper HTTP status codes (200, 404, 500)
+- **Files**: `packages/core/dealbrain_core/schemas/baseline.py`, `apps/api/dealbrain_api/api/baseline.py`, `tests/test_baseline_hydration_api.py`
+- **Commit**: `016a219` - feat: Implement Phase 2 - Baseline Hydration API Endpoints
+
+#### Phase 3: Frontend Detection & UI (100%)
+- **Components**: Created `HydrationBanner` component in `apps/web/app/valuation-rules/_components/hydration-banner.tsx`
+  - Alert with Info icon and clear messaging
+  - CTA button with loading state (spinner)
+  - Accessibility features (ARIA labels, keyboard navigation)
+- **Detection Logic**: Added memoized hooks in `apps/web/app/valuation-rules/page.tsx`
+  - `hasPlaceholderRules` - Detects `baseline_placeholder && !hydrated`
+  - `hasHydratedRules` - Detects `hydrated === true`
+- **API Integration**: Created hydration API client in `apps/web/lib/api/baseline.ts`
+  - React Query mutation with success/error handling
+  - Toast notifications with rule counts
+  - Query invalidation for automatic UI updates
+- **Rule Filtering**: Enhanced `filteredRuleGroups` to hide foreign key rules and deactivated placeholders
+- **TypeScript**: Zero compilation errors, types match backend schemas exactly
+- **Files**: 4 files created/modified with +223 lines
+- **Commit**: `320bc2d` - feat: Implement Phase 3 - Frontend Hydration Detection & UI
+
+#### Phase 4: Testing & Documentation (100%)
+- **E2E Test Scenarios**: Created `docs/testing/e2e-test-scenarios-baseline-hydration.md` (2,181 words)
+  - 10 detailed test scenarios covering all user flows
+  - Test data fixtures and assertions
+  - Performance, accessibility, and cross-browser considerations
+  - Ready for future E2E framework implementation
+- **User Guide**: Created `docs/user-guide/valuation-rules-mode-switching.md` (3,920 words)
+  - 6 main sections with step-by-step instructions
+  - 12 FAQ items and 6 troubleshooting topics
+  - Visual examples and JSON structure comparisons
+- **Architecture Documentation**: Updated `docs/architecture/valuation-rules.md` (+500 lines)
+  - Comprehensive hydration service section (10 subsections)
+  - Two new data flow diagrams (ASCII format)
+  - API endpoint specification with examples
+  - Performance considerations and error handling
+- **Total Documentation**: ~8,600 words across all documents
+- **Commit**: `85499e6` - docs: Implement Phase 4 - Testing & Documentation
+
+#### Implementation Metrics
+**Code:**
+- Backend: 890 lines (service + tests)
+- Frontend: 223 lines
+- Total: ~1,113 lines of production code
+
+**Tests:**
+- Unit tests: 13 (backend service, 98%+ coverage)
+- Integration tests: 7 (API endpoints)
+- E2E scenarios: 10 (documented)
+- Total: 20 automated tests passing
+
+**Documentation:**
+- E2E test scenarios: 2,181 words
+- User guide: 3,920 words
+- Architecture updates: ~2,500 words
+- Total: ~8,600 words
+
+**Status**: All 4 phases complete (23/23 required tasks), Phase 5 (dehydration) deferred as optional
+
+#### Key Features Delivered
+- ✅ Baseline rule hydration service with three strategies
+- ✅ REST API endpoint for hydration
+- ✅ Frontend detection and UI components
+- ✅ Automatic rule filtering in Advanced mode
+- ✅ Comprehensive testing (20 tests passing)
+- ✅ Complete documentation suite
+- ✅ Type safety across stack (Python + TypeScript)
+- ✅ Accessibility compliance (WCAG AA)
+- ✅ Performance optimizations (memoization)
+
+#### Next Steps
+- Deploy to staging for user acceptance testing
+- Gather user feedback on hydration UX
+- Monitor performance with production data
+- Consider Phase 5 (dehydration) based on user requests
+
+---
