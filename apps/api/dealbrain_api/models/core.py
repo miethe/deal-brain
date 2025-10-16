@@ -260,6 +260,38 @@ class ValuationRuleCondition(Base):
 
 
 class ValuationRuleAction(Base):
+    """Action to apply when a valuation rule matches.
+
+    Actions define how to adjust pricing or valuation based on matched conditions.
+    The modifiers_json field supports two formats for applying multipliers:
+
+    1. Dynamic Field-Based Multipliers (Primary Format):
+        {
+            "multipliers": [
+                {
+                    "name": "RAM Generation Multiplier",
+                    "field": "ram_spec.ddr_generation",
+                    "conditions": [
+                        {"value": "ddr3", "multiplier": 0.7},
+                        {"value": "ddr4", "multiplier": 1.0},
+                        {"value": "ddr5", "multiplier": 1.3}
+                    ]
+                }
+            ]
+        }
+
+    2. Legacy Condition Multipliers (Backward Compatible):
+        {
+            "condition_multipliers": {
+                "new": 1.0,
+                "refurb": 0.75,
+                "used": 0.6
+            }
+        }
+
+    Both formats can coexist. Field paths use dot notation to navigate nested
+    structures (e.g., "ram_spec.ddr_generation"). Empty dict {} is valid.
+    """
     __tablename__ = "valuation_rule_action"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

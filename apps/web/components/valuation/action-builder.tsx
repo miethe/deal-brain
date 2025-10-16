@@ -2,12 +2,15 @@
 
 import { useEffect, useRef } from "react";
 import { Plus, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Textarea } from "../ui/textarea";
 import { PER_UNIT_METRIC_OPTIONS, normalizePerUnitMetric } from "../../lib/valuation-metrics";
+import { ActionMultipliers } from "./action-multipliers";
+import { fetchEntitiesMetadata } from "../../lib/api/entities";
 
 const ACTION_TYPES = [
   { value: "fixed_value", label: "Fixed Value" },
@@ -34,6 +37,19 @@ const generateId = () => {
 
 export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) {
   const fallbackIds = useRef(new WeakMap<any, string>());
+
+  const { data: metadata } = useQuery({
+    queryKey: ["entities-metadata"],
+    queryFn: fetchEntitiesMetadata,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const availableFields = metadata?.entities.flatMap((entity) =>
+    entity.fields.map((field) => ({
+      ...field,
+      key: `${entity.key}.${field.key}`,
+    }))
+  ) || [];
 
   const getActionId = (action: any) => {
     if (action?.id) {
@@ -66,6 +82,8 @@ export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) 
               refurb: 0.75,
               used: 0.6,
             },
+            multipliers: [],
+            ...action.modifiers,
           },
           ...action,
           id: action?.id ?? generateId(),
@@ -88,6 +106,7 @@ export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) 
             refurb: 0.75,
             used: 0.6,
           },
+          multipliers: [],
         },
       },
     ]);
@@ -317,6 +336,20 @@ export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) 
               Adjust action value based on listing condition (1.0 = 100%)
             </p>
           </div>
+
+          {/* Field-Based Multipliers */}
+          <ActionMultipliers
+            multipliers={action.modifiers?.multipliers || []}
+            onChange={(multipliers) =>
+              updateAction(index, {
+                modifiers: {
+                  ...action.modifiers,
+                  multipliers,
+                },
+              })
+            }
+            availableFields={availableFields}
+          />
           </div>
         );
       })}

@@ -14,13 +14,30 @@ export interface Condition {
   group_order?: number;
 }
 
+export interface ActionMultiplier {
+  name: string;
+  field: string;
+  conditions: Array<{
+    value: string;
+    multiplier: number;
+  }>;
+}
+
 export interface Action {
   action_type: string;
   metric?: string;
   value_usd?: number;
   unit_type?: string;
   formula?: string;
-  modifiers?: Record<string, any>;
+  modifiers?: {
+    multipliers?: ActionMultiplier[];
+    condition_multipliers?: {
+      new: number;
+      refurb: number;
+      used: number;
+    };
+    [key: string]: any;
+  };
 }
 
 export interface Rule {
