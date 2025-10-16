@@ -279,11 +279,6 @@ class FormulaParser:
             self._validate_node(node.slice, formula)
             return
 
-        elif isinstance(node, ast.Index):
-            # Index value (deprecated in Python 3.9+, but included for compatibility)
-            self._validate_node(node.value, formula)
-            return
-
         else:
             raise FormulaValidationError(
                 f"AST node type '{type(node).__name__}' is not allowed",
