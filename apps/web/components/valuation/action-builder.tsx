@@ -11,6 +11,7 @@ import { Textarea } from "../ui/textarea";
 import { PER_UNIT_METRIC_OPTIONS, normalizePerUnitMetric } from "../../lib/valuation-metrics";
 import { ActionMultipliers } from "./action-multipliers";
 import { fetchEntitiesMetadata } from "../../lib/api/entities";
+import { FormulaBuilder } from "./formula-builder";
 
 const ACTION_TYPES = [
   { value: "fixed_value", label: "Fixed Value" },
@@ -253,13 +254,12 @@ export function ActionBuilder({ actions, onActionsChange }: ActionBuilderProps) 
           )}
 
           {action.action_type === "formula" && (
-            <div>
+            <div className="space-y-2">
               <Label>Formula</Label>
-              <Textarea
-                placeholder="e.g., ram_gb * 2.5 + storage_gb * 0.1"
+              <FormulaBuilder
                 value={action.formula || ""}
-                onChange={(e) => updateAction(index, { formula: e.target.value })}
-                rows={3}
+                onChange={(formula) => updateAction(index, { formula })}
+                entityType="Listing"
               />
             </div>
           )}

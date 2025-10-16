@@ -9,7 +9,14 @@ from .conditions import (
 )
 from .actions import Action, ActionType, ActionEngine, build_action_from_dict
 from .evaluator import RuleEvaluator, RuleEvaluationResult, build_context_from_listing
-from .formula import FormulaParser, FormulaEngine
+from .formula import (
+    FormulaParser,
+    FormulaEngine,
+    FormulaError,
+    FormulaSyntaxError,
+    FormulaValidationError,
+)
+from .formula_validator import FormulaValidator, ValidationError
 
 __all__ = [
     "Condition",
@@ -26,4 +33,9 @@ __all__ = [
     "build_context_from_listing",
     "FormulaParser",
     "FormulaEngine",
+    "FormulaError",
+    "FormulaSyntaxError",
+    "FormulaValidationError",
+    "FormulaValidator",
+    "ValidationError",
 ]

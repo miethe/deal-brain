@@ -335,6 +335,32 @@ class PackageInstallResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+# --- Formula Validation Schemas ---
+
+class FormulaValidationRequest(BaseModel):
+    """Request schema for validating a formula"""
+    formula: str = Field(..., min_length=1, description="Formula to validate")
+    entity_type: str = Field("Listing", description="Entity type for field context (Listing, CPU, GPU, etc.)")
+    sample_context: dict[str, Any] | None = Field(None, description="Optional sample context for preview calculation")
+
+
+class FormulaValidationError(BaseModel):
+    """Schema for a formula validation error"""
+    message: str = Field(..., description="Error message")
+    severity: str = Field("error", description="Error severity (error, warning, info)")
+    position: int | None = Field(None, description="Character position in formula where error occurred")
+    suggestion: str | None = Field(None, description="Suggested fix for the error")
+
+
+class FormulaValidationResponse(BaseModel):
+    """Response schema for formula validation"""
+    valid: bool = Field(..., description="Whether the formula is valid")
+    errors: list[FormulaValidationError] = Field(default_factory=list, description="List of validation errors")
+    preview: float | None = Field(None, description="Preview calculation result with sample data")
+    used_fields: list[str] = Field(default_factory=list, description="List of fields referenced in the formula")
+    available_fields: list[str] = Field(default_factory=list, description="List of available fields for the entity type")
+
+
 # --- Legacy aliases (backwards compatibility) ---
 
 RulesetCreate = RulesetCreateRequest

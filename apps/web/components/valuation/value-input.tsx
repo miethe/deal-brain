@@ -23,19 +23,8 @@ export function ValueInput({
   onChange,
   operator,
 }: ValueInputProps) {
-  // Multi-value operators (in, not_in)
-  if (operator === "in" || operator === "not_in") {
-    return (
-      <Input
-        type="text"
-        placeholder="Value1, Value2, Value3"
-        value={Array.isArray(value) ? value.join(", ") : value}
-        onChange={(e) => onChange(e.target.value.split(",").map((v) => v.trim()))}
-      />
-    );
-  }
-
   // Fetch field values for autocomplete (enum and string fields)
+  // Always call hooks unconditionally at the top level
   const shouldFetchValues = (fieldType === "enum" || fieldType === "string") && !!fieldName;
 
   const { data: fieldValuesData, isLoading: isLoadingFieldValues } = useFieldValues({
@@ -63,6 +52,18 @@ export function ValueInput({
       value: val,
     }));
   }, [options, fieldValuesData?.values]);
+
+  // Multi-value operators (in, not_in)
+  if (operator === "in" || operator === "not_in") {
+    return (
+      <Input
+        type="text"
+        placeholder="Value1, Value2, Value3"
+        value={Array.isArray(value) ? value.join(", ") : value}
+        onChange={(e) => onChange(e.target.value.split(",").map((v) => v.trim()))}
+      />
+    );
+  }
 
   // Enum fields or string fields with autocomplete
   if ((fieldType === "enum" || fieldType === "string") && comboOptions.length > 0) {

@@ -29,11 +29,15 @@ from ..schemas.rules import (
     PackageMetadataRequest,
     PackageExportResponse,
     PackageInstallResponse,
+    FormulaValidationRequest,
+    FormulaValidationResponse,
+    FormulaValidationError,
 )
 from ..services.rules import RulesService
 from ..services.rule_evaluation import RuleEvaluationService
 from ..services.rule_preview import RulePreviewService
 from ..services.ruleset_packaging import RulesetPackagingService
+from ..services.formula_validation import FormulaValidationService
 from ..validation.rules_validation import (
     validate_basic_managed_group,
     validate_entity_key,
@@ -772,6 +776,75 @@ async def preview_rule(
     )
 
     return RulePreviewResponse(**result)
+
+
+@router.post("/valuation-rules/validate-formula", response_model=FormulaValidationResponse)
+async def validate_formula(
+    request: FormulaValidationRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Validate a formula and provide preview calculation.
+
+    This endpoint:
+    - Validates formula syntax
+    - Checks field availability against entity metadata
+    - Calculates preview with sample data (either provided or from database)
+    - Returns list of used fields from formula
+    - Provides helpful error messages with suggestions
+
+    Example formulas:
+    - "ram_gb * 2.5" - Simple per-GB pricing
+    - "cpu_mark_multi / 1000 * 5.0" - Benchmark-based calculation
+    - "max(ram_gb * 2.5, 50)" - Minimum value enforcement
+    - "ram_gb * 2.5 if ram_gb >= 16 else ram_gb * 3.0" - Conditional pricing
+    """
+    service = FormulaValidationService()
+
+    try:
+        result = await service.validate_formula(
+            session=session,
+            formula=request.formula,
+            entity_type=request.entity_type,
+            sample_context=request.sample_context,
+        )
+
+        # Convert error dictionaries to Pydantic models
+        errors = [
+            FormulaValidationError(
+                message=error["message"],
+                severity=error["severity"],
+                position=error.get("position"),
+                suggestion=error.get("suggestion"),
+            )
+            for error in result["errors"]
+        ]
+
+        return FormulaValidationResponse(
+            valid=result["valid"],
+            errors=errors,
+            preview=result["preview"],
+            used_fields=result["used_fields"],
+            available_fields=result["available_fields"],
+        )
+
+    except Exception as e:
+        logger.error(f"Formula validation failed with unexpected error: {e}", exc_info=True)
+        # Return error response instead of raising exception
+        return FormulaValidationResponse(
+            valid=False,
+            errors=[
+                FormulaValidationError(
+                    message=f"Validation failed: {str(e)}",
+                    severity="error",
+                    position=None,
+                    suggestion="Please check the formula syntax and try again",
+                )
+            ],
+            preview=None,
+            used_fields=[],
+            available_fields=[],
+        )
 
 
 # --- Evaluation Endpoints ---

@@ -350,3 +350,42 @@ export async function fetchAuditLog(
   if (!response.ok) throw new Error("Failed to fetch audit log");
   return response.json();
 }
+
+// Formula Validation
+
+export interface FormulaValidationError {
+  message: string;
+  severity: "error" | "warning" | "info";
+  position?: number;
+  suggestion?: string;
+}
+
+export interface FormulaValidationRequest {
+  formula: string;
+  entity_type?: string;
+  sample_context?: Record<string, any>;
+}
+
+export interface FormulaValidationResponse {
+  valid: boolean;
+  errors: FormulaValidationError[];
+  preview?: number;
+  used_fields: string[];
+  available_fields: string[];
+}
+
+export async function validateFormula(
+  data: FormulaValidationRequest
+): Promise<FormulaValidationResponse> {
+  const response = await fetch(`${API_URL}/api/v1/valuation-rules/validate-formula`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      formula: data.formula,
+      entity_type: data.entity_type || "Listing",
+      sample_context: data.sample_context,
+    }),
+  });
+  if (!response.ok) throw new Error("Failed to validate formula");
+  return response.json();
+}
