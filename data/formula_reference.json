@@ -1,0 +1,1173 @@
+{
+  "custom_fields": {
+    "listing": [
+      {
+        "access_pattern": "listing.custom_fields.cosmetic_condition",
+        "description": "Physical appearance of the device",
+        "field_key": "cosmetic_condition",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.has_original_packaging",
+        "default_value": false,
+        "description": "Includes original box and packaging",
+        "field_key": "has_original_packaging",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.warranty_months_remaining",
+        "description": "Months of manufacturer warranty remaining",
+        "field_key": "warranty_months_remaining",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.benchmark_tested",
+        "default_value": false,
+        "description": "Has been benchmark tested and verified",
+        "field_key": "benchmark_tested",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.stress_test_hours",
+        "description": "Hours of stress testing performed",
+        "field_key": "stress_test_hours",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.secondary_storage_type",
+        "default_value": "None",
+        "description": "Type of secondary storage drive",
+        "field_key": "secondary_storage_type",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.secondary_storage_capacity_gb",
+        "description": "Capacity of secondary storage in GB",
+        "field_key": "secondary_storage_capacity_gb",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.wifi_standard",
+        "description": "WiFi standard supported",
+        "field_key": "wifi_standard",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.ethernet_speed_gbps",
+        "default_value": "1",
+        "description": "Maximum ethernet port speed",
+        "field_key": "ethernet_speed_gbps",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.usb_c_count",
+        "default_value": 0,
+        "description": "Number of USB-C ports",
+        "field_key": "usb_c_count",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.thunderbolt_count",
+        "default_value": 0,
+        "description": "Number of Thunderbolt ports",
+        "field_key": "thunderbolt_count",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.pcie_slots_available",
+        "description": "Number of available PCIe expansion slots",
+        "field_key": "pcie_slots_available",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.psu_wattage",
+        "description": "Power supply unit wattage",
+        "field_key": "psu_wattage",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.psu_efficiency_rating",
+        "description": "80 Plus efficiency certification",
+        "field_key": "psu_efficiency_rating",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.cooling_solution",
+        "description": "Primary cooling method",
+        "field_key": "cooling_solution",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.has_rgb_lighting",
+        "default_value": false,
+        "description": "Includes RGB lighting system",
+        "field_key": "has_rgb_lighting",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.case_form_factor",
+        "description": "PC case size category",
+        "field_key": "case_form_factor",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.days_since_listing",
+        "description": "Number of days the listing has been active",
+        "field_key": "days_since_listing",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.seller_rating",
+        "description": "Seller reputation score (0-5 stars)",
+        "field_key": "seller_rating",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.number_of_reviews",
+        "description": "Number of seller reviews",
+        "field_key": "number_of_reviews",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.shipping_cost_usd",
+        "description": "Shipping cost in USD",
+        "field_key": "shipping_cost_usd",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.local_pickup_available",
+        "default_value": false,
+        "description": "Can be picked up locally",
+        "field_key": "local_pickup_available",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.is_prebuilt",
+        "default_value": true,
+        "description": "Prebuilt by manufacturer vs custom built",
+        "field_key": "is_prebuilt",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.manufacturer",
+        "description": "System manufacturer (if prebuilt)",
+        "field_key": "manufacturer",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.has_custom_cables",
+        "default_value": false,
+        "description": "Includes custom sleeved cables",
+        "field_key": "has_custom_cables",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.bios_updated",
+        "default_value": false,
+        "description": "BIOS has been updated to latest version",
+        "field_key": "bios_updated",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.os_installed",
+        "default_value": "No OS",
+        "description": "Pre-installed operating system",
+        "field_key": "os_installed",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.os_license_type",
+        "description": "Operating system license status",
+        "field_key": "os_license_type",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.has_tempered_glass",
+        "default_value": false,
+        "description": "Case includes tempered glass side panel",
+        "field_key": "has_tempered_glass",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.supports_dual_gpu",
+        "default_value": false,
+        "description": "System supports dual GPU configuration",
+        "field_key": "supports_dual_gpu",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.includes_peripherals",
+        "default_value": false,
+        "description": "Includes keyboard, mouse, or other peripherals",
+        "field_key": "includes_peripherals",
+        "field_type": "string",
+        "required": false
+      },
+      {
+        "access_pattern": "listing.custom_fields.refurbishment_grade",
+        "default_value": "Not Refurbished",
+        "description": "Professional refurbishment certification",
+        "field_key": "refurbishment_grade",
+        "field_type": "string",
+        "required": false
+      }
+    ]
+  },
+  "description": "Comprehensive formula reference for baseline rule creation. This document describes all available entities, fields, operators, functions, and syntax patterns for writing valuation formulas.",
+  "entities": {
+    "cpu": {
+      "access_pattern": "cpu.field_name",
+      "description": "CPU entity (foreign key relationship from listing)",
+      "fields": {
+        "attributes_json": {
+          "description": "Attributes Json",
+          "example": "cpu.attributes_json",
+          "nullable": false,
+          "type": "json"
+        },
+        "cores": {
+          "description": "Number of physical cores",
+          "example": "cpu.cores",
+          "nullable": true,
+          "type": "integer"
+        },
+        "cpu_mark_multi": {
+          "description": "PassMark multi-thread benchmark score",
+          "example": "cpu.cpu_mark_multi",
+          "nullable": true,
+          "type": "integer"
+        },
+        "cpu_mark_single": {
+          "description": "PassMark single-thread benchmark score",
+          "example": "cpu.cpu_mark_single",
+          "nullable": true,
+          "type": "integer"
+        },
+        "igpu_mark": {
+          "description": "PassMark integrated GPU benchmark score",
+          "example": "cpu.igpu_mark",
+          "nullable": true,
+          "type": "integer"
+        },
+        "igpu_model": {
+          "description": "Integrated GPU model name",
+          "example": "cpu.igpu_model",
+          "nullable": true,
+          "type": "string"
+        },
+        "manufacturer": {
+          "description": "Product manufacturer",
+          "example": "cpu.manufacturer",
+          "nullable": false,
+          "type": "string"
+        },
+        "name": {
+          "description": "CPU model name",
+          "example": "cpu.name",
+          "nullable": false,
+          "type": "string"
+        },
+        "notes": {
+          "description": "Additional notes or comments",
+          "example": "cpu.notes",
+          "nullable": true,
+          "type": "string"
+        },
+        "passmark_category": {
+          "description": "PassMark category classification",
+          "example": "cpu.passmark_category",
+          "nullable": true,
+          "type": "string"
+        },
+        "passmark_id": {
+          "description": "PassMark ID",
+          "example": "cpu.passmark_id",
+          "nullable": true,
+          "type": "string"
+        },
+        "passmark_slug": {
+          "description": "PassMark URL slug identifier",
+          "example": "cpu.passmark_slug",
+          "nullable": true,
+          "type": "string"
+        },
+        "release_year": {
+          "description": "Year of release",
+          "example": "cpu.release_year",
+          "nullable": true,
+          "type": "integer"
+        },
+        "socket": {
+          "description": "CPU socket type",
+          "example": "cpu.socket",
+          "nullable": true,
+          "type": "string"
+        },
+        "tdp_w": {
+          "description": "Thermal design power in watts",
+          "example": "cpu.tdp_w",
+          "nullable": true,
+          "type": "integer"
+        },
+        "threads": {
+          "description": "Number of logical threads",
+          "example": "cpu.threads",
+          "nullable": true,
+          "type": "integer"
+        }
+      },
+      "note": "All CPU fields are nullable since listing may not have a CPU",
+      "nullable": true
+    },
+    "gpu": {
+      "access_pattern": "gpu.field_name",
+      "description": "GPU entity (foreign key relationship from listing)",
+      "fields": {
+        "attributes_json": {
+          "description": "Attributes Json",
+          "example": "gpu.attributes_json",
+          "nullable": false,
+          "type": "json"
+        },
+        "gpu_mark": {
+          "description": "PassMark GPU benchmark score",
+          "example": "gpu.gpu_mark",
+          "nullable": true,
+          "type": "integer"
+        },
+        "manufacturer": {
+          "description": "Product manufacturer",
+          "example": "gpu.manufacturer",
+          "nullable": false,
+          "type": "string"
+        },
+        "metal_score": {
+          "description": "Metal API benchmark score",
+          "example": "gpu.metal_score",
+          "nullable": true,
+          "type": "integer"
+        },
+        "name": {
+          "description": "GPU model name",
+          "example": "gpu.name",
+          "nullable": false,
+          "type": "string"
+        },
+        "notes": {
+          "description": "Additional notes or comments",
+          "example": "gpu.notes",
+          "nullable": true,
+          "type": "string"
+        }
+      },
+      "note": "All GPU fields are nullable since listing may not have a GPU",
+      "nullable": true
+    },
+    "listing": {
+      "access_pattern": "Direct field access (e.g., listing.price_usd or just price_usd)",
+      "description": "Primary listing entity (root context)",
+      "fields": {
+        "active_profile_id": {
+          "description": "Active Profile Id",
+          "example": "listing.active_profile_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        "adjusted_price_usd": {
+          "description": "Price adjusted based on valuation rules",
+          "example": "listing.adjusted_price_usd",
+          "nullable": true,
+          "type": "float"
+        },
+        "attributes_json": {
+          "description": "Attributes Json",
+          "example": "listing.attributes_json",
+          "nullable": false,
+          "type": "json"
+        },
+        "condition": {
+          "default": "used",
+          "description": "Item condition (new, refurb, used)",
+          "example": "listing.condition",
+          "nullable": false,
+          "type": "string"
+        },
+        "cpu_id": {
+          "description": "Cpu Id",
+          "example": "listing.cpu_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        "device_model": {
+          "description": "Device model name or identifier",
+          "example": "listing.device_model",
+          "nullable": true,
+          "type": "string"
+        },
+        "dollar_per_cpu_mark": {
+          "description": "Price per CPU benchmark point",
+          "example": "listing.dollar_per_cpu_mark",
+          "nullable": true,
+          "type": "float"
+        },
+        "dollar_per_cpu_mark_multi": {
+          "description": "Price per multi-thread CPU mark (base)",
+          "example": "listing.dollar_per_cpu_mark_multi",
+          "nullable": true,
+          "type": "float"
+        },
+        "dollar_per_cpu_mark_multi_adjusted": {
+          "description": "Price per multi-thread CPU mark (adjusted)",
+          "example": "listing.dollar_per_cpu_mark_multi_adjusted",
+          "nullable": true,
+          "type": "float"
+        },
+        "dollar_per_cpu_mark_single": {
+          "description": "Price per single-thread CPU mark (base)",
+          "example": "listing.dollar_per_cpu_mark_single",
+          "nullable": true,
+          "type": "float"
+        },
+        "dollar_per_cpu_mark_single_adjusted": {
+          "description": "Price per single-thread CPU mark (adjusted)",
+          "example": "listing.dollar_per_cpu_mark_single_adjusted",
+          "nullable": true,
+          "type": "float"
+        },
+        "dollar_per_single_mark": {
+          "description": "Price per single-thread benchmark point",
+          "example": "listing.dollar_per_single_mark",
+          "nullable": true,
+          "type": "float"
+        },
+        "form_factor": {
+          "description": "Storage form factor (M.2, 2.5\", etc.)",
+          "example": "listing.form_factor",
+          "nullable": true,
+          "type": "string"
+        },
+        "gpu_id": {
+          "description": "Gpu Id",
+          "example": "listing.gpu_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        "listing_url": {
+          "description": "URL to original listing",
+          "example": "listing.listing_url",
+          "nullable": true,
+          "type": "string"
+        },
+        "manufacturer": {
+          "description": "Product manufacturer",
+          "example": "listing.manufacturer",
+          "nullable": true,
+          "type": "string"
+        },
+        "model_number": {
+          "description": "Product model number",
+          "example": "listing.model_number",
+          "nullable": true,
+          "type": "string"
+        },
+        "notes": {
+          "description": "Additional notes or comments",
+          "example": "listing.notes",
+          "nullable": true,
+          "type": "string"
+        },
+        "os_license": {
+          "description": "Operating system license information",
+          "example": "listing.os_license",
+          "nullable": true,
+          "type": "string"
+        },
+        "other_components": {
+          "description": "Other Components",
+          "example": "listing.other_components",
+          "nullable": false,
+          "type": "json"
+        },
+        "other_urls": {
+          "description": "Other Urls",
+          "example": "listing.other_urls",
+          "nullable": false,
+          "type": "json"
+        },
+        "perf_per_watt": {
+          "description": "Performance per watt efficiency metric",
+          "example": "listing.perf_per_watt",
+          "nullable": true,
+          "type": "float"
+        },
+        "ports_profile_id": {
+          "description": "Ports Profile Id",
+          "example": "listing.ports_profile_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        "price_date": {
+          "description": "Date when price was recorded",
+          "example": "listing.price_date",
+          "nullable": true,
+          "type": "datetime"
+        },
+        "price_usd": {
+          "description": "Listing price in USD",
+          "example": "listing.price_usd",
+          "nullable": false,
+          "type": "float"
+        },
+        "primary_storage_gb": {
+          "default": 0,
+          "description": "Primary storage capacity in gigabytes",
+          "example": "listing.primary_storage_gb",
+          "nullable": false,
+          "type": "integer"
+        },
+        "primary_storage_profile_id": {
+          "description": "Primary Storage Profile Id",
+          "example": "listing.primary_storage_profile_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        "primary_storage_type": {
+          "description": "Primary storage type description",
+          "example": "listing.primary_storage_type",
+          "nullable": true,
+          "type": "string"
+        },
+        "ram_gb": {
+          "default": 0,
+          "description": "Total RAM capacity in gigabytes",
+          "example": "listing.ram_gb",
+          "nullable": false,
+          "type": "integer"
+        },
+        "ram_notes": {
+          "description": "Additional RAM notes or details",
+          "example": "listing.ram_notes",
+          "nullable": true,
+          "type": "string"
+        },
+        "ram_spec_id": {
+          "description": "Ram Spec Id",
+          "example": "listing.ram_spec_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        "raw_listing_json": {
+          "description": "Raw Listing Json",
+          "example": "listing.raw_listing_json",
+          "nullable": true,
+          "type": "json"
+        },
+        "ruleset_id": {
+          "description": "Ruleset Id",
+          "example": "listing.ruleset_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        "score_composite": {
+          "description": "Composite performance score",
+          "example": "listing.score_composite",
+          "nullable": true,
+          "type": "float"
+        },
+        "score_cpu_multi": {
+          "description": "CPU multi-thread performance score",
+          "example": "listing.score_cpu_multi",
+          "nullable": true,
+          "type": "float"
+        },
+        "score_cpu_single": {
+          "description": "CPU single-thread performance score",
+          "example": "listing.score_cpu_single",
+          "nullable": true,
+          "type": "float"
+        },
+        "score_gpu": {
+          "description": "GPU performance score",
+          "example": "listing.score_gpu",
+          "nullable": true,
+          "type": "float"
+        },
+        "secondary_storage_gb": {
+          "description": "Secondary storage capacity in gigabytes",
+          "example": "listing.secondary_storage_gb",
+          "nullable": true,
+          "type": "integer"
+        },
+        "secondary_storage_profile_id": {
+          "description": "Secondary Storage Profile Id",
+          "example": "listing.secondary_storage_profile_id",
+          "nullable": true,
+          "type": "integer"
+        },
+        "secondary_storage_type": {
+          "description": "Secondary storage type description",
+          "example": "listing.secondary_storage_type",
+          "nullable": true,
+          "type": "string"
+        },
+        "seller": {
+          "description": "Seller name or identifier",
+          "example": "listing.seller",
+          "nullable": true,
+          "type": "string"
+        },
+        "series": {
+          "description": "Product series or line",
+          "example": "listing.series",
+          "nullable": true,
+          "type": "string"
+        },
+        "status": {
+          "default": "active",
+          "description": "Listing status (active, archived, pending)",
+          "example": "listing.status",
+          "nullable": false,
+          "type": "string"
+        },
+        "title": {
+          "description": "Listing title or name",
+          "example": "listing.title",
+          "nullable": false,
+          "type": "string"
+        },
+        "valuation_breakdown": {
+          "description": "Valuation Breakdown",
+          "example": "listing.valuation_breakdown",
+          "nullable": true,
+          "type": "json"
+        }
+      },
+      "nullable": false
+    },
+    "ports_profile": {
+      "access_pattern": "ports_profile.field_name",
+      "description": "Connectivity ports profile (foreign key relationship from listing)",
+      "fields": {
+        "attributes_json": {
+          "description": "Attributes Json",
+          "example": "ports_profile.attributes_json",
+          "nullable": false,
+          "type": "json"
+        },
+        "description": {
+          "description": "ports_profile description",
+          "example": "ports_profile.description",
+          "nullable": true,
+          "type": "string"
+        },
+        "name": {
+          "description": "PORTS_PROFILE model name",
+          "example": "ports_profile.name",
+          "nullable": false,
+          "type": "string"
+        }
+      },
+      "note": "Collection of connectivity ports and specifications",
+      "nullable": true
+    },
+    "primary_storage": {
+      "access_pattern": "primary_storage.field_name",
+      "description": "Primary storage profile (foreign key relationship from listing)",
+      "fields": {
+        "attributes_json": {
+          "description": "Attributes Json",
+          "example": "primary_storage.attributes_json",
+          "nullable": false,
+          "type": "json"
+        },
+        "capacity_gb": {
+          "description": "Storage capacity in gigabytes",
+          "example": "primary_storage.capacity_gb",
+          "nullable": true,
+          "type": "integer"
+        },
+        "form_factor": {
+          "description": "Storage form factor (M.2, 2.5\", etc.)",
+          "example": "primary_storage.form_factor",
+          "nullable": true,
+          "type": "string"
+        },
+        "interface": {
+          "description": "Storage interface (SATA, NVMe, etc.)",
+          "example": "primary_storage.interface",
+          "nullable": true,
+          "type": "string"
+        },
+        "label": {
+          "description": "storage label or identifier",
+          "example": "primary_storage.label",
+          "nullable": true,
+          "type": "string"
+        },
+        "medium": {
+          "default": "unknown",
+          "description": "Storage medium type (NVME, SATA_SSD, HDD, etc.)",
+          "enum_type": "StorageMedium",
+          "example": "primary_storage.medium",
+          "nullable": false,
+          "type": "enum",
+          "values": [
+            "nvme",
+            "sata_ssd",
+            "hdd",
+            "hybrid",
+            "emmc",
+            "ufs",
+            "unknown"
+          ]
+        },
+        "notes": {
+          "description": "Additional notes or comments",
+          "example": "primary_storage.notes",
+          "nullable": true,
+          "type": "string"
+        },
+        "performance_tier": {
+          "description": "Performance tier classification",
+          "example": "primary_storage.performance_tier",
+          "nullable": true,
+          "type": "string"
+        }
+      },
+      "note": "Detailed specifications for primary storage device",
+      "nullable": true
+    },
+    "ram_spec": {
+      "access_pattern": "ram_spec.field_name",
+      "description": "RAM specification entity (foreign key relationship from listing)",
+      "fields": {
+        "attributes_json": {
+          "description": "Attributes Json",
+          "example": "ram_spec.attributes_json",
+          "nullable": false,
+          "type": "json"
+        },
+        "capacity_per_module_gb": {
+          "description": "Capacity per module in GB",
+          "example": "ram_spec.capacity_per_module_gb",
+          "nullable": true,
+          "type": "integer"
+        },
+        "ddr_generation": {
+          "default": "unknown",
+          "description": "DDR generation (DDR3, DDR4, DDR5, etc.)",
+          "enum_type": "RamGeneration",
+          "example": "ram_spec.ddr_generation",
+          "nullable": false,
+          "type": "enum",
+          "values": [
+            "ddr3",
+            "ddr4",
+            "ddr5",
+            "lpddr4",
+            "lpddr4x",
+            "lpddr5",
+            "lpddr5x",
+            "hbm2",
+            "hbm3",
+            "unknown"
+          ]
+        },
+        "label": {
+          "description": "ram_spec label or identifier",
+          "example": "ram_spec.label",
+          "nullable": true,
+          "type": "string"
+        },
+        "module_count": {
+          "description": "Number of RAM modules",
+          "example": "ram_spec.module_count",
+          "nullable": true,
+          "type": "integer"
+        },
+        "notes": {
+          "description": "Additional notes or comments",
+          "example": "ram_spec.notes",
+          "nullable": true,
+          "type": "string"
+        },
+        "speed_mhz": {
+          "description": "Memory speed in MHz",
+          "example": "ram_spec.speed_mhz",
+          "nullable": true,
+          "type": "integer"
+        },
+        "total_capacity_gb": {
+          "description": "Total RAM capacity in GB",
+          "example": "ram_spec.total_capacity_gb",
+          "nullable": true,
+          "type": "integer"
+        }
+      },
+      "note": "Detailed RAM specifications beyond simple capacity",
+      "nullable": true
+    },
+    "secondary_storage": {
+      "access_pattern": "secondary_storage.field_name",
+      "description": "Secondary storage profile (foreign key relationship from listing)",
+      "fields": {
+        "attributes_json": {
+          "description": "Attributes Json",
+          "example": "secondary_storage.attributes_json",
+          "nullable": false,
+          "type": "json"
+        },
+        "capacity_gb": {
+          "description": "Storage capacity in gigabytes",
+          "example": "secondary_storage.capacity_gb",
+          "nullable": true,
+          "type": "integer"
+        },
+        "form_factor": {
+          "description": "Storage form factor (M.2, 2.5\", etc.)",
+          "example": "secondary_storage.form_factor",
+          "nullable": true,
+          "type": "string"
+        },
+        "interface": {
+          "description": "Storage interface (SATA, NVMe, etc.)",
+          "example": "secondary_storage.interface",
+          "nullable": true,
+          "type": "string"
+        },
+        "label": {
+          "description": "storage label or identifier",
+          "example": "secondary_storage.label",
+          "nullable": true,
+          "type": "string"
+        },
+        "medium": {
+          "default": "unknown",
+          "description": "Storage medium type (NVME, SATA_SSD, HDD, etc.)",
+          "enum_type": "StorageMedium",
+          "example": "secondary_storage.medium",
+          "nullable": false,
+          "type": "enum",
+          "values": [
+            "nvme",
+            "sata_ssd",
+            "hdd",
+            "hybrid",
+            "emmc",
+            "ufs",
+            "unknown"
+          ]
+        },
+        "notes": {
+          "description": "Additional notes or comments",
+          "example": "secondary_storage.notes",
+          "nullable": true,
+          "type": "string"
+        },
+        "performance_tier": {
+          "description": "Performance tier classification",
+          "example": "secondary_storage.performance_tier",
+          "nullable": true,
+          "type": "string"
+        }
+      },
+      "note": "Detailed specifications for secondary storage device (if present)",
+      "nullable": true
+    }
+  },
+  "enums": {
+    "Condition": {
+      "description": "Listing item condition",
+      "usage": "Used in listing.condition field",
+      "values": [
+        "new",
+        "refurb",
+        "used"
+      ]
+    },
+    "ListingStatus": {
+      "description": "Listing lifecycle status",
+      "usage": "Used in listing.status field",
+      "values": [
+        "active",
+        "archived",
+        "pending"
+      ]
+    },
+    "RamGeneration": {
+      "description": "DDR generation for RAM",
+      "usage": "Used in ram_spec.ddr_generation field",
+      "values": [
+        "ddr3",
+        "ddr4",
+        "ddr5",
+        "lpddr4",
+        "lpddr4x",
+        "lpddr5",
+        "lpddr5x",
+        "hbm2",
+        "hbm3",
+        "unknown"
+      ]
+    },
+    "StorageMedium": {
+      "description": "Storage medium type",
+      "usage": "Used in primary_storage.medium and secondary_storage.medium fields",
+      "values": [
+        "nvme",
+        "sata_ssd",
+        "hdd",
+        "hybrid",
+        "emmc",
+        "ufs",
+        "unknown"
+      ]
+    }
+  },
+  "examples": {
+    "basic_ram_valuation": {
+      "description": "Value RAM at $2.50 per gigabyte",
+      "formula": "ram_gb * 2.5",
+      "use_case": "Simple per-unit pricing"
+    },
+    "clamped_gpu_value": {
+      "description": "GPU valuation with minimum $0 and maximum $500 cap",
+      "formula": "clamp((gpu.gpu_mark / 1000) * 8.0, 0, 500)",
+      "use_case": "Bounded valuation"
+    },
+    "combined_storage_value": {
+      "description": "Value primary storage at $25 per 128GB, secondary at $20 per 1TB",
+      "formula": "(primary_storage_gb / 128) * 25 + (secondary_storage_gb / 1024) * 20",
+      "use_case": "Multi-component valuation"
+    },
+    "condition_multiplier": {
+      "description": "Apply condition-based multiplier to base RAM value",
+      "formula": "(ram_gb * 2.5) * (1.0 if condition == 'new' else 0.85 if condition == 'refurb' else 0.7)",
+      "use_case": "Nested conditionals"
+    },
+    "conditional_ram_pricing": {
+      "description": "Higher per-GB price for 16GB+ configurations",
+      "formula": "ram_gb * 3.0 if ram_gb >= 16 else ram_gb * 2.5",
+      "use_case": "Tiered pricing"
+    },
+    "cpu_performance_valuation": {
+      "description": "Value CPU based on multi-thread PassMark score",
+      "formula": "(cpu.cpu_mark_multi / 1000) * 8.0",
+      "use_case": "Performance-based pricing"
+    },
+    "ddr_generation_bonus": {
+      "description": "Add $10 bonus for DDR5 RAM",
+      "formula": "10 if ram_spec.ddr_generation == 'ddr5' else 0",
+      "use_case": "Feature-based bonuses"
+    },
+    "efficiency_based_pricing": {
+      "description": "Value CPU based on performance-per-watt efficiency",
+      "formula": "round((cpu.cpu_mark_multi / max(cpu.tdp_w, 1)) * 2.0, 2)",
+      "use_case": "Efficiency metrics"
+    },
+    "null_safe_cpu_value": {
+      "description": "Handle missing CPU benchmark score gracefully",
+      "formula": "(cpu.cpu_mark_multi or 0) / 1000 * 5.0",
+      "use_case": "Null handling"
+    },
+    "tdp_penalty": {
+      "description": "Apply $50 penalty for high-TDP CPUs (over 120W)",
+      "formula": "50 if cpu.tdp_w > 120 else 0",
+      "use_case": "Conditional penalties"
+    }
+  },
+  "functions": {
+    "abs": {
+      "description": "Returns the absolute value of a number",
+      "example": "abs(cpu.tdp_w - 65)",
+      "returns": "float",
+      "signature": "abs(value)"
+    },
+    "ceil": {
+      "description": "Rounds up to nearest integer",
+      "example": "ceil(ram_gb / 8)",
+      "returns": "integer",
+      "signature": "ceil(value)"
+    },
+    "clamp": {
+      "description": "Constrains value between min and max (inclusive)",
+      "example": "clamp(gpu.gpu_mark / 1000, 0, 500)",
+      "returns": "float",
+      "signature": "clamp(value, min_val, max_val)"
+    },
+    "float": {
+      "description": "Converts value to floating-point number",
+      "example": "float(cpu.cores)",
+      "returns": "float",
+      "signature": "float(value)"
+    },
+    "floor": {
+      "description": "Rounds down to nearest integer",
+      "example": "floor(price_usd / 100)",
+      "returns": "integer",
+      "signature": "floor(value)"
+    },
+    "int": {
+      "description": "Converts value to integer (truncates decimals)",
+      "example": "int(ram_gb / 8)",
+      "returns": "integer",
+      "signature": "int(value)"
+    },
+    "max": {
+      "description": "Returns the largest of the input values",
+      "example": "max(cpu.cores, 4)",
+      "returns": "float",
+      "signature": "max(a, b, ...)"
+    },
+    "min": {
+      "description": "Returns the smallest of the input values",
+      "example": "min(ram_gb, 32)",
+      "returns": "float",
+      "signature": "min(a, b, ...)"
+    },
+    "pow": {
+      "description": "Returns base raised to the power of exponent",
+      "example": "pow(ram_gb, 1.2)",
+      "returns": "float",
+      "signature": "pow(base, exponent)"
+    },
+    "round": {
+      "description": "Rounds a number to n decimal places",
+      "example": "round(price_usd * 0.15, 2)",
+      "returns": "float",
+      "signature": "round(value, ndigits=0)"
+    },
+    "sqrt": {
+      "description": "Returns square root of a number",
+      "example": "sqrt(cpu.cpu_mark_multi)",
+      "returns": "float",
+      "signature": "sqrt(value)"
+    },
+    "sum": {
+      "description": "Returns sum of all values in an iterable",
+      "example": "sum([ram_gb, primary_storage_gb, secondary_storage_gb])",
+      "returns": "float",
+      "signature": "sum(iterable)"
+    }
+  },
+  "generated_at": "2025-10-17T14:30:28.569701+00:00",
+  "notes": {
+    "field_access": "Listing fields can be accessed directly (price_usd) or with prefix (listing.price_usd). Related entity fields must use dot notation (cpu.cores, ram_spec.ddr_generation).",
+    "null_safety": "When accessing nullable fields (especially from foreign key relationships), use the 'or' operator to provide default values: (cpu.cpu_mark_multi or 0)",
+    "operator_precedence": "Standard Python operator precedence applies: ** (power) > *,/,//,% (multiply/divide) > +,- (add/subtract) > comparisons > and/or. Use parentheses to control evaluation order.",
+    "type_coercion": "The formula engine automatically coerces results to float. Use int() or round() functions for integer results."
+  },
+  "operators": {
+    "arithmetic": {
+      "%": "Modulo (remainder after division)",
+      "*": "Multiplication",
+      "**": "Exponentiation (power)",
+      "+": "Addition",
+      "-": "Subtraction",
+      "/": "Division (returns float)",
+      "//": "Floor division (returns integer)"
+    },
+    "comparison": {
+      "!=": "Not equal to",
+      "<": "Less than",
+      "<=": "Less than or equal to",
+      "==": "Equal to",
+      ">": "Greater than",
+      ">=": "Greater than or equal to"
+    },
+    "logical": {
+      "and": "Logical AND (both conditions must be true)",
+      "not": "Logical NOT (negates boolean value)",
+      "or": "Logical OR (at least one condition must be true)"
+    }
+  },
+  "syntax_patterns": {
+    "arithmetic": {
+      "description": "Standard mathematical operations",
+      "examples": [
+        "ram_gb * 2.5",
+        "cpu.cpu_mark_multi / 1000",
+        "price_usd - 100",
+        "(ram_gb + primary_storage_gb) * 1.5"
+      ],
+      "syntax": "operand operator operand"
+    },
+    "comparison": {
+      "description": "Compare two values, returns boolean",
+      "examples": [
+        "ram_gb >= 16",
+        "cpu.tdp_w < 65",
+        "condition == 'new'",
+        "ram_spec.ddr_generation != 'ddr3'"
+      ],
+      "syntax": "value operator value"
+    },
+    "field_access": {
+      "description": "Access field from a related entity using dot notation",
+      "examples": [
+        "cpu.cpu_mark_multi",
+        "ram_spec.ddr_generation",
+        "listing.price_usd",
+        "gpu.gpu_mark"
+      ],
+      "syntax": "entity.field_name"
+    },
+    "function_call": {
+      "description": "Call a built-in function with arguments",
+      "examples": [
+        "max(ram_gb, 8)",
+        "round(price_usd * 0.15, 2)",
+        "clamp(gpu.gpu_mark / 1000, 0, 500)"
+      ],
+      "syntax": "function_name(arg1, arg2, ...)"
+    },
+    "nested_field_access": {
+      "description": "Access custom field value from an entity",
+      "examples": [
+        "listing.custom_fields.warranty_months",
+        "cpu.custom_fields.efficiency_rating"
+      ],
+      "syntax": "entity.custom_fields.field_key"
+    },
+    "ternary": {
+      "description": "Conditional expression that returns one value or another based on condition",
+      "examples": [
+        "50 if cpu.tdp_w > 120 else 0",
+        "price_usd * 0.1 if condition == 'new' else 0",
+        "ram_gb * 3.0 if ram_spec.ddr_generation == 'ddr5' else ram_gb * 2.5"
+      ],
+      "syntax": "value_if_true if condition else value_if_false"
+    }
+  },
+  "version": "1.0.0"
+}
