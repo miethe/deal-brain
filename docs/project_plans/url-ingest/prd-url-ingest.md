@@ -1,5 +1,3 @@
-[Deal Brain]
-
 # Deal Brain – Universal URL ingestion (P0–P1)
 
 ## Summary
