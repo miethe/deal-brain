@@ -84,6 +84,9 @@ poetry run dealbrain-cli import path/to/workbook.xlsx  # Import Excel workbook
 poetry run python scripts/import_passmark_data.py data/passmark_cpus.csv  # Import CPU benchmarks
 poetry run python scripts/recalculate_all_metrics.py  # Recalculate performance metrics for all listings
 poetry run python scripts/seed_sample_listings.py     # Create sample listings with metadata and ports
+
+# Formula reference generation
+poetry run python scripts/generate_formula_reference.py  # Generate comprehensive formula reference JSON
 ```
 
 ### CLI Commands
