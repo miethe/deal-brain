@@ -498,7 +498,7 @@ export default function ValuationRulesPage() {
 
         return { ...group, rules: filteredRules };
       })
-      .filter((group): group is RuleGroup => group !== null && group.rules.length > 0);
+      .filter((group): group is RuleGroup => group !== null);
   }, [selectedRuleset, searchQuery, mode, showSystemRules]);
 
   return (
