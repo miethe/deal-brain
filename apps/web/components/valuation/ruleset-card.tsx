@@ -45,7 +45,8 @@ export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, 
   const deleteMutation = useMutation({
     mutationFn: (ruleId: number) => deleteRule(ruleId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ruleset"] });
+      queryClient.invalidateQueries({ queryKey: ["ruleset", ruleGroup.ruleset_id] });
+      queryClient.invalidateQueries({ queryKey: ["rulesets"] });
       toast({
         title: "Rule deleted",
         description: "The rule has been deleted successfully",
@@ -67,7 +68,8 @@ export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, 
   const duplicateMutation = useMutation({
     mutationFn: (ruleId: number) => duplicateRule(ruleId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ruleset"] });
+      queryClient.invalidateQueries({ queryKey: ["ruleset", ruleGroup.ruleset_id] });
+      queryClient.invalidateQueries({ queryKey: ["rulesets"] });
       toast({
         title: "Rule duplicated",
         description: "The rule has been duplicated successfully",
@@ -88,7 +90,8 @@ export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, 
     mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
       updateRule(id, { is_active: isActive }),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["ruleset"] });
+      queryClient.invalidateQueries({ queryKey: ["ruleset", ruleGroup.ruleset_id] });
+      queryClient.invalidateQueries({ queryKey: ["rulesets"] });
       toast({
         title: variables.isActive ? "Rule activated" : "Rule deactivated",
         description: `The rule has been ${variables.isActive ? "activated" : "deactivated"}`,
@@ -100,7 +103,7 @@ export function RulesetCard({ ruleGroup, onCreateRule, onEditGroup, onEditRule, 
   const toggleGroupMutation = useMutation({
     mutationFn: (isActive: boolean) => updateRuleGroup(ruleGroup.id, { is_active: isActive }),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["ruleset"] });
+      queryClient.invalidateQueries({ queryKey: ["ruleset", ruleGroup.ruleset_id] });
       queryClient.invalidateQueries({ queryKey: ["rulesets"] });
       toast({
         title: variables ? "Group activated" : "Group deactivated",
