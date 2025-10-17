@@ -34,6 +34,9 @@ class HydrationResult:
 class BaselineHydrationService:
     """Service for hydrating baseline placeholder rules into editable rule structures."""
 
+    # Entity keys that represent foreign key relationships
+    FK_ENTITY_KEYS = {"cpu", "gpu", "storage", "ram_spec", "ports"}
+
     def __init__(self, rules_service: RulesService | None = None) -> None:
         """Initialize the hydration service.
 
@@ -43,6 +46,25 @@ class BaselineHydrationService:
         """
         # Disable recalculation during hydration to avoid triggering on each rule
         self.rules_service = rules_service or RulesService(trigger_recalculation=False)
+
+    def _is_foreign_key_rule(self, rule: ValuationRuleV2) -> bool:
+        """Determine if a rule represents a foreign key relationship.
+
+        Args:
+            rule: The rule to check
+
+        Returns:
+            True if the rule's entity_key is in the FK entity keys set
+        """
+        entity_key = rule.metadata_json.get("entity_key", "")
+        is_fk = entity_key in self.FK_ENTITY_KEYS
+
+        if is_fk:
+            logger.debug(
+                f"Rule {rule.id} ({rule.name}) identified as FK rule with entity_key: {entity_key}"
+            )
+
+        return is_fk
 
     async def hydrate_baseline_rules(
         self, session: AsyncSession, ruleset_id: int, actor: str = "system"
@@ -127,6 +149,7 @@ class BaselineHydrationService:
         - enum_multiplier: Creates one rule per enum value with conditions
         - formula: Creates single rule with formula action
         - fixed/additive: Creates single rule with fixed value action
+        - scalar: Skipped (represents FK relationships, not valuation rules)
 
         Args:
             session: Database session
@@ -134,7 +157,8 @@ class BaselineHydrationService:
             actor: User or system identifier performing the hydration
 
         Returns:
-            List of expanded rules created from the placeholder
+            List of expanded rules created from the placeholder.
+            Empty list if rule is scalar type (FK relationship).
 
         Raises:
             ValueError: If rule not found or not a baseline placeholder
@@ -152,6 +176,14 @@ class BaselineHydrationService:
 
         # Determine field type
         field_type = rule.metadata_json.get("field_type", "fixed")
+
+        # Skip scalar fields - they represent FK relationships, not valuation rules
+        if field_type == "scalar":
+            logger.info(
+                f"Skipping hydration for scalar field rule {rule.id} ({rule.name}). "
+                "Scalar fields represent foreign key relationships."
+            )
+            return []
 
         # Route to strategy
         if field_type == "enum_multiplier":
@@ -189,9 +221,7 @@ class BaselineHydrationService:
             return []
 
         if not valuation_buckets:
-            logger.warning(
-                f"Empty valuation_buckets for enum_multiplier rule {rule.id}"
-            )
+            logger.warning(f"Empty valuation_buckets for enum_multiplier rule {rule.id}")
             return []
 
         expanded_rules = []
@@ -250,6 +280,7 @@ class BaselineHydrationService:
                     "hydration_source_rule_id": rule.id,
                     "enum_value": enum_value,
                     "field_type": "enum_multiplier",
+                    "is_foreign_key_rule": self._is_foreign_key_rule(rule),
                 },
             )
             expanded_rules.append(new_rule)
@@ -274,9 +305,9 @@ class BaselineHydrationService:
         """
         # Check multiple possible formula keys
         formula_text = (
-            rule.metadata_json.get("formula_text") or
-            rule.metadata_json.get("Formula") or
-            rule.metadata_json.get("formula")
+            rule.metadata_json.get("formula_text")
+            or rule.metadata_json.get("Formula")
+            or rule.metadata_json.get("formula")
         )
 
         if not formula_text:
@@ -290,21 +321,31 @@ class BaselineHydrationService:
         # Validate that the formula can be parsed
         try:
             from dealbrain_core.rules.formula import FormulaEngine
+
             engine = FormulaEngine()
             # Try to parse the formula to ensure it's valid
             engine.parser.parse(formula_text)
             logger.info(
                 f"Formula validated successfully for rule {rule.id}",
-                extra={"rule_id": rule.id, "formula": formula_text}
+                extra={"rule_id": rule.id, "formula": formula_text},
             )
         except Exception as e:
-            logger.error(
-                f"Formula validation failed for rule {rule.id}: {str(e)}",
-                extra={"rule_id": rule.id, "formula": formula_text, "error": str(e)},
-                exc_info=True
+            logger.warning(
+                f"Formula contains pseudo-code for rule {rule.id}: {str(e)}. "
+                f"Creating placeholder rule for user configuration.",
+                extra={"rule_id": rule.id, "formula": formula_text},
             )
-            # Fall back to fixed strategy if formula is invalid
-            return await self._hydrate_fixed(session, rule, actor)
+            # Fall back to creating a placeholder fixed rule with metadata
+            return await self._hydrate_fixed(
+                session,
+                rule,
+                actor,
+                override_metadata={
+                    "original_formula_description": formula_text,
+                    "requires_user_configuration": True,
+                    "hydration_note": "Original formula was pseudo-code. Please configure manually.",
+                },
+            )
 
         action = {
             "action_type": "formula",
@@ -325,13 +366,21 @@ class BaselineHydrationService:
             conditions=[],  # Always applies
             actions=[action],
             created_by=actor,
-            metadata={"hydration_source_rule_id": rule.id, "field_type": "formula"},
+            metadata={
+                "hydration_source_rule_id": rule.id,
+                "field_type": "formula",
+                "is_foreign_key_rule": self._is_foreign_key_rule(rule),
+            },
         )
 
         return [new_rule]
 
     async def _hydrate_fixed(
-        self, session: AsyncSession, rule: ValuationRuleV2, actor: str
+        self,
+        session: AsyncSession,
+        rule: ValuationRuleV2,
+        actor: str,
+        override_metadata: dict[str, Any] | None = None,
     ) -> list[ValuationRuleV2]:
         """Create single rule with fixed value action.
 
@@ -342,6 +391,7 @@ class BaselineHydrationService:
             session: Database session
             rule: Placeholder rule to expand
             actor: User or system identifier
+            override_metadata: Additional metadata to merge into created rule
 
         Returns:
             List containing single fixed value rule
@@ -349,16 +399,19 @@ class BaselineHydrationService:
         # Extract value from metadata - check multiple possible keys
         # Try different key variants that may be present in metadata
         base_value = None
-        for key in ["default_value", "Default", "value", "Value"]:
+        for key in ["default_value", "Default", "value", "Value", "base_value"]:
             if key in rule.metadata_json:
                 base_value = rule.metadata_json[key]
                 break
 
         # If still no value found, use 0.0 as safe fallback
         if base_value is None:
-            logger.warning(
-                f"No default value found in metadata for fixed rule {rule.id}. "
-                f"Using 0.0 as fallback. Metadata keys: {list(rule.metadata_json.keys())}"
+            # For valuation rules without explicit defaults, 0.0 is appropriate
+            # (user will configure the actual value)
+            logger.info(
+                f"No default value in metadata for rule {rule.id} ({rule.name}). "
+                f"Using 0.0 as placeholder for user configuration. "
+                f"Available metadata keys: {list(rule.metadata_json.keys())}"
             )
             base_value = 0.0
 
@@ -381,6 +434,17 @@ class BaselineHydrationService:
             "modifiers": {},
         }
 
+        # Build metadata
+        metadata = {
+            "hydration_source_rule_id": rule.id,
+            "field_type": "fixed",
+            "is_foreign_key_rule": self._is_foreign_key_rule(rule),
+        }
+
+        # Merge override metadata if provided
+        if override_metadata:
+            metadata.update(override_metadata)
+
         new_rule = await self.rules_service.create_rule(
             session=session,
             group_id=rule.group_id,
@@ -391,7 +455,7 @@ class BaselineHydrationService:
             conditions=[],
             actions=[action],
             created_by=actor,
-            metadata={"hydration_source_rule_id": rule.id, "field_type": "fixed"},
+            metadata=metadata,
         )
 
         return [new_rule]
