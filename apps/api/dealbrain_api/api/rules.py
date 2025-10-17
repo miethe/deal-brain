@@ -1,6 +1,7 @@
 """API endpoints for valuation rules management"""
 
 from typing import Any
+from dealbrain_api.models.core import ValuationRuleGroup
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -322,17 +323,20 @@ async def list_rule_groups(
     ruleset_id: int | None = Query(None),
     category: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
-):
+) -> list[RuleGroupResponse]:
     """List rule groups"""
     service = RulesService()
-    groups = await service.list_rule_groups(
+    groups: list[ValuationRuleGroup] = await service.list_rule_groups(
         session=session,
         ruleset_id=ruleset_id,
         category=category,
     )
 
-    result = []
+    result: list[RuleGroupResponse] = []
     for g in groups:
+        if not g:  # Skip None entries if they somehow exist
+            continue
+            
         # Extract basic_managed and entity_key from metadata
         basic_managed, entity_key = extract_metadata_fields(g.metadata_json)
 
@@ -362,15 +366,15 @@ async def list_rule_groups(
 async def get_rule_group(
     group_id: int,
     session: AsyncSession = Depends(get_session),
-):
+) -> RuleGroupResponse:
     """Get a rule group by ID"""
     service = RulesService()
-    group = await service.get_rule_group(session, group_id)
+    group: ValuationRuleGroup | None = await service.get_rule_group(session, group_id)
 
     if not group:
         raise HTTPException(status_code=404, detail="Rule group not found")
 
-    rules = [
+    rules: list[RuleResponse] = [
         RuleResponse(
             id=rule.id,
             group_id=rule.group_id,
@@ -436,7 +440,7 @@ async def update_rule_group(
     group_id: int,
     request: RuleGroupUpdateRequest,
     session: AsyncSession = Depends(get_session),
-):
+) -> RuleGroupResponse:
     """Update a rule group"""
     service = RulesService()
 
@@ -467,7 +471,10 @@ async def update_rule_group(
             additional_metadata=updates.get("metadata")
         )
 
-    group = await service.update_rule_group(session, group_id, updates)
+    group: ValuationRuleGroup | None = await service.update_rule_group(session, group_id, updates)
+
+    if not group:
+        raise HTTPException(status_code=404, detail="Rule group not found")
 
     # Extract basic_managed and entity_key from metadata for response
     basic_managed, entity_key = extract_metadata_fields(group.metadata_json)
