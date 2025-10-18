@@ -1,20 +1,21 @@
-# Phase 1 Working Context
+# URL Ingestion Working Context
 
 **Document Type**: Token-efficient context for AI work sessions
 **Purpose**: Enable quick context re-entry across multiple work turns
-**Last Updated**: 2025-10-17
+**Last Updated**: 2025-10-18
 **Branch**: valuation-rules-enhance
 
 ---
 
 ## Current State
 
-**Phase**: Phase 1 - Foundation (Starting)
-**Status**: Just started, no work completed yet
-**Total Scope**: 8 foundational tasks, ~55 hours over 1.4 weeks
-**Success Metric**: All 8 tasks completed, migrations applied, schemas validated with tests
+**Phase**: Phase 2 - Scraping Infrastructure (In Progress)
+**Status**: Phase 1 complete, Phase 2 started
+**Phase 1**: Completed 2025-10-17 (8 tasks, ~55 hours)
+**Phase 2**: Started 2025-10-18 (7 tasks, ~115 hours over weeks 2-3)
+**Success Metric**: All adapter implementations working, deduplication preventing duplicates, full orchestration workflow functional
 
-**Key Milestone**: Database schema extended with URL ingestion support, foundational interfaces created, settings configured.
+**Key Milestone**: Implement eBay and JSON-LD adapters, build deduplication and normalization services, create event emission and full orchestration workflow.
 
 ---
 
@@ -272,21 +273,36 @@ ruff check --fix apps/api/dealbrain_api/models/core.py
 
 ## Phase Scope Summary
 
-Phase 1 establishes the **foundation for URL ingestion** by:
+### Phase 1: Foundation (COMPLETE - 2025-10-17)
 
-1. **Database Schema**: Extend Listing with marketplace-specific fields (vendor_item_id, marketplace, provenance, last_seen_at)
-2. **Job Tracking**: Extend ImportSession to support URL imports (single & bulk)
-3. **Schemas**: Define Pydantic contracts for request/response, normalized listing format
-4. **Base Adapter**: Create abstract interface for all extraction adapters
-5. **Configuration**: Add IngestionSettings with per-adapter toggles, timeouts, retries
+Phase 1 established the **foundation for URL ingestion** by:
+
+1. **Database Schema**: Extended Listing with marketplace-specific fields (vendor_item_id, marketplace, provenance, last_seen_at)
+2. **Job Tracking**: Extended ImportSession to support URL imports (single & bulk)
+3. **Schemas**: Defined Pydantic contracts for request/response, normalized listing format
+4. **Base Adapter**: Created abstract interface for all extraction adapters
+5. **Configuration**: Added IngestionSettings with per-adapter toggles, timeouts, retries
 6. **Debug Storage**: RawPayload table for storing raw adapter responses
 7. **Telemetry**: IngestionMetric table for monitoring adapter health & latency
-8. **Migrations**: Create & test all Alembic migrations
+8. **Migrations**: Created & tested all Alembic migrations
 
-**No adapters implemented yet** (that's Phase 2). Phase 1 is purely foundational: schema, interfaces, config.
+**Actual Effort**: 55 hours (on target)
+**Completed**: 2025-10-17
 
-**Estimated Effort**: 55 hours over 1.4 weeks
-**Target Completion**: ~2025-10-24 (end of week 1)
+### Phase 2: Scraping Infrastructure (IN PROGRESS - Started 2025-10-18)
+
+Phase 2 implements the **actual extraction and processing logic**:
+
+1. **eBay Adapter** (ID-009, 35h): eBay Browse API integration with item extraction
+2. **JSON-LD Adapter** (ID-010, 28h): Generic structured data extraction (Schema.org)
+3. **Adapter Router** (ID-011, 12h): Domain-based adapter selection with priority
+4. **Deduplication Service** (ID-012, 18h): Hash-based and key-based dedup logic
+5. **Normalizer/Enricher** (ID-013, 20h): Data standardization + CPU/component enrichment
+6. **Event Emission** (ID-014, 12h): listing.created, price.changed events
+7. **Orchestration Service** (ID-015, 10h): Full workflow coordination (adapter → normalize → dedupe → upsert)
+
+**Estimated Effort**: 115 hours over weeks 2-3
+**Target Completion**: ~2025-11-01 (end of week 3)
 
 ---
 
