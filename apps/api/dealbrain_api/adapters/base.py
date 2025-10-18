@@ -29,6 +29,8 @@ class AdapterError(str, Enum):
         ITEM_NOT_FOUND: Resource not found (404 or equivalent)
         NETWORK_ERROR: Network connectivity issue
         PARSE_ERROR: Failed to parse response data
+        NO_STRUCTURED_DATA: No structured data (JSON-LD/Microdata) found
+        NO_ADAPTER_FOUND: No adapter matches the given URL
     """
 
     TIMEOUT = "timeout"
@@ -38,6 +40,8 @@ class AdapterError(str, Enum):
     ITEM_NOT_FOUND = "item_not_found"
     NETWORK_ERROR = "network_error"
     PARSE_ERROR = "parse_error"
+    NO_STRUCTURED_DATA = "no_structured_data"
+    NO_ADAPTER_FOUND = "no_adapter_found"
 
 
 class AdapterException(Exception):

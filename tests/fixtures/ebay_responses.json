@@ -1,0 +1,168 @@
+{
+  "success_full_specs": {
+    "itemId": "v1|123456789012|0",
+    "title": "Gaming PC Intel Core i7-12700K 16GB RAM 512GB SSD Windows 11 Pro",
+    "price": {
+      "value": "599.99",
+      "currency": "USD"
+    },
+    "condition": "Used",
+    "image": {
+      "imageUrl": "https://i.ebayimg.com/images/g/abc123/s-l1600.jpg"
+    },
+    "seller": {
+      "username": "techdeals123",
+      "feedbackScore": 1523
+    },
+    "shortDescription": "High-performance gaming PC with Intel Core i7 processor, 16GB DDR4 RAM, 512GB NVMe SSD. Windows 11 Pro installed. Excellent condition, professionally refurbished.",
+    "localizedAspects": [
+      {
+        "name": "Processor",
+        "value": "Intel Core i7-12700K"
+      },
+      {
+        "name": "RAM Size",
+        "value": "16 GB"
+      },
+      {
+        "name": "SSD Capacity",
+        "value": "512 GB"
+      },
+      {
+        "name": "Operating System",
+        "value": "Windows 11 Pro"
+      }
+    ]
+  },
+  "success_minimal": {
+    "itemId": "v1|987654321098|0",
+    "title": "Dell OptiPlex 7050 Mini PC",
+    "price": {
+      "value": "199.50",
+      "currency": "USD"
+    },
+    "condition": "New"
+  },
+  "success_refurbished": {
+    "itemId": "v1|555555555555|0",
+    "title": "HP EliteDesk 800 G3 Desktop Computer",
+    "price": {
+      "value": "349.99",
+      "currency": "USD"
+    },
+    "condition": "Seller refurbished",
+    "image": {
+      "imageUrl": "https://i.ebayimg.com/images/g/xyz789/s-l1600.jpg"
+    },
+    "seller": {
+      "username": "refurb_depot",
+      "feedbackScore": 3421
+    },
+    "shortDescription": "Professionally refurbished HP desktop with Intel i5 processor.",
+    "localizedAspects": [
+      {
+        "name": "Processor Type",
+        "value": "Intel Core i5-7500"
+      },
+      {
+        "name": "Memory",
+        "value": "8 GB DDR4"
+      },
+      {
+        "name": "Hard Drive Capacity",
+        "value": "256 GB"
+      }
+    ]
+  },
+  "success_with_tb_storage": {
+    "itemId": "v1|111111111111|0",
+    "title": "Workstation PC Intel Xeon 32GB RAM 2TB SSD",
+    "price": {
+      "value": "1299.00",
+      "currency": "USD"
+    },
+    "condition": "Manufacturer refurbished",
+    "image": {
+      "imageUrl": "https://i.ebayimg.com/images/g/work123/s-l1600.jpg"
+    },
+    "seller": {
+      "username": "workstation_pros",
+      "feedbackScore": 892
+    },
+    "shortDescription": "Professional workstation with Xeon processor and large SSD.",
+    "localizedAspects": [
+      {
+        "name": "CPU",
+        "value": "Intel Xeon E-2286G"
+      },
+      {
+        "name": "RAM Size",
+        "value": "32 GB"
+      },
+      {
+        "name": "Storage",
+        "value": "2 TB SSD"
+      }
+    ]
+  },
+  "success_no_specs": {
+    "itemId": "v1|222222222222|0",
+    "title": "Generic Desktop Computer",
+    "price": {
+      "value": "150.00",
+      "currency": "USD"
+    },
+    "condition": "Used",
+    "image": {
+      "imageUrl": "https://i.ebayimg.com/images/g/generic/s-l1600.jpg"
+    },
+    "seller": {
+      "username": "budget_pcs"
+    },
+    "localizedAspects": []
+  },
+  "error_missing_title": {
+    "itemId": "v1|333333333333|0",
+    "price": {
+      "value": "100.00",
+      "currency": "USD"
+    },
+    "condition": "Used"
+  },
+  "error_missing_price": {
+    "itemId": "v1|444444444444|0",
+    "title": "Some PC Without Price",
+    "condition": "Used"
+  },
+  "success_itemspecifics_format": {
+    "itemId": "v1|666666666666|0",
+    "title": "Lenovo ThinkCentre M920q Tiny Desktop",
+    "price": {
+      "value": "425.00",
+      "currency": "USD"
+    },
+    "condition": "Used",
+    "image": {
+      "imageUrl": "https://i.ebayimg.com/images/g/lenovo/s-l1600.jpg"
+    },
+    "seller": {
+      "username": "tiny_pc_specialist",
+      "feedbackScore": 2134
+    },
+    "description": "Compact Lenovo desktop in excellent condition.",
+    "itemSpecifics": [
+      {
+        "name": "Processor",
+        "value": "Intel Core i7-9700T"
+      },
+      {
+        "name": "RAM",
+        "value": "16GB"
+      },
+      {
+        "name": "SSD Capacity",
+        "value": "512GB"
+      }
+    ]
+  }
+}

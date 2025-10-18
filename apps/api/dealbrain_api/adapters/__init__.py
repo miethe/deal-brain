@@ -7,6 +7,9 @@ from .base import (
     RateLimitConfig,
     RetryConfig,
 )
+from .ebay import EbayAdapter
+from .jsonld import JsonLdAdapter
+from .router import AVAILABLE_ADAPTERS, AdapterRouter
 
 __all__ = [
     "AdapterError",
@@ -14,4 +17,8 @@ __all__ = [
     "BaseAdapter",
     "RateLimitConfig",
     "RetryConfig",
+    "EbayAdapter",
+    "JsonLdAdapter",
+    "AdapterRouter",
+    "AVAILABLE_ADAPTERS",
 ]

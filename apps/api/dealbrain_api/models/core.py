@@ -365,6 +365,7 @@ class Listing(Base, TimestampMixin):
         onupdate=func.now(),
         nullable=False
     )
+    dedup_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     cpu_id: Mapped[int | None] = mapped_column(ForeignKey("cpu.id"))
     gpu_id: Mapped[int | None] = mapped_column(ForeignKey("gpu.id"))
     ports_profile_id: Mapped[int | None] = mapped_column(ForeignKey("ports_profile.id"))
