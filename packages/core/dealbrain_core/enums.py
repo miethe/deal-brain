@@ -78,6 +78,26 @@ class StorageMedium(str, Enum):
     UNKNOWN = "unknown"
 
 
+class Marketplace(str, Enum):
+    """Source marketplace for URL-ingested listings."""
+    EBAY = "ebay"
+    AMAZON = "amazon"
+    OTHER = "other"
+
+
+class SourceType(str, Enum):
+    """Type of import source for ImportSession."""
+    EXCEL = "excel"
+    URL_SINGLE = "url_single"
+    URL_BULK = "url_bulk"
+
+
+class SourceDataType(str, Enum):
+    """Type of raw payload data stored."""
+    JSON = "json"
+    HTML = "html"
+
+
 __all__ = [
     "Condition",
     "RamGeneration",
@@ -86,4 +106,7 @@ __all__ = [
     "ListingStatus",
     "PortType",
     "StorageMedium",
+    "Marketplace",
+    "SourceType",
+    "SourceDataType",
 ]
