@@ -12,8 +12,8 @@
 
 | ID | Task | Estimated | Status | Actual | Notes |
 |----|------|-----------|--------|--------|-------|
-| ID-016 | Celery Ingestion Task | 16h | 🔄 In Progress | - | Creating async task |
-| ID-017 | Single URL Import Endpoint | 14h | ⏳ Pending | - | POST /api/v1/ingest/single |
+| ID-016 | Celery Ingestion Task | 16h | ✅ Complete | ~12h | 8 tests passing, commit 830b91e |
+| ID-017 | Single URL Import Endpoint | 14h | ✅ Complete | ~10h | 14 tests passing, commit c22b69a |
 | ID-018 | Bulk Import Endpoint | 18h | ⏳ Pending | - | POST /api/v1/ingest/bulk |
 | ID-019 | Bulk Status Poll Endpoint | 12h | ⏳ Pending | - | GET /api/v1/ingest/bulk/:id |
 | ID-020 | ListingsService Integration | 12h | ⏳ Pending | - | Wire to existing service |
@@ -25,51 +25,77 @@
 
 ## Detailed Task Progress
 
-### Task ID-016: Celery Ingestion Task (16h) 🔄
+### Task ID-016: Celery Ingestion Task (16h) ✅
 
 **Goal**: Create async Celery task for URL ingestion with retry logic
 
 **Files**:
-- `apps/api/dealbrain_api/tasks/ingestion.py` (new)
+- `apps/api/dealbrain_api/tasks/ingestion.py` (NEW)
+- `tests/test_ingestion_task.py` (NEW)
 
 **Requirements**:
 - [x] Create `@celery_app.task` decorator
-- [ ] Implement `ingest_url_task(job_id, url, adapter_config)`
-- [ ] Call `IngestionService.ingest_single_url()`
-- [ ] Update ImportSession status (queued → running → complete/partial/failed)
-- [ ] Store result: listing_id, provenance, quality, errors
-- [ ] Implement retry logic (3 retries with exponential backoff)
-- [ ] Add comprehensive error handling
-- [ ] Write unit tests for task
-- [ ] Write integration tests for task execution
+- [x] Implement `ingest_url_task(job_id, url, adapter_config)`
+- [x] Call `IngestionService.ingest_single_url()`
+- [x] Update ImportSession status (queued → running → complete/partial/failed)
+- [x] Store result: listing_id, provenance, quality, errors
+- [x] Implement retry logic (3 retries with exponential backoff)
+- [x] Add comprehensive error handling
+- [x] Write unit tests for task (8 tests)
+- [x] Write integration tests for task execution
 
-**Status**: Starting implementation
+**Status**: ✅ COMPLETE (commit 830b91e)
+
+**Actual Effort**: ~12h (faster than estimate)
+
+**Test Coverage**: 8 tests passing - success, transient retry, permanent failure, session updates
 
 **Blockers**: None
 
 ---
 
-### Task ID-017: Single URL Import Endpoint (14h) ⏳
+### Task ID-017: Single URL Import Endpoint (14h) ✅
 
 **Goal**: Create FastAPI endpoint for single URL ingestion
 
 **Files**:
-- `apps/api/dealbrain_api/api/ingestion.py` (new)
+- `apps/api/dealbrain_api/api/ingestion.py` (NEW)
+- `apps/api/dealbrain_api/api/__init__.py` (MODIFIED - router registration)
+- `tests/test_ingestion_api.py` (NEW)
 
 **Requirements**:
-- [ ] Implement `POST /api/v1/ingest/single`
-- [ ] Accept `IngestionRequest` schema (url, priority optional)
-- [ ] Validate URL format (http/https, valid domain)
-- [ ] Create ImportSession record
-- [ ] Queue Celery task
-- [ ] Return 202 Accepted with job_id
-- [ ] Implement `GET /api/v1/ingest/{job_id}` status endpoint
-- [ ] Return full job status with listing details
-- [ ] Add API tests
+- [x] Implement `POST /api/v1/ingest/single`
+- [x] Accept `IngestionRequest` schema (url, priority optional)
+- [x] Validate URL format (http/https, valid domain)
+- [x] Create ImportSession record with source_type='url_single'
+- [x] Queue Celery task via `ingest_url_task.delay()`
+- [x] Return 202 Accepted with job_id
+- [x] Implement `GET /api/v1/ingest/{job_id}` status endpoint
+- [x] Return full job status with listing details (listing_id, provenance, quality, errors)
+- [x] Add comprehensive API tests (14 tests)
 
-**Status**: Pending completion of ID-016
+**Status**: ✅ COMPLETE (commit c22b69a)
 
-**Blockers**: Depends on ID-016 (Celery task)
+**Actual Effort**: ~10h (faster than estimate)
+
+**Test Coverage**: 14 tests passing covering:
+- POST success with valid URL
+- POST validation (invalid URL, missing URL, invalid priority)
+- POST default priority handling
+- ImportSession creation verification
+- GET status for all job states (queued, running, complete, partial, failed)
+- GET not found (404) and invalid UUID (422) handling
+- Integration test (create -> retrieve workflow)
+
+**Technical Implementation**:
+- Async FastAPI endpoints with `session_dependency()` injection
+- Proper HTTP status codes (202, 200, 404, 422, 500)
+- Comprehensive error handling and logging
+- Type hints throughout
+- Follows Deal Brain patterns (async SQLAlchemy, Pydantic schemas)
+- Black/ruff formatted
+
+**Blockers**: None (was dependent on ID-016, now complete)
 
 ---
 
@@ -222,4 +248,21 @@
 
 ---
 
-**Last Updated**: 2025-10-18
+---
+
+## Phase 3 Progress Summary
+
+**Completed Tasks**: 2/6 (33%)
+**Hours Spent**: ~22h / 80h estimated (28%)
+**Ahead of Schedule**: Yes (tasks completed faster than estimates)
+
+**Recent Completions**:
+- 2025-10-19: Task ID-017 complete (c22b69a) - Single URL Import Endpoint
+- 2025-10-19: Task ID-016 complete (830b91e) - Celery Ingestion Task
+
+**Next Up**:
+- Task ID-018: Bulk Import Endpoint (18h estimated)
+
+---
+
+**Last Updated**: 2025-10-19
