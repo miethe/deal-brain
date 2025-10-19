@@ -14,6 +14,8 @@
       "Bash(pnpm:*)",
       "Bash(uv:*)",
       "Bash(poetry:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
       "Bash(pip:*)",
       "Bash(find:*)",
       "Bash(git status:*)",

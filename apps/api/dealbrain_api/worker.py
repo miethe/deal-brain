@@ -22,6 +22,7 @@ def ping() -> str:
 
 
 # Import task modules to register with Celery
+from .tasks import ingestion as _ingestion_tasks  # noqa: F401
 from .tasks import valuation as _valuation_tasks  # noqa: F401
 
 
