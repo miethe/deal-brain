@@ -249,10 +249,126 @@ class BulkIngestionResponse(DealBrainModel):
     )
 
 
+class PerRowStatus(DealBrainModel):
+    """
+    Per-URL status information for bulk ingestion.
+
+    Attributes:
+        url: The URL being processed
+        status: Job status (queued|running|complete|partial|failed)
+        listing_id: Created listing ID if successful (optional)
+        error: Error message if failed (optional)
+    """
+
+    url: str = Field(
+        ...,
+        description="The URL being processed",
+    )
+    status: str = Field(
+        ...,
+        description="Job status",
+        pattern=r"^(queued|running|complete|partial|failed)$",
+    )
+    listing_id: int | None = Field(
+        default=None,
+        description="Created listing ID if successful",
+    )
+    error: str | None = Field(
+        default=None,
+        description="Error message if failed",
+    )
+
+
+class BulkIngestionStatusResponse(DealBrainModel):
+    """
+    Response schema for bulk ingestion status poll endpoint.
+
+    Attributes:
+        bulk_job_id: Unique bulk job identifier
+        status: Overall bulk job status (queued|running|complete|partial|failed)
+        total_urls: Total number of URLs in the bulk job
+        completed: Number of URLs that finished processing (complete + partial + failed)
+        success: Number of URLs successfully completed (complete only)
+        partial: Number of URLs partially completed
+        failed: Number of URLs that failed
+        running: Number of URLs currently running
+        queued: Number of URLs still queued
+        per_row_status: Per-URL status information with pagination
+        offset: Pagination offset
+        limit: Pagination limit
+        has_more: Whether there are more results beyond current page
+    """
+
+    bulk_job_id: str = Field(
+        ...,
+        description="Unique bulk job identifier",
+    )
+    status: str = Field(
+        ...,
+        description="Overall bulk job status",
+        pattern=r"^(queued|running|complete|partial|failed)$",
+    )
+    total_urls: int = Field(
+        ...,
+        description="Total number of URLs in the bulk job",
+        ge=0,
+    )
+    completed: int = Field(
+        ...,
+        description="Number of URLs that finished processing",
+        ge=0,
+    )
+    success: int = Field(
+        ...,
+        description="Number of URLs successfully completed",
+        ge=0,
+    )
+    partial: int = Field(
+        ...,
+        description="Number of URLs partially completed",
+        ge=0,
+    )
+    failed: int = Field(
+        ...,
+        description="Number of URLs that failed",
+        ge=0,
+    )
+    running: int = Field(
+        ...,
+        description="Number of URLs currently running",
+        ge=0,
+    )
+    queued: int = Field(
+        ...,
+        description="Number of URLs still queued",
+        ge=0,
+    )
+    per_row_status: list[PerRowStatus] = Field(
+        default_factory=list,
+        description="Per-URL status information with pagination",
+    )
+    offset: int = Field(
+        ...,
+        description="Pagination offset",
+        ge=0,
+    )
+    limit: int = Field(
+        ...,
+        description="Pagination limit",
+        ge=1,
+    )
+    has_more: bool = Field(
+        ...,
+        description="Whether there are more results beyond current page",
+    )
+
+
 __all__ = [
     "NormalizedListingSchema",
     "IngestionRequest",
     "IngestionResponse",
     "BulkIngestionRequest",
     "BulkIngestionResponse",
+    "PerRowStatus",
+    "BulkIngestionStatusResponse",
 ]

@@ -18,6 +18,7 @@
       "Bash(python3:*)",
       "Bash(pip:*)",
       "Bash(find:*)",
+      "Bash(echo:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git add:*)",

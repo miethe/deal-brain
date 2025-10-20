@@ -4,20 +4,24 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 
 from ..db import session_scope
-from ..models.core import ImportSession
+from ..models.core import ImportSession, RawPayload
 from ..services.ingestion import IngestionService
+from ..settings import get_settings
 from ..worker import celery_app
 
 logger = logging.getLogger(__name__)
 
 INGEST_TASK_NAME = "ingestion.ingest_url"
+CLEANUP_TASK_NAME = "ingestion.cleanup_expired_payloads"
 _INGEST_LOOP: asyncio.AbstractEventLoop | None = None
+_CLEANUP_LOOP: asyncio.AbstractEventLoop | None = None
 
 
 async def _ingest_url_async(
@@ -60,9 +64,7 @@ async def _ingest_url_async(
             # 4. Update ImportSession with result
             if ingest_result.success:
                 # Map quality to status: full → complete, partial → partial
-                import_session.status = (
-                    "complete" if ingest_result.quality == "full" else "partial"
-                )
+                import_session.status = "complete" if ingest_result.quality == "full" else "partial"
                 import_session.conflicts_json = {
                     "listing_id": ingest_result.listing_id,
                     "provenance": ingest_result.provenance,
@@ -214,4 +216,119 @@ def ingest_url_task(
         asyncio.set_event_loop(None)
 
 
-__all__ = ["ingest_url_task", "INGEST_TASK_NAME"]
+async def _cleanup_expired_payloads_async() -> dict[str, Any]:
+    """Async implementation of expired payload cleanup.
+
+    Deletes RawPayload records older than configured TTL.
+    Returns cleanup statistics for monitoring and logging.
+
+    Returns:
+        Dict with keys: deleted_count, ttl_days, cutoff_date
+
+    Example:
+        >>> result = await _cleanup_expired_payloads_async()
+        >>> print(f"Deleted {result['deleted_count']} payloads")
+    """
+    settings = get_settings()
+    ttl_days = settings.ingestion.raw_payload_ttl_days
+    cutoff_date = datetime.utcnow() - timedelta(days=ttl_days)
+
+    async with session_scope() as session:
+        # Count records to delete for statistics
+        count_stmt = (
+            select(func.count()).select_from(RawPayload).where(RawPayload.created_at < cutoff_date)
+        )
+        result = await session.execute(count_stmt)
+        count = result.scalar() or 0
+
+        # Delete expired records
+        if count > 0:
+            delete_stmt = delete(RawPayload).where(RawPayload.created_at < cutoff_date)
+            await session.execute(delete_stmt)
+            await session.commit()
+
+            logger.info(
+                "Cleanup completed: deleted expired raw payloads",
+                extra={
+                    "deleted_count": count,
+                    "ttl_days": ttl_days,
+                    "cutoff_date": cutoff_date.isoformat(),
+                },
+            )
+        else:
+            logger.info(
+                "Cleanup completed: no expired payloads found",
+                extra={
+                    "ttl_days": ttl_days,
+                    "cutoff_date": cutoff_date.isoformat(),
+                },
+            )
+
+        return {
+            "deleted_count": count,
+            "ttl_days": ttl_days,
+            "cutoff_date": cutoff_date.isoformat(),
+        }
+
+
+@celery_app.task(name=CLEANUP_TASK_NAME)
+def cleanup_expired_payloads_task() -> dict[str, Any]:
+    """Celery task for cleaning up expired raw payloads.
+
+    Runs as a periodic task (configured via Celery Beat) to remove
+    RawPayload records older than configured TTL. Prevents unbounded
+    storage growth while preserving recent payloads for debugging.
+
+    Returns:
+        Dict with cleanup statistics containing:
+        - deleted_count: Number of records deleted
+        - ttl_days: Configured TTL in days
+        - cutoff_date: ISO timestamp of cutoff date
+
+    Example:
+        >>> result = cleanup_expired_payloads_task.delay()
+        >>> result.get()
+        {'deleted_count': 42, 'ttl_days': 30, 'cutoff_date': '2025-09-19T...'}
+    """
+    logger.info("Starting raw payload cleanup task")
+
+    # Set up async event loop (pattern from ingest_url_task)
+    global _CLEANUP_LOOP
+    loop = _CLEANUP_LOOP
+    if loop is None or loop.is_closed():
+        loop = asyncio.new_event_loop()
+        _CLEANUP_LOOP = loop
+
+    try:
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(_cleanup_expired_payloads_async())
+
+        logger.info(
+            "Raw payload cleanup task complete",
+            extra={
+                "deleted_count": result["deleted_count"],
+                "ttl_days": result["ttl_days"],
+            },
+        )
+        return result
+
+    except Exception as e:
+        logger.exception("Error in raw payload cleanup task", extra={"error": str(e)})
+        # Return error result instead of raising to prevent beat schedule from stopping
+        return {
+            "deleted_count": 0,
+            "ttl_days": 0,
+            "cutoff_date": None,
+            "error": str(e),
+        }
+
+    finally:
+        asyncio.set_event_loop(None)
+
+
+__all__ = [
+    "ingest_url_task",
+    "cleanup_expired_payloads_task",
+    "INGEST_TASK_NAME",
+    "CLEANUP_TASK_NAME",
+]

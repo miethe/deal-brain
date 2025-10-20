@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import pytest
-import pytest_asyncio
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
+import pytest
+import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 try:  # pragma: no cover - optional dependency check
@@ -17,10 +18,14 @@ except ModuleNotFoundError:  # pragma: no cover - skip when unavailable
     aiosqlite = None
 
 from dealbrain_api.db import Base
-from dealbrain_api.models.core import ImportSession
+from dealbrain_api.models.core import ImportSession, Listing, RawPayload
 from dealbrain_api.services.ingestion import IngestionResult
-from dealbrain_api.tasks.ingestion import _ingest_url_async, ingest_url_task
-from dealbrain_core.enums import SourceType
+from dealbrain_api.tasks.ingestion import (
+    _cleanup_expired_payloads_async,
+    _ingest_url_async,
+    cleanup_expired_payloads_task,
+)
+from dealbrain_core.enums import Condition, SourceType
 
 
 @pytest_asyncio.fixture
@@ -518,3 +523,316 @@ async def test_result_storage_in_conflicts_json(
     assert stored["price"] == 749.99
     assert stored["vendor_item_id"] == "999"
     assert stored["marketplace"] == "ebay"
+
+
+# ========================================
+# Raw Payload Cleanup Tests
+# ========================================
+
+
+@pytest_asyncio.fixture
+async def sample_listing(db_session: AsyncSession):
+    """Create a sample listing for RawPayload tests."""
+    listing = Listing(
+        title="Test PC",
+        price_usd=599.99,
+        condition=Condition.USED.value,
+        marketplace="other",
+        seller="TestSeller",
+        dedup_hash="test_hash_123",
+    )
+    db_session.add(listing)
+    await db_session.flush()
+    return listing
+
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_payloads_deletes_old_records(
+    db_session: AsyncSession,
+    sample_listing: Listing,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test cleanup deletes records older than TTL."""
+    engine = db_session.bind
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def _session_scope_override():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.session_scope",
+        _session_scope_override,
+    )
+
+    # Create old payload (35 days ago) - should be deleted
+    old_date = datetime.utcnow() - timedelta(days=35)
+    old_payload = RawPayload(
+        listing_id=sample_listing.id,
+        adapter="ebay",
+        source_type="json",
+        payload={"old": "data"},
+        ttl_days=30,
+    )
+    old_payload.created_at = old_date
+    db_session.add(old_payload)
+
+    # Create recent payload (10 days ago) - should be preserved
+    recent_date = datetime.utcnow() - timedelta(days=10)
+    recent_payload = RawPayload(
+        listing_id=sample_listing.id,
+        adapter="jsonld",
+        source_type="json",
+        payload={"recent": "data"},
+        ttl_days=30,
+    )
+    recent_payload.created_at = recent_date
+    db_session.add(recent_payload)
+    await db_session.commit()
+
+    # Run cleanup
+    result = await _cleanup_expired_payloads_async()
+
+    # Verify result
+    assert result["deleted_count"] == 1
+    assert result["ttl_days"] == 30
+    assert "cutoff_date" in result
+
+    # Check DB state - only recent payload should remain
+    from sqlalchemy import select
+
+    stmt = select(RawPayload)
+    db_result = await db_session.execute(stmt)
+    payloads = db_result.scalars().all()
+
+    assert len(payloads) == 1
+    assert payloads[0].id == recent_payload.id
+    assert payloads[0].adapter == "jsonld"
+
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_payloads_preserves_recent_records(
+    db_session: AsyncSession,
+    sample_listing: Listing,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test cleanup preserves records newer than TTL."""
+    engine = db_session.bind
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def _session_scope_override():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.session_scope",
+        _session_scope_override,
+    )
+
+    # Create recent payloads (all within TTL)
+    for i in range(3):
+        recent_date = datetime.utcnow() - timedelta(days=i)
+        payload = RawPayload(
+            listing_id=sample_listing.id,
+            adapter=f"adapter_{i}",
+            source_type="json",
+            payload={"data": f"test_{i}"},
+            ttl_days=30,
+        )
+        payload.created_at = recent_date
+        db_session.add(payload)
+
+    await db_session.commit()
+
+    # Run cleanup
+    result = await _cleanup_expired_payloads_async()
+
+    # Verify no deletions
+    assert result["deleted_count"] == 0
+
+    # Check DB state - all payloads should remain
+    from sqlalchemy import select
+
+    stmt = select(RawPayload)
+    db_result = await db_session.execute(stmt)
+    payloads = db_result.scalars().all()
+
+    assert len(payloads) == 3
+
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_payloads_empty_table(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test cleanup handles empty table gracefully."""
+    engine = db_session.bind
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def _session_scope_override():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.session_scope",
+        _session_scope_override,
+    )
+
+    # Run cleanup on empty table
+    result = await _cleanup_expired_payloads_async()
+
+    # Verify no errors, zero deletions
+    assert result["deleted_count"] == 0
+    assert result["ttl_days"] == 30
+    assert "cutoff_date" in result
+
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_payloads_returns_statistics(
+    db_session: AsyncSession,
+    sample_listing: Listing,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test cleanup returns accurate statistics."""
+    engine = db_session.bind
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def _session_scope_override():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.session_scope",
+        _session_scope_override,
+    )
+
+    # Create multiple old payloads (40 days ago)
+    old_date = datetime.utcnow() - timedelta(days=40)
+    for i in range(5):
+        payload = RawPayload(
+            listing_id=sample_listing.id,
+            adapter=f"adapter_{i}",
+            source_type="json",
+            payload={"data": f"old_{i}"},
+            ttl_days=30,
+        )
+        payload.created_at = old_date
+        db_session.add(payload)
+
+    await db_session.commit()
+
+    # Run cleanup
+    result = await _cleanup_expired_payloads_async()
+
+    # Verify statistics
+    assert result["deleted_count"] == 5
+    assert result["ttl_days"] == 30
+    assert "cutoff_date" in result
+
+    # Verify cutoff_date is valid ISO format
+    cutoff = datetime.fromisoformat(result["cutoff_date"])
+    assert isinstance(cutoff, datetime)
+
+
+def test_cleanup_task_error_handling(monkeypatch: pytest.MonkeyPatch):
+    """Test cleanup task handles errors gracefully without crashing beat schedule."""
+
+    # Mock _cleanup_expired_payloads_async to raise exception
+    async def _mock_cleanup_error():
+        raise RuntimeError("Database connection failed")
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion._cleanup_expired_payloads_async",
+        _mock_cleanup_error,
+    )
+
+    # Run task - should not raise, should return error result
+    result = cleanup_expired_payloads_task()
+
+    # Verify error result returned (not raised)
+    assert result["deleted_count"] == 0
+    assert result["ttl_days"] == 0
+    assert result["cutoff_date"] is None
+    assert "error" in result
+    assert "Database connection failed" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_cleanup_respects_ttl_boundary(
+    db_session: AsyncSession,
+    sample_listing: Listing,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test cleanup respects exact TTL boundary (30 days)."""
+    engine = db_session.bind
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def _session_scope_override():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.session_scope",
+        _session_scope_override,
+    )
+
+    # Create payload exactly at TTL boundary (30 days + 1 hour ago - should be deleted)
+    boundary_old = datetime.utcnow() - timedelta(days=30, hours=1)
+    old_payload = RawPayload(
+        listing_id=sample_listing.id,
+        adapter="ebay",
+        source_type="json",
+        payload={"boundary": "old"},
+        ttl_days=30,
+    )
+    old_payload.created_at = boundary_old
+    db_session.add(old_payload)
+
+    # Create payload just inside TTL (29 days ago - should be preserved)
+    boundary_new = datetime.utcnow() - timedelta(days=29)
+    new_payload = RawPayload(
+        listing_id=sample_listing.id,
+        adapter="jsonld",
+        source_type="json",
+        payload={"boundary": "new"},
+        ttl_days=30,
+    )
+    new_payload.created_at = boundary_new
+    db_session.add(new_payload)
+    await db_session.commit()
+
+    # Run cleanup
+    result = await _cleanup_expired_payloads_async()
+
+    # Verify only old payload deleted
+    assert result["deleted_count"] == 1
+
+    # Check DB state
+    from sqlalchemy import select
+
+    stmt = select(RawPayload)
+    db_result = await db_session.execute(stmt)
+    payloads = db_result.scalars().all()
+
+    assert len(payloads) == 1
+    assert payloads[0].id == new_payload.id
