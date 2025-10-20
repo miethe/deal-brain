@@ -581,3 +581,251 @@ class TestEdgeCases:
 
         event = service.get_events()[0]
         assert before <= event.changed_at <= after
+
+
+class TestPriceThresholdEdgeCases:
+    """Test price threshold edge cases as specified in ID-026."""
+
+    def test_exactly_one_dollar_change_should_emit(self):
+        """Test exactly $1 change should emit."""
+        # $100 → $99 = exactly $1 change
+        result = should_emit_price_change(
+            Decimal("100.00"),
+            Decimal("99.00"),
+            Decimal("1.00"),  # Threshold
+            Decimal("5.0"),
+        )
+        assert result is True  # Exactly $1 meets threshold
+
+    def test_ninety_nine_cents_change_should_not_emit(self):
+        """Test $0.99 change should not emit."""
+        # $100 → $99.01 = $0.99 change
+        result = should_emit_price_change(
+            Decimal("100.00"),
+            Decimal("99.01"),
+            Decimal("1.00"),  # Threshold
+            Decimal("5.0"),
+        )
+        assert result is False  # $0.99 < $1
+
+    def test_exactly_two_percent_change_should_emit(self):
+        """Test exactly 2% change should emit."""
+        # $100 → $98 = exactly 2% change
+        result = should_emit_price_change(
+            Decimal("100.00"),
+            Decimal("98.00"),
+            Decimal("10.00"),  # High absolute threshold (not met)
+            Decimal("2.0"),  # Exactly 2%
+        )
+        assert result is True  # Exactly 2% meets threshold
+
+    def test_one_point_nine_percent_change_should_not_emit(self):
+        """Test 1.9% change should not emit."""
+        # $100 → $98.10 = 1.9% change
+        result = should_emit_price_change(
+            Decimal("100.00"),
+            Decimal("98.10"),
+            Decimal("10.00"),  # Not met
+            Decimal("2.0"),  # Not met (1.9% < 2%)
+        )
+        assert result is False
+
+    def test_small_absolute_large_percentage(self):
+        """Test small absolute change with large percentage."""
+        # $10 → $9 = $1 absolute, 10% change
+        # Threshold: $5 abs, 8% pct
+        result = should_emit_price_change(
+            Decimal("10.00"),
+            Decimal("9.00"),
+            Decimal("5.00"),  # $1 < $5 (not met)
+            Decimal("8.0"),  # 10% >= 8% (met)
+        )
+        assert result is True  # Percent threshold met
+
+    def test_large_absolute_small_percentage(self):
+        """Test large absolute change with small percentage."""
+        # $1000 → $990 = $10 absolute, 1% change
+        # Threshold: $5 abs, 5% pct
+        result = should_emit_price_change(
+            Decimal("1000.00"),
+            Decimal("990.00"),
+            Decimal("5.00"),  # $10 >= $5 (met)
+            Decimal("5.0"),  # 1% < 5% (not met)
+        )
+        assert result is True  # Absolute threshold met
+
+    def test_exactly_threshold_both_conditions(self):
+        """Test when both thresholds are exactly met."""
+        # $100 → $95 = $5 absolute, 5% change
+        # Threshold: $5 abs, 5% pct
+        result = should_emit_price_change(
+            Decimal("100.00"),
+            Decimal("95.00"),
+            Decimal("5.00"),  # Exactly met
+            Decimal("5.0"),  # Exactly met
+        )
+        assert result is True
+
+    def test_price_increase_meets_absolute_threshold(self):
+        """Test price increase meeting absolute threshold."""
+        # $100 → $105 = +$5 absolute, +5% change
+        result = should_emit_price_change(
+            Decimal("100.00"),
+            Decimal("105.00"),
+            Decimal("5.00"),  # $5 >= $5 (met)
+            Decimal("10.0"),  # 5% < 10% (not met)
+        )
+        assert result is True
+
+    def test_price_increase_meets_percent_threshold(self):
+        """Test price increase meeting percent threshold."""
+        # $100 → $103 = +$3 absolute, +3% change
+        result = should_emit_price_change(
+            Decimal("100.00"),
+            Decimal("103.00"),
+            Decimal("5.00"),  # $3 < $5 (not met)
+            Decimal("2.0"),  # 3% >= 2% (met)
+        )
+        assert result is True
+
+    def test_both_thresholds_not_met(self):
+        """Test when neither threshold is met."""
+        # $100 → $99.50 = $0.50 absolute, 0.5% change
+        # Threshold: $1 abs, 1% pct
+        result = should_emit_price_change(
+            Decimal("100.00"),
+            Decimal("99.50"),
+            Decimal("1.00"),  # $0.50 < $1 (not met)
+            Decimal("1.0"),  # 0.5% < 1% (not met)
+        )
+        assert result is False
+
+    def test_fractional_dollar_threshold(self):
+        """Test with fractional dollar threshold."""
+        # $100 → $99.50 = $0.50 change
+        result = should_emit_price_change(
+            Decimal("100.00"),
+            Decimal("99.50"),
+            Decimal("0.50"),  # Exactly met
+            Decimal("1.0"),
+        )
+        assert result is True
+
+    def test_very_small_price_change(self):
+        """Test with very small price change (pennies)."""
+        # $100.00 → $100.02 = $0.02 change, 0.02% change
+        result = should_emit_price_change(
+            Decimal("100.00"),
+            Decimal("100.02"),
+            Decimal("0.01"),  # $0.02 >= $0.01 (met)
+            Decimal("0.01"),  # 0.02% >= 0.01% (met)
+        )
+        assert result is True
+
+    def test_price_change_rounding_edge_case(self):
+        """Test price change with rounding edge cases."""
+        # $99.99 → $100.00 = $0.01 change, ~0.01% change
+        result = should_emit_price_change(
+            Decimal("99.99"),
+            Decimal("100.00"),
+            Decimal("0.01"),  # Exactly met
+            Decimal("0.01"),  # Should be met
+        )
+        assert result is True
+
+    def test_zero_price_thresholds(self):
+        """Test with zero thresholds (always emit)."""
+        # Any change should emit with zero thresholds
+        result = should_emit_price_change(
+            Decimal("100.00"),
+            Decimal("99.99"),
+            Decimal("0.00"),  # Zero threshold
+            Decimal("0.0"),  # Zero threshold
+        )
+        assert result is True  # $0.01 >= $0, 0.01% >= 0%
+
+    def test_negative_price_change_abs_value(self):
+        """Test that absolute value is used for comparison."""
+        # $100 → $110 = +$10, +10%
+        # Should use abs($10) and abs(10%) for threshold comparison
+        result = should_emit_price_change(
+            Decimal("100.00"),
+            Decimal("110.00"),
+            Decimal("10.00"),  # |+$10| >= $10 (met)
+            Decimal("20.0"),  # |+10%| < 20% (not met)
+        )
+        assert result is True
+
+    def test_high_precision_percentage_calculation(self):
+        """Test high precision percentage calculation."""
+        # $99.99 → $98.99 = $1.00, ~1.00010001%
+        result = should_emit_price_change(
+            Decimal("99.99"),
+            Decimal("98.99"),
+            Decimal("2.00"),  # Not met
+            Decimal("1.0"),  # Should be met (1.00010001% >= 1.0%)
+        )
+        assert result is True
+
+    def test_event_service_integration_exact_thresholds(self, monkeypatch):
+        """Test IngestionEventService with exact threshold values."""
+        # Mock settings with specific thresholds
+        mock_settings = MagicMock()
+        mock_settings.ingestion.price_change_threshold_abs = 1.0
+        mock_settings.ingestion.price_change_threshold_pct = 2.0
+
+        mock_get_settings = MagicMock(return_value=mock_settings)
+        monkeypatch.setattr("dealbrain_api.settings.get_settings", mock_get_settings)
+
+        service = IngestionEventService()
+
+        listing = MagicMock(spec=Listing)
+        listing.id = 1
+        listing.title = "PC"
+        listing.marketplace = "ebay"
+        listing.vendor_item_id = None
+
+        # Test exactly $1 change
+        emitted = service.check_and_emit_price_change(
+            listing, Decimal("100.00"), Decimal("99.00")
+        )
+        assert emitted is True
+
+        service.clear_events()
+
+        # Test $0.99 change (should not emit)
+        emitted = service.check_and_emit_price_change(
+            listing, Decimal("100.00"), Decimal("99.01")
+        )
+        assert emitted is False
+
+    def test_event_service_integration_percent_boundary(self, monkeypatch):
+        """Test IngestionEventService with percent boundary cases."""
+        mock_settings = MagicMock()
+        mock_settings.ingestion.price_change_threshold_abs = 10.0
+        mock_settings.ingestion.price_change_threshold_pct = 2.0
+
+        mock_get_settings = MagicMock(return_value=mock_settings)
+        monkeypatch.setattr("dealbrain_api.settings.get_settings", mock_get_settings)
+
+        service = IngestionEventService()
+
+        listing = MagicMock(spec=Listing)
+        listing.id = 1
+        listing.title = "PC"
+        listing.marketplace = "ebay"
+        listing.vendor_item_id = None
+
+        # Test exactly 2% change ($100 → $98)
+        emitted = service.check_and_emit_price_change(
+            listing, Decimal("100.00"), Decimal("98.00")
+        )
+        assert emitted is True
+
+        service.clear_events()
+
+        # Test 1.9% change ($100 → $98.10) - should not emit
+        emitted = service.check_and_emit_price_change(
+            listing, Decimal("100.00"), Decimal("98.10")
+        )
+        assert emitted is False

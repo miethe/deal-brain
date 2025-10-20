@@ -767,3 +767,349 @@ class TestNormalizeEndToEnd:
         assert enriched.seller == "eBaySeller123"
         assert enriched.description == "Test description"
         assert len(enriched.images) == 2
+
+
+class TestEdgeCasesAndUnusualFormats:
+    """Test edge cases and unusual data formats."""
+
+    def test_extract_cpu_amd_ryzen_various_formats(self, db_session: AsyncSession):
+        """Test CPU extraction for various AMD Ryzen formats."""
+        normalizer = ListingNormalizer(db_session)
+
+        # Ryzen 5
+        data1 = NormalizedListingSchema(
+            title="PC",
+            price=Decimal("599"),
+            description="AMD Ryzen 5 5600X processor",
+            marketplace="other",
+            condition="used",
+        )
+        specs1 = normalizer._extract_specs(data1)
+        assert "cpu_model" in specs1
+        assert "Ryzen 5" in specs1["cpu_model"]
+
+        # Ryzen 9
+        data2 = NormalizedListingSchema(
+            title="PC",
+            price=Decimal("599"),
+            description="Powered by AMD Ryzen 9 5900X",
+            marketplace="other",
+            condition="used",
+        )
+        specs2 = normalizer._extract_specs(data2)
+        assert "cpu_model" in specs2
+        assert "Ryzen 9" in specs2["cpu_model"]
+
+    def test_extract_ram_various_edge_cases(self, db_session: AsyncSession):
+        """Test RAM extraction with edge cases."""
+        normalizer = ListingNormalizer(db_session)
+
+        # Unusual spacing
+        test_cases = [
+            ("PC with 128GB RAM", 128),
+            ("PC with 3GB Memory", 3),
+            ("System: 48 GB DDR4", 48),
+            ("96GB installed", 96),
+        ]
+
+        for description, expected_ram in test_cases:
+            data = NormalizedListingSchema(
+                title="PC",
+                price=Decimal("599"),
+                description=description,
+                marketplace="other",
+                condition="used",
+            )
+            specs = normalizer._extract_specs(data)
+            assert specs.get("ram_gb") == expected_ram, f"Failed for: {description}"
+
+    def test_extract_storage_edge_cases(self, db_session: AsyncSession):
+        """Test storage extraction with various edge cases."""
+        normalizer = ListingNormalizer(db_session)
+
+        # TB values
+        data1 = NormalizedListingSchema(
+            title="PC",
+            price=Decimal("599"),
+            description="1TB SSD",
+            marketplace="other",
+            condition="used",
+        )
+        specs1 = normalizer._extract_specs(data1)
+        # Should handle 1TB = 1024GB
+        assert specs1.get("storage_gb") == 1024
+
+        # Multiple TB
+        data2 = NormalizedListingSchema(
+            title="PC",
+            price=Decimal("599"),
+            description="4TB HDD storage",
+            marketplace="other",
+            condition="used",
+        )
+        specs2 = normalizer._extract_specs(data2)
+        assert specs2.get("storage_gb") == 4096
+
+    def test_normalize_condition_lowercase_input(self, db_session: AsyncSession):
+        """Test condition normalization with lowercase input."""
+        normalizer = ListingNormalizer(db_session)
+
+        assert normalizer._normalize_condition("new") == "new"
+        assert normalizer._normalize_condition("refurbished") == "refurb"
+        assert normalizer._normalize_condition("used") == "used"
+
+    def test_normalize_condition_mixed_case(self, db_session: AsyncSession):
+        """Test condition normalization with mixed case."""
+        normalizer = ListingNormalizer(db_session)
+
+        assert normalizer._normalize_condition("NeW") == "new"
+        assert normalizer._normalize_condition("ReFuRbIsHeD") == "refurb"
+        assert normalizer._normalize_condition("UsEd") == "used"
+
+    def test_convert_usd_edge_cases(self, db_session: AsyncSession):
+        """Test currency conversion edge cases."""
+        normalizer = ListingNormalizer(db_session)
+
+        # Very small amounts
+        result1 = normalizer._convert_to_usd(Decimal("0.01"), "EUR")
+        assert result1 == Decimal("0.01")  # 0.01 * 1.08 = 0.0108 → 0.01
+
+        # Zero amount
+        result2 = normalizer._convert_to_usd(Decimal("0.00"), "USD")
+        assert result2 == Decimal("0.00")
+
+        # Very large amount
+        result3 = normalizer._convert_to_usd(Decimal("99999.99"), "GBP")
+        assert result3 == Decimal("126999.99")  # 99999.99 * 1.27
+
+    @pytest.mark.asyncio
+    async def test_canonicalize_cpu_basic(self, db_session: AsyncSession):
+        """Test CPU canonicalization basic functionality."""
+        cpu = Cpu(
+            name="Intel Core i7-12700K",
+            manufacturer="Intel",
+            cpu_mark_multi=30000,
+            cpu_mark_single=4000,
+            igpu_mark=2500,
+        )
+        db_session.add(cpu)
+        await db_session.commit()
+
+        normalizer = ListingNormalizer(db_session)
+
+        # Should match exact name
+        result = await normalizer._canonicalize_cpu("Intel Core i7-12700K")
+        assert result is not None
+        assert result["name"] == "Intel Core i7-12700K"
+
+    @pytest.mark.asyncio
+    async def test_canonicalize_cpu_unique_match(self, db_session: AsyncSession):
+        """Test CPU canonicalization with unique substring match."""
+        # Create CPU with unique identifier
+        cpu1 = Cpu(
+            name="Intel Core i7-12700K",
+            manufacturer="Intel",
+            cpu_mark_multi=30000,
+            cpu_mark_single=4000,
+            igpu_mark=2500,
+        )
+        db_session.add(cpu1)
+        await db_session.commit()
+
+        normalizer = ListingNormalizer(db_session)
+
+        # Should match with unique substring
+        result = await normalizer._canonicalize_cpu("i7-12700K")
+        assert result is not None
+        assert "12700K" in result["name"]
+
+    @pytest.mark.asyncio
+    async def test_normalize_with_invalid_currency(self, db_session: AsyncSession):
+        """Test normalization with invalid/unknown currency code."""
+        raw = NormalizedListingSchema(
+            title="Test PC",
+            price=Decimal("599.99"),
+            currency="XYZ",  # Invalid currency
+            condition="used",
+            marketplace="other",
+        )
+
+        normalizer = ListingNormalizer(db_session)
+        enriched = await normalizer.normalize(raw)
+
+        # Should default to treating as USD
+        assert enriched.price == Decimal("599.99")
+        assert enriched.currency == "USD"
+
+    @pytest.mark.asyncio
+    async def test_extract_specs_with_no_description(self, db_session: AsyncSession):
+        """Test spec extraction when description is None."""
+        normalizer = ListingNormalizer(db_session)
+
+        data = NormalizedListingSchema(
+            title="Gaming PC",
+            price=Decimal("599"),
+            description=None,
+            marketplace="other",
+            condition="used",
+        )
+
+        specs = normalizer._extract_specs(data)
+        assert specs == {}
+
+    @pytest.mark.asyncio
+    async def test_extract_specs_from_description(self, db_session: AsyncSession):
+        """Test spec extraction from description."""
+        normalizer = ListingNormalizer(db_session)
+
+        data = NormalizedListingSchema(
+            title="Gaming PC",
+            price=Decimal("599"),
+            description="Intel i7-12700K processor, 32GB RAM, 1TB SSD storage",
+            marketplace="other",
+            condition="used",
+        )
+
+        specs = normalizer._extract_specs(data)
+        # Should extract from description
+        assert specs.get("ram_gb") == 32
+        assert specs.get("storage_gb") == 1024
+
+    def test_assess_quality_with_all_none_optionals(self, db_session: AsyncSession):
+        """Test quality assessment when all optional fields are None."""
+        normalizer = ListingNormalizer(db_session)
+
+        data = NormalizedListingSchema(
+            title="PC",
+            price=Decimal("599.99"),
+            condition="used",
+            marketplace="other",
+            cpu_model=None,
+            ram_gb=None,
+            storage_gb=None,
+            images=None,
+            seller=None,
+            description=None,
+        )
+
+        quality = normalizer.assess_quality(data)
+        # Only 1 optional field (condition)
+        assert quality == "partial"
+
+    def test_assess_quality_exact_threshold(self, db_session: AsyncSession):
+        """Test quality assessment at exact threshold."""
+        normalizer = ListingNormalizer(db_session)
+
+        # Exactly 4 optional fields = full
+        data = NormalizedListingSchema(
+            title="PC",
+            price=Decimal("599.99"),
+            condition="new",  # 1
+            cpu_model="i7-12700K",  # 2
+            ram_gb=16,  # 3
+            storage_gb=512,  # 4
+            marketplace="other",
+        )
+
+        quality = normalizer.assess_quality(data)
+        assert quality == "full"
+
+    @pytest.mark.asyncio
+    async def test_normalize_with_all_specs_already_present(self, db_session: AsyncSession):
+        """Test normalization when all specs are already provided."""
+        raw = NormalizedListingSchema(
+            title="Workstation",
+            price=Decimal("1200"),
+            currency="USD",
+            condition="new",
+            cpu_model="AMD Ryzen 9 5950X",
+            ram_gb=64,
+            storage_gb=2048,
+            marketplace="other",
+            description="Some description without any specs",
+        )
+
+        normalizer = ListingNormalizer(db_session)
+        enriched = await normalizer.normalize(raw)
+
+        # Should preserve all provided specs
+        assert "AMD Ryzen 9 5950X" in enriched.cpu_model
+        assert enriched.ram_gb == 64
+        assert enriched.storage_gb == 2048
+
+    @pytest.mark.asyncio
+    async def test_normalize_preserves_vendor_item_id(self, db_session: AsyncSession):
+        """Test that vendor_item_id is preserved through normalization."""
+        raw = NormalizedListingSchema(
+            title="Test Listing",
+            price=Decimal("599.99"),
+            currency="USD",
+            condition="used",
+            marketplace="ebay",
+            vendor_item_id="123456789012",
+        )
+
+        normalizer = ListingNormalizer(db_session)
+        enriched = await normalizer.normalize(raw)
+
+        assert enriched.vendor_item_id == "123456789012"
+
+    def test_extract_cpu_with_ghz_in_description(self, db_session: AsyncSession):
+        """Test CPU extraction when GHz is included in description."""
+        normalizer = ListingNormalizer(db_session)
+
+        data = NormalizedListingSchema(
+            title="PC",
+            price=Decimal("599"),
+            description="Intel Core i9-12900K @ 3.2GHz base, 5.2GHz boost",
+            marketplace="other",
+            condition="used",
+        )
+
+        specs = normalizer._extract_specs(data)
+        assert "cpu_model" in specs
+        assert "i9-12900K" in specs["cpu_model"]
+
+    def test_extract_storage_standard_formats(self, db_session: AsyncSession):
+        """Test storage extraction with standard formats."""
+        normalizer = ListingNormalizer(db_session)
+
+        test_cases = [
+            ("512GB SSD", 512),
+            ("1TB HDD", 1024),
+            ("256GB storage", 256),
+        ]
+
+        for description, expected_storage in test_cases:
+            data = NormalizedListingSchema(
+                title="PC",
+                price=Decimal("599"),
+                description=description,
+                marketplace="other",
+                condition="used",
+            )
+
+            specs = normalizer._extract_specs(data)
+            assert (
+                specs.get("storage_gb") == expected_storage
+            ), f"Failed for: {description}"
+
+    @pytest.mark.asyncio
+    async def test_normalize_with_empty_strings(self, db_session: AsyncSession):
+        """Test normalization with empty string fields."""
+        raw = NormalizedListingSchema(
+            title="Test PC",
+            price=Decimal("599.99"),
+            currency="USD",
+            condition="used",
+            marketplace="other",
+            seller="",  # Empty string
+            description="",  # Empty string
+        )
+
+        normalizer = ListingNormalizer(db_session)
+        enriched = await normalizer.normalize(raw)
+
+        # Should handle empty strings gracefully
+        assert enriched.seller == ""
+        assert enriched.description == ""

@@ -667,3 +667,345 @@ class TestJsonLdAdapterIntegration:
         assert result.condition == "refurb"
         # Should take first seller
         assert result.seller == "Certified Refurbisher A"
+
+
+class TestJsonLdAdapterEdgeCases:
+    """Edge case tests to improve coverage."""
+
+    @pytest.fixture
+    def adapter(self):
+        """Create JsonLdAdapter instance."""
+        return JsonLdAdapter()
+
+    @pytest.mark.asyncio
+    async def test_malformed_json_handled_gracefully(self, adapter):
+        """Test handling of empty JSON-LD (no Product schema)."""
+        html = """
+        <html>
+        <head>
+            <script type="application/ld+json">
+            {
+                "@type": "WebPage",
+                "name": "Some Page"
+            }
+            </script>
+        </head>
+        <body>
+            <h1>Product Page</h1>
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            # Should fail when no Product schema found
+            with pytest.raises(AdapterException) as exc:
+                await adapter.extract("https://example.com/product")
+
+            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
+
+    @pytest.mark.asyncio
+    async def test_multiple_jsonld_scripts_first_not_product(self, adapter):
+        """Test handling multiple JSON-LD scripts where first is not Product."""
+        html = """
+        <script type="application/ld+json">
+        {
+            "@type": "Organization",
+            "name": "TechStore"
+        }
+        </script>
+        <script type="application/ld+json">
+        {
+            "@type": "Product",
+            "name": "Gaming PC",
+            "offers": {
+                "price": "599.99"
+            }
+        }
+        </script>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.title == "Gaming PC"
+        assert result.price == Decimal("599.99")
+
+    @pytest.mark.asyncio
+    async def test_price_as_float_not_string(self, adapter):
+        """Test price handling when provided as float instead of string."""
+        html = """
+        <script type="application/ld+json">
+        {
+            "@type": "Product",
+            "name": "PC",
+            "offers": {
+                "price": 599.99
+            }
+        }
+        </script>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.price == Decimal("599.99")
+
+    @pytest.mark.asyncio
+    async def test_missing_pricecurrency_defaults_to_usd(self, adapter):
+        """Test that missing priceCurrency defaults to USD."""
+        html = """
+        <script type="application/ld+json">
+        {
+            "@type": "Product",
+            "name": "PC",
+            "offers": {
+                "price": "599.99"
+            }
+        }
+        </script>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.currency == "USD"
+
+    @pytest.mark.asyncio
+    async def test_offers_as_aggregate_offer(self, adapter):
+        """Test handling of AggregateOffer with lowPrice."""
+        html = """
+        <script type="application/ld+json">
+        {
+            "@type": "Product",
+            "name": "PC",
+            "offers": {
+                "@type": "AggregateOffer",
+                "price": "549.99",
+                "lowPrice": "549.99",
+                "highPrice": "699.99",
+                "priceCurrency": "USD"
+            }
+        }
+        </script>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # Should extract price
+        assert result.price == Decimal("549.99")
+
+    @pytest.mark.asyncio
+    async def test_empty_offers_array(self, adapter):
+        """Test error when offers array is empty."""
+        html = """
+        <script type="application/ld+json">
+        {
+            "@type": "Product",
+            "name": "PC",
+            "offers": []
+        }
+        </script>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            with pytest.raises(AdapterException) as exc:
+                await adapter.extract("https://example.com/product")
+
+            assert exc.value.error_type == AdapterError.INVALID_SCHEMA
+
+    def test_extract_cpu_with_unusual_formats(self, adapter):
+        """Test CPU extraction with unusual formats."""
+        # Intel Core should work
+        text1 = "PC with Intel Core i7-12700K processor"
+        specs1 = adapter._extract_specs(text1)
+        assert "cpu_model" in specs1
+
+        # AMD Ryzen should work
+        text2 = "Workstation with AMD Ryzen 9 5950X"
+        specs2 = adapter._extract_specs(text2)
+        assert "cpu_model" in specs2
+        assert "ryzen" in specs2["cpu_model"].lower()
+
+    def test_extract_ram_from_title_when_missing_in_description(self, adapter):
+        """Test RAM extraction from combined title+description."""
+        text = "Gaming PC i7 32GB 1TB SSD"
+        specs = adapter._extract_specs(text)
+        assert specs["ram_gb"] == 32
+        assert specs["storage_gb"] == 1024
+
+    def test_extract_storage_with_multiple_values(self, adapter):
+        """Test storage extraction when multiple storage values present."""
+        # Should extract first match
+        text = "PC with 256GB SSD + 1TB HDD"
+        specs = adapter._extract_specs(text)
+        # Should find 256GB first
+        assert specs["storage_gb"] == 256
+
+    def test_extract_specs_with_mixed_units(self, adapter):
+        """Test spec extraction with mixed storage units."""
+        text = "Desktop: 512GB NVMe, 2TB HDD, 16GB DDR4 RAM"
+        specs = adapter._extract_specs(text)
+        # RAM extraction should find 16GB
+        assert specs.get("ram_gb") is not None
+        # Storage extraction should find some value
+        assert specs.get("storage_gb") is not None
+        assert specs["storage_gb"] > 0
+
+    @pytest.mark.asyncio
+    async def test_seller_from_nested_organization(self, adapter):
+        """Test extracting seller from nested organization structure."""
+        html = """
+        <script type="application/ld+json">
+        {
+            "@type": "Product",
+            "name": "PC",
+            "offers": {
+                "price": "599.99",
+                "seller": {
+                    "@type": "Organization",
+                    "name": "TechStore Inc.",
+                    "url": "https://techstore.com"
+                }
+            }
+        }
+        </script>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.seller == "TechStore Inc."
+
+    @pytest.mark.asyncio
+    async def test_image_as_object_with_url(self, adapter):
+        """Test image extraction when image is object with url field."""
+        html = """
+        <script type="application/ld+json">
+        {
+            "@type": "Product",
+            "name": "PC",
+            "image": {
+                "url": "https://example.com/img.jpg",
+                "width": 800,
+                "height": 600
+            },
+            "offers": {
+                "price": "599.99"
+            }
+        }
+        </script>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # Should extract image URL from object
+        assert len(result.images) > 0
+
+    @pytest.mark.asyncio
+    async def test_description_with_html_tags(self, adapter):
+        """Test description extraction when containing HTML tags."""
+        html = """
+        <script type="application/ld+json">
+        {
+            "@type": "Product",
+            "name": "PC",
+            "description": "Gaming PC with <b>Intel i7</b>, <i>16GB RAM</i>, 512GB SSD",
+            "offers": {
+                "price": "599.99"
+            }
+        }
+        </script>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # Should still extract specs from description with HTML tags
+        assert result.ram_gb == 16
+        assert result.storage_gb == 512
+
+    @pytest.mark.asyncio
+    async def test_condition_from_text_in_offers(self, adapter):
+        """Test condition detection from offer text fields."""
+        html = """
+        <script type="application/ld+json">
+        {
+            "@type": "Product",
+            "name": "PC",
+            "offers": {
+                "price": "399.99",
+                "availability": "https://schema.org/InStock",
+                "itemCondition": "Refurbished"
+            }
+        }
+        </script>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.condition == "refurb"
+
+    @pytest.mark.asyncio
+    async def test_microdata_extraction(self, adapter):
+        """Test microdata extraction with offer structure."""
+        html = """
+        <div itemscope itemtype="http://schema.org/Product">
+            <span itemprop="name">Gaming Desktop PC</span>
+            <div itemprop="offers" itemscope itemtype="http://schema.org/Offer">
+                <span itemprop="price">899.99</span>
+                <meta itemprop="priceCurrency" content="USD" />
+            </div>
+        </div>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.title == "Gaming Desktop PC"
+        assert result.price == Decimal("899.99")
+
+    def test_parse_price_with_euro_symbol(self, adapter):
+        """Test price parsing with Euro symbol."""
+        assert adapter._parse_price("€599.99") == Decimal("599.99")
+        assert adapter._parse_price("599.99€") == Decimal("599.99")
+
+    def test_parse_price_with_pound_symbol(self, adapter):
+        """Test price parsing with British pound symbol."""
+        assert adapter._parse_price("£599.99") == Decimal("599.99")
+        assert adapter._parse_price("599.99£") == Decimal("599.99")
+
+    def test_parse_price_zero(self, adapter):
+        """Test price parsing with zero value."""
+        assert adapter._parse_price("0") == Decimal("0")
+        assert adapter._parse_price("0.00") == Decimal("0.00")
+
+    def test_parse_price_very_large_number(self, adapter):
+        """Test price parsing with very large numbers."""
+        assert adapter._parse_price("99,999.99") == Decimal("99999.99")
+        assert adapter._parse_price("1,234,567.89") == Decimal("1234567.89")
+
+    @pytest.mark.asyncio
+    async def test_extract_with_whitespace_in_fields(self, adapter):
+        """Test extraction with excessive whitespace in fields."""
+        html = """
+        <script type="application/ld+json">
+        {
+            "@type": "Product",
+            "name": "  Gaming  PC  ",
+            "description": "  Intel i7  16GB  512GB  ",
+            "offers": {
+                "price": "  599.99  "
+            }
+        }
+        </script>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # Should handle whitespace correctly
+        assert result.title.strip() == "Gaming  PC"
+        assert result.price == Decimal("599.99")
