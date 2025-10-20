@@ -8,7 +8,7 @@ export type Provenance = 'ebay_api' | 'jsonld' | 'scraper';
 export type QualityLevel = 'full' | 'partial';
 
 // Priority for job processing
-export type ImportPriority = 'high' | 'standard' | 'low';
+export type ImportPriority = 'high' | 'normal';
 
 // Component state machine
 export type ImportState =

@@ -28,7 +28,7 @@ export function SingleUrlImportForm({
   onError,
   onReset,
   defaultUrl,
-  defaultPriority = 'standard',
+  defaultPriority = 'normal',
   compact = false,
   className,
 }: SingleUrlImportFormProps) {
@@ -195,8 +195,7 @@ export function SingleUrlImportForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="high">High - Process immediately</SelectItem>
-                <SelectItem value="standard">Standard - Normal queue</SelectItem>
-                <SelectItem value="low">Low - Background processing</SelectItem>
+                <SelectItem value="normal">Normal - Standard queue</SelectItem>
               </SelectContent>
             </Select>
           </div>

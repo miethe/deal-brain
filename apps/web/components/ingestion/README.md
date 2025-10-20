@@ -114,7 +114,7 @@ The component implements a finite state machine with the following states:
 **Submit Import:**
 ```
 POST /api/v1/ingest/single
-Body: { url: string, priority?: 'high' | 'standard' | 'low' }
+Body: { url: string, priority?: 'high' | 'normal' }
 Response: { job_id: string, status: 'queued' }
 ```
 

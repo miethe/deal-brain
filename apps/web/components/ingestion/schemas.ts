@@ -13,7 +13,7 @@ export const urlImportSchema = z.object({
       },
       { message: 'URL must start with http:// or https://' }
     ),
-  priority: z.enum(['high', 'standard', 'low']).optional().default('standard'),
+  priority: z.enum(['high', 'normal']).optional().default('normal'),
 });
 
 export type UrlImportFormData = z.infer<typeof urlImportSchema>;
