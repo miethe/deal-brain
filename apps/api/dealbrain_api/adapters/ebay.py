@@ -200,7 +200,7 @@ class EbayAdapter(BaseAdapter):
         # Check rate limit before making request
         await self._check_rate_limit()
 
-        url = f"{self.api_base}/item/v1|{item_id}|0"
+        url = f"{self.api_base}/item/{item_id}"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
