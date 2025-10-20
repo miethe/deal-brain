@@ -27,7 +27,7 @@ from ..tasks.ingestion import ingest_url_task
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/v1/ingest", tags=["ingestion"])
+router = APIRouter(prefix="/api/v1/ingest", tags=["ingestion"])
 
 
 # ============================================================================
