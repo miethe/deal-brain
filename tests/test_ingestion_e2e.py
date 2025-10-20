@@ -255,7 +255,7 @@ async def test_single_url_import_e2e_latency(app, db_session, mock_httpx_client,
     """Test single eBay URL import with realistic data and <10s p50 latency.
 
     Workflow:
-    1. POST /v1/ingest/single with eBay URL
+    1. POST /api/v1/ingest/single with eBay URL
     2. Celery task processes URL (mocked with direct service call)
     3. Measure end-to-end latency
     4. Verify listing created with all expected fields
@@ -353,7 +353,7 @@ async def test_bulk_import_50_urls_e2e(app, db_session, mock_httpx_client, bulk_
     """Test bulk import of 50 eBay URLs with realistic data and <3 min completion.
 
     Workflow:
-    1. POST /v1/ingest/bulk with CSV file (50 URLs)
+    1. POST /api/v1/ingest/bulk with CSV file (50 URLs)
     2. Verify parent ImportSession created
     3. Verify 50 child ImportSessions created
     4. Process all URLs (simulate Celery tasks with direct service calls)

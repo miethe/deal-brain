@@ -93,7 +93,7 @@ async def test_single_url_complete_flow(client, db_session, monkeypatch):
     """Test complete single URL ingestion workflow from API to ImportSession update.
 
     Workflow:
-    1. POST /v1/ingest/single → creates ImportSession with status=queued
+    1. POST /api/v1/ingest/single → creates ImportSession with status=queued
     2. Celery task executes → calls IngestionService.ingest_single_url (mocked)
     3. ImportSession updated → status=complete with result data
     4. Verify ImportSession reflects successful ingestion
@@ -103,7 +103,7 @@ async def test_single_url_complete_flow(client, db_session, monkeypatch):
     # Step 1: Create import job via API
     with patch("dealbrain_api.api.ingestion.ingest_url_task"):
         response = client.post(
-            "/v1/ingest/single",
+            "/api/v1/ingest/single",
             json={"url": test_url, "priority": "normal"},
         )
 
@@ -177,15 +177,15 @@ async def test_bulk_import_complete_flow(client, db_session, monkeypatch):
     """Test complete bulk import workflow.
 
     Workflow:
-    1. POST /v1/ingest/bulk with CSV → creates parent + child ImportSessions
+    1. POST /api/v1/ingest/bulk with CSV → creates parent + child ImportSessions
     2. Each child job executes (mocked)
-    3. GET /v1/ingest/bulk/{id} → poll status until all complete
+    3. GET /api/v1/ingest/bulk/{id} → poll status until all complete
     """
     csv_content = b"url\nhttps://www.ebay.com/itm/111\nhttps://www.ebay.com/itm/222"
 
     with patch("dealbrain_api.api.ingestion.ingest_url_task"):
         response = client.post(
-            "/v1/ingest/bulk",
+            "/api/v1/ingest/bulk",
             files={"file": ("urls.csv", csv_content, "text/csv")},
         )
 
@@ -219,7 +219,7 @@ async def test_bulk_import_complete_flow(client, db_session, monkeypatch):
     await db_session.commit()
 
     # Poll bulk status
-    response = client.get(f"/v1/ingest/bulk/{bulk_job_id}")
+    response = client.get(f"/api/v1/ingest/bulk/{bulk_job_id}")
     assert response.status_code == 200
     bulk_status = response.json()
 
@@ -260,7 +260,7 @@ async def test_reimport_same_url_no_duplicate(client, db_session, monkeypatch):
 
     # First import
     with patch("dealbrain_api.api.ingestion.ingest_url_task"):
-        response1 = client.post("/v1/ingest/single", json={"url": test_url})
+        response1 = client.post("/api/v1/ingest/single", json={"url": test_url})
     job_id_1 = UUID(response1.json()["job_id"])
 
     mock_result_1 = IngestionResult(
@@ -289,7 +289,7 @@ async def test_reimport_same_url_no_duplicate(client, db_session, monkeypatch):
 
     # Second import (re-import)
     with patch("dealbrain_api.api.ingestion.ingest_url_task"):
-        response2 = client.post("/v1/ingest/single", json={"url": test_url})
+        response2 = client.post("/api/v1/ingest/single", json={"url": test_url})
     job_id_2 = UUID(response2.json()["job_id"])
 
     mock_result_2 = IngestionResult(
@@ -347,7 +347,7 @@ async def test_price_change_workflow_tracking(client, db_session, monkeypatch):
 
     # First import (price $100)
     with patch("dealbrain_api.api.ingestion.ingest_url_task"):
-        response1 = client.post("/v1/ingest/single", json={"url": test_url})
+        response1 = client.post("/api/v1/ingest/single", json={"url": test_url})
     job_id_1 = UUID(response1.json()["job_id"])
 
     with patch("dealbrain_api.tasks.ingestion.IngestionService") as MockService:
@@ -372,7 +372,7 @@ async def test_price_change_workflow_tracking(client, db_session, monkeypatch):
 
     # Second import (price $105 - significant change)
     with patch("dealbrain_api.api.ingestion.ingest_url_task"):
-        response2 = client.post("/v1/ingest/single", json={"url": test_url})
+        response2 = client.post("/api/v1/ingest/single", json={"url": test_url})
     job_id_2 = UUID(response2.json()["job_id"])
 
     with patch("dealbrain_api.tasks.ingestion.IngestionService") as MockService:
@@ -433,7 +433,7 @@ async def test_adapter_disabled_error_handling(client, db_session, monkeypatch):
 
     # Create import job
     with patch("dealbrain_api.api.ingestion.ingest_url_task"):
-        response = client.post("/v1/ingest/single", json={"url": test_url})
+        response = client.post("/api/v1/ingest/single", json={"url": test_url})
 
     job_id = UUID(response.json()["job_id"])
 
@@ -517,7 +517,7 @@ async def test_bulk_import_pagination_works(client, db_session):
     await db_session.commit()
 
     # Test pagination: First page (limit=10)
-    response1 = client.get(f"/v1/ingest/bulk/{bulk_job_id}?offset=0&limit=10")
+    response1 = client.get(f"/api/v1/ingest/bulk/{bulk_job_id}?offset=0&limit=10")
     assert response1.status_code == 200
     data1 = response1.json()
 
@@ -526,7 +526,7 @@ async def test_bulk_import_pagination_works(client, db_session):
     assert data1["has_more"] is True
 
     # Test pagination: Second page
-    response2 = client.get(f"/v1/ingest/bulk/{bulk_job_id}?offset=10&limit=10")
+    response2 = client.get(f"/api/v1/ingest/bulk/{bulk_job_id}?offset=10&limit=10")
     assert response2.status_code == 200
     data2 = response2.json()
 
@@ -559,7 +559,7 @@ async def test_single_url_partial_quality(client, db_session, monkeypatch):
     monkeypatch.setattr("dealbrain_api.tasks.ingestion.session_scope", _session_scope_override)
 
     with patch("dealbrain_api.api.ingestion.ingest_url_task"):
-        response = client.post("/v1/ingest/single", json={"url": test_url})
+        response = client.post("/api/v1/ingest/single", json={"url": test_url})
 
     job_id = UUID(response.json()["job_id"])
 

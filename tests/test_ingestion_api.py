@@ -85,7 +85,7 @@ def test_create_single_url_import_success(client, db_session):
 
     with patch("dealbrain_api.api.ingestion.ingest_url_task") as mock_task:
         response = client.post(
-            "/v1/ingest/single",
+            "/api/v1/ingest/single",
             json={"url": test_url, "priority": "normal"},
         )
 
@@ -115,7 +115,7 @@ def test_create_single_url_import_success(client, db_session):
 def test_create_single_url_import_invalid_url(client):
     """Test single URL import with invalid URL format."""
     response = client.post(
-        "/v1/ingest/single",
+        "/api/v1/ingest/single",
         json={"url": "not-a-valid-url", "priority": "normal"},
     )
 
@@ -126,7 +126,7 @@ def test_create_single_url_import_invalid_url(client):
 def test_create_single_url_import_missing_url(client):
     """Test single URL import without URL field."""
     response = client.post(
-        "/v1/ingest/single",
+        "/api/v1/ingest/single",
         json={"priority": "normal"},
     )
 
@@ -139,7 +139,7 @@ def test_create_single_url_import_invalid_priority(client):
     test_url = "https://www.ebay.com/itm/123456789012"
 
     response = client.post(
-        "/v1/ingest/single",
+        "/api/v1/ingest/single",
         json={"url": test_url, "priority": "invalid_priority"},
     )
 
@@ -153,7 +153,7 @@ def test_create_single_url_import_default_priority(client, db_session):
 
     with patch("dealbrain_api.api.ingestion.ingest_url_task") as mock_task:
         response = client.post(
-            "/v1/ingest/single",
+            "/api/v1/ingest/single",
             json={"url": test_url},  # No priority specified
         )
 
@@ -173,7 +173,7 @@ async def test_create_single_url_import_creates_import_session(client, db_sessio
 
     with patch("dealbrain_api.api.ingestion.ingest_url_task"):
         response = client.post(
-            "/v1/ingest/single",
+            "/api/v1/ingest/single",
             json={"url": test_url, "priority": "high"},
         )
 
@@ -220,7 +220,7 @@ async def test_get_ingestion_status_queued(client, db_session):
     await db_session.commit()
 
     # Get status
-    response = client.get(f"/v1/ingest/{job_id}")
+    response = client.get(f"/api/v1/ingest/{job_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -262,7 +262,7 @@ async def test_get_ingestion_status_complete(client, db_session):
     await db_session.commit()
 
     # Get status
-    response = client.get(f"/v1/ingest/{job_id}")
+    response = client.get(f"/api/v1/ingest/{job_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -302,7 +302,7 @@ async def test_get_ingestion_status_partial(client, db_session):
     await db_session.commit()
 
     # Get status
-    response = client.get(f"/v1/ingest/{job_id}")
+    response = client.get(f"/api/v1/ingest/{job_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -337,7 +337,7 @@ async def test_get_ingestion_status_failed(client, db_session):
     await db_session.commit()
 
     # Get status
-    response = client.get(f"/v1/ingest/{job_id}")
+    response = client.get(f"/api/v1/ingest/{job_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -353,7 +353,7 @@ def test_get_ingestion_status_not_found(client):
     """Test getting status of non-existent job."""
     fake_job_id = uuid4()
 
-    response = client.get(f"/v1/ingest/{fake_job_id}")
+    response = client.get(f"/api/v1/ingest/{fake_job_id}")
 
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
@@ -361,7 +361,7 @@ def test_get_ingestion_status_not_found(client):
 
 def test_get_ingestion_status_invalid_uuid(client):
     """Test getting status with invalid UUID format."""
-    response = client.get("/v1/ingest/not-a-valid-uuid")
+    response = client.get("/api/v1/ingest/not-a-valid-uuid")
 
     assert response.status_code == 422
     assert "invalid" in response.json()["detail"].lower()
@@ -389,7 +389,7 @@ async def test_get_ingestion_status_running(client, db_session):
     await db_session.commit()
 
     # Get status
-    response = client.get(f"/v1/ingest/{job_id}")
+    response = client.get(f"/api/v1/ingest/{job_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -411,7 +411,7 @@ async def test_create_and_retrieve_workflow(client, db_session):
     # Step 1: Create import job
     with patch("dealbrain_api.api.ingestion.ingest_url_task"):
         create_response = client.post(
-            "/v1/ingest/single",
+            "/api/v1/ingest/single",
             json={"url": test_url, "priority": "normal"},
         )
 
@@ -419,7 +419,7 @@ async def test_create_and_retrieve_workflow(client, db_session):
     job_id = create_response.json()["job_id"]
 
     # Step 2: Retrieve job status
-    status_response = client.get(f"/v1/ingest/{job_id}")
+    status_response = client.get(f"/api/v1/ingest/{job_id}")
 
     assert status_response.status_code == 200
     status_data = status_response.json()
@@ -441,7 +441,7 @@ async def test_create_and_retrieve_workflow(client, db_session):
     await db_session.commit()
 
     # Step 4: Retrieve updated status
-    final_response = client.get(f"/v1/ingest/{job_id}")
+    final_response = client.get(f"/api/v1/ingest/{job_id}")
 
     assert final_response.status_code == 200
     final_data = final_response.json()
@@ -462,7 +462,7 @@ def test_create_bulk_import_csv_success(client, db_session):
 
     with patch("dealbrain_api.api.ingestion.ingest_url_task") as mock_task:
         response = client.post(
-            "/v1/ingest/bulk",
+            "/api/v1/ingest/bulk",
             files={"file": ("urls.csv", csv_content, "text/csv")},
         )
 
@@ -490,7 +490,7 @@ def test_create_bulk_import_json_success(client, db_session):
 
     with patch("dealbrain_api.api.ingestion.ingest_url_task") as mock_task:
         response = client.post(
-            "/v1/ingest/bulk",
+            "/api/v1/ingest/bulk",
             files={"file": ("urls.json", json_content, "application/json")},
         )
 
@@ -511,7 +511,7 @@ def test_create_bulk_import_empty_file(client):
     empty_content = b""
 
     response = client.post(
-        "/v1/ingest/bulk",
+        "/api/v1/ingest/bulk",
         files={"file": ("empty.csv", empty_content, "text/csv")},
     )
 
@@ -526,7 +526,7 @@ def test_create_bulk_import_too_many_urls(client):
     csv_content = "".join(urls).encode("utf-8")
 
     response = client.post(
-        "/v1/ingest/bulk",
+        "/api/v1/ingest/bulk",
         files={"file": ("too_many.csv", csv_content, "text/csv")},
     )
 
@@ -539,7 +539,7 @@ def test_create_bulk_import_invalid_csv(client):
     invalid_csv = b"not,a,valid,csv\nwithout,proper,headers"
 
     response = client.post(
-        "/v1/ingest/bulk",
+        "/api/v1/ingest/bulk",
         files={"file": ("invalid.csv", invalid_csv, "text/csv")},
     )
 
@@ -552,7 +552,7 @@ def test_create_bulk_import_invalid_json(client):
     invalid_json = b'{"not": "an array"}'
 
     response = client.post(
-        "/v1/ingest/bulk",
+        "/api/v1/ingest/bulk",
         files={"file": ("invalid.json", invalid_json, "application/json")},
     )
 
@@ -565,7 +565,7 @@ def test_create_bulk_import_invalid_urls(client):
     csv_content = b"url\nnot-a-valid-url\nhttp://valid.com\ninvalid-url-2"
 
     response = client.post(
-        "/v1/ingest/bulk",
+        "/api/v1/ingest/bulk",
         files={"file": ("bad_urls.csv", csv_content, "text/csv")},
     )
 
@@ -580,7 +580,7 @@ def test_create_bulk_import_deduplicates_urls(client, db_session):
 
     with patch("dealbrain_api.api.ingestion.ingest_url_task") as mock_task:
         response = client.post(
-            "/v1/ingest/bulk",
+            "/api/v1/ingest/bulk",
             files={"file": ("duplicates.csv", csv_content, "text/csv")},
         )
 
@@ -600,7 +600,7 @@ async def test_create_bulk_import_creates_parent_child_sessions(client, db_sessi
 
     with patch("dealbrain_api.api.ingestion.ingest_url_task"):
         response = client.post(
-            "/v1/ingest/bulk",
+            "/api/v1/ingest/bulk",
             files={"file": ("urls.csv", csv_content, "text/csv")},
         )
 
@@ -640,7 +640,7 @@ async def test_create_bulk_import_queues_celery_tasks(client, db_session):
 
     with patch("dealbrain_api.api.ingestion.ingest_url_task") as mock_task:
         response = client.post(
-            "/v1/ingest/bulk",
+            "/api/v1/ingest/bulk",
             files={"file": ("urls.csv", csv_content, "text/csv")},
         )
 
@@ -664,7 +664,7 @@ def test_create_bulk_import_no_valid_urls(client):
     csv_content = b"url\n\n\n"
 
     response = client.post(
-        "/v1/ingest/bulk",
+        "/api/v1/ingest/bulk",
         files={"file": ("empty_rows.csv", csv_content, "text/csv")},
     )
 
@@ -723,7 +723,7 @@ async def test_get_bulk_status_all_queued(client, db_session):
     await db_session.commit()
 
     # Get bulk status
-    response = client.get(f"/v1/ingest/bulk/{bulk_job_id}")
+    response = client.get(f"/api/v1/ingest/bulk/{bulk_job_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -791,7 +791,7 @@ async def test_get_bulk_status_running(client, db_session):
     await db_session.commit()
 
     # Get bulk status
-    response = client.get(f"/v1/ingest/bulk/{bulk_job_id}")
+    response = client.get(f"/api/v1/ingest/bulk/{bulk_job_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -854,7 +854,7 @@ async def test_get_bulk_status_complete(client, db_session):
     await db_session.commit()
 
     # Get bulk status
-    response = client.get(f"/v1/ingest/bulk/{bulk_job_id}")
+    response = client.get(f"/api/v1/ingest/bulk/{bulk_job_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -929,7 +929,7 @@ async def test_get_bulk_status_partial(client, db_session):
     await db_session.commit()
 
     # Get bulk status
-    response = client.get(f"/v1/ingest/bulk/{bulk_job_id}")
+    response = client.get(f"/api/v1/ingest/bulk/{bulk_job_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -993,7 +993,7 @@ async def test_get_bulk_status_failed(client, db_session):
     await db_session.commit()
 
     # Get bulk status
-    response = client.get(f"/v1/ingest/bulk/{bulk_job_id}")
+    response = client.get(f"/api/v1/ingest/bulk/{bulk_job_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -1012,7 +1012,7 @@ def test_get_bulk_status_not_found(client):
     """Test bulk status retrieval for non-existent bulk job."""
     fake_bulk_job_id = uuid4()
 
-    response = client.get(f"/v1/ingest/bulk/{fake_bulk_job_id}")
+    response = client.get(f"/api/v1/ingest/bulk/{fake_bulk_job_id}")
 
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
@@ -1020,7 +1020,7 @@ def test_get_bulk_status_not_found(client):
 
 def test_get_bulk_status_invalid_uuid(client):
     """Test bulk status retrieval with invalid UUID format."""
-    response = client.get("/v1/ingest/bulk/not-a-valid-uuid")
+    response = client.get("/api/v1/ingest/bulk/not-a-valid-uuid")
 
     assert response.status_code == 422
     assert "invalid" in response.json()["detail"].lower()
@@ -1071,7 +1071,7 @@ async def test_get_bulk_status_pagination(client, db_session):
     await db_session.commit()
 
     # Test pagination: Get first 5 results (offset=0, limit=5)
-    response = client.get(f"/v1/ingest/bulk/{bulk_job_id}?offset=0&limit=5")
+    response = client.get(f"/api/v1/ingest/bulk/{bulk_job_id}?offset=0&limit=5")
 
     assert response.status_code == 200
     data = response.json()
@@ -1082,7 +1082,7 @@ async def test_get_bulk_status_pagination(client, db_session):
     assert data["has_more"] is True  # More results available
 
     # Test pagination: Get next 5 results (offset=5, limit=5)
-    response2 = client.get(f"/v1/ingest/bulk/{bulk_job_id}?offset=5&limit=5")
+    response2 = client.get(f"/api/v1/ingest/bulk/{bulk_job_id}?offset=5&limit=5")
 
     assert response2.status_code == 200
     data2 = response2.json()
@@ -1135,13 +1135,13 @@ async def test_get_bulk_status_has_more_flag(client, db_session):
     await db_session.commit()
 
     # Test 1: offset=0, limit=5 -> has_more=True (7 > 0+5)
-    response1 = client.get(f"/v1/ingest/bulk/{bulk_job_id}?offset=0&limit=5")
+    response1 = client.get(f"/api/v1/ingest/bulk/{bulk_job_id}?offset=0&limit=5")
     assert response1.json()["has_more"] is True
 
     # Test 2: offset=0, limit=10 -> has_more=False (7 <= 0+10)
-    response2 = client.get(f"/v1/ingest/bulk/{bulk_job_id}?offset=0&limit=10")
+    response2 = client.get(f"/api/v1/ingest/bulk/{bulk_job_id}?offset=0&limit=10")
     assert response2.json()["has_more"] is False
 
     # Test 3: offset=5, limit=3 -> has_more=False (7 <= 5+3)
-    response3 = client.get(f"/v1/ingest/bulk/{bulk_job_id}?offset=5&limit=3")
+    response3 = client.get(f"/api/v1/ingest/bulk/{bulk_job_id}?offset=5&limit=3")
     assert response3.json()["has_more"] is False
