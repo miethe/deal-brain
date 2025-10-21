@@ -156,22 +156,128 @@ class AdapterRouter:
 
     async def extract(self, url: str) -> NormalizedListingSchema:
         """
-        Convenience method: select adapter and extract in one call.
+        Extract data using fallback chain.
 
-        This method combines adapter selection and extraction into a single
-        operation. It's the recommended way to use the router for simple cases.
+        Tries adapters in priority order until one succeeds. This implements
+        the adapter fallback mechanism:
+        1. Get list of matching adapters sorted by priority
+        2. Try each adapter in order
+        3. Log each attempt
+        4. Catch AdapterException and ValueError (init failures)
+        5. Continue to next adapter if one fails
+        6. Raise ALL_ADAPTERS_FAILED if all fail
+
+        Fast-fail conditions:
+        - ITEM_NOT_FOUND: Don't retry if item doesn't exist
+        - ADAPTER_DISABLED: Don't retry if adapter is disabled
 
         Args:
             url: The URL to extract data from
 
         Returns:
-            Normalized listing data
+            Normalized listing data from first successful adapter
 
         Raises:
-            AdapterException: If adapter selection or extraction fails
+            AdapterException: If all adapters fail or item not found
         """
-        adapter = self.select_adapter(url)
-        return await adapter.extract(url)
+        logger.debug(f"Starting fallback chain for URL: {url}")
+
+        # Step 1: Parse URL to get domain
+        try:
+            domain = self._extract_domain(url)
+            logger.debug(f"Extracted domain: {domain}")
+        except Exception as e:
+            raise AdapterException(
+                AdapterError.PARSE_ERROR,
+                f"Invalid URL format: {url}",
+                metadata={"url": url, "error": str(e)},
+            ) from e
+
+        # Step 2: Get all matching adapters sorted by priority
+        matching = self._get_matching_adapters_sorted(url, domain)
+
+        if not matching:
+            raise AdapterException(
+                AdapterError.NO_ADAPTER_FOUND,
+                f"No adapter found for URL: {url}",
+                metadata={"url": url, "domain": domain},
+            )
+
+        # Step 3: Try each adapter in priority order
+        last_error = None
+        attempted_adapters = []
+
+        for adapter_class in matching:
+            adapter_name = self._get_adapter_name(adapter_class)
+
+            try:
+                # Check if adapter is enabled before trying
+                if not self._is_adapter_class_enabled(adapter_class):
+                    logger.info(f"Skipping {adapter_name} adapter (disabled in settings)")
+                    raise AdapterException(
+                        AdapterError.ADAPTER_DISABLED,
+                        f"{adapter_name} adapter is disabled in settings",
+                        metadata={"adapter": adapter_name, "url": url},
+                    )
+
+                # Try to initialize adapter
+                logger.info(f"Trying adapter {adapter_name} for {url}")
+                adapter = adapter_class()
+                attempted_adapters.append(adapter_name)
+
+                # Try to extract
+                result = await adapter.extract(url)
+
+                logger.info(f"Success with {adapter_name} adapter")
+                return result
+
+            except AdapterException as e:
+                # Adapter-specific error (timeout, parse error, etc.)
+                last_error = e
+                logger.warning(
+                    f"{adapter_name} adapter failed: [{e.error_type.value}] {e.message}"
+                )
+
+                # Don't retry if item not found or adapter disabled
+                if e.error_type in {AdapterError.ITEM_NOT_FOUND, AdapterError.ADAPTER_DISABLED}:
+                    logger.info(f"Fast-fail for {e.error_type.value}, not trying other adapters")
+                    raise
+
+                # Try next adapter
+                continue
+
+            except ValueError as e:
+                # Initialization error (missing API key, etc.)
+                last_error = AdapterException(
+                    AdapterError.CONFIGURATION_ERROR,
+                    str(e),
+                    metadata={"adapter": adapter_name, "url": url},
+                )
+                logger.warning(f"{adapter_name} adapter initialization failed: {e}")
+                continue
+
+            except Exception as e:
+                # Unexpected error
+                last_error = AdapterException(
+                    AdapterError.NETWORK_ERROR,
+                    f"Unexpected error in {adapter_name}: {e}",
+                    metadata={"adapter": adapter_name, "url": url},
+                )
+                logger.error(f"{adapter_name} adapter unexpected error: {e}", exc_info=True)
+                continue
+
+        # All adapters failed
+        error_details = {
+            "attempted_adapters": attempted_adapters,
+            "last_error_type": last_error.error_type.value if last_error else None,
+            "last_error_message": str(last_error) if last_error else None,
+        }
+
+        raise AdapterException(
+            AdapterError.ALL_ADAPTERS_FAILED,
+            f"All {len(attempted_adapters)} adapters failed for {url}",
+            metadata=error_details,
+        )
 
     def _extract_domain(self, url: str) -> str:
         """
@@ -239,6 +345,35 @@ class AdapterRouter:
                     f"Adapter {adapter_name} matches domain {domain} "
                     f"(priority {adapter_priority})"
                 )
+
+        return matching
+
+    def _get_matching_adapters_sorted(
+        self, url: str, domain: str
+    ) -> list[type[BaseAdapter]]:
+        """
+        Get all matching adapters sorted by priority.
+
+        This is the internal method used by the fallback chain. It finds
+        all adapters that support the URL and sorts them by priority
+        (lower number = higher priority).
+
+        Args:
+            url: Original URL (for logging)
+            domain: Normalized domain from URL
+
+        Returns:
+            List of adapter classes sorted by priority (highest first)
+        """
+        matching = self._find_matching_adapters(url, domain)
+        matching.sort(key=lambda a: self._get_adapter_priority(a))
+
+        if matching:
+            adapter_names = [
+                f"{self._get_adapter_name(a)} (priority {self._get_adapter_priority(a)})"
+                for a in matching
+            ]
+            logger.debug(f"Matching adapters in priority order: {', '.join(adapter_names)}")
 
         return matching
 

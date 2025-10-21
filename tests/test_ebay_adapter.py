@@ -57,11 +57,14 @@ class TestEbayAdapterInit:
         assert adapter.api_base == "https://api.ebay.com/buy/browse/v1"
 
     def test_init_missing_api_key(self, mock_settings):
-        """Test initialization fails without API key."""
+        """Test initialization succeeds without API key (validation deferred to extract)."""
         mock_settings.return_value.ingestion.ebay.api_key = None
 
-        with pytest.raises(ValueError, match="eBay Browse API key not configured"):
-            EbayAdapter()
+        # Initialization should succeed (no longer raises ValueError)
+        adapter = EbayAdapter()
+
+        # API key should be None
+        assert adapter.api_key is None
 
     def test_supports_url(self, adapter):
         """Test URL domain matching."""
@@ -528,6 +531,23 @@ class TestExtractEndToEnd:
                 await adapter.extract(url)
 
             assert exc.value.error_type == AdapterError.ITEM_NOT_FOUND
+
+    @pytest.mark.asyncio
+    async def test_extract_missing_api_key(self, mock_settings):
+        """Test extraction fails when API key is not configured."""
+        mock_settings.return_value.ingestion.ebay.api_key = None
+
+        # Initialization succeeds
+        adapter = EbayAdapter()
+
+        # But extraction fails with CONFIGURATION_ERROR
+        url = "https://www.ebay.com/itm/123456789012"
+
+        with pytest.raises(AdapterException) as exc:
+            await adapter.extract(url)
+
+        assert exc.value.error_type == AdapterError.CONFIGURATION_ERROR
+        assert "eBay Browse API key not configured" in exc.value.message
 
 
 class TestEdgeCases:

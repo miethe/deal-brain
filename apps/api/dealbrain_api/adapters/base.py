@@ -31,6 +31,8 @@ class AdapterError(str, Enum):
         PARSE_ERROR: Failed to parse response data
         NO_STRUCTURED_DATA: No structured data (JSON-LD/Microdata) found
         NO_ADAPTER_FOUND: No adapter matches the given URL
+        CONFIGURATION_ERROR: Adapter configuration is missing or invalid
+        ALL_ADAPTERS_FAILED: All adapters attempted and failed
     """
 
     TIMEOUT = "timeout"
@@ -42,6 +44,8 @@ class AdapterError(str, Enum):
     PARSE_ERROR = "parse_error"
     NO_STRUCTURED_DATA = "no_structured_data"
     NO_ADAPTER_FOUND = "no_adapter_found"
+    CONFIGURATION_ERROR = "configuration_error"
+    ALL_ADAPTERS_FAILED = "all_adapters_failed"
 
 
 class AdapterException(Exception):

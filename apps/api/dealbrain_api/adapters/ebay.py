@@ -80,10 +80,8 @@ class EbayAdapter(BaseAdapter):
         Initialize eBay adapter.
 
         Loads configuration from settings including API key, timeout, and retries.
-        Validates that the eBay Browse API key is configured.
-
-        Raises:
-            ValueError: If eBay Browse API key is not configured
+        API key validation is deferred to extract() method to allow adapter
+        initialization to succeed even without API key (enables fallback chain).
         """
         settings = get_settings()
 
@@ -99,16 +97,12 @@ class EbayAdapter(BaseAdapter):
 
         # eBay Browse API configuration
         self.api_base = "https://api.ebay.com/buy/browse/v1"
-        self.api_key = settings.ingestion.ebay.api_key
-
-        if not self.api_key:
-            raise ValueError(
-                "eBay Browse API key not configured in settings.ingestion.ebay.api_key"
-            )
+        self.api_key = settings.ingestion.ebay.api_key or None
 
         logger.info(
             f"Initialized EbayAdapter with timeout={self.timeout_s}s, "
-            f"retries={self.retry_config.max_retries}"
+            f"retries={self.retry_config.max_retries}, "
+            f"api_key_configured={bool(self.api_key)}"
         )
 
     async def extract(self, url: str) -> NormalizedListingSchema:
@@ -116,9 +110,10 @@ class EbayAdapter(BaseAdapter):
         Extract listing data from eBay URL.
 
         This is the main entry point that orchestrates the extraction workflow:
-        1. Parse item ID from URL
-        2. Fetch item data from eBay Browse API (with retry)
-        3. Map API response to NormalizedListingSchema
+        1. Validate API key is configured
+        2. Parse item ID from URL
+        3. Fetch item data from eBay Browse API (with retry)
+        4. Map API response to NormalizedListingSchema
 
         Args:
             url: eBay item URL to extract data from
@@ -131,14 +126,22 @@ class EbayAdapter(BaseAdapter):
         """
         logger.info(f"Extracting listing data from eBay URL: {url}")
 
-        # Step 1: Parse item ID from URL
+        # Step 1: Validate API key is configured
+        if not self.api_key:
+            raise AdapterException(
+                AdapterError.CONFIGURATION_ERROR,
+                "eBay Browse API key not configured in settings.ingestion.ebay.api_key",
+                metadata={"adapter": self.name, "url": url},
+            )
+
+        # Step 2: Parse item ID from URL
         item_id = self._parse_item_id(url)
         logger.debug(f"Extracted item ID: {item_id}")
 
-        # Step 2: Fetch item data with retry logic
+        # Step 3: Fetch item data with retry logic
         item_data = await self.retry_config.execute_with_retry(self._fetch_item, item_id)
 
-        # Step 3: Map to normalized schema
+        # Step 4: Map to normalized schema
         normalized = self._map_to_schema(item_data)
 
         logger.info(f"Successfully extracted listing: {normalized.title}")
