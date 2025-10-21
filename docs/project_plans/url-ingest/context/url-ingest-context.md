@@ -727,6 +727,12 @@ def downgrade() -> None:
    - **Frontend Components**: `/mnt/containers/deal-brain/apps/web/components/ingestion/`
    - **Tests**: All tests in `/mnt/containers/deal-brain/tests/` (374 tests, all passing)
 
+3. **Access the dual-import interface:**
+   - **Location**: `/dashboard/import` page (tabbed interface)
+   - **URL Import Tab**: Single URL form + bulk import dialog
+   - **File Import Tab**: Excel/CSV importer workspace (restored alongside URL import)
+   - **User Guide**: See `/mnt/containers/deal-brain/docs/user-guide/guides/import-guide.md`
+
 3. **To add new marketplace adapters:**
    - Create new adapter in `apps/api/dealbrain_api/adapters/` (inherit from `BaseAdapter`)
    - Implement `extract()` method returning `NormalizedListingSchema`

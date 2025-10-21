@@ -262,7 +262,7 @@ export function ProvenanceExamples() {
             <li>Color is not the sole indicator (icons accompany colors)</li>
             <li>WCAG 2.1 AA color contrast compliance in light and dark modes</li>
             <li>Semantic HTML with proper time elements for timestamps</li>
-            <li>Grouped provenance information has role="group" with descriptive label</li>
+            <li>Grouped provenance information has role=&quot;group&quot; with descriptive label</li>
           </ul>
         </CardContent>
       </Card>
