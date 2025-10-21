@@ -42,11 +42,12 @@ class TestFallbackChain:
                 JsonLdAdapter, "extract", AsyncMock(return_value=expected_result)
             ):
                 router = AdapterRouter()
-                result = await router.extract(url)
+                result, adapter_name = await router.extract(url)
 
                 # Should succeed with JSON-LD fallback
                 assert result == expected_result
                 assert result.title == "Test PC"
+                assert adapter_name == "jsonld"
 
     @pytest.mark.asyncio
     async def test_fallback_chain_logs_attempts(self, caplog):
@@ -226,12 +227,13 @@ class TestPriorityOrdering:
 
         with patch.object(JsonLdAdapter, "extract", AsyncMock(side_effect=track_jsonld_attempt)):
             router = AdapterRouter()
-            result = await router.extract(url)
+            result, adapter_name = await router.extract(url)
 
             # Only JSON-LD should be tried (it succeeds)
             assert len(attempts) == 1
             assert attempts == ["jsonld"]
             assert result.title == "Test"
+            assert adapter_name == "jsonld"
 
 
 class TestErrorPropagation:
@@ -270,10 +272,11 @@ class TestErrorPropagation:
 
                 with patch.object(JsonLdAdapter, "extract", AsyncMock(return_value=expected_result)):
                     router = AdapterRouter()
-                    result = await router.extract(url)
+                    result, adapter_name = await router.extract(url)
 
                     # Should succeed with JSON-LD fallback
                     assert result.title == "Fallback PC"
+                    assert adapter_name == "jsonld"
 
     @pytest.mark.asyncio
     async def test_network_error_triggers_fallback(self):
@@ -308,10 +311,11 @@ class TestErrorPropagation:
 
                 with patch.object(JsonLdAdapter, "extract", AsyncMock(return_value=expected_result)):
                     router = AdapterRouter()
-                    result = await router.extract(url)
+                    result, adapter_name = await router.extract(url)
 
                     # Should succeed with JSON-LD fallback
                     assert result.title == "Network Fallback"
+                    assert adapter_name == "jsonld"
 
 
 class TestBackwardCompatibility:

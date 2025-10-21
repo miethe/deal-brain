@@ -971,9 +971,8 @@ class IngestionService:
             ...     print(f"Failed: {result.error}")
         """
         try:
-            # Step 1: Extract raw data via adapter
-            adapter = self.router.select_adapter(url)
-            raw_data = await adapter.extract(url)
+            # Step 1: Extract raw data via adapter with fallback chain
+            raw_data, adapter_name = await self.router.extract(url)
 
             # Step 2: Normalize and enrich
             normalized = await self.normalizer.normalize(raw_data)
@@ -993,7 +992,7 @@ class IngestionService:
             quality = self.normalizer.assess_quality(normalized)
             if status == "created":
                 self.event_service.emit_listing_created(
-                    listing, provenance=adapter.name, quality=quality
+                    listing, provenance=adapter_name, quality=quality
                 )
             elif status == "updated" and dedup_result.existing_listing:
                 # Check if price changed significantly
@@ -1002,14 +1001,14 @@ class IngestionService:
                 self.event_service.check_and_emit_price_change(listing, old_price, new_price)
 
             # Step 6: Store raw payload
-            await self._store_raw_payload(listing, adapter.name, normalized)
+            await self._store_raw_payload(listing, adapter_name, normalized)
 
             # Step 7: Return result
             return IngestionResult(
                 success=True,
                 listing_id=listing.id,
                 status=status,
-                provenance=adapter.name,
+                provenance=adapter_name,
                 quality=quality,
                 dedup_result=dedup_result,
                 url=url,

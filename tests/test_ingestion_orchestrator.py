@@ -93,11 +93,8 @@ async def test_ingest_new_listing_success(db_session, mock_normalized_data):
     service = IngestionService(db_session)
 
     # Mock adapter extraction
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = mock_normalized_data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (mock_normalized_data, "ebay")
 
         result = await service.ingest_single_url("https://ebay.com/itm/123")
 
@@ -149,11 +146,8 @@ async def test_ingest_duplicate_listing_updates(db_session, mock_normalized_data
         update={"price": Decimal("549.99")}  # Price dropped
     )
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = updated_data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (updated_data, "ebay")
 
         result = await service.ingest_single_url("https://ebay.com/itm/123")
 
@@ -183,11 +177,8 @@ async def test_ingest_normalizes_data(db_session):
         vendor_item_id="999",
     )
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = raw_data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (raw_data, "ebay")
 
         # Mock normalizer to verify it's called
         with patch.object(
@@ -209,11 +200,8 @@ async def test_ingest_creates_dedup_hash(db_session, mock_normalized_data):
     """Test that dedup hash is generated and stored."""
     service = IngestionService(db_session)
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = mock_normalized_data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (mock_normalized_data, "ebay")
 
         result = await service.ingest_single_url("https://ebay.com/itm/123")
 
@@ -238,11 +226,8 @@ async def test_emits_listing_created_event(db_session, mock_normalized_data):
     """Test that listing.created event is emitted."""
     service = IngestionService(db_session)
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = mock_normalized_data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (mock_normalized_data, "ebay")
 
         result = await service.ingest_single_url("https://ebay.com/itm/123")
 
@@ -300,11 +285,8 @@ async def test_emits_price_changed_event_on_update(db_session, monkeypatch):
         vendor_item_id="PRICE_TEST_123",
     )
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = updated_data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (updated_data, "ebay")
 
         result = await service.ingest_single_url("https://ebay.com/itm/PRICE_TEST_123")
 
@@ -344,11 +326,8 @@ async def test_no_price_event_for_small_change(db_session, mock_normalized_data)
         update={"price": Decimal("599.50"), "title": "Gaming PC"}
     )
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = updated_data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (updated_data, "ebay")
 
         result = await service.ingest_single_url("https://ebay.com/itm/123")
 
@@ -370,11 +349,8 @@ async def test_stores_raw_payload(db_session, mock_normalized_data):
     """Test that raw payload is stored."""
     service = IngestionService(db_session)
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = mock_normalized_data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (mock_normalized_data, "ebay")
 
         result = await service.ingest_single_url("https://ebay.com/itm/123")
 
@@ -415,11 +391,8 @@ async def test_truncates_large_payload(db_session):
         description=large_description,
     )
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (data, "ebay")
 
         result = await service.ingest_single_url("https://ebay.com/itm/123")
 
@@ -448,8 +421,8 @@ async def test_handles_adapter_error_gracefully(db_session):
     """Test error handling when adapter fails."""
     service = IngestionService(db_session)
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_select.side_effect = AdapterException(
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.side_effect = AdapterException(
             error_type=AdapterError.NO_ADAPTER_FOUND, message="No adapter for URL"
         )
 
@@ -468,11 +441,8 @@ async def test_handles_extraction_error_gracefully(db_session):
     """Test error handling when extraction fails."""
     service = IngestionService(db_session)
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.side_effect = Exception("Network timeout")
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.side_effect = Exception("Network timeout")
 
         result = await service.ingest_single_url("https://ebay.com/itm/123")
 
@@ -487,11 +457,8 @@ async def test_handles_normalization_error_gracefully(db_session, mock_normalize
     """Test error handling when normalization fails."""
     service = IngestionService(db_session)
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = mock_normalized_data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (mock_normalized_data, "ebay")
 
         # Mock normalizer to raise error
         with patch.object(service.normalizer, "normalize") as mock_normalize:
@@ -509,11 +476,8 @@ async def test_handles_database_error_gracefully(db_session, mock_normalized_dat
     """Test error handling when database operation fails."""
     service = IngestionService(db_session)
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = mock_normalized_data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (mock_normalized_data, "ebay")
 
         # Mock session.flush to raise error
         with patch.object(db_session, "flush") as mock_flush:
@@ -538,11 +502,8 @@ async def test_deduplication_result_included_in_response(
     """Test that deduplication result is included in ingestion result."""
     service = IngestionService(db_session)
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = mock_normalized_data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (mock_normalized_data, "ebay")
 
         result = await service.ingest_single_url("https://ebay.com/itm/123")
 
@@ -571,11 +532,8 @@ async def test_deduplication_finds_existing_by_vendor_id(
 
     service = IngestionService(db_session)
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = mock_normalized_data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (mock_normalized_data, "ebay")
 
         result = await service.ingest_single_url("https://ebay.com/itm/123")
 
@@ -613,11 +571,8 @@ async def test_maps_condition_to_enum(db_session):
             vendor_item_id=f"item-{input_condition}",
         )
 
-        with patch.object(service.router, "select_adapter") as mock_select:
-            mock_adapter = AsyncMock()
-            mock_adapter.name = "jsonld"
-            mock_adapter.extract.return_value = data
-            mock_select.return_value = mock_adapter
+        with patch.object(service.router, "extract") as mock_extract:
+            mock_extract.return_value = (data, "jsonld")
 
             result = await service.ingest_single_url(f"https://example.com/{input_condition}")
 
@@ -653,11 +608,8 @@ async def test_quality_assessment_full(db_session):
         images=["http://example.com/img.jpg"],
     )
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"
-        mock_adapter.extract.return_value = data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (data, "ebay")
 
         result = await service.ingest_single_url("https://ebay.com/itm/123")
 
@@ -678,11 +630,8 @@ async def test_quality_assessment_partial(db_session):
         marketplace="other",
     )
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "jsonld"
-        mock_adapter.extract.return_value = data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (data, "jsonld")
 
         result = await service.ingest_single_url("https://example.com/product")
 
@@ -708,11 +657,8 @@ async def test_uses_jsonld_adapter_for_generic_urls(db_session):
         vendor_item_id="generic-123",
     )
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "jsonld"  # JSON-LD adapter
-        mock_adapter.extract.return_value = data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (data, "jsonld")
 
         result = await service.ingest_single_url("https://example.com/product")
 
@@ -733,11 +679,8 @@ async def test_uses_ebay_adapter_for_ebay_urls(db_session):
         vendor_item_id="ebay-123",
     )
 
-    with patch.object(service.router, "select_adapter") as mock_select:
-        mock_adapter = AsyncMock()
-        mock_adapter.name = "ebay"  # eBay adapter
-        mock_adapter.extract.return_value = data
-        mock_select.return_value = mock_adapter
+    with patch.object(service.router, "extract") as mock_extract:
+        mock_extract.return_value = (data, "ebay")
 
         result = await service.ingest_single_url("https://ebay.com/itm/123")
 

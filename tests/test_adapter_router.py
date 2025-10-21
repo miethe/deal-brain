@@ -284,11 +284,12 @@ class TestConvenienceExtractMethod:
                 images=[],
             )
 
-            result = await router.extract("https://www.ebay.com/itm/123")
+            result, adapter_name = await router.extract("https://www.ebay.com/itm/123")
 
             assert result.title == "Test PC"
             assert result.price == Decimal("599.99")
             assert result.marketplace == "ebay"
+            assert adapter_name == "ebay"
             mock_extract.assert_called_once_with("https://www.ebay.com/itm/123")
 
     @pytest.mark.asyncio
@@ -307,10 +308,11 @@ class TestConvenienceExtractMethod:
                 images=[],
             )
 
-            result = await router.extract("https://www.bestbuy.com/product/123")
+            result, adapter_name = await router.extract("https://www.bestbuy.com/product/123")
 
             assert result.title == "Generic Product"
             assert result.marketplace == "other"
+            assert adapter_name == "jsonld"
             mock_extract.assert_called_once_with("https://www.bestbuy.com/product/123")
 
     @pytest.mark.asyncio

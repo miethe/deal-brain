@@ -154,7 +154,7 @@ class AdapterRouter:
         logger.info(f"Selected {adapter_instance.name} adapter for URL: {url}")
         return adapter_instance
 
-    async def extract(self, url: str) -> NormalizedListingSchema:
+    async def extract(self, url: str) -> tuple[NormalizedListingSchema, str]:
         """
         Extract data using fallback chain.
 
@@ -175,7 +175,7 @@ class AdapterRouter:
             url: The URL to extract data from
 
         Returns:
-            Normalized listing data from first successful adapter
+            Tuple of (normalized listing data, adapter name used)
 
         Raises:
             AdapterException: If all adapters fail or item not found
@@ -229,7 +229,7 @@ class AdapterRouter:
                 result = await adapter.extract(url)
 
                 logger.info(f"Success with {adapter_name} adapter")
-                return result
+                return (result, adapter_name)
 
             except AdapterException as e:
                 # Adapter-specific error (timeout, parse error, etc.)
