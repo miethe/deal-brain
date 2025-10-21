@@ -239,6 +239,17 @@ Rationale: Minimal scope creep; integrates with existing valuation pipeline.
 - Test file uploads with `UploadFile` mocks
 - Verify database state after async operations
 
+**Adapter Fallback Mechanism:**
+- Automatic fallback chain implemented (api > jsonld > scraper)
+- eBay URLs work without API key via JSON-LD fallback
+- Priority-based adapter selection (lower number = higher priority)
+- Fast-fail for ITEM_NOT_FOUND and ADAPTER_DISABLED (no fallback attempt)
+- Recoverable errors trigger fallback (CONFIGURATION_ERROR, TIMEOUT, NETWORK_ERROR, RATE_LIMITED)
+- All adapter attempts logged for debugging (adapter name, priority, error code)
+- New error codes: CONFIGURATION_ERROR, ALL_ADAPTERS_FAILED
+- Adapter failure context includes all attempted adapters and their error codes
+- Configuration allows disabling fallback per adapter via feature flags
+
 ---
 
 ## Phase 1 Important Learnings

@@ -37,6 +37,128 @@ The adapter pattern enables Deal Brain to extract listing data from multiple sou
              └─────────────┘
 ```
 
+## Adapter Fallback Chain
+
+The ingestion service implements an automatic fallback mechanism that tries adapters in priority order, ensuring resilient data extraction across multiple sources.
+
+### How the Fallback Mechanism Works
+
+When a URL is submitted for ingestion, the system attempts adapters sequentially based on priority (lower number = higher priority):
+
+1. **eBay Adapter** (priority: 1) - Try to extract via eBay Browse API
+2. **JSON-LD Adapter** (priority: 2) - Fall back to structured data extraction
+3. **Generic Scraper** (priority: 3) - Final fallback for unstructured pages
+
+Each adapter is tried in order until one succeeds. If an adapter fails with a recoverable error, the system moves to the next adapter. If all adapters fail, an `ALL_ADAPTERS_FAILED` error is returned.
+
+### Priority-Based Adapter Selection
+
+The adapter priority determines the order of execution:
+
+```python
+# Adapter priorities (lower = tried first)
+EbayAdapter:     priority=1   # Official API, most reliable
+JsonLdAdapter:   priority=2   # Works across 80% of retailers
+GenericAdapter:  priority=3   # Last resort fallback
+```
+
+### Fallback Scenarios
+
+**Fallback occurs for these recoverable errors:**
+- `CONFIGURATION_ERROR` - Missing/invalid API key (try next adapter)
+- `TIMEOUT` - Request took too long (try next adapter)
+- `NETWORK_ERROR` - Connection issue (try next adapter)
+- `RATE_LIMITED` - API quota exceeded (try next adapter)
+
+**Fast-fail (no fallback) for these errors:**
+- `ITEM_NOT_FOUND` - URL is valid but item doesn't exist (404 not found)
+- `ADAPTER_DISABLED` - Adapter is disabled via feature flag
+- `PARSE_ERROR` - URL format is invalid
+
+### Example: eBay URL Without API Key
+
+Demonstrates the fallback mechanism in action:
+
+```python
+# User submits eBay URL: https://www.ebay.com/itm/123456789012
+
+# Step 1: Try eBay adapter
+adapter = EbayAdapter()
+try:
+    listing = await adapter.extract("https://www.ebay.com/itm/123456789012")
+except AdapterException as e:
+    if e.code == "CONFIGURATION_ERROR":  # eBay API key not configured
+        # Fall back to next adapter
+        logger.info("eBay adapter failed: CONFIGURATION_ERROR, trying JSON-LD adapter")
+
+# Step 2: Try JSON-LD adapter (falls back to public structured data)
+adapter = JsonLdAdapter()
+listing = await adapter.extract("https://www.ebay.com/itm/123456789012")
+# JSON-LD succeeds by extracting public Schema.org data from eBay's page
+```
+
+In this scenario, even without eBay API credentials, the system extracts listing data via JSON-LD fallback, ensuring the import succeeds.
+
+### Logging Behavior
+
+All adapter attempts are logged for debugging and monitoring:
+
+```
+[2025-10-21 14:32:10] INFO: Attempting adapter: EbayAdapter (priority=1)
+[2025-10-21 14:32:11] WARNING: EbayAdapter failed: CONFIGURATION_ERROR (EBAY_API_KEY not set)
+[2025-10-21 14:32:11] INFO: Attempting adapter: JsonLdAdapter (priority=2)
+[2025-10-21 14:32:12] INFO: JsonLdAdapter succeeded: extracted title, price, condition
+```
+
+Log entries include:
+- Adapter name and priority being attempted
+- Failure reason (code and message)
+- Success confirmation with fields extracted
+- Adapter attempt index (e.g., "attempt 2 of 3")
+
+### Error Handling
+
+If all adapters fail to extract data:
+
+```python
+# Raised when every adapter in the chain fails
+raise AdapterException(
+    code="ALL_ADAPTERS_FAILED",
+    message="No adapter could extract data from this URL",
+    context={
+        "url": "https://example.com/item/123",
+        "attempted_adapters": [
+            {"name": "EbayAdapter", "error": "CONFIGURATION_ERROR"},
+            {"name": "JsonLdAdapter", "error": "NETWORK_ERROR"},
+            {"name": "GenericAdapter", "error": "PARSE_ERROR"}
+        ]
+    }
+)
+```
+
+The `context` field provides details about each adapter's failure for debugging.
+
+### Disabling the Fallback
+
+To disable fallback and require a specific adapter to succeed, configure it explicitly:
+
+```python
+# Configuration to require only eBay API (no fallback)
+class IngestionSettings(BaseModel):
+    ebay: AdapterConfig = Field(
+        default_factory=lambda: AdapterConfig(
+            enabled=True,
+            timeout_s=6,
+            retries=2,
+        )
+    )
+    jsonld: AdapterConfig = Field(
+        default_factory=lambda: AdapterConfig(
+            enabled=False,  # Disable fallback to JSON-LD
+        )
+    )
+```
+
 ## eBay Adapter
 
 ### Features
