@@ -534,12 +534,14 @@ async def get_ingestion_status(
                 "job_id": job_id,
                 "status": import_session.status,
                 "listing_id": listing_id,
+                "progress_pct": import_session.progress_pct,
             },
         )
 
         return IngestionResponse(
             job_id=job_id,
             status=import_session.status,
+            progress_pct=import_session.progress_pct,
             listing_id=listing_id,
             provenance=provenance,
             quality=quality,

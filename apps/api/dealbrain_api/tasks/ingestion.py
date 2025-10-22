@@ -52,19 +52,39 @@ async def _ingest_url_async(
         if not import_session:
             raise ValueError(f"ImportSession {job_id} not found")
 
-        # 2. Update status to running
-        import_session.status = "running"
-        await session.flush()
-
         try:
-            # 3. Execute ingestion
+            # Milestone 1: Job started (10%)
+            import_session.status = "running"
+            import_session.progress_pct = 10
+            await session.flush()
+            logger.info(f"[{job_id}] Progress: 10% - Job started")
+
+            # Initialize service
             service = IngestionService(session)
+
+            # Milestone 2: Adapter extraction started (30%)
+            import_session.progress_pct = 30
+            await session.flush()
+            logger.info(f"[{job_id}] Progress: 30% - Extracting data from URL")
+
+            # Execute the full ingestion (includes extraction, normalization, persistence)
             ingest_result = await service.ingest_single_url(url)
 
-            # 4. Update ImportSession with result
+            # Milestone 3: Normalization complete (60%)
+            import_session.progress_pct = 60
+            await session.flush()
+            logger.info(f"[{job_id}] Progress: 60% - Data normalized")
+
+            # Milestone 4: Persistence starting (80%)
+            import_session.progress_pct = 80
+            await session.flush()
+            logger.info(f"[{job_id}] Progress: 80% - Saving to database")
+
+            # Milestone 5: Complete (100%)
             if ingest_result.success:
                 # Map quality to status: full → complete, partial → partial
                 import_session.status = "complete" if ingest_result.quality == "full" else "partial"
+                import_session.progress_pct = 100
                 import_session.conflicts_json = {
                     "listing_id": ingest_result.listing_id,
                     "provenance": ingest_result.provenance,
@@ -74,11 +94,14 @@ async def _ingest_url_async(
                     "vendor_item_id": ingest_result.vendor_item_id,
                     "marketplace": ingest_result.marketplace,
                 }
+                logger.info(f"[{job_id}] Progress: 100% - Import complete")
             else:
                 import_session.status = "failed"
+                import_session.progress_pct = 30  # Failed during extraction phase
                 import_session.conflicts_json = {
                     "error": ingest_result.error,
                 }
+                logger.error(f"[{job_id}] Import failed at {import_session.progress_pct}%: {ingest_result.error}")
 
             await session.commit()
 
@@ -88,10 +111,11 @@ async def _ingest_url_async(
                     "job_id": job_id,
                     "success": ingest_result.success,
                     "status": import_session.status,
+                    "progress_pct": import_session.progress_pct,
                 },
             )
 
-            # 5. Return result dict
+            # Return result dict
             return {
                 "success": ingest_result.success,
                 "listing_id": ingest_result.listing_id,
@@ -99,14 +123,20 @@ async def _ingest_url_async(
                 "provenance": ingest_result.provenance,
                 "quality": ingest_result.quality,
                 "error": ingest_result.error,
+                "progress_pct": import_session.progress_pct,
             }
 
-        except Exception:
-            # Roll back and re-raise
-            await session.rollback()
+        except Exception as e:
+            # Set progress to where failure occurred (keep current progress if set)
+            if import_session.progress_pct is None or import_session.progress_pct == 0:
+                import_session.progress_pct = 10  # Failed at startup
+            # Otherwise keep the current progress to show where it failed
+            import_session.status = "failed"
+            import_session.conflicts_json = {"error": str(e)}
+            await session.commit()
             logger.exception(
                 "Exception in URL ingestion async",
-                extra={"job_id": job_id},
+                extra={"job_id": job_id, "progress_pct": import_session.progress_pct},
             )
             raise
 

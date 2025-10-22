@@ -228,6 +228,7 @@ export function SingleUrlImportForm({
           {importState.status !== 'idle' && (
             <IngestionStatusDisplay
               state={importState}
+              jobData={jobData}
               onRetry={handleRetry}
               onViewListing={handleViewListing}
               onImportAnother={handleReset}

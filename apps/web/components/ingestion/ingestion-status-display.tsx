@@ -10,6 +10,7 @@ import type { IngestionStatusDisplayProps } from './types';
 
 export function IngestionStatusDisplay({
   state,
+  jobData,
   onRetry,
   onViewListing,
   onImportAnother,
@@ -63,8 +64,16 @@ export function IngestionStatusDisplay({
 
   // Polling state
   if (state.status === 'polling') {
-    const progress = calculateProgress(elapsed);
-    const message = getPollingMessage(elapsed);
+    // Use real progress from backend, fallback to time-based if unavailable
+    const backendProgress = jobData?.progress_pct;
+    const progress = backendProgress ?? calculateProgress(elapsed);
+
+    // Log for debugging during development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Progress] ${progress}% (backend: ${backendProgress ?? 'null'}, elapsed: ${elapsed}s)`);
+    }
+
+    const message = getPollingMessage(elapsed, backendProgress);
 
     return (
       <Alert className="border-primary/50 bg-primary/5">
@@ -83,8 +92,13 @@ export function IngestionStatusDisplay({
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-primary transition-all duration-300 ease-out"
+                    className="h-full bg-primary transition-all duration-500 ease-out"
                     style={{ width: `${progress}%` }}
+                    role="progressbar"
+                    aria-valuenow={progress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Import progress"
                   />
                 </div>
                 <span className="text-muted-foreground tabular-nums w-10 text-right">
@@ -101,7 +115,7 @@ export function IngestionStatusDisplay({
           aria-atomic="true"
           className="sr-only"
         >
-          Importing listing, {elapsed} seconds elapsed, {message}
+          Importing listing, {elapsed} seconds elapsed, {progress}% complete, {message}
         </div>
       </Alert>
     );
@@ -198,7 +212,11 @@ export function IngestionStatusDisplay({
   return null;
 }
 
-// Calculate progress percentage based on elapsed time
+/**
+ * Calculate cosmetic progress based on elapsed time.
+ * Used as fallback when backend doesn't provide progress_pct.
+ * @deprecated Use backend progress_pct when available
+ */
 function calculateProgress(elapsed: number): number {
   if (elapsed < 5) {
     // 0-5s: 15-50% (linear)
@@ -215,8 +233,27 @@ function calculateProgress(elapsed: number): number {
   }
 }
 
-// Get status message based on elapsed time
-function getPollingMessage(elapsed: number): string {
+/**
+ * Get status message based on progress or elapsed time.
+ * Prioritizes backend progress when available, falls back to time-based messages.
+ */
+function getPollingMessage(elapsed: number, backendProgress: number | null | undefined): string {
+  // If we have backend progress, use progress-based messages
+  if (backendProgress !== null && backendProgress !== undefined) {
+    if (backendProgress < 20) {
+      return 'Starting import...';
+    } else if (backendProgress < 40) {
+      return 'Extracting data from URL...';
+    } else if (backendProgress < 70) {
+      return 'Normalizing and enriching data...';
+    } else if (backendProgress < 90) {
+      return 'Saving to database...';
+    } else {
+      return 'Finalizing import...';
+    }
+  }
+
+  // Fallback to time-based messages if no backend progress
   if (elapsed < 2) {
     return 'Job queued, waiting for worker...';
   } else if (elapsed < 5) {
@@ -225,7 +262,9 @@ function getPollingMessage(elapsed: number): string {
     return 'Processing product details...';
   } else if (elapsed < 20) {
     return 'Enriching with component data...';
-  } else {
+  } else if (elapsed < 30) {
     return 'Finalizing listing data...';
+  } else {
+    return 'Taking longer than expected...';
   }
 }

@@ -34,6 +34,7 @@ export interface SingleUrlImportResponse {
 export interface IngestionJobResponse {
   job_id: string;
   status: IngestionJobStatus;
+  progress_pct: number | null;  // Real-time progress from backend (0-100)
   url: string;
   result?: {
     listing_id: number;
@@ -83,6 +84,7 @@ export interface SingleUrlImportFormProps {
 // Status display props
 export interface IngestionStatusDisplayProps {
   state: ImportState;
+  jobData?: IngestionJobResponse | null;  // Real-time job data from backend
   onRetry?: () => void;
   onViewListing?: () => void;
   onImportAnother?: () => void;

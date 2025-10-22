@@ -95,7 +95,7 @@ Create excellent documentation quickly and cost-effectively using Haiku 4.5's st
 
 ### README Template
 
-```markdown
+````markdown
 # [Package/Module Name]
 
 Brief description of what this package/module does (1-2 sentences).
@@ -148,11 +148,11 @@ Brief contribution guidelines or link to CONTRIBUTING.md.
 ## License
 
 License information.
-```
+````
 
 ### API Documentation Template
 
-```markdown
+````markdown
 ## `POST /api/v1/resource`
 
 Brief description of what this endpoint does.
@@ -254,7 +254,7 @@ try {
 
 - Average response time: 50-100ms
 - Maximum payload size: 1MB
-```
+````
 
 ### Code Comment Templates
 
@@ -299,7 +299,7 @@ def function_name(param_name: str, optional_param: int = None) -> ReturnType:
 
 ### Component Documentation Template
 
-```markdown
+````markdown
 # ComponentName
 
 ## Overview
@@ -434,11 +434,11 @@ const [value, setValue] = useState('');
 2. **Provide Accessible Labels**: Use `aria-label` for icon-only buttons
 3. **Handle Loading States**: Show loading indicator during async operations
 4. **Test Keyboard Navigation**: Ensure full keyboard accessibility
-```
+````
 
 ### Integration Guide Template
 
-```markdown
+````markdown
 # [Integration Name] Integration Guide
 
 ## Overview
@@ -532,7 +532,7 @@ Another complete example.
 
 **Issue:** Another problem
 **Solution:** How to resolve it
-```
+````
 
 ## MeatyPrompts Documentation Standards
 

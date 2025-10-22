@@ -836,3 +836,193 @@ async def test_cleanup_respects_ttl_boundary(
 
     assert len(payloads) == 1
     assert payloads[0].id == new_payload.id
+
+
+# ========================================
+# Progress Tracking Tests
+# ========================================
+
+
+@pytest.mark.asyncio
+async def test_ingestion_task_updates_progress(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that the Celery task updates progress_pct at milestones."""
+    engine = db_session.bind
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def _session_scope_override():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.session_scope",
+        _session_scope_override,
+    )
+
+    # Create ImportSession
+    import_session = ImportSession(
+        id=uuid4(),
+        filename="test",
+        upload_path="test",
+        status="queued",
+        source_type=SourceType.URL_SINGLE.value,
+        url="https://ebay.com/itm/123456789012",
+        progress_pct=0,
+    )
+    db_session.add(import_session)
+    await db_session.commit()
+
+    # Mock successful ingestion
+    mock_result = IngestionResult(
+        success=True,
+        listing_id=1,
+        status="created",
+        provenance="ebay_api",
+        quality="full",
+        url="https://ebay.com/itm/123456789012",
+        title="Test PC",
+        price=Decimal("100"),
+        vendor_item_id="123456789012",
+        marketplace="ebay",
+    )
+
+    with patch("dealbrain_api.tasks.ingestion.IngestionService") as MockService:
+        mock_service_instance = AsyncMock()
+        mock_service_instance.ingest_single_url.return_value = mock_result
+        MockService.return_value = mock_service_instance
+
+        # Execute task
+        result = await _ingest_url_async(
+            job_id=str(import_session.id),
+            url=import_session.url,
+        )
+
+    # Verify final progress
+    await db_session.refresh(import_session)
+    assert import_session.progress_pct == 100
+    assert import_session.status == "complete"
+    assert result["progress_pct"] == 100
+
+
+@pytest.mark.asyncio
+async def test_ingestion_task_sets_progress_on_failure(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that progress_pct is set appropriately when task fails."""
+    engine = db_session.bind
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def _session_scope_override():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.session_scope",
+        _session_scope_override,
+    )
+
+    # Create ImportSession
+    import_session = ImportSession(
+        id=uuid4(),
+        filename="test",
+        upload_path="test",
+        status="queued",
+        source_type=SourceType.URL_SINGLE.value,
+        url="https://example.com/product",
+        progress_pct=0,
+    )
+    db_session.add(import_session)
+    await db_session.commit()
+
+    # Mock failed ingestion
+    mock_result = IngestionResult(
+        success=False,
+        listing_id=None,
+        status="failed",
+        provenance="unknown",
+        quality="partial",
+        url="https://example.com/product",
+        error="Adapter not found",
+    )
+
+    with patch("dealbrain_api.tasks.ingestion.IngestionService") as MockService:
+        mock_service_instance = AsyncMock()
+        mock_service_instance.ingest_single_url.return_value = mock_result
+        MockService.return_value = mock_service_instance
+
+        # Execute task
+        result = await _ingest_url_async(
+            job_id=str(import_session.id),
+            url=import_session.url,
+        )
+
+    # Verify progress set at failure point
+    await db_session.refresh(import_session)
+    assert import_session.progress_pct == 30  # Failed during extraction phase
+    assert import_session.status == "failed"
+
+
+@pytest.mark.asyncio
+async def test_ingestion_task_sets_progress_on_exception(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that progress_pct is preserved when exception occurs."""
+    engine = db_session.bind
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def _session_scope_override():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.session_scope",
+        _session_scope_override,
+    )
+
+    # Create ImportSession
+    import_session = ImportSession(
+        id=uuid4(),
+        filename="test",
+        upload_path="test",
+        status="queued",
+        source_type=SourceType.URL_SINGLE.value,
+        url="https://example.com/product",
+        progress_pct=0,
+    )
+    db_session.add(import_session)
+    await db_session.commit()
+
+    # Mock adapter to raise exception at 30% progress
+    with patch("dealbrain_api.tasks.ingestion.IngestionService") as MockService:
+        mock_service_instance = AsyncMock()
+        mock_service_instance.ingest_single_url.side_effect = Exception("Network error")
+        MockService.return_value = mock_service_instance
+
+        # Execute task (should catch exception)
+        with pytest.raises(Exception, match="Network error"):
+            await _ingest_url_async(
+                job_id=str(import_session.id),
+                url=import_session.url,
+            )
+
+    # Verify progress set at failure point (30% since service was initialized)
+    await db_session.refresh(import_session)
+    assert import_session.progress_pct >= 10  # At least started (10%)
+    assert import_session.progress_pct < 100
+    assert import_session.status == "failed"

@@ -159,6 +159,7 @@ class IngestionResponse(DealBrainModel):
     Attributes:
         job_id: Unique job identifier (UUID or session ID)
         status: Job status (queued|running|complete|partial|failed)
+        progress_pct: Progress percentage (0-100)
         listing_id: Created listing ID if successful (optional)
         provenance: Data source used (ebay_api|jsonld|scraper)
         quality: Data quality level (full|partial)
@@ -173,6 +174,12 @@ class IngestionResponse(DealBrainModel):
         ...,
         description="Job status",
         pattern=r"^(queued|running|complete|partial|failed)$",
+    )
+    progress_pct: int | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="Progress percentage (0-100)",
     )
     listing_id: int | None = Field(
         default=None,

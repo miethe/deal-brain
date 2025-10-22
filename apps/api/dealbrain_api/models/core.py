@@ -524,6 +524,9 @@ class ImportSession(Base, TimestampMixin):
     url: Mapped[str | None] = mapped_column(Text)
     adapter_config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
+    # Progress tracking for URL ingestion (Phase 2)
+    progress_pct: Mapped[int | None] = mapped_column(Integer, nullable=True, default=0)
+
     audit_events: Mapped[list["ImportSessionAudit"]] = relationship(
         back_populates="session", cascade="all, delete-orphan", lazy="selectin"
     )
