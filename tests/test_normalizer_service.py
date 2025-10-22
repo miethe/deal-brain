@@ -482,6 +482,58 @@ class TestCPUCanonicalization:
         assert result["cpu_mark_single"] is None
         assert result["igpu_mark"] is None
 
+    @pytest.mark.asyncio
+    async def test_canonicalize_cpu_multiple_matches_returns_first(self, db_session: AsyncSession):
+        """Test that multiple CPU matches returns first result without error.
+
+        This tests the fix for the bug where searching for "i7-12700" would match
+        multiple CPUs (e.g., "i7-12700", "i7-12700K", "i7-12700F") and the original
+        implementation using .scalar_one_or_none() would throw an error.
+
+        The fix uses .scalars().first() to return the first match gracefully.
+        """
+        # Create multiple CPUs that match the same wildcard pattern
+        cpu1 = Cpu(
+            name="Intel Core i7-12700",
+            manufacturer="Intel",
+            cpu_mark_multi=28000,
+            cpu_mark_single=3800,
+            igpu_mark=2400,
+        )
+        cpu2 = Cpu(
+            name="Intel Core i7-12700K",
+            manufacturer="Intel",
+            cpu_mark_multi=30000,
+            cpu_mark_single=4000,
+            igpu_mark=2500,
+        )
+        cpu3 = Cpu(
+            name="Intel Core i7-12700F",
+            manufacturer="Intel",
+            cpu_mark_multi=29000,
+            cpu_mark_single=3900,
+            igpu_mark=None,  # F models have no iGPU
+        )
+
+        db_session.add_all([cpu1, cpu2, cpu3])
+        await db_session.commit()
+
+        normalizer = ListingNormalizer(db_session)
+
+        # Search with a pattern that matches all three CPUs
+        result = await normalizer._canonicalize_cpu("i7-12700")
+
+        # Should return a result (the first match) without throwing an error
+        assert result is not None
+        assert "i7-12700" in result["name"]
+        assert result["cpu_mark_multi"] is not None
+        assert result["cpu_mark_single"] is not None
+        # Verify the result has the expected structure
+        assert "name" in result
+        assert "cpu_mark_multi" in result
+        assert "cpu_mark_single" in result
+        assert "igpu_mark" in result
+
 
 class TestQualityAssessment:
     """Tests for data quality assessment."""

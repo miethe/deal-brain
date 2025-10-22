@@ -565,9 +565,11 @@ class ListingNormalizer:
             return None
 
         # Try LIKE match on CPU name
+        # Note: ILIKE with wildcards can match multiple CPUs (e.g., "i7-12700" matches
+        # "i7-12700", "i7-12700K", "i7-12700F"), so use .first() instead of .scalar_one_or_none()
         stmt = select(Cpu).where(Cpu.name.ilike(f"%{cpu_model}%"))
         result = await self.session.execute(stmt)
-        cpu = result.scalar_one_or_none()
+        cpu = result.scalars().first()
 
         if cpu:
             return {
