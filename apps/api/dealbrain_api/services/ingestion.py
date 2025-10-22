@@ -10,6 +10,7 @@ when importing from URLs. It uses a hybrid approach:
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -21,6 +22,8 @@ from dealbrain_api.models.core import Listing, RawPayload
 from dealbrain_core.schemas.ingestion import NormalizedListingSchema
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -101,6 +104,16 @@ class DeduplicationService:
                 normalized_data.marketplace,
             )
             if result:
+                logger.info(
+                    "Deduplication: vendor_item_id match found",
+                    extra={
+                        "strategy": "vendor_id",
+                        "vendor_item_id": normalized_data.vendor_item_id,
+                        "marketplace": normalized_data.marketplace,
+                        "listing_id": result.id,
+                        "title": result.title,
+                    },
+                )
                 return DeduplicationResult(
                     exists=True,
                     existing_listing=result,
@@ -113,6 +126,15 @@ class DeduplicationService:
         result = await self._check_hash(dedup_hash)
 
         if result:
+            logger.info(
+                "Deduplication: hash match found",
+                extra={
+                    "strategy": "hash",
+                    "dedup_hash": dedup_hash[:16] + "...",
+                    "listing_id": result.id,
+                    "title": result.title,
+                },
+            )
             return DeduplicationResult(
                 exists=True,
                 existing_listing=result,
@@ -122,6 +144,14 @@ class DeduplicationService:
             )
 
         # 3. Not found
+        logger.info(
+            "Deduplication: no match found, will create new listing",
+            extra={
+                "strategy": "none",
+                "dedup_hash": dedup_hash[:16] + "...",
+                "title": normalized_data.title,
+            },
+        )
         return DeduplicationResult(
             exists=False,
             existing_listing=None,
@@ -158,15 +188,18 @@ class DeduplicationService:
 
         Uses indexed dedup_hash column for efficient lookups.
 
+        Note: dedup_hash is not unique, so multiple listings may share
+        the same hash. This method returns the first match found.
+
         Args:
             dedup_hash: SHA-256 hash of normalized listing data
 
         Returns:
-            Existing Listing if found, None otherwise
+            Existing Listing if found (first match if multiple), None otherwise
         """
         stmt = select(Listing).where(Listing.dedup_hash == dedup_hash)
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     def _generate_hash(self, data: NormalizedListingSchema) -> str:
         """Generate SHA-256 hash for deduplication.
@@ -1072,9 +1105,7 @@ class IngestionService:
 
         return listing
 
-    async def _update_listing(
-        self, existing: Listing, data: NormalizedListingSchema
-    ) -> Listing:
+    async def _update_listing(self, existing: Listing, data: NormalizedListingSchema) -> Listing:
         """Update existing listing with new data.
 
         Updates mutable fields (price, images) and refreshes last_seen_at.
@@ -1130,9 +1161,7 @@ class IngestionService:
 
         if len(payload_json) > max_size:
             # Truncate description or other large fields
-            payload_dict["description"] = (
-                payload_dict.get("description", "")[:1000] + "..."
-            )
+            payload_dict["description"] = payload_dict.get("description", "")[:1000] + "..."
             payload_json = json.dumps(payload_dict)
 
         # Create RawPayload record
