@@ -7,6 +7,7 @@ import { Menu, Package2, Settings, X } from "lucide-react";
 
 import { Button } from "./ui/button";
 import { ThemeToggle } from "./ui/theme-toggle";
+import { Toaster } from "./ui/toaster";
 import { cn } from "../lib/utils";
 
 const NAV_ITEMS = [
@@ -106,6 +107,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="flex-1 pt-14 lg:ml-64 overflow-x-hidden">
         <div className="space-y-6 p-6">{children}</div>
       </main>
+
+      {/* Toast notifications */}
+      <Toaster />
     </div>
   );
 }

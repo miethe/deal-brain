@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, RotateCcw } from 'lucide-react';
+import { Loader2, AlertCircle, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { ImportSuccessResult } from './import-success-result';
 import type { IngestionStatusDisplayProps } from './types';
 
@@ -15,6 +15,7 @@ export function IngestionStatusDisplay({
   onImportAnother,
 }: IngestionStatusDisplayProps) {
   const [elapsed, setElapsed] = useState(0);
+  const [showCompletion, setShowCompletion] = useState(false);
 
   // Track elapsed time for polling state
   useEffect(() => {
@@ -27,6 +28,15 @@ export function IngestionStatusDisplay({
       setElapsed(0);
     }
   }, [state]);
+
+  // Show completion animation when transitioning to success
+  useEffect(() => {
+    if (state.status === 'success') {
+      setShowCompletion(true);
+      const timeout = setTimeout(() => setShowCompletion(false), 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [state.status]);
 
   // Validating state
   if (state.status === 'validating') {
@@ -97,8 +107,39 @@ export function IngestionStatusDisplay({
     );
   }
 
-  // Success state
+  // Success state - show completion animation first
   if (state.status === 'success') {
+    if (showCompletion) {
+      return (
+        <Alert className="border-green-500/50 bg-green-50/50">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center justify-between">
+                <AlertTitle className="text-sm font-semibold text-green-700">
+                  Import complete!
+                </AlertTitle>
+              </div>
+              <AlertDescription className="text-xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-green-600 transition-all duration-500 ease-out"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <span className="text-green-700 tabular-nums w-10 text-right font-semibold">
+                    100%
+                  </span>
+                </div>
+                <p className="text-green-700">Processing complete</p>
+              </AlertDescription>
+            </div>
+          </div>
+        </Alert>
+      );
+    }
+
     return (
       <ImportSuccessResult
         result={state.result}
@@ -165,9 +206,12 @@ function calculateProgress(elapsed: number): number {
   } else if (elapsed < 15) {
     // 5-15s: 50-85% (slower)
     return Math.round(50 + ((elapsed - 5) / 10) * 35);
+  } else if (elapsed < 30) {
+    // 15-30s: 85-96% (very slow, asymptotic)
+    return Math.min(96, Math.round(85 + ((elapsed - 15) / 15) * 11));
   } else {
-    // >15s: 85-95% (very slow, asymptotic)
-    return Math.min(95, Math.round(85 + ((elapsed - 15) / 30) * 10));
+    // >30s: 96-98% (extremely slow, to avoid looking stuck at 100%)
+    return Math.min(98, Math.round(96 + ((elapsed - 30) / 60) * 2));
   }
 }
 
@@ -179,7 +223,9 @@ function getPollingMessage(elapsed: number): string {
     return 'Extracting data from marketplace...';
   } else if (elapsed < 10) {
     return 'Processing product details...';
-  } else {
+  } else if (elapsed < 20) {
     return 'Enriching with component data...';
+  } else {
+    return 'Finalizing listing data...';
   }
 }

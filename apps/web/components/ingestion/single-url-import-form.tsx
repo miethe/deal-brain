@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { IngestionStatusDisplay } from './ingestion-status-display';
 import { submitSingleUrlImport } from '@/lib/api/ingestion';
 import { useIngestionJob } from '@/hooks/use-ingestion-job';
+import { useToast } from '@/hooks/use-toast';
 import { urlImportSchema, type UrlImportFormData } from './schemas';
 import type { ImportState, SingleUrlImportFormProps, ImportSuccessResult, ImportPriority } from './types';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ export function SingleUrlImportForm({
   className,
 }: SingleUrlImportFormProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [importState, setImportState] = useState<ImportState>({ status: 'idle' });
 
   const {
@@ -74,6 +76,14 @@ export function SingleUrlImportForm({
         retryable: true,
       };
       setImportState({ status: 'error', error: importError });
+
+      // Show error toast
+      toast({
+        variant: 'destructive',
+        title: 'Import failed',
+        description: importError.message,
+      });
+
       onError?.(importError);
     },
   });
@@ -82,42 +92,56 @@ export function SingleUrlImportForm({
   const jobId = importState.status === 'polling' ? importState.jobId : null;
   const pollingEnabled = importState.status === 'polling';
 
-  // Use effect to handle polling results
+  // Use the hook to poll for job status
   const { data: jobData } = useIngestionJob({
     jobId,
     enabled: pollingEnabled,
   });
 
-  // Handle job status updates
-  if (jobData && importState.status === 'polling') {
-    if (jobData.status === 'complete' && jobData.result) {
-      const successResult: ImportSuccessResult = {
-        jobId: jobData.job_id,
-        listingId: jobData.result.listing_id,
-        title: jobData.result.title || 'Untitled Listing',
-        provenance: jobData.result.provenance,
-        quality: jobData.result.quality,
-        createdAt: jobData.result.created_at,
-      };
-      // Only update state once
-      if (importState.status === 'polling') {
+  // Handle job status updates with useEffect to avoid state updates during render
+  useEffect(() => {
+    if (jobData && importState.status === 'polling') {
+      if (jobData.status === 'complete' && jobData.result) {
+        const successResult: ImportSuccessResult = {
+          jobId: jobData.job_id,
+          listingId: jobData.result.listing_id,
+          title: jobData.result.title || 'Untitled Listing',
+          provenance: jobData.result.provenance,
+          quality: jobData.result.quality,
+          createdAt: jobData.result.created_at,
+        };
+
         setImportState({ status: 'success', result: successResult });
+
+        // Show success toast
+        toast({
+          title: 'Import successful!',
+          description: `Listing "${successResult.title}" has been created.`,
+          variant: 'default',
+        });
+
         onSuccess?.(successResult);
-      }
-    } else if (jobData.status === 'failed' && jobData.error) {
-      const importError = {
-        code: jobData.error.code,
-        message: jobData.error.message,
-        details: jobData.error.details,
-        retryable: isRetryableError(jobData.error.code),
-      };
-      // Only update state once
-      if (importState.status === 'polling') {
+      } else if (jobData.status === 'failed' && jobData.error) {
+        const importError = {
+          code: jobData.error.code,
+          message: jobData.error.message,
+          details: jobData.error.details,
+          retryable: isRetryableError(jobData.error.code),
+        };
+
         setImportState({ status: 'error', error: importError });
+
+        // Show error toast
+        toast({
+          variant: 'destructive',
+          title: 'Import failed',
+          description: importError.message,
+        });
+
         onError?.(importError);
       }
     }
-  }
+  }, [jobData, importState.status, onSuccess, onError, toast]);
 
   const onSubmit = (data: UrlImportFormData) => {
     submitMutation.mutate({
