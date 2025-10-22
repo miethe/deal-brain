@@ -360,6 +360,66 @@ class ListingNormalizer:
         """
         self.session = session
 
+    def _parse_brand_and_model(self, title: str) -> tuple[str | None, str | None]:
+        """
+        Parse brand and model from product title.
+
+        Examples:
+            "MINISFORUM Venus NAB9 Mini PC..." → ("MINISFORUM", "Venus NAB9")
+            "Dell OptiPlex 7090 Desktop..." → ("Dell", "OptiPlex 7090")
+            "HP EliteDesk 800 G6..." → ("HP", "EliteDesk 800 G6")
+
+        Returns:
+            Tuple of (brand, model) or (None, None) if parsing fails
+        """
+        if not title:
+            return None, None
+
+        # Common brand patterns (case-insensitive)
+        brand_patterns = [
+            r"^(MINISFORUM|Dell|HP|Lenovo|ASUS|Acer|MSI|Gigabyte|Intel|AMD)\s+",
+            r"^(NUC|ThinkCentre|OptiPlex|EliteDesk|Pavilion|Inspiron|Latitude)\s+",
+        ]
+
+        brand = None
+        model = None
+
+        # Try to match brand at start of title
+        for pattern in brand_patterns:
+            match = re.search(pattern, title, re.IGNORECASE)
+            if match:
+                brand = match.group(1)
+                # Extract model (next 2-3 words after brand)
+                remaining = title[match.end():].strip()
+                model_match = re.match(r"^([\w\-]+(?:\s+[\w\-]+){0,2})", remaining)
+                if model_match:
+                    model = model_match.group(1).strip()
+                break
+
+        # If no brand found, try "Model by Brand" pattern
+        if not brand:
+            match = re.search(r"([\w\-]+(?:\s+[\w\-]+)?)\s+by\s+([\w]+)", title, re.IGNORECASE)
+            if match:
+                model = match.group(1).strip()
+                brand = match.group(2).strip()
+
+        # Clean up
+        if brand:
+            brand = brand.strip()
+        if model:
+            model = model.strip()
+            # Remove trailing "Mini PC", "Desktop", etc.
+            model = re.sub(
+                r"\s+(Mini PC|Desktop|Tower|SFF|USFF|Computer|PC).*$",
+                "",
+                model,
+                flags=re.IGNORECASE
+            )
+
+        logger.debug(f"Parsed title '{title[:50]}...' → brand='{brand}', model='{model}'")
+
+        return brand, model
+
     async def normalize(
         self,
         raw_data: NormalizedListingSchema,
@@ -400,7 +460,17 @@ class ListingNormalizer:
         cpu_model = specs.get("cpu_model") or raw_data.cpu_model
         cpu_info = await self._canonicalize_cpu(cpu_model)
 
-        # 5. Build enriched schema
+        # 5. Parse brand and model from title if not already set
+        manufacturer = raw_data.manufacturer
+        model_number = raw_data.model_number
+        if not manufacturer or not model_number:
+            brand, model = self._parse_brand_and_model(raw_data.title)
+            if brand and not manufacturer:
+                manufacturer = brand
+            if model and not model_number:
+                model_number = model
+
+        # 6. Build enriched schema
         enriched = NormalizedListingSchema(
             title=raw_data.title,
             price=price_usd,
@@ -414,6 +484,8 @@ class ListingNormalizer:
             cpu_model=cpu_info.get("name") if cpu_info else cpu_model,
             ram_gb=specs.get("ram_gb") or raw_data.ram_gb,
             storage_gb=specs.get("storage_gb") or raw_data.storage_gb,
+            manufacturer=manufacturer,
+            model_number=model_number,
         )
 
         return enriched
@@ -1065,6 +1137,48 @@ class IngestionService:
                 url=url,
             )
 
+    async def _find_cpu_by_model(self, cpu_model: str) -> int | None:
+        """Find CPU by model string using fuzzy matching.
+
+        Args:
+            cpu_model: CPU model string to search for
+
+        Returns:
+            CPU ID if found, None otherwise
+        """
+        from dealbrain_api.models.core import Cpu
+        from sqlalchemy import func
+
+        if not cpu_model:
+            return None
+
+        # Normalize the cpu_model string (lowercase, strip whitespace)
+        normalized = cpu_model.lower().strip()
+
+        # Query CPU catalog for exact match first
+        stmt = select(Cpu).where(func.lower(Cpu.name).contains(normalized))
+        result = await self.session.execute(stmt)
+        cpu = result.scalars().first()
+
+        if cpu:
+            logger.info(f"Found CPU: {cpu.name} (ID: {cpu.id}) for model '{cpu_model}'")
+            return cpu.id
+
+        # Try partial match (e.g., "i9-12900H" matches "Intel Core i9-12900H")
+        # Extract key parts (e.g., "12900H" from "Intel Core i9-12900H")
+        cpu_keywords = [part for part in normalized.split() if len(part) > 2]
+        if cpu_keywords:
+            for keyword in cpu_keywords:
+                stmt = select(Cpu).where(func.lower(Cpu.name).contains(keyword))
+                result = await self.session.execute(stmt)
+                cpu = result.scalars().first()
+                if cpu:
+                    logger.info(f"Found CPU: {cpu.name} (ID: {cpu.id}) for keyword '{keyword}'")
+                    return cpu.id
+
+        logger.warning(f"No CPU found for model '{cpu_model}'")
+        return None
+
     async def _create_listing(self, data: NormalizedListingSchema) -> Listing:
         """Create new listing from normalized data.
 
@@ -1090,7 +1204,18 @@ class IngestionService:
         }
         condition = condition_map.get(data.condition.lower(), Condition.USED)
 
-        # Create listing
+        # Look up CPU if cpu_model is provided
+        cpu_id = None
+        if data.cpu_model:
+            cpu_id = await self._find_cpu_by_model(data.cpu_model)
+
+        # Prepare attributes_json with images
+        attributes_json = {}
+        if data.images:
+            attributes_json["images"] = data.images
+            logger.info(f"Storing {len(data.images)} images in attributes_json")
+
+        # Create listing with all fields
         listing = Listing(
             title=data.title,
             price_usd=float(data.price),
@@ -1099,7 +1224,25 @@ class IngestionService:
             vendor_item_id=data.vendor_item_id,
             seller=data.seller,
             dedup_hash=dedup_hash,
+            # NEW FIELDS
+            cpu_id=cpu_id,  # Foreign key to CPU table
+            ram_gb=data.ram_gb or 0,  # Default to 0 if not provided
+            primary_storage_gb=data.storage_gb or 0,  # Default to 0 if not provided
+            notes=data.description,  # Store description in notes field
+            attributes_json=attributes_json,  # Store images and other metadata
+            manufacturer=data.manufacturer,  # Brand/manufacturer
+            model_number=data.model_number,  # Model number
             # last_seen_at is auto-set by default
+        )
+
+        logger.info(
+            f"Created listing: {listing.title} | "
+            f"CPU: {cpu_id or 'None'} | "
+            f"RAM: {data.ram_gb or 0}GB | "
+            f"Storage: {data.storage_gb or 0}GB | "
+            f"Images: {len(data.images) if data.images else 0} | "
+            f"Brand: {data.manufacturer or 'None'} | "
+            f"Model: {data.model_number or 'None'}"
         )
 
         self.session.add(listing)
@@ -1120,13 +1263,15 @@ class IngestionService:
         Returns:
             Updated Listing instance
         """
-        # Update mutable fields
+        from dealbrain_core.enums import Condition
+        from sqlalchemy.orm.attributes import flag_modified
+
+        # Update price and check for changes
+        old_price = existing.price_usd
         existing.price_usd = float(data.price)
         existing.last_seen_at = datetime.utcnow()
 
         # Update condition if changed
-        from dealbrain_core.enums import Condition
-
         condition_map = {
             "new": Condition.NEW,
             "refurb": Condition.REFURB,
@@ -1134,6 +1279,48 @@ class IngestionService:
         }
         condition = condition_map.get(data.condition.lower(), Condition.USED)
         existing.condition = condition.value
+
+        # Update seller if provided
+        if data.seller:
+            existing.seller = data.seller
+
+        # NEW: Update all extracted fields
+        if data.cpu_model:
+            cpu_id = await self._find_cpu_by_model(data.cpu_model)
+            if cpu_id:
+                existing.cpu_id = cpu_id
+
+        if data.ram_gb is not None:
+            existing.ram_gb = data.ram_gb
+
+        if data.storage_gb is not None:
+            existing.primary_storage_gb = data.storage_gb
+
+        if data.description:
+            existing.notes = data.description
+
+        if data.manufacturer:
+            existing.manufacturer = data.manufacturer
+
+        if data.model_number:
+            existing.model_number = data.model_number
+
+        if data.images:
+            # Merge with existing attributes_json
+            if not existing.attributes_json:
+                existing.attributes_json = {}
+            existing.attributes_json["images"] = data.images
+            flag_modified(existing, "attributes_json")  # Tell SQLAlchemy JSON changed
+
+        logger.info(
+            f"Updated listing: {existing.title} | "
+            f"Price: ${old_price} → ${data.price} | "
+            f"CPU: {existing.cpu_id or 'None'} | "
+            f"RAM: {data.ram_gb or 0}GB | "
+            f"Storage: {data.storage_gb or 0}GB | "
+            f"Brand: {data.manufacturer or 'None'} | "
+            f"Model: {data.model_number or 'None'}"
+        )
 
         await self.session.flush()
 

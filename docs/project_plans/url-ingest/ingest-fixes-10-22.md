@@ -1,10 +1,12 @@
 # URL Ingestion Fixes - October 22, 2025
 
-## Status: ✅ PROGRESS BAR FIXED (Phase 2 Complete)
+## Status: ✅ PHASE 2 & 3 COMPLETE
 
 ## Summary
 
-Implemented backend progress tracking for URL ingestion. The progress bar now reflects real backend status with updates at 5 milestones during the import process.
+**Phase 2**: Implemented backend progress tracking for URL ingestion. The progress bar now reflects real backend status with updates at 5 milestones during the import process.
+
+**Phase 3**: Fixed incomplete field population in URL ingestion by updating persistence layer and adding brand/model parsing. All 12 fields from adapters are now properly persisted to the database.
 
 ---
 
@@ -73,30 +75,76 @@ curl http://localhost:8000/api/v1/ingest/{job_id}
 
 ---
 
-## Remaining Work
+## ✅ Phase 3: Field Population Enhancement (COMPLETE)
 
-### 🔄 Field Population Enhancement (Not Yet Implemented)
+Fixed incomplete field population in URL ingestion by updating the persistence layer and adding brand/model parsing logic.
 
-**Current Behavior**: Ingested listings populate title, price, condition
+### Problem
 
-**Expected Behavior**: Populate ALL available fields including:
-- Always: title, price, condition, image_url
-- When available: description, brand, model_number, category
-- Parsed from title: CPU model, RAM, storage specs
-- Normalized: prices (USD numeric), conditions (enum), text (trimmed)
-- Spec linking: Create or link RAM/storage specs when data available
+Previously only 7 of 12 fields were persisted:
+- ✅ title, price, condition, seller, marketplace, vendor_item_id, dedup_hash
+- ❌ images, cpu_model, ram_gb, storage_gb, description, manufacturer, model_number
 
-**Implementation Notes**:
-- Adapter should parse product titles for structured data
-- Example: "MINISFORUM Venus NAB9 | Intel i9-12900H | 32GB RAM | 1TB SSD"
-  - Brand: MINISFORUM
-  - Model: Venus NAB9
-  - CPU: Intel Core i9-12900H
-  - RAM: 32GB (raw field if generation/speed unavailable)
-  - Storage: 1TB SSD
-- All fields sanitized and normalized per expected formats
-- Specs created/linked when complete data available
-- Raw fields populated when spec data incomplete
+### Solution
+
+**1. Schema Updates** (`packages/core/dealbrain_core/schemas/ingestion.py`):
+- Added `manufacturer` field (brand/manufacturer name)
+- Added `model_number` field (product model number)
+
+**2. Brand/Model Parsing** (`apps/api/dealbrain_api/services/ingestion.py`):
+- New `_parse_brand_and_model()` method extracts brand/model from titles
+- Supports common patterns: "Dell OptiPlex 7090", "Venus NAB9 by MINISFORUM"
+- Handles 10+ common brands (Dell, HP, Lenovo, ASUS, Intel, AMD, etc.)
+- Auto-strips trailing "Mini PC", "Desktop", "Computer", etc.
+
+**3. CPU Lookup** (`apps/api/dealbrain_api/services/ingestion.py`):
+- New `_find_cpu_by_model()` method with fuzzy matching
+- Supports exact match (case-insensitive)
+- Supports partial match (e.g., "i9-12900H" matches "Intel Core i9-12900H")
+- Returns `None` if no match found
+
+**4. Updated Persistence**:
+- `_create_listing()` now persists ALL 12 fields
+- `_update_listing()` updates all fields without data loss
+- CPU lookup converts cpu_model to cpu_id foreign key
+- Images stored in `attributes_json["images"]`
+- Description stored in `notes` field
+- RAM/storage stored in `ram_gb` and `primary_storage_gb`
+
+### Field Mapping
+
+| Adapter Field | Database Column | Notes |
+|---------------|----------------|-------|
+| `title` | `title` | Required |
+| `price` | `price_usd` | Required, converted to USD |
+| `condition` | `condition` | Required, normalized to enum |
+| `marketplace` | `marketplace` | Required |
+| `vendor_item_id` | `vendor_item_id` | Optional, for deduplication |
+| `seller` | `seller` | Optional |
+| `dedup_hash` | `dedup_hash` | Auto-generated |
+| `cpu_model` | `cpu_id` | Lookup via `_find_cpu_by_model()` |
+| `ram_gb` | `ram_gb` | Default to 0 if not provided |
+| `storage_gb` | `primary_storage_gb` | Default to 0 if not provided |
+| `description` | `notes` | Optional |
+| `images` | `attributes_json["images"]` | Stored as JSON array |
+| `manufacturer` | `manufacturer` | Parsed from title if not provided |
+| `model_number` | `model_number` | Parsed from title if not provided |
+
+### Tests
+
+**New Test File**: `tests/test_ingestion_service.py` (16 tests)
+- Field persistence tests (4 tests)
+- CPU lookup tests (7 tests)
+- Brand/model parsing tests (5 tests)
+
+**Results**:
+- ✅ 16/16 new tests passing
+- ✅ 24/24 existing tests passing (no regressions)
+
+**Files Changed**:
+1. Schema: `packages/core/dealbrain_core/schemas/ingestion.py`
+2. Service: `apps/api/dealbrain_api/services/ingestion.py`
+3. Tests: `tests/test_ingestion_service.py` (NEW)
 
 ---
 
@@ -109,13 +157,27 @@ curl http://localhost:8000/api/v1/ingest/{job_id}
 
 ## Next Steps
 
-### Phase 3: Frontend Integration (Recommended)
+### Phase 4: Frontend Integration (Recommended)
 
 Update import UI to consume real progress data:
 1. Modify polling logic in `/apps/web/app/dashboard/import/page.tsx`
 2. Replace fake progress with backend `progress_pct` values
 3. Test with real URLs
 
-### Phase 4: Field Population Enhancement (Future)
+### Phase 5: Future Enhancements
 
-Enhance adapters to populate all available listing fields with intelligent parsing and normalization.
+**Expand Brand Patterns**:
+- Add more manufacturer patterns as needed
+- Support international brands
+
+**Improve CPU Matching**:
+- Add fuzzy string matching (Levenshtein distance)
+- Support CPU aliases (e.g., "i7 12th gen" → "i7-12700")
+
+**Field Validation**:
+- Add min/max constraints for RAM/storage
+- Validate image URLs are accessible
+
+**Performance Metrics**:
+- Track field population rates in IngestionMetric table
+- Add telemetry for brand/model parsing success rate

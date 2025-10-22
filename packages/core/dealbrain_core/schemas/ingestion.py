@@ -92,6 +92,16 @@ class NormalizedListingSchema(DealBrainModel):
         default=None,
         description="Full product description text",
     )
+    manufacturer: str | None = Field(
+        default=None,
+        description="Product manufacturer/brand (e.g., Dell, HP, MINISFORUM)",
+        max_length=64,
+    )
+    model_number: str | None = Field(
+        default=None,
+        description="Product model number (e.g., OptiPlex 7090, Venus NAB9)",
+        max_length=128,
+    )
 
     @field_validator("condition")
     @classmethod
