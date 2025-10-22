@@ -662,12 +662,34 @@ All 4 phases have been successfully completed:
 
 ---
 
+## Known Issues & Remediation (2025-10-22)
+
+### Issue 1: Progress Bar Cosmetic - Not Real Backend Status
+**Problem:** Progress bar uses time-based estimation, never reaches 100% properly during polling
+**Root Cause:** Frontend calculates progress from elapsed time, backend doesn't expose progress_pct
+**Status:** Under remediation (see architectural-analysis-fixes-10-22.md)
+**Solution:** Add progress_pct field to ImportSession, update at task milestones
+
+### Issue 2: Incomplete Field Population
+**Problem:** Only title, price, condition populated; missing images, description, brand, model
+**Root Cause:** ListingsService.upsert_from_url() doesn't persist all extracted fields
+**Status:** Under remediation (see architectural-analysis-fixes-10-22.md)
+**Solution:** Enhance field persistence, add brand/model parsing from title
+
+**Remediation Timeline:** ~22 hours (3 business days)
+**Progress Tracker:** `docs/project_plans/url-ingest/progress/ingest-fixes-10-22-progress.md`
+**Architectural Analysis:** `docs/project_plans/url-ingest/architectural-analysis-fixes-10-22.md`
+
+---
+
 ## Useful References
 
 - **Implementation Plan**: `docs/project_plans/url-ingest/implementation-plan.md`
 - **PRD (Original)**: `docs/project_plans/url-ingest/prd-url-ingest.md`
 - **PRD (Deal Brain)**: `docs/project_plans/url-ingest/prd-url-ingest-dealbrain.md`
 - **Progress Tracker**: `docs/project_plans/url-ingest/progress/phase-1-progress.md`
+- **Remediation Progress**: `docs/project_plans/url-ingest/progress/ingest-fixes-10-22-progress.md`
+- **Architectural Analysis**: `docs/project_plans/url-ingest/architectural-analysis-fixes-10-22.md`
 - **CLAUDE.md**: Project coding standards, commands, architecture patterns
 
 ---
