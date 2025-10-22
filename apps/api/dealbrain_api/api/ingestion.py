@@ -297,7 +297,7 @@ async def create_bulk_url_import(
         session.add(parent_session)
         await session.flush()
 
-        # Create child ImportSession for each URL and queue tasks
+        # Create child ImportSession for each URL (do NOT queue tasks yet)
         child_job_ids = []
         for url in validated_urls:
             child_job_id = uuid4()
@@ -319,12 +319,17 @@ async def create_bulk_url_import(
             )
 
             session.add(child_session)
-            child_job_ids.append(str(child_job_id))
+            child_job_ids.append((str(child_job_id), url))
 
-            # Queue Celery task for this URL
-            ingest_url_task.delay(job_id=str(child_job_id), url=url)
+        # CRITICAL: Commit ALL ImportSession records BEFORE queuing any tasks.
+        # The Celery workers use separate database sessions and cannot see uncommitted data.
+        # Without commit, workers query ImportSession before it's visible, causing
+        # "ImportSession not found" errors 100% of the time with fast workers.
+        await session.commit()
 
-        await session.flush()
+        # Now queue Celery tasks (safe - all ImportSession records are committed and visible)
+        for child_job_id, url in child_job_ids:
+            ingest_url_task.delay(job_id=child_job_id, url=url)
 
         logger.info(
             "Bulk URL import job created and queued",
@@ -420,9 +425,13 @@ async def create_single_url_import(
         )
 
         session.add(import_session)
-        await session.flush()
+        # CRITICAL: Commit transaction BEFORE queuing task to prevent race condition.
+        # The Celery worker uses a separate database session and cannot see uncommitted data.
+        # Without commit, the worker queries ImportSession before it's visible, causing
+        # "ImportSession not found" errors 100% of the time with fast workers.
+        await session.commit()
 
-        # Queue Celery task for async processing
+        # Queue Celery task for async processing (now safe - ImportSession is committed)
         ingest_url_task.delay(job_id=str(job_id), url=url_str)
 
         logger.info(
