@@ -322,17 +322,23 @@
 
 ## Completion Tracking
 
-### Phase 1: Investigation ⏳
-- [ ] Task 1.1: Validate Field Population (0/1)
-- [ ] Task 1.2: Progress Status Flow Analysis (0/1)
+### Phase 1: Investigation ✅ COMPLETE
+- [x] Task 1.1: Validate Field Population (1/1) - **COMPLETE** ✅ 2025-10-22
+- [x] Task 1.2: Progress Status Flow Analysis (1/1) - **COMPLETE** ✅ 2025-10-22
 
-### Phase 2: Progress Bar Fix ⏳
+**Findings:**
+- Field population investigation report: `/mnt/containers/deal-brain/docs/project_plans/url-ingest/field-population-investigation-report.md`
+- Progress bar analysis: Comprehensive analysis completed showing root cause in progress tracking architecture
+- **Root Cause Issue 1:** Backend has NO `progress_pct` field; frontend uses time-based estimation
+- **Root Cause Issue 2:** `IngestionService._create_listing()` only maps 7/12 fields from NormalizedListingSchema
+
+### Phase 2: Progress Bar Fix ⏳ IN PROGRESS
 - [ ] Task 2.1: Backend Progress Tracking (0/1)
 - [ ] Task 2.2: Frontend Progress Display (0/1)
 - [ ] Task 2.3: Testing & Validation (0/1)
 
 ### Phase 3: Field Population Fix ⏳
-- [ ] Task 3.1: Audit Persistence (0/1)
+- [ ] Task 3.1: Audit Persistence (0/1) - **MERGED with investigation**
 - [ ] Task 3.2: Brand/Model Parsing (0/1)
 - [ ] Task 3.3: Enhanced Persistence (0/1)
 - [ ] Task 3.4: Testing & Validation (0/1)
@@ -341,7 +347,7 @@
 - [ ] Task 4.1: Comprehensive Testing (0/1)
 - [ ] Task 4.2: Update Documentation (0/1)
 
-**Overall Progress:** 0/11 tasks complete (0%)
+**Overall Progress:** 2/11 tasks complete (18%)
 
 ---
 
@@ -363,11 +369,30 @@
 - Backend doesn't expose granular progress (just queued/running/complete)
 - Need to add progress_pct field to ImportSession for real tracking
 
-### Investigation Findings
-_(To be filled as investigation proceeds)_
+### Investigation Findings (2025-10-22: Phase 1 Complete)
+
+**Issue 1: Progress Bar**
+- ✅ Confirmed: Frontend uses time-based `calculateProgress(elapsed)` function
+- ✅ Confirmed: Backend has NO `progress_pct` field on ImportSession model
+- ✅ Confirmed: Only 3 status states (queued → running → complete/failed)
+- ✅ Root cause: No granular progress tracking in backend, frontend simulates progress
+
+**Issue 2: Field Population**
+- ✅ Confirmed: NormalizedListingSchema HAS `images`, `description` fields
+- ✅ Confirmed: Listing model LACKS `image_url`, `description` fields
+- ✅ Confirmed: IngestionService._create_listing() only maps subset of fields
+- ✅ Root cause: Missing database fields + incomplete field mapping
+
+**Key Findings:**
+- Adapters ARE extracting data correctly (images, description, specs)
+- Data is NOT persisting because Listing model lacks fields
+- manufacturer/model_number fields exist but are not populated
+- Raw data IS preserved in RawPayload table (can backfill if needed)
+
+**Detailed Report:** `/mnt/containers/deal-brain/docs/project_plans/url-ingest/progress/phase1-investigation-findings.md`
 
 ### Implementation Notes
-_(To be filled during implementation)_
+_(To be filled during Phase 2-4 implementation)_
 
 ---
 
