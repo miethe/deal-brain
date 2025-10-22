@@ -9,9 +9,36 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from dealbrain_api.db import Base
-from dealbrain_api.models import *  # noqa: F401,F403
-from dealbrain_api.settings import get_settings
+# Make the package importable when running alembic outside of Poetry/installed
+# environments by adding the repository root and apps/api to sys.path. This
+# mirrors what Poetry does when installing packages from the monorepo.
+import sys
+import os
+from pathlib import Path
+
+try:
+    from dealbrain_api.db import Base
+    from dealbrain_api.models import *  # noqa: F401,F403
+    from dealbrain_api.settings import get_settings
+except ModuleNotFoundError:
+    # Compute likely project root (../../.. from this file -> repo root)
+    env_path = Path(__file__).resolve()
+    repo_root = env_path.parents[3]
+    apps_api = repo_root / "apps" / "api"
+
+    # Also add the packages/core folder so shared packages (dealbrain_core)
+    # can be imported when running alembic from the repository root.
+    packages_core = repo_root / "packages" / "core"
+
+    # Prepend to sys.path so these take precedence over other installed packages
+    sys.path.insert(0, str(packages_core))
+    sys.path.insert(0, str(apps_api))
+    sys.path.insert(0, str(repo_root))
+
+    # Retry imports
+    from dealbrain_api.db import Base
+    from dealbrain_api.models import *  # noqa: F401,F403
+    from dealbrain_api.settings import get_settings
 
 config = context.config
 
