@@ -13,6 +13,7 @@ from . import (
     fields,
     health,
     imports,
+    ingestion,
     listings,
     metrics,
     rankings,
@@ -29,6 +30,7 @@ router.include_router(rankings.router)
 router.include_router(dashboard.router)
 router.include_router(health.router)
 router.include_router(imports.router)
+router.include_router(ingestion.router)
 router.include_router(fields.router)
 router.include_router(custom_fields.router)
 router.include_router(field_data.router)

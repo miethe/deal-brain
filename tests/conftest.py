@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 paths_to_add = [
     ROOT,
     ROOT / "apps",
+    ROOT / "apps" / "api",
     ROOT / "packages" / "core",
 ]
 for path in paths_to_add:

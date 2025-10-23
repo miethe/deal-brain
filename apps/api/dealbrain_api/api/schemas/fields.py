@@ -5,13 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
-
 from dealbrain_core.schemas import (
     CustomFieldDefinitionCreate,
     CustomFieldDefinitionRead,
     CustomFieldDefinitionUpdate,
 )
+from pydantic import BaseModel, Field
 
 
 class FieldCreateRequest(CustomFieldDefinitionCreate):
@@ -60,6 +59,26 @@ class FieldDeleteResponse(FieldUsageRecord):
     pass
 
 
+class FieldValuesResponse(BaseModel):
+    """Response schema for field values endpoint."""
+
+    field_name: str = Field(..., description="The field name queried")
+    values: list[str] = Field(..., description="Distinct values for the field")
+    count: int = Field(..., description="Number of values returned")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "field_name": "listing.condition",
+                    "values": ["New", "Like New", "Good", "Fair"],
+                    "count": 4
+                }
+            ]
+        }
+    }
+
+
 __all__ = [
     "FieldCreateRequest",
     "FieldUpdateRequest",
@@ -70,4 +89,5 @@ __all__ = [
     "FieldUsageRecord",
     "FieldUsageResponse",
     "FieldDeleteResponse",
+    "FieldValuesResponse",
 ]

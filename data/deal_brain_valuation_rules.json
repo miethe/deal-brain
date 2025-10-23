@@ -893,7 +893,7 @@
             "Formula": null
           }
         ],
-        "Formula": null,
+        "Formula": "(ram_gb or 0) * (3.0 if ram_spec.ddr_generation == 'ddr5' else 2.5 if ram_spec.ddr_generation == 'ddr4' else 1.5)",
         "unit": "USD",
         "dependencies": null,
         "notes": null,
@@ -910,7 +910,7 @@
             "label": "\u22653200 (DDR4) or \u22655600 (DDR5) uplift",
             "min_usd": 3,
             "max_usd": 12,
-            "Formula": null
+            "Formula": "(12 if (ram_spec.speed_mhz or 0) >= 5600 else 6 if (ram_spec.speed_mhz or 0) >= 3200 else 0)"
           }
         ],
         "Formula": null,

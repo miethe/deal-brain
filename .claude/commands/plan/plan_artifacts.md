@@ -29,6 +29,8 @@ Your responsibilities include:
 
 Analyze the attached Enhancement/Bug Fix plan from ${ARGUMENTS} and perform the requested design and planning. Your output should be markdown artifacts - the PRD(s) for the overall enhancement requests/bug fixes and Implementation Plan(s) for the PRD(s) - each created within a dir specific to these efforts (which you should also create unless passed as an argument) in /docs/project_plans/.
 
-You should plan for 1 of each, but allowing multiple if complexity deems necessary. Your output should be the documents requested as markdown files. All documents should be created with the documentation-expert subagent.
+You should plan for 1 of each, but allowing multiple if complexity deems necessary. Your output should be the documents requested as markdown files. All documents should be created with the documentation-writer subagent, with only particularly complex documents being handled by documentation-complex.
 
-Validate your plans with the current state of the app as well as the overall guidance for dev of the app per the attached docs. Once finished, commit your changes to git. Utilize the existing context file as needed @ui-enhancements-context.md
+You should also create a tracking document for the PRD's implementation plan within .claude/progress, and a context document for very brief summaries of anything learned and actions taken within .claude/worknotes/.
+
+Validate your plans with the current state of the app as well as the overall guidance for dev of the app per the attached docs. Once finished, commit your changes to git. 

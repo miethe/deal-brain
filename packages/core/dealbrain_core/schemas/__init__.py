@@ -55,6 +55,13 @@ from .baseline import (
     BaselineAdoptRequest,
     BaselineAdoptResponse,
 )
+from .ingestion import (
+    NormalizedListingSchema,
+    IngestionRequest,
+    IngestionResponse,
+    BulkIngestionRequest,
+    BulkIngestionResponse,
+)
 
 __all__ = [
     "DealBrainModel",
@@ -104,4 +111,9 @@ __all__ = [
     "BaselineDiffResponse",
     "BaselineAdoptRequest",
     "BaselineAdoptResponse",
+    "NormalizedListingSchema",
+    "IngestionRequest",
+    "IngestionResponse",
+    "BulkIngestionRequest",
+    "BulkIngestionResponse",
 ]

@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./secrets/**)",
+      "Bash(rm -rf:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(docker:*::*)",
+      "Bash(npm install:*)",
+      "Bash(pnpm add:*)"
+    ],
+    "allow": [
+      "Bash(pnpm:*)",
+      "Bash(uv:*)",
+      "Bash(poetry:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(pip:*)",
+      "Bash(find:*)",
+      "Bash(echo:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git log:*)",
+      "Read(./**)",
+      "Write(./**)",
+      "Bash(export:*)",
+      "Bash(psql:*)",
+      "Bash(cat:*)",
+      "Edit",
+      "MultiEdit",
+      "Grep",
+      "Glob",
+      "LS"
+    ]
+  }
+}

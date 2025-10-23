@@ -1,6 +1,7 @@
 """API endpoints for valuation rules management"""
 
 from typing import Any
+from dealbrain_api.models.core import ValuationRuleGroup
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
 from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,11 +30,15 @@ from ..schemas.rules import (
     PackageMetadataRequest,
     PackageExportResponse,
     PackageInstallResponse,
+    FormulaValidationRequest,
+    FormulaValidationResponse,
+    FormulaValidationError,
 )
 from ..services.rules import RulesService
 from ..services.rule_evaluation import RuleEvaluationService
 from ..services.rule_preview import RulePreviewService
 from ..services.ruleset_packaging import RulesetPackagingService
+from ..services.formula_validation import FormulaValidationService
 from ..validation.rules_validation import (
     validate_basic_managed_group,
     validate_entity_key,
@@ -318,17 +323,20 @@ async def list_rule_groups(
     ruleset_id: int | None = Query(None),
     category: str | None = Query(None),
     session: AsyncSession = Depends(get_session),
-):
+) -> list[RuleGroupResponse]:
     """List rule groups"""
     service = RulesService()
-    groups = await service.list_rule_groups(
+    groups: list[ValuationRuleGroup] = await service.list_rule_groups(
         session=session,
         ruleset_id=ruleset_id,
         category=category,
     )
 
-    result = []
+    result: list[RuleGroupResponse] = []
     for g in groups:
+        if not g:  # Skip None entries if they somehow exist
+            continue
+            
         # Extract basic_managed and entity_key from metadata
         basic_managed, entity_key = extract_metadata_fields(g.metadata_json)
 
@@ -358,15 +366,15 @@ async def list_rule_groups(
 async def get_rule_group(
     group_id: int,
     session: AsyncSession = Depends(get_session),
-):
+) -> RuleGroupResponse:
     """Get a rule group by ID"""
     service = RulesService()
-    group = await service.get_rule_group(session, group_id)
+    group: ValuationRuleGroup | None = await service.get_rule_group(session, group_id)
 
     if not group:
         raise HTTPException(status_code=404, detail="Rule group not found")
 
-    rules = [
+    rules: list[RuleResponse] = [
         RuleResponse(
             id=rule.id,
             group_id=rule.group_id,
@@ -432,7 +440,7 @@ async def update_rule_group(
     group_id: int,
     request: RuleGroupUpdateRequest,
     session: AsyncSession = Depends(get_session),
-):
+) -> RuleGroupResponse:
     """Update a rule group"""
     service = RulesService()
 
@@ -463,7 +471,10 @@ async def update_rule_group(
             additional_metadata=updates.get("metadata")
         )
 
-    group = await service.update_rule_group(session, group_id, updates)
+    group: ValuationRuleGroup | None = await service.update_rule_group(session, group_id, updates)
+
+    if not group:
+        raise HTTPException(status_code=404, detail="Rule group not found")
 
     # Extract basic_managed and entity_key from metadata for response
     basic_managed, entity_key = extract_metadata_fields(group.metadata_json)
@@ -772,6 +783,75 @@ async def preview_rule(
     )
 
     return RulePreviewResponse(**result)
+
+
+@router.post("/valuation-rules/validate-formula", response_model=FormulaValidationResponse)
+async def validate_formula(
+    request: FormulaValidationRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Validate a formula and provide preview calculation.
+
+    This endpoint:
+    - Validates formula syntax
+    - Checks field availability against entity metadata
+    - Calculates preview with sample data (either provided or from database)
+    - Returns list of used fields from formula
+    - Provides helpful error messages with suggestions
+
+    Example formulas:
+    - "ram_gb * 2.5" - Simple per-GB pricing
+    - "cpu_mark_multi / 1000 * 5.0" - Benchmark-based calculation
+    - "max(ram_gb * 2.5, 50)" - Minimum value enforcement
+    - "ram_gb * 2.5 if ram_gb >= 16 else ram_gb * 3.0" - Conditional pricing
+    """
+    service = FormulaValidationService()
+
+    try:
+        result = await service.validate_formula(
+            session=session,
+            formula=request.formula,
+            entity_type=request.entity_type,
+            sample_context=request.sample_context,
+        )
+
+        # Convert error dictionaries to Pydantic models
+        errors = [
+            FormulaValidationError(
+                message=error["message"],
+                severity=error["severity"],
+                position=error.get("position"),
+                suggestion=error.get("suggestion"),
+            )
+            for error in result["errors"]
+        ]
+
+        return FormulaValidationResponse(
+            valid=result["valid"],
+            errors=errors,
+            preview=result["preview"],
+            used_fields=result["used_fields"],
+            available_fields=result["available_fields"],
+        )
+
+    except Exception as e:
+        logger.error(f"Formula validation failed with unexpected error: {e}", exc_info=True)
+        # Return error response instead of raising exception
+        return FormulaValidationResponse(
+            valid=False,
+            errors=[
+                FormulaValidationError(
+                    message=f"Validation failed: {str(e)}",
+                    severity="error",
+                    position=None,
+                    suggestion="Please check the formula syntax and try again",
+                )
+            ],
+            preview=None,
+            used_fields=[],
+            available_fields=[],
+        )
 
 
 # --- Evaluation Endpoints ---

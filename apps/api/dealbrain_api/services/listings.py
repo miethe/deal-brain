@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any, Iterable
 from urllib.parse import urlparse
-
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from dealbrain_core.enums import ComponentMetric, ComponentType, Condition, StorageMedium
 from dealbrain_core.gpu import compute_gpu_score
 from dealbrain_core.scoring import ListingMetrics, compute_composite_score, dollar_per_metric
 from dealbrain_core.valuation import ComponentValuationInput, compute_adjusted_price
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Cpu, Gpu, Listing, ListingComponent, Profile
 from .component_catalog import (
@@ -216,7 +216,7 @@ def _format_rule_evaluation_breakdown(summary: dict[str, Any]) -> dict[str, Any]
                     "value": action_value,
                     "details": action.get("details"),
                     "error": action.get("error"),
-                }
+                },
             )
 
         adjustments.append(
@@ -225,7 +225,7 @@ def _format_rule_evaluation_breakdown(summary: dict[str, Any]) -> dict[str, Any]
                 "rule_name": result.get("rule_name"),
                 "adjustment_usd": adjustment_value,
                 "actions": actions_breakdown,
-            }
+            },
         )
 
         lines.append(
@@ -237,7 +237,7 @@ def _format_rule_evaluation_breakdown(summary: dict[str, Any]) -> dict[str, Any]
                 "condition_multiplier": 1.0,
                 "deduction_usd": round(max(-adjustment_value, 0.0), 2),
                 "adjustment_usd": adjustment_value,
-            }
+            },
         )
 
     matched_rules = []
@@ -248,7 +248,7 @@ def _format_rule_evaluation_breakdown(summary: dict[str, Any]) -> dict[str, Any]
                 "rule_name": entry.get("rule_name"),
                 "adjustment": _as_float(entry.get("adjustment")),
                 "breakdown": entry.get("breakdown"),
-            }
+            },
         )
 
     total_deductions = round(sum(line["deduction_usd"] for line in lines), 2)
@@ -285,7 +285,7 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
             # Expected when no active rulesets are available; fall back to legacy valuation path.
             if "No active ruleset found" not in str(exc):
                 logger.warning("Rule evaluation failed for listing %s: %s", listing.id, exc)
-        except Exception as exc:  # pragma: no cover - defensive logging
+        except Exception:  # pragma: no cover - defensive logging
             logger.exception("Unexpected error evaluating rules for listing %s", listing.id)
 
     if evaluation_summary:
@@ -472,7 +472,6 @@ async def sync_listing_components(
     components_payload: list[dict] | None,
 ) -> None:
     """Replace listing components using explicit SQL to avoid lazy relationship access."""
-
     if components_payload is None:
         return
 
@@ -494,7 +493,7 @@ async def sync_listing_components(
                 quantity=payload.get("quantity", 1),
                 metadata_json=payload.get("metadata_json"),
                 adjustment_value_usd=payload.get("adjustment_value_usd"),
-            )
+            ),
         )
     await session.flush()
 
@@ -641,9 +640,11 @@ def _coerce_condition(value: Any) -> Condition:
 def calculate_cpu_performance_metrics(listing: Listing) -> dict[str, float]:
     """Calculate all CPU-based performance metrics for a listing.
 
-    Returns:
+    Returns
+    -------
         Dictionary with metric keys and calculated values.
         Empty dict if CPU not assigned or missing benchmark data.
+    
     """
     if not listing.cpu:
         return {}
@@ -669,19 +670,23 @@ def calculate_cpu_performance_metrics(listing: Listing) -> dict[str, float]:
 
 async def update_listing_metrics(
     session: AsyncSession,
-    listing_id: int
+    listing_id: int,
 ) -> Listing:
     """Recalculate and persist all performance metrics for a listing.
 
     Args:
+    ----
         session: Database session
         listing_id: ID of listing to update
 
     Returns:
+    -------
         Updated listing with recalculated metrics
 
     Raises:
+    ------
         ValueError: If listing not found
+    
     """
     from sqlalchemy.orm import joinedload
 
@@ -707,16 +712,19 @@ async def update_listing_metrics(
 
 async def bulk_update_listing_metrics(
     session: AsyncSession,
-    listing_ids: list[int] | None = None
+    listing_ids: list[int] | None = None,
 ) -> int:
     """Recalculate metrics for multiple listings.
 
     Args:
+    ----
         session: Database session
         listing_ids: List of IDs to update. If None, updates all listings.
 
     Returns:
+    -------
         Count of listings updated
+    
     """
     from sqlalchemy.orm import joinedload
 
@@ -736,3 +744,170 @@ async def bulk_update_listing_metrics(
 
     await session.commit()
     return updated_count
+
+
+# ============================================================================
+# URL Ingestion Integration (Phase 3 - Task ID-020)
+# ============================================================================
+
+
+async def upsert_from_url(
+    session: AsyncSession,
+    normalized: "NormalizedListingSchema",  # noqa: F821
+    dedupe_result: "DeduplicationResult",  # noqa: F821
+) -> Listing:
+    """Upsert listing from URL ingestion.
+
+    If dedup match found, updates existing listing with new data.
+    If new listing, creates listing with URL ingestion metadata.
+
+    This method integrates URL ingestion with existing ListingsService,
+    maintaining backward compatibility with Excel import flow.
+
+    Args:
+    ----
+        session: Database session (caller controls transaction)
+        normalized: Normalized listing data from adapter
+        dedupe_result: Deduplication result with match info
+
+    Returns:
+    -------
+        Created or updated Listing instance
+
+    Raises:
+    ------
+        ValueError: If normalized data invalid or condition cannot be mapped
+
+    Example:
+    -------
+        >>> from dealbrain_core.schemas.ingestion import NormalizedListingSchema
+        >>> from dealbrain_api.services.ingestion import DeduplicationResult
+        >>>
+        >>> normalized = NormalizedListingSchema(
+        ...     title="Gaming PC",
+        ...     price=Decimal("599.99"),
+        ...     currency="USD",
+        ...     condition="new",
+        ...     marketplace="ebay",
+        ...     vendor_item_id="123456789012",
+        ...     provenance="ebay_api",
+        ...     dedup_hash="abc123...",
+        ... )
+        >>> dedupe_result = DeduplicationResult(
+        ...     exists=False,
+        ...     existing_listing=None,
+        ...     is_exact_match=False,
+        ...     confidence=0.0,
+        ...     dedup_hash="abc123...",
+        ... )
+        >>> listing = await upsert_from_url(session, normalized, dedupe_result)
+    
+    """
+    from decimal import Decimal
+
+    from dealbrain_core.enums import Condition
+    from dealbrain_core.schemas.ingestion import NormalizedListingSchema
+
+    # Import IngestionEventService locally to avoid circular imports
+    from .ingestion import IngestionEventService
+
+    # Validate input
+    if not isinstance(normalized, NormalizedListingSchema):
+        raise ValueError("normalized must be a NormalizedListingSchema instance")
+
+    # Initialize event service for price change tracking
+    event_service = IngestionEventService()
+
+    # Map condition string to enum
+    condition_map = {
+        "new": Condition.NEW,
+        "refurb": Condition.REFURB,
+        "used": Condition.USED,
+    }
+    condition_enum = condition_map.get(normalized.condition.lower(), Condition.USED)
+
+    if dedupe_result.exists and dedupe_result.existing_listing:
+        # UPDATE PATH: Update existing listing
+        existing = dedupe_result.existing_listing
+
+        # Check if price changed for event emission
+        old_price = Decimal(str(existing.price_usd))
+        new_price = normalized.price
+
+        # Update mutable fields
+        existing.price_usd = float(new_price)
+        existing.condition = condition_enum.value
+
+        # Update images if provided
+        if normalized.images:
+            # Store images as JSON array (need to check model schema)
+            # For now, store in attributes_json as the Listing model doesn't have images field
+            attrs = dict(existing.attributes_json or {})
+            attrs["images"] = normalized.images
+            existing.attributes_json = attrs
+
+        # Update timestamps
+        existing.last_seen_at = datetime.utcnow()
+
+        await session.flush()
+
+        # Emit price.changed event if threshold met
+        if old_price != new_price:
+            emitted = event_service.check_and_emit_price_change(
+                existing, old_price, new_price,
+            )
+            logger.debug(
+                "Price change event emission",
+                extra={
+                    "listing_id": existing.id,
+                    "old_price": float(old_price),
+                    "new_price": float(new_price),
+                    "emitted": emitted,
+                },
+            )
+
+        return existing
+
+    # CREATE PATH: Create new listing
+    # Get dedup hash from DeduplicationResult (generated by DeduplicationService)
+    dedup_hash = dedupe_result.dedup_hash
+
+    listing = Listing(
+        title=normalized.title,
+        price_usd=float(normalized.price),
+        condition=condition_enum.value,
+        marketplace=normalized.marketplace,
+        vendor_item_id=normalized.vendor_item_id,
+        seller=normalized.seller,
+        dedup_hash=dedup_hash,
+        last_seen_at=datetime.utcnow(),
+    )
+
+    # Store images in attributes_json if provided
+    if normalized.images:
+        listing.attributes_json = {"images": normalized.images}
+
+    # Store provenance if available in normalized data
+    # Note: provenance is not in NormalizedListingSchema but should be tracked
+    # It will be set by the caller (IngestionService)
+
+    session.add(listing)
+    await session.flush()  # Get ID without committing
+
+    # Apply valuation rules and calculate metrics
+    await apply_listing_metrics(session, listing)
+
+    # Emit listing.created event
+    # Note: We don't have provenance or quality in this method
+    # Those should be emitted by the caller (IngestionService)
+    logger.info(
+        "Created new listing from URL ingestion",
+        extra={
+            "listing_id": listing.id,
+            "title": listing.title,
+            "price": listing.price_usd,
+            "marketplace": listing.marketplace,
+        },
+    )
+
+    return listing

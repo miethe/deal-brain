@@ -14,13 +14,30 @@ export interface Condition {
   group_order?: number;
 }
 
+export interface ActionMultiplier {
+  name: string;
+  field: string;
+  conditions: Array<{
+    value: string;
+    multiplier: number;
+  }>;
+}
+
 export interface Action {
   action_type: string;
   metric?: string;
   value_usd?: number;
   unit_type?: string;
   formula?: string;
-  modifiers?: Record<string, any>;
+  modifiers?: {
+    multipliers?: ActionMultiplier[];
+    condition_multipliers?: {
+      new: number;
+      refurb: number;
+      used: number;
+    };
+    [key: string]: any;
+  };
 }
 
 export interface Rule {
@@ -331,5 +348,44 @@ export async function fetchAuditLog(
     `${API_URL}/api/v1/valuation-rules/audit-log?${params}`
   );
   if (!response.ok) throw new Error("Failed to fetch audit log");
+  return response.json();
+}
+
+// Formula Validation
+
+export interface FormulaValidationError {
+  message: string;
+  severity: "error" | "warning" | "info";
+  position?: number;
+  suggestion?: string;
+}
+
+export interface FormulaValidationRequest {
+  formula: string;
+  entity_type?: string;
+  sample_context?: Record<string, any>;
+}
+
+export interface FormulaValidationResponse {
+  valid: boolean;
+  errors: FormulaValidationError[];
+  preview?: number;
+  used_fields: string[];
+  available_fields: string[];
+}
+
+export async function validateFormula(
+  data: FormulaValidationRequest
+): Promise<FormulaValidationResponse> {
+  const response = await fetch(`${API_URL}/api/v1/valuation-rules/validate-formula`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      formula: data.formula,
+      entity_type: data.entity_type || "Listing",
+      sample_context: data.sample_context,
+    }),
+  });
+  if (!response.ok) throw new Error("Failed to validate formula");
   return response.json();
 }

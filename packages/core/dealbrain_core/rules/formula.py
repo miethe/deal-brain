@@ -1,9 +1,48 @@
 """Safe formula parser and evaluator for custom calculations"""
 
 import ast
+import logging
 import math
 import operator
-from typing import Any
+from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
+
+
+class FormulaError(Exception):
+    """Base exception for formula parsing and evaluation errors"""
+
+    def __init__(self, message: str, position: Optional[int] = None, suggestion: Optional[str] = None):
+        """
+        Initialize formula error with detailed information.
+
+        Args:
+            message: Error description
+            position: Character position in formula where error occurred
+            suggestion: Optional suggestion for fixing the error
+        """
+        self.message = message
+        self.position = position
+        self.suggestion = suggestion
+
+        # Build detailed error message
+        error_parts = [message]
+        if position is not None:
+            error_parts.append(f" at position {position}")
+        if suggestion:
+            error_parts.append(f"\nSuggestion: {suggestion}")
+
+        super().__init__("".join(error_parts))
+
+
+class FormulaSyntaxError(FormulaError):
+    """Raised when formula has syntax errors"""
+    pass
+
+
+class FormulaValidationError(FormulaError):
+    """Raised when formula contains unsafe or disallowed operations"""
+    pass
 
 
 class FormulaParser:
@@ -46,6 +85,8 @@ class FormulaParser:
         "pow": pow,
         "floor": math.floor,
         "ceil": math.ceil,
+        # Custom functions
+        "clamp": lambda value, min_val, max_val: max(min_val, min(max_val, value)),
     }
 
     def parse(self, formula: str) -> ast.Expression:
@@ -59,24 +100,79 @@ class FormulaParser:
             Parsed AST expression
 
         Raises:
-            ValueError: If formula contains unsafe operations
+            FormulaSyntaxError: If formula has syntax errors
+            FormulaValidationError: If formula contains unsafe operations
         """
+        if not formula or not formula.strip():
+            raise FormulaSyntaxError("Formula cannot be empty")
+
         try:
             tree = ast.parse(formula, mode='eval')
         except SyntaxError as e:
-            raise ValueError(f"Invalid formula syntax: {e}")
+            # Extract position and provide helpful error message
+            position = e.offset if hasattr(e, 'offset') and e.offset else None
+
+            # Try to provide helpful suggestions based on common errors
+            suggestion = self._get_syntax_error_suggestion(formula, e)
+
+            raise FormulaSyntaxError(
+                f"Invalid formula syntax: {e.msg}",
+                position=position,
+                suggestion=suggestion
+            ) from e
 
         # Validate the AST
-        self._validate_node(tree.body)
+        try:
+            self._validate_node(tree.body, formula)
+        except FormulaValidationError:
+            raise
+        except Exception as e:
+            raise FormulaValidationError(f"Formula validation failed: {e}") from e
 
         return tree
 
-    def _validate_node(self, node: ast.AST) -> None:
+    def _get_syntax_error_suggestion(self, formula: str, error: SyntaxError) -> Optional[str]:
+        """
+        Provide helpful suggestion based on syntax error.
+
+        Args:
+            formula: The formula string
+            error: The syntax error
+
+        Returns:
+            Helpful suggestion or None
+        """
+        error_msg = str(error.msg).lower() if error.msg else ""
+
+        # Common mistakes and suggestions
+        if "unexpected eof" in error_msg or "invalid syntax" in error_msg:
+            # Check for unmatched parentheses
+            open_parens = formula.count('(')
+            close_parens = formula.count(')')
+            if open_parens > close_parens:
+                return f"Missing {open_parens - close_parens} closing parenthesis"
+            elif close_parens > open_parens:
+                return f"Extra {close_parens - open_parens} closing parenthesis"
+
+            # Check for incomplete operations
+            if formula.rstrip().endswith(('*', '/', '+', '-', '%', '**')):
+                return "Formula ends with an operator - add the right operand"
+
+        if "invalid character" in error_msg:
+            return "Check for special characters that are not allowed in formulas"
+
+        return None
+
+    def _validate_node(self, node: ast.AST, formula: str) -> None:
         """
         Recursively validate that an AST node is safe.
 
+        Args:
+            node: AST node to validate
+            formula: Original formula string for error reporting
+
         Raises:
-            ValueError: If node contains unsafe operations
+            FormulaValidationError: If node contains unsafe operations
         """
         if isinstance(node, ast.Constant):
             # Constants are safe
@@ -88,78 +184,107 @@ class FormulaParser:
 
         elif isinstance(node, ast.Attribute):
             # Attribute access like cpu.cores is safe
-            self._validate_node(node.value)
+            self._validate_node(node.value, formula)
             return
 
         elif isinstance(node, ast.BinOp):
             # Binary operations
             if type(node.op) not in self.ALLOWED_OPERATORS:
-                raise ValueError(f"Operator {type(node.op).__name__} not allowed")
-            self._validate_node(node.left)
-            self._validate_node(node.right)
+                op_name = type(node.op).__name__
+                allowed_ops = [
+                    "+", "-", "*", "/", "//", "%", "**"
+                ]
+                raise FormulaValidationError(
+                    f"Operator '{op_name}' is not allowed",
+                    position=getattr(node, 'col_offset', None),
+                    suggestion=f"Use one of the allowed operators: {', '.join(allowed_ops)}"
+                )
+            self._validate_node(node.left, formula)
+            self._validate_node(node.right, formula)
             return
 
         elif isinstance(node, ast.UnaryOp):
             # Unary operations (negation, positive)
             if type(node.op) not in self.ALLOWED_OPERATORS:
-                raise ValueError(f"Operator {type(node.op).__name__} not allowed")
-            self._validate_node(node.operand)
+                op_name = type(node.op).__name__
+                raise FormulaValidationError(
+                    f"Unary operator '{op_name}' is not allowed",
+                    position=getattr(node, 'col_offset', None),
+                    suggestion="Use only '+' or '-' as unary operators"
+                )
+            self._validate_node(node.operand, formula)
             return
 
         elif isinstance(node, ast.Compare):
             # Comparison operations
-            if not all(type(op) in self.ALLOWED_COMPARISONS for op in node.ops):
-                raise ValueError("Unsafe comparison operator")
-            self._validate_node(node.left)
+            disallowed_ops = [op for op in node.ops if type(op) not in self.ALLOWED_COMPARISONS]
+            if disallowed_ops:
+                op_name = type(disallowed_ops[0]).__name__
+                allowed_comps = ["==", "!=", "<", "<=", ">", ">="]
+                raise FormulaValidationError(
+                    f"Comparison operator '{op_name}' is not allowed",
+                    position=getattr(node, 'col_offset', None),
+                    suggestion=f"Use one of: {', '.join(allowed_comps)}"
+                )
+            self._validate_node(node.left, formula)
             for comparator in node.comparators:
-                self._validate_node(comparator)
+                self._validate_node(comparator, formula)
             return
 
         elif isinstance(node, ast.Call):
             # Function calls
             if isinstance(node.func, ast.Name):
-                if node.func.id not in self.ALLOWED_FUNCTIONS:
-                    raise ValueError(f"Function {node.func.id} not allowed")
+                func_name = node.func.id
+                if func_name not in self.ALLOWED_FUNCTIONS:
+                    allowed_funcs = sorted(self.ALLOWED_FUNCTIONS.keys())
+                    raise FormulaValidationError(
+                        f"Function '{func_name}' is not allowed",
+                        position=getattr(node, 'col_offset', None),
+                        suggestion=f"Use one of: {', '.join(allowed_funcs)}"
+                    )
             else:
-                raise ValueError("Only simple function calls allowed")
+                raise FormulaValidationError(
+                    "Only simple function calls are allowed",
+                    position=getattr(node, 'col_offset', None),
+                    suggestion="Use function_name(args) format, not methods or complex calls"
+                )
 
             # Validate arguments
             for arg in node.args:
-                self._validate_node(arg)
+                self._validate_node(arg, formula)
             return
 
         elif isinstance(node, ast.IfExp):
             # Ternary expressions (x if condition else y)
-            self._validate_node(node.test)
-            self._validate_node(node.body)
-            self._validate_node(node.orelse)
+            self._validate_node(node.test, formula)
+            self._validate_node(node.body, formula)
+            self._validate_node(node.orelse, formula)
             return
 
         elif isinstance(node, ast.List):
             # List literals
             for elt in node.elts:
-                self._validate_node(elt)
+                self._validate_node(elt, formula)
             return
 
         elif isinstance(node, ast.Tuple):
             # Tuple literals
             for elt in node.elts:
-                self._validate_node(elt)
+                self._validate_node(elt, formula)
             return
 
         elif isinstance(node, ast.Subscript):
             # Array/dict subscripting
-            self._validate_node(node.value)
-            self._validate_node(node.slice)
-            return
-
-        elif isinstance(node, ast.Index):
-            # Index value (deprecated in Python 3.9+, but included for compatibility)
-            self._validate_node(node.value)
+            self._validate_node(node.value, formula)
+            self._validate_node(node.slice, formula)
             return
 
         else:
-            raise ValueError(f"AST node type {type(node).__name__} not allowed")
+            raise FormulaValidationError(
+                f"AST node type '{type(node).__name__}' is not allowed",
+                position=getattr(node, 'col_offset', None),
+                suggestion="Formula contains unsupported constructs. Use only math operations, comparisons, and allowed functions."
+            )
 
 
 class FormulaEngine:
@@ -180,16 +305,15 @@ class FormulaEngine:
             Calculated result as float
 
         Raises:
-            ValueError: If formula is invalid or evaluation fails
+            FormulaSyntaxError: If formula has syntax errors
+            FormulaValidationError: If formula is invalid
+            FormulaError: If evaluation fails
         """
         if not formula:
             return 0.0
 
         # Parse and validate formula
-        try:
-            tree = self.parser.parse(formula)
-        except ValueError as e:
-            raise ValueError(f"Formula validation failed: {e}")
+        tree = self.parser.parse(formula)
 
         # Prepare evaluation context
         eval_context = self._build_eval_context(context)
@@ -197,9 +321,38 @@ class FormulaEngine:
         # Evaluate
         try:
             result = eval(compile(tree, '<formula>', 'eval'), {"__builtins__": {}}, eval_context)
-            return float(result)
+            result_float = float(result)
+            logger.debug(
+                f"Formula evaluated successfully: {formula} = {result_float}",
+                extra={"formula": formula, "result": result_float, "context_keys": list(context.keys())}
+            )
+            return result_float
+        except NameError as e:
+            # Variable not found in context
+            var_name = str(e).split("'")[1] if "'" in str(e) else "unknown"
+            logger.error(
+                f"Formula evaluation failed - undefined variable: {formula}",
+                extra={"formula": formula, "error": str(e), "context_keys": list(context.keys())},
+                exc_info=True
+            )
+            raise FormulaError(
+                f"Variable '{var_name}' is not defined",
+                suggestion=f"Available variables: {', '.join(sorted(k for k in context.keys() if not callable(context[k])))}"
+            ) from e
+        except (TypeError, ValueError, ZeroDivisionError) as e:
+            logger.error(
+                f"Formula evaluation failed: {formula}",
+                extra={"formula": formula, "error": str(e), "context_keys": list(context.keys())},
+                exc_info=True
+            )
+            raise FormulaError(f"Formula evaluation failed: {e}") from e
         except Exception as e:
-            raise ValueError(f"Formula evaluation failed: {e}")
+            logger.error(
+                f"Formula evaluation failed with unexpected error: {formula}",
+                extra={"formula": formula, "error": str(e), "context_keys": list(context.keys())},
+                exc_info=True
+            )
+            raise FormulaError(f"Formula evaluation failed: {e}") from e
 
     def _build_eval_context(self, context: dict[str, Any]) -> dict[str, Any]:
         """

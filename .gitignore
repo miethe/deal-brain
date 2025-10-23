@@ -50,3 +50,7 @@ volumes/
 # Playwright
 playwright-report/
 playwright/.cache/
+
+# Temporary implementation summaries (development artifacts)
+BASELINE_HYDRATION_FIXES_SUMMARY.md
+BASELINE_HYDRATION_CRITICAL_FIXES.md

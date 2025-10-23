@@ -84,6 +84,9 @@ poetry run dealbrain-cli import path/to/workbook.xlsx  # Import Excel workbook
 poetry run python scripts/import_passmark_data.py data/passmark_cpus.csv  # Import CPU benchmarks
 poetry run python scripts/recalculate_all_metrics.py  # Recalculate performance metrics for all listings
 poetry run python scripts/seed_sample_listings.py     # Create sample listings with metadata and ports
+
+# Formula reference generation
+poetry run python scripts/generate_formula_reference.py  # Generate comprehensive formula reference JSON
 ```
 
 ### CLI Commands
@@ -129,8 +132,17 @@ Next.js app uses React Query (`@tanstack/react-query`) to fetch from the API:
 - Utility: `apps/web/lib/utils.ts` exports `API_URL` constant
 
 ### Import Pipeline
-The Excel import workflow:
-1. CLI command `poetry run dealbrain-cli import path/to/workbook.xlsx`
+The system supports two import methods via a unified interface at `/dashboard/import`:
+
+**URL-Based Import:**
+1. Single URL form or bulk URL upload (CSV/JSON)
+2. Adapters extract data from marketplace listings (eBay, Amazon, etc.)
+3. Normalizer standardizes extracted data
+4. Deduplication checks for existing listings
+5. ListingsService upserts to database with provenance tracking
+
+**File-Based Import:**
+1. CLI command `poetry run dealbrain-cli import path/to/workbook.xlsx` or web upload
 2. Parses workbook with pandas (`apps/api/dealbrain_api/importers/`)
 3. Generates `SpreadsheetSeed` schema
 4. Upserts via services layer (CPU/GPU catalog, valuation rules, profiles, listings)

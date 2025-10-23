@@ -1,0 +1,354 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2025-10-17T14:45:25.111495Z",
+  "generator": "deal_brain_rule_builder_v1",
+  "metadata": {
+    "description": "Baseline valuation rules refactored to the official schema and formula syntax",
+    "author": "Assistant",
+    "source": "Derived from internal market heuristics; formulas restricted to allowed fields/functions"
+  },
+  "entities": {
+    "cpu": {
+      "display_name": "CPUs",
+      "description": "Processor value adjustments",
+      "fields": {
+        "performance_max_multi_single": {
+          "type": "formula",
+          "value": "clamp(max((cpu.cpu_mark_multi or 0) / 1000 * 3.6, (cpu.cpu_mark_single or 0) / 100 * 5.2), 0, 300)",
+          "variables": [
+            "cpu.cpu_mark_multi",
+            "cpu.cpu_mark_single"
+          ],
+          "unit": "USD",
+          "description": "CPU valuation from benchmarks (max of multi/single signals), clamped to [$0,$300].",
+          "metadata": {
+            "bounds": {
+              "min": 0,
+              "max": 300
+            }
+          }
+        },
+        "generation_guardrail": {
+          "type": "formula",
+          "value": "(clamp(max((cpu.cpu_mark_multi or 0) / 1000 * 3.6, (cpu.cpu_mark_single or 0) / 100 * 5.2), 45, 90) if (cpu.release_year or 0) <= 2019 else clamp(max((cpu.cpu_mark_multi or 0) / 1000 * 3.6, (cpu.cpu_mark_single or 0) / 100 * 5.2), 80, 140) if (cpu.release_year or 0) <= 2021 else clamp(max((cpu.cpu_mark_multi or 0) / 1000 * 3.6, (cpu.cpu_mark_single or 0) / 100 * 5.2), 120, 260))",
+          "variables": [
+            "cpu.cpu_mark_multi",
+            "cpu.cpu_mark_single",
+            "cpu.release_year"
+          ],
+          "unit": "USD",
+          "description": "Cohort guardrails by release year; clamps the benchmark-based CPU value within generation-appropriate floors/ceilings.",
+          "metadata": {
+            "cohorts": {
+              "<=2019": [
+                45,
+                90
+              ],
+              "2020-2021": [
+                80,
+                140
+              ],
+              ">=2022": [
+                120,
+                260
+              ]
+            }
+          }
+        },
+        "igpu_uplift": {
+          "type": "formula",
+          "value": "(30 if (cpu.igpu_mark or 0) >= 7000 else 20 if (cpu.igpu_mark or 0) >= 5000 else 10 if (cpu.igpu_mark or 0) >= 3500 else 0)",
+          "variables": [
+            "cpu.igpu_mark"
+          ],
+          "unit": "USD",
+          "description": "Bonus for strong modern iGPUs (media/AI upscaling capable).",
+          "metadata": {
+            "thresholds": {
+              "10": 3500,
+              "20": 5000,
+              "30": 7000
+            }
+          }
+        },
+        "high_tdp_penalty": {
+          "type": "formula",
+          "value": "(-25 if (cpu.tdp_w or 0) > 95 else 0)",
+          "variables": [
+            "cpu.tdp_w"
+          ],
+          "unit": "USD",
+          "description": "Thermal/noise practicality penalty for high-TDP CPUs in common SFF builds."
+        },
+        "age_decay": {
+          "type": "formula",
+          "value": "-max(0, (2025 - (cpu.release_year or 2025)) - 3) * 0.015 * max((cpu.cpu_mark_multi or 0) / 1000 * 3.6, (cpu.cpu_mark_single or 0) / 100 * 5.2)",
+          "variables": [
+            "cpu.release_year",
+            "cpu.cpu_mark_multi",
+            "cpu.cpu_mark_single"
+          ],
+          "unit": "USD",
+          "description": "After 3 years, subtract ~1.5% of CPU-derived value per year as time decay (static 2025 anchor).",
+          "metadata": {
+            "rate_per_year_over_3": 0.015,
+            "anchor_year": 2025
+          }
+        }
+      }
+    },
+    "gpu": {
+      "display_name": "GPUs",
+      "description": "Graphics card value adjustments",
+      "fields": {
+        "gpu_value": {
+          "type": "formula",
+          "value": "clamp((gpu.gpu_mark or 0) / 1000 * 8.0, 0, 360)",
+          "variables": [
+            "gpu.gpu_mark"
+          ],
+          "unit": "USD",
+          "description": "Discrete GPU valuation from PassMark with cap for mid-range SFF suitability.",
+          "metadata": {
+            "bounds": {
+              "min": 0,
+              "max": 360
+            }
+          }
+        }
+      }
+    },
+    "ram": {
+      "display_name": "Memory",
+      "description": "RAM configuration adjustments",
+      "fields": {
+        "ram_capacity_value": {
+          "type": "formula",
+          "value": "(ram_gb or 0) * (3.0 if ram_spec.ddr_generation == 'ddr5' else 2.5 if ram_spec.ddr_generation == 'ddr4' else 1.5)",
+          "variables": [
+            "ram_gb",
+            "ram_spec.ddr_generation"
+          ],
+          "unit": "USD",
+          "description": "Per-GB valuation by DDR generation (DDR5 > DDR4 > DDR3/other).",
+          "metadata": {
+            "per_gb": {
+              "ddr5": 3.0,
+              "ddr4": 2.5,
+              "other": 1.5
+            }
+          }
+        },
+        "ram_speed_uplift": {
+          "type": "formula",
+          "value": "(12 if (ram_spec.speed_mhz or 0) >= 5600 else 6 if (ram_spec.speed_mhz or 0) >= 3200 else 0)",
+          "variables": [
+            "ram_spec.speed_mhz"
+          ],
+          "unit": "USD",
+          "description": "Uplift for high-speed kits (DDR5\u22655600, DDR4\u22653200)."
+        },
+        "dual_channel_bonus": {
+          "type": "formula",
+          "value": "(12 if (ram_spec.module_count or 0) >= 2 else 0)",
+          "variables": [
+            "ram_spec.module_count"
+          ],
+          "unit": "USD",
+          "description": "Performance uplift for dual-channel configurations."
+        },
+        "ddr3_obsolescence_decay": {
+          "type": "formula",
+          "value": "(-0.08) * ((ram_gb or 0) * 2.0) if ram_spec.ddr_generation == 'ddr3' else 0",
+          "variables": [
+            "ram_gb",
+            "ram_spec.ddr_generation"
+          ],
+          "unit": "USD",
+          "description": "Extra obsolescence haircut for DDR3-era systems (~8% of nominal $2/GB baseline)."
+        }
+      }
+    },
+    "storage": {
+      "display_name": "Storage",
+      "description": "Primary/secondary storage adjustments",
+      "fields": {
+        "primary_storage_value": {
+          "type": "formula",
+          "value": "((primary_storage.capacity_gb or 0) / 1024) * (55 if primary_storage.medium == 'nvme' else 28 if primary_storage.medium == 'sata_ssd' else 20)",
+          "variables": [
+            "primary_storage.capacity_gb",
+            "primary_storage.medium"
+          ],
+          "unit": "USD",
+          "description": "Primary drive value by medium and capacity (per-TB baseline).",
+          "metadata": {
+            "per_tb": {
+              "nvme": 55,
+              "sata_ssd": 28,
+              "hdd": 20
+            }
+          }
+        },
+        "secondary_storage_value": {
+          "type": "formula",
+          "value": "((secondary_storage.capacity_gb or 0) / 1024) * (40 if secondary_storage.medium == 'nvme' else 25 if secondary_storage.medium == 'sata_ssd' else 15)",
+          "variables": [
+            "secondary_storage.capacity_gb",
+            "secondary_storage.medium"
+          ],
+          "unit": "USD",
+          "description": "Secondary drive additive value (lower weight than primary).",
+          "metadata": {
+            "per_tb": {
+              "nvme": 40,
+              "sata_ssd": 25,
+              "hdd": 15
+            }
+          }
+        },
+        "hdd_only_penalty": {
+          "type": "formula",
+          "value": "(-10) if primary_storage.medium == 'hdd' and not (secondary_storage.medium == 'nvme' or secondary_storage.medium == 'sata_ssd') else 0",
+          "variables": [
+            "primary_storage.medium",
+            "secondary_storage.medium"
+          ],
+          "unit": "USD",
+          "description": "Penalty for HDD-only systems (no SSD/NVMe present)."
+        }
+      }
+    },
+    "features": {
+      "display_name": "Features",
+      "description": "Ports, wireless, OS license and other features",
+      "fields": {
+        "thunderbolt_bonus": {
+          "type": "formula",
+          "value": "min((listing.custom_fields.thunderbolt_count or 0), 2) * 40",
+          "variables": [
+            "listing.custom_fields.thunderbolt_count"
+          ],
+          "unit": "USD",
+          "description": "Thunderbolt ports (max 2 counted) at ~$40 each."
+        },
+        "usb_c_bonus": {
+          "type": "formula",
+          "value": "min((listing.custom_fields.usb_c_count or 0), 2) * 10",
+          "variables": [
+            "listing.custom_fields.usb_c_count"
+          ],
+          "unit": "USD",
+          "description": "USB\u2011C ports (up to 2) at ~$10 each."
+        },
+        "ethernet_speed_bonus": {
+          "type": "formula",
+          "value": "(25 if float(listing.custom_fields.ethernet_speed_gbps or 1) >= 2.5 else 0) + (60 if float(listing.custom_fields.ethernet_speed_gbps or 1) >= 10 else 0)",
+          "variables": [
+            "listing.custom_fields.ethernet_speed_gbps"
+          ],
+          "unit": "USD",
+          "description": "2.5GbE +$25; 10GbE additional +$60."
+        },
+        "wifi_bonus": {
+          "type": "formula",
+          "value": "(18 if listing.custom_fields.wifi_standard == 'wifi_6e' else 12 if listing.custom_fields.wifi_standard == 'wifi_6' else 8 if listing.custom_fields.wifi_standard == 'wifi_5' else 0)",
+          "variables": [
+            "listing.custom_fields.wifi_standard"
+          ],
+          "unit": "USD",
+          "description": "Wi\u2011Fi standard uplift: 6E > 6 > 5."
+        },
+        "pcie_x16_bonus": {
+          "type": "formula",
+          "value": "30 if int(listing.custom_fields.pcie_slots_available or 0) >= 1 else 0",
+          "variables": [
+            "listing.custom_fields.pcie_slots_available"
+          ],
+          "unit": "USD",
+          "description": "Bonus for at least one usable PCIe x16 slot."
+        },
+        "os_license_bonus": {
+          "type": "formula",
+          "value": "(30 if ((listing.custom_fields.os_license_type or os_license) == 'Windows 11 Pro') else 12 if ((listing.custom_fields.os_license_type or os_license) == 'Windows 11 Home') else 0)",
+          "variables": [
+            "listing.custom_fields.os_license_type",
+            "os_license"
+          ],
+          "unit": "USD",
+          "description": "License uplift: Win11 Pro > Win11 Home; Linux/No license = $0."
+        },
+        "shipping_penalty": {
+          "type": "formula",
+          "value": "-min(max(float(listing.custom_fields.shipping_cost_usd or 0), 0), 30)",
+          "variables": [
+            "listing.custom_fields.shipping_cost_usd"
+          ],
+          "unit": "USD",
+          "description": "Cap shipping penalty at $30."
+        },
+        "sff_thermal_penalty": {
+          "type": "formula",
+          "value": "(-25) if ((listing.custom_fields.case_form_factor == 'tiny' or listing.custom_fields.case_form_factor == 'micro') and (cpu.tdp_w or 0) > 95) else 0",
+          "variables": [
+            "listing.custom_fields.case_form_factor",
+            "cpu.tdp_w"
+          ],
+          "unit": "USD",
+          "description": "Small cases with high\u2011TDP CPUs incur thermal/noise penalty."
+        }
+      }
+    },
+    "peripherals": {
+      "display_name": "Peripherals",
+      "description": "Included accessories",
+      "fields": {
+        "includes_peripherals_bonus": {
+          "type": "formula",
+          "value": "5 if listing.custom_fields.includes_peripherals else 0",
+          "variables": [
+            "listing.custom_fields.includes_peripherals"
+          ],
+          "unit": "USD",
+          "description": "Minor bonus if keyboard/mouse or other peripherals are included."
+        }
+      }
+    },
+    "condition": {
+      "display_name": "Condition",
+      "description": "Condition-based multipliers",
+      "fields": {
+        "new": {
+          "type": "multiplier",
+          "value": 1.08,
+          "description": "New condition multiplier (box/warranty)."
+        },
+        "refurb": {
+          "type": "multiplier",
+          "value": 0.92,
+          "description": "Refurbished condition multiplier."
+        },
+        "used": {
+          "type": "multiplier",
+          "value": 0.8,
+          "description": "Used condition average multiplier."
+        }
+      }
+    },
+    "form_factor": {
+      "display_name": "Form Factor",
+      "description": "Chassis/case size adjustments",
+      "fields": {
+        "tiny_micro_premium": {
+          "type": "formula",
+          "value": "(80 if listing.custom_fields.case_form_factor == 'tiny' else 60 if listing.custom_fields.case_form_factor == 'micro' else 30 if listing.custom_fields.case_form_factor == 'mini' else 0)",
+          "variables": [
+            "listing.custom_fields.case_form_factor"
+          ],
+          "unit": "USD",
+          "description": "Premiums for very small form factors (Tiny/Micro/Mini)."
+        }
+      }
+    }
+  }
+}

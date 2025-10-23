@@ -8,7 +8,7 @@ from sqlalchemy import JSON, Boolean, Enum as SAEnum, ForeignKey, Integer, Strin
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from dealbrain_core.enums import Condition, ListingStatus, RamGeneration, StorageMedium
+from dealbrain_core.enums import Condition, ListingStatus, RamGeneration, StorageMedium, Marketplace, SourceType, SourceDataType
 
 from ..db import Base
 
@@ -260,6 +260,38 @@ class ValuationRuleCondition(Base):
 
 
 class ValuationRuleAction(Base):
+    """Action to apply when a valuation rule matches.
+
+    Actions define how to adjust pricing or valuation based on matched conditions.
+    The modifiers_json field supports two formats for applying multipliers:
+
+    1. Dynamic Field-Based Multipliers (Primary Format):
+        {
+            "multipliers": [
+                {
+                    "name": "RAM Generation Multiplier",
+                    "field": "ram_spec.ddr_generation",
+                    "conditions": [
+                        {"value": "ddr3", "multiplier": 0.7},
+                        {"value": "ddr4", "multiplier": 1.0},
+                        {"value": "ddr5", "multiplier": 1.3}
+                    ]
+                }
+            ]
+        }
+
+    2. Legacy Condition Multipliers (Backward Compatible):
+        {
+            "condition_multipliers": {
+                "new": 1.0,
+                "refurb": 0.75,
+                "used": 0.6
+            }
+        }
+
+    Both formats can coexist. Field paths use dot notation to navigate nested
+    structures (e.g., "ram_spec.ddr_generation"). Empty dict {} is valid.
+    """
     __tablename__ = "valuation_rule_action"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -307,6 +339,9 @@ class ValuationRuleAudit(Base):
 
 class Listing(Base, TimestampMixin):
     __tablename__ = "listing"
+    __table_args__ = (
+        UniqueConstraint("vendor_item_id", "marketplace", name="uq_listing_vendor_id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -316,6 +351,21 @@ class Listing(Base, TimestampMixin):
     price_date: Mapped[datetime | None]
     condition: Mapped[str] = mapped_column(String(16), nullable=False, default=Condition.USED.value)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=ListingStatus.ACTIVE.value)
+
+    # URL Ingestion Fields (Phase 1)
+    vendor_item_id: Mapped[str | None] = mapped_column(String(128))
+    marketplace: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default=Marketplace.OTHER.value
+    )
+    provenance: Mapped[str | None] = mapped_column(String(64))
+    last_seen_at: Mapped[datetime] = mapped_column(
+        default=func.now(),
+        onupdate=func.now(),
+        nullable=False
+    )
+    dedup_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     cpu_id: Mapped[int | None] = mapped_column(ForeignKey("cpu.id"))
     gpu_id: Mapped[int | None] = mapped_column(ForeignKey("gpu.id"))
     ports_profile_id: Mapped[int | None] = mapped_column(ForeignKey("ports_profile.id"))
@@ -465,6 +515,18 @@ class ImportSession(Base, TimestampMixin):
     declared_entities_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     created_by: Mapped[str | None] = mapped_column(String(128))
 
+    # URL Ingestion Fields (Phase 1)
+    source_type: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default=SourceType.EXCEL.value
+    )
+    url: Mapped[str | None] = mapped_column(Text)
+    adapter_config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+
+    # Progress tracking for URL ingestion (Phase 2)
+    progress_pct: Mapped[int | None] = mapped_column(Integer, nullable=True, default=0)
+
     audit_events: Mapped[list["ImportSessionAudit"]] = relationship(
         back_populates="session", cascade="all, delete-orphan", lazy="selectin"
     )
@@ -562,3 +624,76 @@ class ApplicationSettings(Base, TimestampMixin):
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     value_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
+
+
+class RawPayload(Base, TimestampMixin):
+    """Stores raw adapter payloads for URL-ingested listings.
+
+    Preserves original data from adapters (JSON-LD, API responses, HTML) for
+    debugging, re-processing, and audit trails. TTL-based cleanup prevents
+    unbounded storage growth.
+    """
+    __tablename__ = "raw_payload"
+    __table_args__ = (
+        Index("ix_raw_payload_listing_adapter", "listing_id", "adapter"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    listing_id: Mapped[int] = mapped_column(ForeignKey("listing.id", ondelete="CASCADE"), nullable=False)
+    adapter: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_type: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default=SourceDataType.JSON.value
+    )
+    payload: Mapped[dict[str, Any] | str] = mapped_column(JSON, nullable=False)
+    ttl_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+
+    listing: Mapped[Listing] = relationship(lazy="selectin")
+
+
+class IngestionMetric(Base, TimestampMixin):
+    """Tracks adapter performance metrics for telemetry dashboard.
+
+    Aggregates success rates, latencies, and field completeness per adapter.
+    Supports time-series analysis for monitoring adapter health and identifying
+    regressions.
+
+    Example aggregation queries:
+        -- Recent adapter success rate
+        SELECT adapter,
+               SUM(success_count)::float / NULLIF(SUM(success_count + failure_count), 0) AS success_rate
+        FROM ingestion_metric
+        WHERE measured_at >= NOW() - INTERVAL '24 hours'
+        GROUP BY adapter;
+
+        -- P95 latency trend
+        SELECT DATE_TRUNC('hour', measured_at) AS hour,
+               adapter,
+               AVG(p95_latency_ms) AS avg_p95_latency
+        FROM ingestion_metric
+        WHERE measured_at >= NOW() - INTERVAL '7 days'
+        GROUP BY hour, adapter
+        ORDER BY hour DESC;
+
+        -- Field completeness by adapter
+        SELECT adapter,
+               AVG(field_completeness_pct) AS avg_completeness
+        FROM ingestion_metric
+        WHERE measured_at >= NOW() - INTERVAL '7 days'
+        GROUP BY adapter
+        ORDER BY avg_completeness DESC;
+    """
+    __tablename__ = "ingestion_metric"
+    __table_args__ = (
+        Index("ix_ingestion_metric_adapter_measured", "adapter", "measured_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    adapter: Mapped[str] = mapped_column(String(64), nullable=False)
+    success_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failure_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    p50_latency_ms: Mapped[int | None] = mapped_column(Integer)
+    p95_latency_ms: Mapped[int | None] = mapped_column(Integer)
+    field_completeness_pct: Mapped[float | None]
+    measured_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
