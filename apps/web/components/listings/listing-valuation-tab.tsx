@@ -163,6 +163,19 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
   const activeRulesetName =
     breakdown?.ruleset?.name ?? breakdown?.ruleset_name ?? (listing.ruleset_id ? "Static override" : "Auto");
 
+  const sortedAdjustments = useMemo(() => {
+    return adjustments
+      .filter(adj => Math.abs(adj.adjustment_amount) > 0)
+      .sort((a, b) => {
+        const absA = Math.abs(a.adjustment_amount);
+        const absB = Math.abs(b.adjustment_amount);
+        if (absA !== absB) {
+          return absB - absA; // Descending by absolute amount
+        }
+        return a.rule_name.localeCompare(b.rule_name); // Ascending by name (tiebreaker)
+      });
+  }, [adjustments]);
+
   const handleToggleRuleset = (rulesetId: number, enabled: boolean) => {
     setDisabledRulesets((prev) => {
       const set = new Set(prev);
@@ -321,16 +334,16 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
 
           <div className="flex flex-wrap items-center gap-3">
             <Badge variant="secondary">
-              {adjustments.length} rule{adjustments.length === 1 ? "" : "s"} applied
+              {sortedAdjustments.length} rule{sortedAdjustments.length === 1 ? "" : "s"} applied
             </Badge>
             <Button variant="outline" size="sm" onClick={() => setIsBreakdownOpen(true)}>
               View breakdown
             </Button>
           </div>
 
-          {adjustments.length > 0 ? (
+          {sortedAdjustments.length > 0 ? (
             <ul className="space-y-2">
-              {adjustments.slice(0, 4).map((adjustment) => (
+              {sortedAdjustments.slice(0, 4).map((adjustment) => (
                 <li
                   key={`${adjustment.rule_id ?? adjustment.rule_name}`}
                   className="flex items-center justify-between rounded-md border p-3"
@@ -354,9 +367,9 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
                   </span>
                 </li>
               ))}
-              {adjustments.length > 4 && (
+              {sortedAdjustments.length > 4 && (
                 <li className="text-xs text-muted-foreground">
-                  {adjustments.length - 4} more adjustment{adjustments.length - 4 === 1 ? "" : "s"} in breakdown
+                  {sortedAdjustments.length - 4} more adjustment{sortedAdjustments.length - 4 === 1 ? "" : "s"} in breakdown
                 </li>
               )}
             </ul>
