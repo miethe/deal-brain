@@ -96,7 +96,7 @@ const isValidHttpUrl = (value: string) => {
 };
 
 interface AddListingFormProps {
-  onSuccess?: () => void;
+  onSuccess?: (listingId: number) => void;
 }
 
 export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
@@ -161,7 +161,7 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
       setSelectedCpuId(String(cpu.id));
       setCpuModalOpen(false);
       setNewCpuForm({ name: "", manufacturer: "", socket: "", cores: "", threads: "", tdp_w: "" });
-      setStatus(`CPU “${cpu.name}” created and selected.`);
+      setStatus(`CPU "${cpu.name}" created and selected.`);
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : "Unable to create CPU";
@@ -372,8 +372,8 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
           if (secondaryStorageRef.current) secondaryStorageRef.current.value = "";
           if (secondaryTypeRef.current) secondaryTypeRef.current.value = "";
 
-          // Call onSuccess callback if provided
-          onSuccess?.();
+          // Call onSuccess callback with listing ID
+          onSuccess?.(listingId);
         } catch (error) {
           console.error("Post-creation update failed:", error);
           setStatus("Listing created, but some updates failed");
@@ -491,7 +491,7 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
               onChange={(event) => setListingUrl(event.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Used for the main “Open” button in catalog views.
+              Used for the main "Open" button in catalog views.
             </p>
           </div>
           <div className="space-y-3 md:col-span-2">

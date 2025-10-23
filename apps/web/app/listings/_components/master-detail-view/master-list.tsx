@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -9,10 +10,12 @@ import type { ListingRow } from '@/components/listings/listings-table'
 
 interface MasterListProps {
   listings: ListingRow[]
+  highlightedId?: number | null
 }
 
 export const MasterList = React.memo(function MasterList({
-  listings
+  listings,
+  highlightedId
 }: MasterListProps) {
   const {
     selectedListingId,
@@ -22,6 +25,8 @@ export const MasterList = React.memo(function MasterList({
   } = useCatalogStore()
 
   const listRef = useRef<HTMLDivElement>(null)
+  const highlightedRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
   const [focusedIndex, setFocusedIndex] = React.useState<number>(0)
 
   // Select first item if nothing is selected
@@ -30,6 +35,33 @@ export const MasterList = React.memo(function MasterList({
       setSelectedListing(listings[0].id)
     }
   }, [selectedListingId, listings, setSelectedListing])
+
+  // Handle highlighting and scrolling
+  useEffect(() => {
+    if (highlightedId && highlightedRef.current) {
+      // Scroll into view with smooth behavior
+      highlightedRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+
+      // Focus for accessibility
+      highlightedRef.current.focus()
+
+      // Clear highlight param after 2 seconds
+      const timer = setTimeout(() => {
+        const params = new URLSearchParams(window.location.search)
+        params.delete('highlight')
+        const newSearch = params.toString()
+        router.replace(
+          `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}`,
+          { scroll: false }
+        )
+      }, 2000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [highlightedId, router])
 
   // Keyboard navigation
   useEffect(() => {
@@ -99,9 +131,17 @@ export const MasterList = React.memo(function MasterList({
           {listings.map((listing, index) => {
             const isSelected = selectedListingId === listing.id
             const isCompared = compareSelections.includes(listing.id)
+            const isHighlighted = listing.id === highlightedId
 
             return (
-              <div key={listing.id} className="space-y-1">
+              <div
+                key={listing.id}
+                ref={isHighlighted ? highlightedRef : null}
+                data-highlighted={isHighlighted}
+                tabIndex={isHighlighted ? -1 : undefined}
+                aria-label={isHighlighted ? "Newly created listing" : undefined}
+                className="space-y-1 outline-none"
+              >
                 <Button
                   variant={isSelected ? 'secondary' : 'ghost'}
                   className={`h-auto w-full justify-start p-3 text-left ${

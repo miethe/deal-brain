@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { ListingRecord } from "@/types/listings";
 import { ListingCard } from "./listing-card";
 import { ListingCardSkeleton } from "./listing-card-skeleton";
@@ -11,6 +12,7 @@ interface GridViewProps {
   listings: ListingRecord[];
   isLoading?: boolean;
   onAddListing?: () => void;
+  highlightedId?: number | null;
 }
 
 /**
@@ -24,8 +26,10 @@ interface GridViewProps {
  *
  * Filters listings based on Zustand store state.
  */
-export function GridView({ listings, isLoading, onAddListing }: GridViewProps) {
+export function GridView({ listings, isLoading, onAddListing, highlightedId }: GridViewProps) {
   const { filters } = useFilters();
+  const router = useRouter();
+  const highlightedRef = useRef<HTMLDivElement>(null);
 
   // Filter listings based on active filters
   const filteredListings = useMemo(() => {
@@ -79,6 +83,33 @@ export function GridView({ listings, isLoading, onAddListing }: GridViewProps) {
     });
   }, [filteredListings]);
 
+  // Handle highlighting and scrolling
+  useEffect(() => {
+    if (highlightedId && highlightedRef.current) {
+      // Scroll into view with smooth behavior
+      highlightedRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+
+      // Focus for accessibility
+      highlightedRef.current.focus();
+
+      // Clear highlight param after 2 seconds
+      const timer = setTimeout(() => {
+        const params = new URLSearchParams(window.location.search);
+        params.delete('highlight');
+        const newSearch = params.toString();
+        router.replace(
+          `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}`,
+          { scroll: false }
+        );
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedId, router]);
+
   // Loading skeleton
   if (isLoading) {
     return (
@@ -103,9 +134,21 @@ export function GridView({ listings, isLoading, onAddListing }: GridViewProps) {
   // Grid with listings
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {sortedListings.map((listing) => (
-        <ListingCard key={listing.id} listing={listing} />
-      ))}
+      {sortedListings.map((listing) => {
+        const isHighlighted = highlightedId === listing.id;
+        return (
+          <div
+            key={listing.id}
+            ref={isHighlighted ? highlightedRef : null}
+            data-highlighted={isHighlighted}
+            tabIndex={isHighlighted ? -1 : undefined}
+            aria-label={isHighlighted ? "Newly created listing" : undefined}
+            className="outline-none"
+          >
+            <ListingCard listing={listing} />
+          </div>
+        );
+      })}
     </div>
   );
 }

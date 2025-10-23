@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { ListingsFilters } from './listings-filters'
 import { ViewSwitcher } from './view-switcher'
 import { GridView } from './grid-view'
@@ -22,6 +23,13 @@ export const CatalogTab = React.memo(function CatalogTab({
   onAddListing
 }: CatalogTabProps) {
   const { activeView, filters } = useCatalogStore()
+  const searchParams = useSearchParams()
+
+  // Read highlight ID from URL params
+  const highlightedId = useMemo(() => {
+    const param = searchParams.get('highlight')
+    return param ? parseInt(param, 10) : null
+  }, [searchParams])
 
   // Filter listings client-side
   const filteredListings = useMemo(() => {
@@ -75,6 +83,7 @@ export const CatalogTab = React.memo(function CatalogTab({
             listings={filteredListings}
             isLoading={isLoading}
             onAddListing={onAddListing}
+            highlightedId={highlightedId}
           />
         </ErrorBoundary>
       )}
@@ -83,6 +92,7 @@ export const CatalogTab = React.memo(function CatalogTab({
           <DenseListView
             listings={filteredListings}
             isLoading={isLoading}
+            highlightedId={highlightedId}
           />
         </ErrorBoundary>
       )}
@@ -91,6 +101,7 @@ export const CatalogTab = React.memo(function CatalogTab({
           <MasterDetailView
             listings={filteredListings}
             isLoading={isLoading}
+            highlightedId={highlightedId}
           />
         </ErrorBoundary>
       )}

@@ -12,13 +12,16 @@ import { useUrlSync } from "@/hooks/use-url-sync";
 import { CatalogTab } from "./_components/catalog-tab";
 import { QuickEditDialog } from "../../components/listings/quick-edit-dialog";
 import { ListingDetailsDialog } from "../../components/listings/listing-details-dialog";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../../lib/utils";
 import { ListingRecord } from "../../types/listings";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ListingsPage() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Fetch listings data
   const { data: listings, isLoading } = useQuery({
@@ -34,10 +37,24 @@ export default function ListingsPage() {
   const activeTab = useCatalogStore((state) => state.activeTab);
   const setActiveTab = useCatalogStore((state) => state.setActiveTab);
 
-  const handleSuccess = () => {
+  const handleSuccess = (listingId: number) => {
     setAddModalOpen(false);
-    // Refresh the page to show new listing
-    router.refresh();
+
+    // Set URL param for highlight
+    const params = new URLSearchParams(window.location.search);
+    params.set('highlight', String(listingId));
+    router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
+
+    // Invalidate both listings queries to refresh data
+    queryClient.invalidateQueries({ queryKey: ["listings", "records"] });
+    queryClient.invalidateQueries({ queryKey: ["listings", "count"] });
+
+    // Show success toast notification
+    toast({
+      title: "Listing created successfully",
+      description: "Your new listing has been added to the catalog.",
+      duration: 3000,
+    });
   };
 
   return (

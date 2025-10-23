@@ -16,7 +16,8 @@ import {
 } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { apiFetch, ApiError } from "../../lib/utils";
 import { CpuRecord, ListingFieldSchema, ListingRecord, ListingSchemaResponse, RamSpecRecord, StorageProfileRecord } from "../../types/listings";
@@ -26,6 +27,7 @@ import { DataGrid, type ColumnMetaConfig } from "../ui/data-grid";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
+import { TableRow } from "../ui/table";
 import { ValuationBreakdownModal } from "./valuation-breakdown-modal";
 import { ValuationCell } from "./valuation-cell";
 import { DualMetricCell } from "./dual-metric-cell";
@@ -136,6 +138,8 @@ export function ListingsTable() {
   const queryClient = useQueryClient();
   const { confirm, dialog: confirmationDialog } = useConfirmation();
   const { data: thresholds } = useValuationThresholds();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = useState<SortingState>([{ id: "title", desc: false }]);
   const [grouping, setGrouping] = useState<GroupingState>([]);
@@ -154,6 +158,13 @@ export function ListingsTable() {
   } | null>(null);
   const [cpuModalOpen, setCpuModalOpen] = useState(false);
   const [selectedCpu, setSelectedCpu] = useState<CpuRecord | null>(null);
+
+  // Highlighted row tracking
+  const highlightedRef = useRef<HTMLTableRowElement>(null);
+  const highlightedId = useMemo(() => {
+    const param = searchParams.get('highlight');
+    return param ? parseInt(param, 10) : null;
+  }, [searchParams]);
 
   // Load saved table state on mount (will be validated when table initializes)
   useEffect(() => {
@@ -178,6 +189,33 @@ export function ListingsTable() {
     const payload = JSON.stringify({ sorting, filters: columnFilters, grouping, search: quickSearch });
     localStorage.setItem(STORAGE_KEY, payload);
   }, [sorting, columnFilters, grouping, quickSearch]);
+
+  // Handle highlighting and scrolling
+  useEffect(() => {
+    if (highlightedId && highlightedRef.current) {
+      // Scroll into view with smooth behavior
+      highlightedRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+
+      // Focus for accessibility
+      highlightedRef.current.focus();
+
+      // Clear highlight param after 2 seconds
+      const timer = setTimeout(() => {
+        const params = new URLSearchParams(window.location.search);
+        params.delete('highlight');
+        const newSearch = params.toString();
+        router.replace(
+          `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}`,
+          { scroll: false }
+        );
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedId, router]);
 
   const { data: schema, isLoading: isSchemaLoading, error: schemaError } = useQuery<ListingSchemaResponse>({
     queryKey: ["listings", "schema"],
@@ -839,7 +877,14 @@ export function ListingsTable() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <DataGrid table={table} enableFilters className="border" storageKey="listings-grid" />
+        <DataGrid
+          table={table}
+          enableFilters
+          className="border"
+          storageKey="listings-grid"
+          highlightedRowId={highlightedId}
+          highlightedRef={highlightedRef}
+        />
 
         {Object.keys(rowSelection).length > 0 && (
           <BulkEditPanel

@@ -41,7 +41,7 @@ fi
 mkdir -p docs/project_plans/${PRD_NAME}/{progress,context}
 
 progress_file="docs/project_plans/${PRD_NAME}/progress/phase-${phase_num}-progress.md"
-context_file="docs/project_plans/${PRD_NAME}/context/phase-${phase_num}-context.md"
+context_file="docs/project_plans/${PRD_NAME}/context/${PRD_NAME}-context.md"
 
 echo "📋 Phase ${phase_num} Execution Started"
 echo "Plan: $plan_path"
@@ -133,7 +133,7 @@ Create `${progress_file}` if it doesn't exist, or resume from existing state:
 Create `${context_file}` with implementation-specific context (aim for <2000 tokens):
 
 ```markdown
-# Phase ${phase_num} Working Context
+# ${PRD_NAME} Working Context
 
 **Purpose:** Token-efficient context for resuming work across AI turns
 
@@ -210,6 +210,7 @@ Determine which subagent(s) to use based on task type:
 | Task Type | Subagent |
 |-----------|----------|
 | Orchestrate Work/Key Architecture Decisions | lead-architect |
+| Codebase Exploration, finding specific functions | codebase-explorer or explore |
 | ALL Documentation | documentation-writer |
 | Python/FastAPI Backend | python-backend-engineer |
 | Database Design/Migrations | data-layer-expert |
@@ -773,6 +774,9 @@ Next Steps:
 
 # Resume phase 2 (will pick up from progress tracker)
 /dev:execute-phase 2
+
+# Execute phase 2 with additional guidance
+/dev:execute-phase 2 `@implementation/plan.md` Reference linked PRD and design specs for further guidance `path/to/prd.md`. Remember to do x, y, z. Utilize the existing context file instead of creating new at `context/path.md`.
 ```
 
 ---

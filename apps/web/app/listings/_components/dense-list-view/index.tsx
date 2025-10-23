@@ -9,11 +9,13 @@ import type { ListingRow } from '@/components/listings/listings-table'
 interface DenseListViewProps {
   listings: ListingRow[]
   isLoading?: boolean
+  highlightedId?: number | null
 }
 
 export const DenseListView = React.memo(function DenseListView({
   listings,
-  isLoading
+  isLoading,
+  highlightedId
 }: DenseListViewProps) {
   // Sort by adjusted $/MT (ascending - best value first)
   const sortedListings = useMemo(() => {
@@ -32,5 +34,5 @@ export const DenseListView = React.memo(function DenseListView({
     return <NoFilterResultsEmptyState />
   }
 
-  return <DenseTable listings={sortedListings} />
+  return <DenseTable listings={sortedListings} highlightedId={highlightedId} />
 })

@@ -9,15 +9,15 @@ import { AddListingForm } from "./add-listing-form";
 interface AddListingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess?: (listingId: number) => void;
 }
 
 function AddListingModalComponent({ open, onOpenChange, onSuccess }: AddListingModalProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const handleSuccess = () => {
+  const handleSuccess = (listingId: number) => {
     if (onSuccess) {
-      onSuccess();
+      onSuccess(listingId);
     }
     onOpenChange(false);
     setExpanded(false);
