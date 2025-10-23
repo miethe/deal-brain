@@ -20,8 +20,6 @@ logger = logging.getLogger(__name__)
 
 INGEST_TASK_NAME = "ingestion.ingest_url"
 CLEANUP_TASK_NAME = "ingestion.cleanup_expired_payloads"
-_INGEST_LOOP: asyncio.AbstractEventLoop | None = None
-_CLEANUP_LOOP: asyncio.AbstractEventLoop | None = None
 
 
 async def _ingest_url_async(
@@ -98,10 +96,13 @@ async def _ingest_url_async(
             else:
                 import_session.status = "failed"
                 import_session.progress_pct = 30  # Failed during extraction phase
-                import_session.conflicts_json = {
-                    "error": ingest_result.error,
-                }
-                logger.error(f"[{job_id}] Import failed at {import_session.progress_pct}%: {ingest_result.error}")
+                import_session.conflicts_json = {"error": ingest_result.error}
+                logger.error(
+                    "[%s] Import failed at %s%%: %s",
+                    job_id,
+                    import_session.progress_pct,
+                    ingest_result.error,
+                )
 
             await session.commit()
 
@@ -176,12 +177,9 @@ def ingest_url_task(
         extra={"job_id": job_id, "url": url, "retry": self.request.retries},
     )
 
-    # Set up async event loop (pattern from valuation.py)
-    global _INGEST_LOOP
-    loop = _INGEST_LOOP
-    if loop is None or loop.is_closed():
-        loop = asyncio.new_event_loop()
-        _INGEST_LOOP = loop
+    # Create fresh event loop for each task execution
+    # This prevents "attached to a different loop" errors in forked worker processes
+    loop = asyncio.new_event_loop()
 
     try:
         asyncio.set_event_loop(loop)
@@ -243,7 +241,12 @@ def ingest_url_task(
                 "quality": "partial",
             }
     finally:
-        asyncio.set_event_loop(None)
+        # Clean up loop after task completion
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        finally:
+            loop.close()
+            asyncio.set_event_loop(None)
 
 
 async def _cleanup_expired_payloads_async() -> dict[str, Any]:
@@ -322,12 +325,9 @@ def cleanup_expired_payloads_task() -> dict[str, Any]:
     """
     logger.info("Starting raw payload cleanup task")
 
-    # Set up async event loop (pattern from ingest_url_task)
-    global _CLEANUP_LOOP
-    loop = _CLEANUP_LOOP
-    if loop is None or loop.is_closed():
-        loop = asyncio.new_event_loop()
-        _CLEANUP_LOOP = loop
+    # Create fresh event loop for each task execution
+    # This prevents "attached to a different loop" errors in forked worker processes
+    loop = asyncio.new_event_loop()
 
     try:
         asyncio.set_event_loop(loop)
@@ -353,7 +353,12 @@ def cleanup_expired_payloads_task() -> dict[str, Any]:
         }
 
     finally:
-        asyncio.set_event_loop(None)
+        # Clean up loop after task completion
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        finally:
+            loop.close()
+            asyncio.set_event_loop(None)
 
 
 __all__ = [

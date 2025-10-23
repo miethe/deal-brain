@@ -6,18 +6,17 @@ import asyncio
 import logging
 from typing import Iterable, Sequence
 
+from dealbrain_core.enums import ListingStatus
 from sqlalchemy import select
 
 from ..db import session_scope
 from ..models import Listing
-from ..worker import celery_app
 from ..services.listings import apply_listing_metrics
-from dealbrain_core.enums import ListingStatus
+from ..worker import celery_app
 
 logger = logging.getLogger(__name__)
 
 RECALC_TASK_NAME = "valuation.recalculate_listings"
-_RECALC_LOOP: asyncio.AbstractEventLoop | None = None
 
 
 def _normalize_listing_ids(listing_ids: Iterable[int | str | None] | None) -> list[int]:
@@ -128,11 +127,9 @@ def recalculate_listings_task(
             "reason": reason,
         },
     )
-    global _RECALC_LOOP
-    loop = _RECALC_LOOP
-    if loop is None or loop.is_closed():
-        loop = asyncio.new_event_loop()
-        _RECALC_LOOP = loop
+    # Create fresh event loop for each task execution
+    # This prevents "attached to a different loop" errors in forked worker processes
+    loop = asyncio.new_event_loop()
     try:
         asyncio.set_event_loop(loop)
         return loop.run_until_complete(
@@ -144,7 +141,12 @@ def recalculate_listings_task(
             )
         )
     finally:
-        asyncio.set_event_loop(None)
+        # Clean up loop after task completion
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        finally:
+            loop.close()
+            asyncio.set_event_loop(None)
 
 
 def enqueue_listing_recalculation(
