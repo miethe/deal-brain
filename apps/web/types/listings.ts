@@ -103,6 +103,9 @@ export interface ValuationAdjustmentAction {
 export interface ValuationAdjustment {
   rule_id?: number | null;
   rule_name: string;
+  rule_description?: string | null;
+  rule_group_id?: number | null;
+  rule_group_name?: string | null;
   adjustment_amount: number;
   actions: ValuationAdjustmentAction[];
 }
