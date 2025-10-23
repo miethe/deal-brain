@@ -100,6 +100,9 @@ class ValuationAdjustmentDetail(BaseModel):
     """Details of a rule adjustment applied during valuation."""
     rule_id: int | None = Field(None, description="Identifier of the valuation rule")
     rule_name: str = Field(..., description="Display name of the rule")
+    rule_description: str | None = Field(None, description="Rule description from database")
+    rule_group_id: int | None = Field(None, description="Identifier of the rule group")
+    rule_group_name: str | None = Field(None, description="Display name of the rule group")
     adjustment_amount: float = Field(..., description="Net price adjustment in USD")
     actions: list[ValuationAdjustmentAction] = Field(
         default_factory=list,
