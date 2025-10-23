@@ -285,3 +285,132 @@ Ensure animation respects user preferences:
 - Day 1: Callback chain + URL params + toast mounting (TASK-101, TASK-102, TASK-105)
 - Day 2: Highlight animation + scroll/focus in catalog views (TASK-103 - catalog)
 - Day 3: Highlight in data table + accessibility testing (TASK-103 - data, TASK-104)
+
+---
+
+# Phase 2 Context: Smart Rule Display Implementation
+
+## Objective
+Filter valuation tab to show only top 4 contributing rules with clear hierarchy sorted by impact.
+
+## Architectural Decisions (ADR)
+
+### ADR-005: Client-Side Rule Sorting with useMemo
+**Decision:** Implement sorting logic in React component with memoization
+
+**Rationale:**
+- Sorting is presentation logic, belongs in UI layer
+- useMemo prevents unnecessary recalculations on re-renders
+- Dependency on adjustments array ensures proper updates
+- No need for backend changes - API already provides all data
+
+**Implementation:**
+```tsx
+const sortedAdjustments = useMemo(() => {
+  return adjustments
+    .filter((adj) => Math.abs(adj.adjustment_amount) > 0)
+    .sort((a, b) => {
+      const diff = Math.abs(b.adjustment_amount) - Math.abs(a.adjustment_amount);
+      if (diff !== 0) return diff;
+      return a.rule_name.localeCompare(b.rule_name);
+    });
+}, [adjustments]);
+```
+
+**Status:** Approved ✅
+
+---
+
+### ADR-006: Filter Zero-Value Adjustments
+**Decision:** Filter out adjustments with zero values before sorting
+
+**Rationale:**
+- Zero-value adjustments don't contribute to price changes
+- Reduces visual clutter
+- Ensures "No active rules" state only shows when truly no contributors
+- Improves user understanding of what affected the price
+
+**Status:** Approved ✅
+
+---
+
+## Current Implementation Analysis
+
+### Phase 2 Discovery
+When analyzing the codebase for Phase 2 implementation, found that **most requirements were already met** from Phase 1 work:
+
+**Already Implemented in Phase 1:**
+- ✅ Display max 4 rules (line 333: `adjustments.slice(0, 4)`)
+- ✅ Color-coding (lines 345-351: emerald for savings, red for premiums)
+- ✅ Rule card layout with name, action count, adjustment amount
+- ✅ "View breakdown" button with rule count
+- ✅ Empty state for zero contributors (lines 363-367)
+- ✅ Hidden rules indicator (lines 357-361)
+
+**Missing from Phase 1:**
+- ❌ Sorting by absolute adjustment amount (API order was used)
+
+### Implementation Required
+
+**File Modified:**
+- `/apps/web/components/listings/listing-valuation-tab.tsx`
+
+**Changes Made:**
+1. Added `sortedAdjustments` memoized variable (lines 166-177)
+2. Updated all references to use sorted list instead of raw adjustments
+3. Ensured zero-value filtering happens before sorting
+
+---
+
+## Success Criteria
+
+### Functional Requirements
+- [x] Max 4 rules displayed in valuation tab
+- [x] Rules sorted by absolute adjustment amount (descending)
+- [x] Alphabetical tiebreaker for equal amounts
+- [x] Zero-value adjustments filtered out
+- [x] Color-coding: green (savings), red (premiums)
+- [x] "View breakdown" button shows total rule count
+- [x] Empty state for zero contributing rules
+- [x] Hidden rules indicator when >4 contributors
+
+### Performance Requirements
+- [x] Sorting logic memoized with useMemo
+- [x] Only recalculates when adjustments array changes
+- [x] No unnecessary re-renders
+
+---
+
+## Implementation Notes
+
+### Memoization Pattern
+The sorting logic uses proper memoization:
+```tsx
+const sortedAdjustments = useMemo(() => {
+  // ... sorting logic
+}, [adjustments]);
+```
+
+Dependency array contains only `adjustments`, ensuring:
+- Recalculation happens when data changes
+- Stable reference when adjustments unchanged
+- Performance optimization for large adjustment lists
+
+### Sorting Algorithm
+Two-level sort:
+1. **Primary:** Absolute adjustment amount (descending)
+2. **Secondary:** Rule name (alphabetical ascending)
+
+This ensures:
+- Most impactful rules appear first
+- Deterministic ordering for equal amounts
+- User-friendly presentation
+
+---
+
+## Time Estimate vs Actual
+
+**Planned:** 2 days
+**Actual:** <1 day (most work already complete from Phase 1)
+
+**Efficiency Gain:** Phase 1 implementation was comprehensive and included most Phase 2 requirements proactively.
