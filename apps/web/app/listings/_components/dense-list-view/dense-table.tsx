@@ -29,6 +29,10 @@ import {
 import { useCatalogStore } from '@/stores/catalog-store'
 import type { ListingRow } from '@/components/listings/listings-table'
 import { formatRamSummary, formatStorageSummary } from '@/components/listings/listing-formatters'
+import { EntityTooltip } from '@/components/listings/entity-tooltip'
+import { CpuTooltipContent } from '@/components/listings/tooltips/cpu-tooltip-content'
+import { GpuTooltipContent } from '@/components/listings/tooltips/gpu-tooltip-content'
+import { fetchEntityData } from '@/lib/api/entities'
 
 interface DenseTableProps {
   listings: ListingRow[]
@@ -243,11 +247,39 @@ export const DenseTable = React.memo(function DenseTable({
                   <TableCell>
                     <div className="space-y-1">
                       <div className="font-medium">
-                        {listing.cpu?.name || 'Unknown CPU'}
+                        {listing.cpu?.id ? (
+                          <EntityTooltip
+                            entityType="cpu"
+                            entityId={listing.cpu.id}
+                            tooltipContent={(cpuData) => <CpuTooltipContent cpu={cpuData} />}
+                            fetchData={fetchEntityData}
+                            variant="inline"
+                          >
+                            {listing.cpu_name || listing.cpu.name || 'Unknown CPU'}
+                          </EntityTooltip>
+                        ) : (
+                          listing.cpu_name || listing.cpu?.name || 'Unknown CPU'
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        ST {listing.cpu?.cpu_mark_single?.toLocaleString() || '-'} /
-                        MT {listing.cpu?.cpu_mark_multi?.toLocaleString() || '-'}
+                        {listing.gpu?.id && listing.gpu_name ? (
+                          <EntityTooltip
+                            entityType="gpu"
+                            entityId={listing.gpu.id}
+                            tooltipContent={(gpuData) => <GpuTooltipContent gpu={gpuData} />}
+                            fetchData={fetchEntityData}
+                            variant="inline"
+                          >
+                            GPU: {listing.gpu_name}
+                          </EntityTooltip>
+                        ) : listing.gpu_name ? (
+                          <>GPU: {listing.gpu_name}</>
+                        ) : (
+                          <>
+                            ST {listing.cpu?.cpu_mark_single?.toLocaleString() || '-'} /
+                            MT {listing.cpu?.cpu_mark_multi?.toLocaleString() || '-'}
+                          </>
+                        )}
                       </div>
                     </div>
                   </TableCell>

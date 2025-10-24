@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useCatalogStore } from '@/stores/catalog-store'
 import type { ListingRow } from '@/components/listings/listings-table'
+import { EntityTooltip } from '@/components/listings/entity-tooltip'
+import { CpuTooltipContent } from '@/components/listings/tooltips/cpu-tooltip-content'
+import { fetchEntityData } from '@/lib/api/entities'
 
 interface MasterListProps {
   listings: ListingRow[]
@@ -165,7 +168,19 @@ export const MasterList = React.memo(function MasterList({
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {listing.cpu?.name || 'Unknown CPU'}
+                      {listing.cpu?.id ? (
+                        <EntityTooltip
+                          entityType="cpu"
+                          entityId={listing.cpu.id}
+                          tooltipContent={(cpuData) => <CpuTooltipContent cpu={cpuData} />}
+                          fetchData={fetchEntityData}
+                          variant="inline"
+                        >
+                          {listing.cpu_name || listing.cpu.name || 'Unknown CPU'}
+                        </EntityTooltip>
+                      ) : (
+                        listing.cpu_name || listing.cpu?.name || 'Unknown CPU'
+                      )}
                       {listing.cpu?.cpu_mark_single && listing.cpu?.cpu_mark_multi && (
                         <span className="ml-2">
                           ST {listing.cpu.cpu_mark_single.toLocaleString()} /

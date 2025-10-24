@@ -35,8 +35,10 @@ import { PortsDisplay } from "./ports-display";
 import { ComboBox } from "../forms/combobox";
 import { useConfirmation } from "../ui/confirmation-dialog";
 import { useValuationThresholds } from "@/hooks/use-valuation-thresholds";
-import { CpuTooltip } from "./cpu-tooltip";
-import { CpuDetailsModal } from "./cpu-details-modal";
+import { EntityTooltip } from "./entity-tooltip";
+import { CpuTooltipContent } from "./tooltips/cpu-tooltip-content";
+import { GpuTooltipContent } from "./tooltips/gpu-tooltip-content";
+import { fetchEntityData } from "@/lib/api/entities";
 import { RamSpecSelector } from "../forms/ram-spec-selector";
 import { StorageProfileSelector } from "../forms/storage-profile-selector";
 import { getStorageMediumLabel } from "../../lib/component-catalog";
@@ -156,8 +158,6 @@ export function ListingsTable() {
     title: string;
     thumbnailUrl?: string | null;
   } | null>(null);
-  const [cpuModalOpen, setCpuModalOpen] = useState(false);
-  const [selectedCpu, setSelectedCpu] = useState<CpuRecord | null>(null);
 
   // Highlighted row tracking
   const highlightedRef = useRef<HTMLTableRowElement>(null);
@@ -429,6 +429,9 @@ export function ListingsTable() {
         accessorKey: "title",
         cell: ({ row }) => {
           const gpuConfig = fieldMap.get("gpu_id");
+          const gpu = row.original.gpu;
+          const gpuName = row.original.gpu_name;
+
           return (
             <div className="flex flex-col gap-1">
               {titleConfig ? (
@@ -455,8 +458,22 @@ export function ListingsTable() {
                     listing={row.original}
                   />
                 </div>
+              ) : gpu?.id ? (
+                <div className="text-xs">
+                  <EntityTooltip
+                    entityType="gpu"
+                    entityId={gpu.id}
+                    tooltipContent={(gpuData) => <GpuTooltipContent gpu={gpuData} />}
+                    fetchData={fetchEntityData}
+                    variant="inline"
+                  >
+                    {gpuName || gpu.name || "Unknown GPU"}
+                  </EntityTooltip>
+                </div>
               ) : (
-                <span className="text-xs text-muted-foreground">{row.original.gpu_name ?? "No dedicated GPU"}</span>
+                <span className="text-xs text-muted-foreground">
+                  {gpuName || "No dedicated GPU"}
+                </span>
               )}
             </div>
           );
@@ -477,47 +494,44 @@ export function ListingsTable() {
         cell: ({ row }) => {
           const cpuConfig = fieldMap.get("cpu_id");
           const cpu = row.original.cpu;
+          const cpuName = row.original.cpu_name;
 
+          // If editable, show the selector
           if (cpuConfig && cpuConfig.editable) {
             return (
-              <div className="flex items-center gap-2">
-                <EditableCell
-                  listingId={row.original.id}
-                  field={cpuConfig}
-                  value={row.original.cpu_id}
-                  onSave={handleInlineSave}
-                  isSaving={inlineMutation.isPending}
-                  listing={row.original}
-                />
-                {cpu && (
-                  <CpuTooltip
-                    cpu={cpu}
-                    onViewDetails={() => {
-                      setSelectedCpu(cpu);
-                      setCpuModalOpen(true);
-                    }}
-                  />
-                )}
-              </div>
+              <EditableCell
+                listingId={row.original.id}
+                field={cpuConfig}
+                value={row.original.cpu_id}
+                onSave={handleInlineSave}
+                isSaving={inlineMutation.isPending}
+                listing={row.original}
+              />
             );
           }
 
-          if (!cpu) {
+          // No CPU attached
+          if (!cpu && !cpuName) {
             return <span className="text-sm text-muted-foreground">—</span>;
           }
 
-          return (
-            <div className="flex items-center gap-2">
-              <span className="text-sm">{cpu.name}</span>
-              <CpuTooltip
-                cpu={cpu}
-                onViewDetails={() => {
-                  setSelectedCpu(cpu);
-                  setCpuModalOpen(true);
-                }}
-              />
-            </div>
-          );
+          // CPU with ID - show with tooltip
+          if (cpu?.id) {
+            return (
+              <EntityTooltip
+                entityType="cpu"
+                entityId={cpu.id}
+                tooltipContent={(cpuData) => <CpuTooltipContent cpu={cpuData} />}
+                fetchData={fetchEntityData}
+                variant="inline"
+              >
+                {cpuName || cpu.name || "Unknown"}
+              </EntityTooltip>
+            );
+          }
+
+          // Fallback: CPU name without ID (shouldn't happen with Phase 1 changes)
+          return <span className="text-sm">{cpuName}</span>;
         },
         enableSorting: true,
         enableResizing: true,
@@ -525,7 +539,7 @@ export function ListingsTable() {
         meta: {
           filterType: "multi-select",
           options: cpuOptions,
-          tooltip: "CPU associated with the listing",
+          tooltip: "CPU associated with the listing (hover for details)",
           description: "The processor model (Intel/AMD) powering this system",
         },
         filterFn: (row, columnId, filterValue) => {
@@ -909,13 +923,6 @@ export function ListingsTable() {
           thumbnailUrl={selectedListingForBreakdown.thumbnailUrl}
         />
       )}
-
-      {/* CPU Details Modal */}
-      <CpuDetailsModal
-        cpu={selectedCpu}
-        open={cpuModalOpen}
-        onOpenChange={setCpuModalOpen}
-      />
 
       {/* Confirmation Dialog */}
       {confirmationDialog}
