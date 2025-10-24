@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 from pydantic import AliasChoices, Field, field_validator
 
 from .base import DealBrainModel
-from .catalog import CpuRead, GpuRead, RamSpecRead, StorageProfileRead
+from .catalog import CpuRead, GpuRead, PortsProfileRead, RamSpecRead, StorageProfileRead
 from ..enums import ComponentType, Condition, ListingStatus
 
 
@@ -161,6 +161,7 @@ class ListingRead(ListingBase):
     components: list[ListingComponentRead] = Field(default_factory=list)
     cpu: CpuRead | None = None
     gpu: GpuRead | None = None
+    ports_profile: PortsProfileRead | None = None
     ram_spec: RamSpecRead | None = None
     primary_storage_profile: StorageProfileRead | None = None
     secondary_storage_profile: StorageProfileRead | None = None
