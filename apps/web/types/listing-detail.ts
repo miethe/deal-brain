@@ -7,7 +7,6 @@ export interface CpuRecordDetail extends CpuRecord {
   model?: string | null;
   base_clock_ghz?: number | null;
   boost_clock_ghz?: number | null;
-  manufacturer?: string | null;
 }
 
 /**
