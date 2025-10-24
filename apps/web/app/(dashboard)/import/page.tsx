@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { SingleUrlImportForm } from '@/components/ingestion/single-url-import-form';
 import { BulkImportDialog } from '@/components/ingestion/bulk-import-dialog';
 import { ImporterWorkspace } from '@/components/import/importer-workspace';
+import { telemetry } from '@/lib/telemetry';
 import { Globe, FileSpreadsheet, Link, Upload } from 'lucide-react';
 
 export default function ImportPage() {
@@ -56,12 +57,19 @@ export default function ImportPage() {
           {/* Single URL Import Form */}
           <SingleUrlImportForm
             onSuccess={(result) => {
-              console.log('Import successful:', result);
+              telemetry.info('frontend.import.single.success', {
+                listingId: result.listingId,
+                status: result.status,
+                provenance: result.provenance,
+                quality: result.quality,
+              });
               // Optionally navigate to the listing
               // router.push(`/listings/${result.listingId}`);
             }}
             onError={(error) => {
-              console.error('Import failed:', error);
+              telemetry.error('frontend.import.single.failed', {
+                message: error?.message ?? 'Unknown error',
+              });
             }}
           />
 
@@ -113,10 +121,16 @@ export default function ImportPage() {
         open={bulkDialogOpen}
         onOpenChange={setBulkDialogOpen}
         onSuccess={(result) => {
-          console.log('Bulk import successful:', result);
+          telemetry.info('frontend.import.bulk.success', {
+            total: result.total,
+            success: result.success,
+            failed: result.failed,
+          });
         }}
         onError={(error) => {
-          console.error('Bulk import failed:', error);
+          telemetry.error('frontend.import.bulk.failed', {
+            message: error?.message ?? 'Unknown error',
+          });
         }}
       />
     </div>

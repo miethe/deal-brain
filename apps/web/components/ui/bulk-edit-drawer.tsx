@@ -3,6 +3,7 @@
 import * as React from "react";
 import { X } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { telemetry } from "../../lib/telemetry";
 import { Button } from "./button";
 import { Label } from "./label";
 import { Input } from "./input";
@@ -53,7 +54,9 @@ export function BulkEditDrawer({
       setChanges({});
       onClose();
     } catch (error) {
-      console.error("Bulk edit failed:", error);
+      telemetry.error("frontend.bulk_edit.failed", {
+        message: (error as Error)?.message ?? "Unknown error",
+      });
     } finally {
       setApplying(false);
     }

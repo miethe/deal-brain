@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { apiFetch } from "../../lib/utils";
+import { telemetry } from "../../lib/telemetry";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
@@ -181,7 +182,9 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
       const cpuData = await getCpu(Number(cpuId));
       setSelectedCpuData(cpuData);
     } catch (error) {
-      console.error("Failed to fetch CPU data:", error);
+      telemetry.error("frontend.listing.fetch_cpu_failed", {
+        message: (error as Error)?.message ?? "Unknown error",
+      });
       setStatus("Failed to load CPU details");
     }
   };
@@ -375,7 +378,9 @@ export function AddListingForm({ onSuccess }: AddListingFormProps = {}) {
           // Call onSuccess callback with listing ID
           onSuccess?.(listingId);
         } catch (error) {
-          console.error("Post-creation update failed:", error);
+          telemetry.error("frontend.listing.post_create_failed", {
+            message: (error as Error)?.message ?? "Unknown error",
+          });
           setStatus("Listing created, but some updates failed");
         }
       },

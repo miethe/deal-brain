@@ -1,33 +1,24 @@
 """Service for evaluating rules against listings with caching"""
 
-import logging
 from datetime import datetime
-from decimal import Decimal
 from typing import Any
+
+from dealbrain_core.rules import (
+    ConditionGroup,
+    RuleEvaluator,
+    build_condition_from_dict,
+    build_context_from_listing,
+)
+from prometheus_client import Counter, Gauge, Histogram
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from prometheus_client import Counter, Histogram, Gauge
 
-from dealbrain_core.rules import (
-    RuleEvaluator,
-    build_context_from_listing,
-    Action,
-    Condition,
-    ConditionGroup,
-    build_condition_from_dict,
-    build_action_from_dict,
-)
-
-from ..models.core import (
-    ValuationRuleset,
-    ValuationRuleGroup,
-    ValuationRuleV2,
-    Listing,
-)
+from ..models.core import Listing, ValuationRuleGroup, ValuationRuleset, ValuationRuleV2
+from ..telemetry import get_logger
 
 # Set up logging
-logger = logging.getLogger(__name__)
+logger = get_logger("dealbrain.rules")
 
 # Prometheus metrics
 valuation_layer_events = Counter(
@@ -106,9 +97,11 @@ class RuleEvaluationService:
         # Build context from listing (used for ruleset selection and evaluation)
         context = build_context_from_listing(listing)
         disabled_rulesets = {
-            int(ruleset_id)
-            for ruleset_id in (listing.attributes_json or {}).get(VALUATION_DISABLED_RULESETS_KEY, [])
-            if isinstance(ruleset_id, (int, str)) and str(ruleset_id).isdigit()
+            int(candidate_id)
+            for candidate_id in (listing.attributes_json or {}).get(
+                VALUATION_DISABLED_RULESETS_KEY, []
+            )
+            if isinstance(candidate_id, (int, str)) and str(candidate_id).isdigit()
         }
 
         # Get rulesets to evaluate
@@ -126,6 +119,14 @@ class RuleEvaluationService:
 
         if not rulesets_to_evaluate:
             raise ValueError("No active rulesets found")
+
+        logger.info(
+            "valuation.evaluate.start",
+            listing_id=listing_id,
+            requested_ruleset=ruleset_id,
+            ruleset_count=len(rulesets_to_evaluate),
+            disabled_rulesets=sorted(disabled_rulesets),
+        )
 
         # Evaluate all rulesets in order and combine results
         all_evaluation_results = []
@@ -167,15 +168,19 @@ class RuleEvaluationService:
                     "rule_ids": matched_rule_ids,
                     "delta_usd": float(layer_adjustment),
                     "cumulative_usd": float(cumulative_adjustment),
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.utcnow().isoformat(),
                 }
 
                 # Log the telemetry event
-                logger.info("valuation.layer_contribution", extra=telemetry_event)
+                logger.info("valuation.layer_contribution", **telemetry_event)
 
                 # Update Prometheus metrics
-                valuation_layer_events.labels(layer=layer_type, ruleset_name=ruleset.name).inc()
-                valuation_layer_delta.labels(layer=layer_type, ruleset_name=ruleset.name).observe(abs(layer_adjustment))
+                valuation_layer_events.labels(
+                    layer=layer_type, ruleset_name=ruleset.name
+                ).inc()
+                valuation_layer_delta.labels(
+                    layer=layer_type, ruleset_name=ruleset.name
+                ).observe(abs(layer_adjustment))
 
                 matched_rules_by_layer[layer_type] = {
                     "ruleset_id": ruleset.id,
@@ -187,19 +192,21 @@ class RuleEvaluationService:
 
             # Add to cumulative results
             total_adjustment += layer_adjustment
-            all_evaluation_results.extend([
-                {
-                    "rule_id": r.rule_id,
-                    "rule_name": r.rule_name,
-                    "ruleset_id": ruleset.id,
-                    "ruleset_name": ruleset.name,
-                    "layer": layer_type,
-                    "matched": r.matched,
-                    "adjustment_value": r.adjustment_value,
-                    "error": r.error,
-                }
-                for r in evaluation_results
-            ])
+            all_evaluation_results.extend(
+                [
+                    {
+                        "rule_id": r.rule_id,
+                        "rule_name": r.rule_name,
+                        "ruleset_id": ruleset.id,
+                        "ruleset_name": ruleset.name,
+                        "layer": layer_type,
+                        "matched": r.matched,
+                        "adjustment_value": r.adjustment_value,
+                        "error": r.error,
+                    }
+                    for r in evaluation_results
+                ]
+            )
 
         # Calculate adjusted price (ensure consistent types)
         original_price = float(listing.price_usd) if listing.price_usd else 0.0
@@ -211,7 +218,7 @@ class RuleEvaluationService:
             for layer in matched_rules_by_layer.values()
         )
 
-        return {
+        result_payload = {
             "listing_id": listing_id,
             "original_price": original_price,
             "total_adjustment": total_adjustment,
@@ -230,6 +237,16 @@ class RuleEvaluationService:
                 for rs in rulesets_to_evaluate
             ]
         }
+
+        logger.info(
+            "valuation.evaluate.completed",
+            listing_id=listing_id,
+            ruleset_count=len(rulesets_to_evaluate),
+            total_adjustment=total_adjustment,
+            matched_rules=total_matched_rules,
+        )
+
+        return result_payload
 
     async def evaluate_multiple_listings(
         self,
@@ -255,6 +272,11 @@ class RuleEvaluationService:
                 result = await self.evaluate_listing(session, listing_id, ruleset_id)
                 results.append(result)
             except Exception as e:
+                logger.warning(
+                    "valuation.evaluate.failed",
+                    listing_id=listing_id,
+                    error=str(e),
+                )
                 results.append({
                     "listing_id": listing_id,
                     "error": str(e)
@@ -269,8 +291,7 @@ class RuleEvaluationService:
         ruleset_id: int | None = None,
         commit: bool = True
     ) -> dict[str, Any]:
-        """
-        Evaluate and apply rulesets to a listing, updating adjusted_price_usd and valuation_breakdown.
+        """Evaluate rulesets and update the listing's valuation data.
 
         Args:
             session: Database session
@@ -400,7 +421,7 @@ class RuleEvaluationService:
         # Get all active rulesets ordered by priority
         stmt = (
             select(ValuationRuleset)
-            .where(ValuationRuleset.is_active == True)
+            .where(ValuationRuleset.is_active.is_(True))
             .order_by(
                 ValuationRuleset.priority.asc(),
                 ValuationRuleset.created_at.asc()
@@ -416,9 +437,8 @@ class RuleEvaluationService:
                 continue
 
             # Check if ruleset has conditions and if they match
-            if ruleset.conditions_json:
-                if not self._ruleset_matches_context(ruleset, context):
-                    continue
+            if ruleset.conditions_json and not self._ruleset_matches_context(ruleset, context):
+                continue
 
             applicable_rulesets.append(ruleset)
 
@@ -432,7 +452,7 @@ class RuleEvaluationService:
         """Get first active ruleset (legacy single-ruleset mode)"""
         stmt = (
             select(ValuationRuleset)
-            .where(ValuationRuleset.is_active == True)
+            .where(ValuationRuleset.is_active.is_(True))
             .order_by(
                 ValuationRuleset.priority.asc(),
                 ValuationRuleset.created_at.asc(),
@@ -455,7 +475,7 @@ class RuleEvaluationService:
         """Find the highest priority active ruleset whose conditions match the provided context."""
         stmt = (
             select(ValuationRuleset)
-            .where(ValuationRuleset.is_active == True)
+            .where(ValuationRuleset.is_active.is_(True))
             .order_by(
                 ValuationRuleset.priority.asc(),
                 ValuationRuleset.created_at.asc(),
@@ -518,7 +538,7 @@ class RuleEvaluationService:
             rules_stmt = (
                 select(ValuationRuleV2)
                 .where(ValuationRuleV2.group_id == group.id)
-                .where(ValuationRuleV2.is_active == True)
+                .where(ValuationRuleV2.is_active.is_(True))
                 .order_by(ValuationRuleV2.evaluation_order)
             )
             rules_result = await session.execute(rules_stmt)

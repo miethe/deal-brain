@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import { cn } from "../../lib/utils";
+import { telemetry } from "../../lib/telemetry";
 import { Input } from "./input";
 import { Button } from "./button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
@@ -136,7 +137,9 @@ function useColumnSizingPersistence<TData>(
       }
       table.setColumnSizing(filtered);
     } catch (error) {
-      console.error("Failed to hydrate column sizing state", error);
+      telemetry.error("frontend.datagrid.hydration_failed", {
+        message: (error as Error)?.message ?? "Unknown error",
+      });
     }
     hydratedRef.current = true;
   }, [storageKey, table]);

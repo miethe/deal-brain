@@ -3,6 +3,7 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { telemetry } from '@/lib/telemetry';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -35,8 +36,11 @@ export class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log to console (future: send to error tracking service)
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    telemetry.error('frontend.error_boundary', {
+      message: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+    });
   }
 
   handleReset = () => {

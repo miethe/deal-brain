@@ -1,12 +1,13 @@
 """Safe formula parser and evaluator for custom calculations"""
 
 import ast
-import logging
 import math
 import operator
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 class FormulaError(Exception):
