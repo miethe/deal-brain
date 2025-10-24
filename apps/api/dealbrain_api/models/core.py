@@ -442,6 +442,33 @@ class Listing(Base, TimestampMixin):
     def ram_speed_mhz(self) -> int | None:
         return self.ram_spec.speed_mhz if self.ram_spec else None
 
+    @property
+    def cpu_name(self) -> str | None:
+        """Denormalized CPU name for frontend convenience."""
+        return self.cpu.name if self.cpu else None
+
+    @property
+    def gpu_name(self) -> str | None:
+        """Denormalized GPU name for frontend convenience."""
+        return self.gpu.name if self.gpu else None
+
+    @property
+    def thumbnail_url(self) -> str | None:
+        """Extract thumbnail URL from raw listing JSON or attributes."""
+        if self.raw_listing_json:
+            # Check common fields from marketplace adapters
+            for key in ['image_url', 'thumbnail_url', 'imageUrl', 'thumbnailUrl', 'img_url']:
+                if key in self.raw_listing_json and self.raw_listing_json[key]:
+                    return self.raw_listing_json[key]
+
+        # Fallback to attributes_json
+        if self.attributes_json:
+            for key in ['image_url', 'thumbnail_url']:
+                if key in self.attributes_json and self.attributes_json[key]:
+                    return self.attributes_json[key]
+
+        return None
+
 
 class ListingComponent(Base, TimestampMixin):
     __tablename__ = "listing_component"

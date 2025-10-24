@@ -167,5 +167,8 @@ class ListingRead(ListingBase):
     secondary_storage_profile: StorageProfileRead | None = None
     ram_type: str | None = None
     ram_speed_mhz: int | None = None
+    cpu_name: str | None = None
+    gpu_name: str | None = None
+    thumbnail_url: str | None = None
 
 ListingRead.model_rebuild()
