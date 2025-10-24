@@ -10,6 +10,8 @@ from typing import Optional
 import typer
 from sqlalchemy import select
 
+from dealbrain_api.settings import get_settings
+from dealbrain_api.telemetry import get_logger, init_telemetry
 from dealbrain_api.api.rankings import VALID_METRICS
 from dealbrain_api.db import session_scope
 from dealbrain_api.models import Listing
@@ -20,8 +22,11 @@ from dealbrain_api.services.listings import (
     create_listing,
     sync_listing_components,
 )
-from dealbrain_core.schemas import ListingCreate
 from dealbrain_cli.commands.rules import rules_app
+from dealbrain_core.schemas import ListingCreate
+
+init_telemetry(get_settings())
+logger = get_logger("dealbrain.cli")
 
 app = typer.Typer(help="Deal Brain CLI utilities")
 
@@ -212,4 +217,3 @@ def listing_to_dict(listing: Listing) -> dict[str, object]:
 
 if __name__ == "__main__":  # pragma: no cover
     app()
-

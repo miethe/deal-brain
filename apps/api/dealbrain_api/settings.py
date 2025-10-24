@@ -5,6 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -99,8 +100,46 @@ class IngestionSettings(BaseModel):
     )
 
 
+class TelemetrySettings(BaseModel):
+    """Configuration for application telemetry."""
+
+    destination: Literal["console", "json", "otel"] = Field(
+        default="console",
+        description="Where to send logs/telemetry output.",
+    )
+    level: str = Field(
+        default="INFO",
+        description="Verbosity of log entries (DEBUG, INFO, WARNING, ERROR).",
+    )
+    log_format: Literal["console", "json"] = Field(
+        default="console",
+        description="Log formatter style. Console is human-readable, JSON is structured.",
+    )
+    service_name: str = Field(
+        default="dealbrain-api",
+        description="Service name used for telemetry resources.",
+    )
+    enable_tracing: bool = Field(
+        default=False,
+        description="Enable OpenTelemetry tracing pipeline when exporter is configured.",
+    )
+    otel_endpoint: str | None = Field(
+        default=None,
+        description="OTLP endpoint for log/trace export, e.g. http://collector:4317",
+    )
+    suppress_uvicorn_access: bool = Field(
+        default=True,
+        description="Disable Uvicorn's default access logs when true.",
+    )
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        env_nested_delimiter="__",
+    )
 
     environment: str = "development"
     log_level: str = "INFO"
@@ -121,6 +160,11 @@ class Settings(BaseSettings):
     otel_exporter_otlp_endpoint: str | None = None
 
     analytics_enabled: bool = True
+
+    telemetry: TelemetrySettings = Field(
+        default_factory=TelemetrySettings,
+        description="Telemetry/logging configuration.",
+    )
 
     # URL Ingestion settings
     ingestion: IngestionSettings = Field(
@@ -155,6 +199,7 @@ def get_settings() -> Settings:
 __all__ = [
     "AdapterConfig",
     "IngestionSettings",
+    "TelemetrySettings",
     "Settings",
     "get_settings",
 ]

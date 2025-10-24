@@ -4,11 +4,13 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from .api import router as api_router
 from .settings import get_settings
+from .telemetry import ObservabilityMiddleware, init_telemetry
 
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI app instance."""
     settings = get_settings()
+    init_telemetry(settings)
     app = FastAPI(title="Deal Brain API", version="0.1.0", docs_url="/docs", redoc_url="/redoc")
 
     app.add_middleware(
@@ -18,6 +20,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(ObservabilityMiddleware)
 
     # Instrument the app for Prometheus metrics
     instrumentator = Instrumentator()
@@ -30,4 +33,3 @@ def create_app() -> FastAPI:
     app.include_router(api_router)
 
     return app
-
