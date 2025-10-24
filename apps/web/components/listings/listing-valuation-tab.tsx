@@ -334,7 +334,7 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
 
           <div className="flex flex-wrap items-center gap-3">
             <Badge variant="secondary">
-              {sortedAdjustments.length} rule{sortedAdjustments.length === 1 ? "" : "s"} applied
+              {adjustments.length} rule{adjustments.length === 1 ? "" : "s"} applied
             </Badge>
             <Button variant="outline" size="sm" onClick={() => setIsBreakdownOpen(true)}>
               View breakdown
@@ -369,7 +369,7 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
               ))}
               {sortedAdjustments.length > 4 && (
                 <li className="text-xs text-muted-foreground">
-                  {sortedAdjustments.length - 4} more adjustment{sortedAdjustments.length - 4 === 1 ? "" : "s"} in breakdown
+                  {sortedAdjustments.length - 4} more rule{sortedAdjustments.length - 4 === 1 ? "" : "s"} with adjustments in breakdown
                 </li>
               )}
             </ul>

@@ -45,17 +45,21 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* CPU */}
-            {listing.cpu && (
+            {(listing.cpu || listing.cpu_name) && (
               <FieldGroup label="CPU">
-                <EntityTooltip
-                  entityType="cpu"
-                  entityId={listing.cpu.id!}
-                  tooltipContent={(cpu) => <CpuTooltipContent cpu={cpu} />}
-                  fetchData={fetchEntityData}
-                  variant="inline"
-                >
-                  {listing.cpu.model || listing.cpu_name || "—"}
-                </EntityTooltip>
+                {listing.cpu && listing.cpu.id ? (
+                  <EntityTooltip
+                    entityType="cpu"
+                    entityId={listing.cpu.id}
+                    tooltipContent={(cpu) => <CpuTooltipContent cpu={cpu} />}
+                    fetchData={fetchEntityData}
+                    variant="inline"
+                  >
+                    {listing.cpu.model || listing.cpu_name || "—"}
+                  </EntityTooltip>
+                ) : (
+                  <span>{listing.cpu_name || "—"}</span>
+                )}
               </FieldGroup>
             )}
 

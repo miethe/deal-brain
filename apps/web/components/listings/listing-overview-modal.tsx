@@ -13,6 +13,7 @@ import { apiFetch } from "../../lib/utils";
 import { useValuationThresholds } from "../../hooks/use-valuation-thresholds";
 import { ListingRecord } from "../../types/listings";
 import { formatRamSummary, formatStorageSummary } from "./listing-formatters";
+import { ExternalLink } from "lucide-react";
 
 interface ListingOverviewModalProps {
   listingId: number | null;
@@ -153,6 +154,44 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                   </div>
                 )}
               </Section>
+
+              {(listing.listing_url || (listing.other_urls && listing.other_urls.length > 0)) && (
+                <>
+                  <Separator />
+
+                  <Section title="Links">
+                    <div className="space-y-2">
+                      {listing.listing_url && (
+                        <div className="flex items-center gap-2">
+                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                          <a
+                            href={listing.listing_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline"
+                          >
+                            View Original Listing
+                          </a>
+                        </div>
+                      )}
+
+                      {listing.other_urls && listing.other_urls.map((link, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline"
+                          >
+                            {link.label || `Additional Link ${index + 1}`}
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </Section>
+                </>
+              )}
 
               <Separator />
 
