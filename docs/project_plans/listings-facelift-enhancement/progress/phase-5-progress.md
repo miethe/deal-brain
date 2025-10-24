@@ -182,11 +182,11 @@ Implement clickable entity relationships with hover tooltips for rich contextual
 ---
 
 #### TASK-505: Implement CPU tooltip
-**Status:** NOT STARTED
-**Owner:** ui-engineer
+**Status:** COMPLETED
+**Owner:** lead-architect
+**Completed:** 2025-10-24
 **Files:**
-- `apps/web/components/listings/tooltips/cpu-tooltip-content.tsx` (new)
-- `apps/web/components/listings/entity-tooltip.tsx` (integrate)
+- `apps/web/components/listings/tooltips/cpu-tooltip-content.tsx` (created)
 
 **Requirements:**
 - Display CPU entity details in tooltip
