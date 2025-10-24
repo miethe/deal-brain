@@ -39,8 +39,19 @@ async def list_cpus(session: AsyncSession = Depends(session_dependency)) -> Sequ
     return [CpuRead.model_validate(row) for row in result.scalars().all()]
 
 
+@router.get("/cpus/{cpu_id}", response_model=CpuRead)
+async def get_cpu(cpu_id: int, session: AsyncSession = Depends(session_dependency)) -> CpuRead:
+    """Get a single CPU by ID."""
+    cpu = await session.get(Cpu, cpu_id)
+    if not cpu:
+        raise HTTPException(status_code=404, detail=f"CPU with id {cpu_id} not found")
+    return CpuRead.model_validate(cpu)
+
+
 @router.post("/cpus", response_model=CpuRead, status_code=status.HTTP_201_CREATED)
-async def create_cpu(payload: CpuCreate, session: AsyncSession = Depends(session_dependency)) -> CpuRead:
+async def create_cpu(
+    payload: CpuCreate, session: AsyncSession = Depends(session_dependency)
+) -> CpuRead:
     existing = await session.scalar(select(Cpu).where(Cpu.name == payload.name))
     if existing:
         raise HTTPException(status_code=400, detail="CPU already exists")
@@ -56,8 +67,19 @@ async def list_gpus(session: AsyncSession = Depends(session_dependency)) -> Sequ
     return [GpuRead.model_validate(row) for row in result.scalars().all()]
 
 
+@router.get("/gpus/{gpu_id}", response_model=GpuRead)
+async def get_gpu(gpu_id: int, session: AsyncSession = Depends(session_dependency)) -> GpuRead:
+    """Get a single GPU by ID."""
+    gpu = await session.get(Gpu, gpu_id)
+    if not gpu:
+        raise HTTPException(status_code=404, detail=f"GPU with id {gpu_id} not found")
+    return GpuRead.model_validate(gpu)
+
+
 @router.post("/gpus", response_model=GpuRead, status_code=status.HTTP_201_CREATED)
-async def create_gpu(payload: GpuCreate, session: AsyncSession = Depends(session_dependency)) -> GpuRead:
+async def create_gpu(
+    payload: GpuCreate, session: AsyncSession = Depends(session_dependency)
+) -> GpuRead:
     existing = await session.scalar(select(Gpu).where(Gpu.name == payload.name))
     if existing:
         raise HTTPException(status_code=400, detail="GPU already exists")
@@ -68,13 +90,17 @@ async def create_gpu(payload: GpuCreate, session: AsyncSession = Depends(session
 
 
 @router.get("/profiles", response_model=list[ProfileRead])
-async def list_profiles(session: AsyncSession = Depends(session_dependency)) -> Sequence[ProfileRead]:
+async def list_profiles(
+    session: AsyncSession = Depends(session_dependency),
+) -> Sequence[ProfileRead]:
     result = await session.execute(select(Profile).order_by(Profile.name))
     return [ProfileRead.model_validate(row) for row in result.scalars().all()]
 
 
 @router.post("/profiles", response_model=ProfileRead, status_code=status.HTTP_201_CREATED)
-async def create_profile(payload: ProfileCreate, session: AsyncSession = Depends(session_dependency)) -> ProfileRead:
+async def create_profile(
+    payload: ProfileCreate, session: AsyncSession = Depends(session_dependency)
+) -> ProfileRead:
     existing = await session.scalar(select(Profile).where(Profile.name == payload.name))
     if existing:
         raise HTTPException(status_code=400, detail="Profile already exists")
@@ -87,13 +113,17 @@ async def create_profile(payload: ProfileCreate, session: AsyncSession = Depends
 
 
 @router.get("/ports-profiles", response_model=list[PortsProfileRead])
-async def list_ports_profiles(session: AsyncSession = Depends(session_dependency)) -> Sequence[PortsProfileRead]:
+async def list_ports_profiles(
+    session: AsyncSession = Depends(session_dependency),
+) -> Sequence[PortsProfileRead]:
     result = await session.execute(select(PortsProfile).order_by(PortsProfile.name))
     profiles = result.scalars().unique().all()
     return [PortsProfileRead.model_validate(profile) for profile in profiles]
 
 
-@router.post("/ports-profiles", response_model=PortsProfileRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/ports-profiles", response_model=PortsProfileRead, status_code=status.HTTP_201_CREATED
+)
 async def create_ports_profile(
     payload: PortsProfileCreate,
     session: AsyncSession = Depends(session_dependency),
@@ -113,7 +143,9 @@ async def create_ports_profile(
 
 @router.get("/ram-specs", response_model=list[RamSpecRead])
 async def list_ram_specs(
-    search: str | None = Query(default=None, description="Filter by label, generation, or capacity"),
+    search: str | None = Query(
+        default=None, description="Filter by label, generation, or capacity"
+    ),
     generation: RamGeneration | None = Query(default=None, description="Filter by RAM generation"),
     min_capacity_gb: int | None = Query(default=None, ge=0),
     max_capacity_gb: int | None = Query(default=None, ge=0),
@@ -146,8 +178,21 @@ async def list_ram_specs(
     return [RamSpecRead.model_validate(spec) for spec in specs]
 
 
+@router.get("/ram-specs/{ram_spec_id}", response_model=RamSpecRead)
+async def get_ram_spec(
+    ram_spec_id: int, session: AsyncSession = Depends(session_dependency)
+) -> RamSpecRead:
+    """Get a single RAM specification by ID."""
+    ram_spec = await session.get(RamSpec, ram_spec_id)
+    if not ram_spec:
+        raise HTTPException(status_code=404, detail=f"RAM spec with id {ram_spec_id} not found")
+    return RamSpecRead.model_validate(ram_spec)
+
+
 @router.post("/ram-specs", response_model=RamSpecRead, status_code=status.HTTP_201_CREATED)
-async def create_ram_spec(payload: RamSpecCreate, session: AsyncSession = Depends(session_dependency)) -> RamSpecRead:
+async def create_ram_spec(
+    payload: RamSpecCreate, session: AsyncSession = Depends(session_dependency)
+) -> RamSpecRead:
     try:
         spec = await get_or_create_ram_spec(session, payload.model_dump(exclude_none=True))
     except ValueError as exc:
@@ -192,7 +237,23 @@ async def list_storage_profiles(
     return [StorageProfileRead.model_validate(profile) for profile in profiles]
 
 
-@router.post("/storage-profiles", response_model=StorageProfileRead, status_code=status.HTTP_201_CREATED)
+@router.get("/storage-profiles/{storage_profile_id}", response_model=StorageProfileRead)
+async def get_storage_profile(
+    storage_profile_id: int,
+    session: AsyncSession = Depends(session_dependency),
+) -> StorageProfileRead:
+    """Get a single storage profile by ID."""
+    storage_profile = await session.get(StorageProfile, storage_profile_id)
+    if not storage_profile:
+        raise HTTPException(
+            status_code=404, detail=f"Storage profile with id {storage_profile_id} not found"
+        )
+    return StorageProfileRead.model_validate(storage_profile)
+
+
+@router.post(
+    "/storage-profiles", response_model=StorageProfileRead, status_code=status.HTTP_201_CREATED
+)
 async def create_storage_profile(
     payload: StorageProfileCreate,
     session: AsyncSession = Depends(session_dependency),
