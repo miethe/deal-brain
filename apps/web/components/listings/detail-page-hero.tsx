@@ -1,6 +1,7 @@
 import { ProductImage } from "./product-image";
+import { SummaryCard } from "./summary-card";
+import { SummaryCardsGrid } from "./summary-cards-grid";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import type { ListingDetail } from "@/types/listing-detail";
 
 interface DetailPageHeroProps {
@@ -15,6 +16,24 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
 
   const formatNumber = (value: number | null | undefined) =>
     value == null ? "—" : value.toFixed(2);
+
+  // CPU summary
+  const cpuValue = listing.cpu?.model || listing.cpu_name || "Unknown";
+  const cpuSubtitle =
+    listing.cpu?.cores && listing.cpu?.threads
+      ? `${listing.cpu.cores}C/${listing.cpu.threads}T`
+      : undefined;
+
+  // GPU summary
+  const gpuValue = listing.gpu?.model || listing.gpu_name || "None";
+  const gpuSubtitle = listing.gpu?.vram_gb ? `${listing.gpu.vram_gb}GB VRAM` : undefined;
+
+  // RAM summary
+  const ramValue = listing.ram_gb ? `${listing.ram_gb}GB` : "Unknown";
+  const ramSubtitle =
+    listing.ram_type || listing.ram_speed_mhz
+      ? `${listing.ram_type || ""}${listing.ram_speed_mhz ? ` @ ${listing.ram_speed_mhz}MHz` : ""}`.trim()
+      : undefined;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -44,91 +63,49 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
         </div>
 
         {/* Summary Cards Grid */}
-        <div className="grid gap-3 sm:grid-cols-2">
-          {/* Price Card */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Listing Price
-              </div>
-              <div className="mt-1 text-2xl font-semibold">
-                {formatCurrency(listing.price_usd)}
-              </div>
-            </CardContent>
-          </Card>
+        <SummaryCardsGrid columns={2}>
+          <SummaryCard
+            title="Listing Price"
+            value={formatCurrency(listing.price_usd)}
+            size="medium"
+          />
 
-          {/* Adjusted Price Card */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Adjusted Price
-              </div>
-              <div className="mt-1 text-2xl font-semibold">
-                {formatCurrency(listing.adjusted_price_usd)}
-              </div>
-            </CardContent>
-          </Card>
+          <SummaryCard
+            title="Adjusted Price"
+            value={formatCurrency(listing.adjusted_price_usd)}
+            size="medium"
+          />
 
-          {/* CPU Info Card */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">CPU</div>
-              <div className="mt-1 text-sm font-medium">
-                {listing.cpu?.model || listing.cpu_name || "Unknown"}
-              </div>
-              {listing.cpu && (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {listing.cpu.cores && listing.cpu.threads && (
-                    <span>
-                      {listing.cpu.cores}C/{listing.cpu.threads}T
-                    </span>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <SummaryCard
+            title="CPU"
+            value={cpuValue}
+            subtitle={cpuSubtitle}
+            size="medium"
+            valueClassName="text-sm"
+          />
 
-          {/* GPU Info Card */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">GPU</div>
-              <div className="mt-1 text-sm font-medium">
-                {listing.gpu?.model || listing.gpu_name || "None"}
-              </div>
-              {listing.gpu?.vram_gb && (
-                <div className="mt-1 text-xs text-muted-foreground">{listing.gpu.vram_gb}GB VRAM</div>
-              )}
-            </CardContent>
-          </Card>
+          <SummaryCard
+            title="GPU"
+            value={gpuValue}
+            subtitle={gpuSubtitle}
+            size="medium"
+            valueClassName="text-sm"
+          />
 
-          {/* RAM Info Card */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">RAM</div>
-              <div className="mt-1 text-sm font-medium">
-                {listing.ram_gb ? `${listing.ram_gb}GB` : "Unknown"}
-              </div>
-              {(listing.ram_type || listing.ram_speed_mhz) && (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {listing.ram_type}
-                  {listing.ram_speed_mhz && ` @ ${listing.ram_speed_mhz}MHz`}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <SummaryCard
+            title="RAM"
+            value={ramValue}
+            subtitle={ramSubtitle}
+            size="medium"
+            valueClassName="text-sm"
+          />
 
-          {/* Performance Score Card */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Composite Score
-              </div>
-              <div className="mt-1 text-2xl font-semibold">
-                {formatNumber(listing.score_composite)}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          <SummaryCard
+            title="Composite Score"
+            value={formatNumber(listing.score_composite)}
+            size="medium"
+          />
+        </SummaryCardsGrid>
       </div>
     </div>
   );
