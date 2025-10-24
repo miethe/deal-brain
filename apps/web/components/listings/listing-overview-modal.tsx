@@ -14,6 +14,12 @@ import { useValuationThresholds } from "../../hooks/use-valuation-thresholds";
 import { ListingRecord } from "../../types/listings";
 import { formatRamSummary, formatStorageSummary } from "./listing-formatters";
 import { ExternalLink } from "lucide-react";
+import { EntityTooltip } from "./entity-tooltip";
+import { CpuTooltipContent } from "./tooltips/cpu-tooltip-content";
+import { GpuTooltipContent } from "./tooltips/gpu-tooltip-content";
+import { RamSpecTooltipContent } from "./tooltips/ram-spec-tooltip-content";
+import { StorageProfileTooltipContent } from "./tooltips/storage-profile-tooltip-content";
+import { fetchEntityData } from "../../lib/api/entities";
 
 interface ListingOverviewModalProps {
   listingId: number | null;
@@ -121,30 +127,129 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
 
               <Section title="Hardware">
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <SpecRow label="CPU" value={listing.cpu_name} />
-                  <SpecRow label="GPU" value={listing.gpu_name} />
-                  <SpecRow label="RAM" value={formatRamSummary(listing)} />
-                  <SpecRow
-                    label="Primary Storage"
-                    value={formatStorageSummary(
-                      listing.primary_storage_profile ?? null,
-                      listing.primary_storage_gb ?? null,
-                      listing.primary_storage_type ?? null,
-                    )}
-                  />
+                  {listing.cpu_name && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">CPU</span>
+                      <span className="font-medium">
+                        {listing.cpu?.id ? (
+                          <EntityTooltip
+                            entityType="cpu"
+                            entityId={listing.cpu.id}
+                            tooltipContent={(cpuData) => <CpuTooltipContent cpu={cpuData} />}
+                            fetchData={fetchEntityData}
+                            variant="inline"
+                          >
+                            {listing.cpu_name}
+                          </EntityTooltip>
+                        ) : (
+                          listing.cpu_name
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {listing.gpu_name && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">GPU</span>
+                      <span className="font-medium">
+                        {listing.gpu?.id ? (
+                          <EntityTooltip
+                            entityType="gpu"
+                            entityId={listing.gpu.id}
+                            tooltipContent={(gpuData) => <GpuTooltipContent gpu={gpuData} />}
+                            fetchData={fetchEntityData}
+                            variant="inline"
+                          >
+                            {listing.gpu_name}
+                          </EntityTooltip>
+                        ) : (
+                          listing.gpu_name
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {formatRamSummary(listing) && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">RAM</span>
+                      <span className="font-medium">
+                        {listing.ram_spec?.id ? (
+                          <EntityTooltip
+                            entityType="ram-spec"
+                            entityId={listing.ram_spec.id}
+                            tooltipContent={(ramData) => <RamSpecTooltipContent ramSpec={ramData} />}
+                            fetchData={fetchEntityData}
+                            variant="inline"
+                          >
+                            {formatRamSummary(listing)}
+                          </EntityTooltip>
+                        ) : (
+                          formatRamSummary(listing)
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {formatStorageSummary(
+                    listing.primary_storage_profile ?? null,
+                    listing.primary_storage_gb ?? null,
+                    listing.primary_storage_type ?? null,
+                  ) && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">Primary Storage</span>
+                      <span className="font-medium">
+                        {listing.primary_storage_profile?.id ? (
+                          <EntityTooltip
+                            entityType="storage-profile"
+                            entityId={listing.primary_storage_profile.id}
+                            tooltipContent={(storageData) => <StorageProfileTooltipContent storageProfile={storageData} />}
+                            fetchData={fetchEntityData}
+                            variant="inline"
+                          >
+                            {formatStorageSummary(
+                              listing.primary_storage_profile ?? null,
+                              listing.primary_storage_gb ?? null,
+                              listing.primary_storage_type ?? null,
+                            )}
+                          </EntityTooltip>
+                        ) : (
+                          formatStorageSummary(
+                            listing.primary_storage_profile ?? null,
+                            listing.primary_storage_gb ?? null,
+                            listing.primary_storage_type ?? null,
+                          )
+                        )}
+                      </span>
+                    </div>
+                  )}
                   {formatStorageSummary(
                     listing.secondary_storage_profile ?? null,
                     listing.secondary_storage_gb ?? null,
                     listing.secondary_storage_type ?? null,
                   ) && (
-                    <SpecRow
-                      label="Secondary Storage"
-                      value={formatStorageSummary(
-                        listing.secondary_storage_profile ?? null,
-                        listing.secondary_storage_gb ?? null,
-                        listing.secondary_storage_type ?? null,
-                      )}
-                    />
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">Secondary Storage</span>
+                      <span className="font-medium">
+                        {listing.secondary_storage_profile?.id ? (
+                          <EntityTooltip
+                            entityType="storage-profile"
+                            entityId={listing.secondary_storage_profile.id}
+                            tooltipContent={(storageData) => <StorageProfileTooltipContent storageProfile={storageData} />}
+                            fetchData={fetchEntityData}
+                            variant="inline"
+                          >
+                            {formatStorageSummary(
+                              listing.secondary_storage_profile ?? null,
+                              listing.secondary_storage_gb ?? null,
+                              listing.secondary_storage_type ?? null,
+                            )}
+                          </EntityTooltip>
+                        ) : (
+                          formatStorageSummary(
+                            listing.secondary_storage_profile ?? null,
+                            listing.secondary_storage_gb ?? null,
+                            listing.secondary_storage_type ?? null,
+                          )
+                        )}
+                      </span>
+                    </div>
                   )}
                 </div>
                 {listing.ports_profile?.ports && listing.ports_profile.ports.length > 0 && (
