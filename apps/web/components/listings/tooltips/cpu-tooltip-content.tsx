@@ -66,7 +66,7 @@ export function CpuTooltipContent({ cpu }: CpuTooltipContentProps) {
               {cpu.base_clock_ghz && cpu.boost_clock_ghz && " - "}
               {cpu.boost_clock_ghz && formatClock(cpu.boost_clock_ghz)}
             </span>
-          </span>
+          </div>
         )}
 
         {cpu.tdp_w && (
