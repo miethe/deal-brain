@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { EntityLink } from "./entity-link";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle } from "lucide-react";
 
@@ -61,11 +61,12 @@ export interface EntityTooltipProps {
 /**
  * Entity link with hover tooltip displaying rich entity information
  *
- * Combines EntityLink with Radix UI HoverCard to provide:
+ * Combines EntityLink with Radix UI Popover to provide:
  * - Lazy loading of entity data on hover
  * - Keyboard accessible (Tab, Enter, Escape)
  * - Loading and error states
  * - Configurable delay before showing
+ * - Explicit hover handlers to work with Next.js Link components
  *
  * @example
  * ```tsx
@@ -99,6 +100,16 @@ export function EntityTooltip({
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [timeoutId]);
 
   const handleOpenChange = async (open: boolean) => {
     setIsOpen(open);
@@ -119,21 +130,52 @@ export function EntityTooltip({
     }
   };
 
-  return (
-    <HoverCard open={isOpen} onOpenChange={handleOpenChange} openDelay={openDelay}>
-      <HoverCardTrigger asChild>
-        <EntityLink
-          entityType={entityType}
-          entityId={entityId}
-          href={href}
-          variant={variant}
-          className={className}
-        >
-          {children}
-        </EntityLink>
-      </HoverCardTrigger>
+  const handleMouseEnter = () => {
+    // Clear any existing timeout
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
 
-      <HoverCardContent className="w-80" aria-live="polite">
+    // Set new timeout to open after delay
+    const id = setTimeout(() => {
+      handleOpenChange(true);
+    }, openDelay);
+
+    setTimeoutId(id);
+  };
+
+  const handleMouseLeave = () => {
+    // Clear pending timeout if user moves away before delay completes
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      setTimeoutId(null);
+    }
+
+    // Close immediately
+    handleOpenChange(false);
+  };
+
+  return (
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <span
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          className="inline-block"
+        >
+          <EntityLink
+            entityType={entityType}
+            entityId={entityId}
+            href={href}
+            variant={variant}
+            className={className}
+          >
+            {children}
+          </EntityLink>
+        </span>
+      </PopoverTrigger>
+
+      <PopoverContent className="w-80" aria-live="polite">
         {/* Loading state */}
         {isLoading && (
           <div className="space-y-2" role="status" aria-label="Loading entity details">
@@ -164,7 +206,7 @@ export function EntityTooltip({
             No tooltip content available
           </div>
         )}
-      </HoverCardContent>
-    </HoverCard>
+      </PopoverContent>
+    </Popover>
   );
 }
