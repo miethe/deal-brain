@@ -15,7 +15,7 @@ This tracker monitors progress for Phases 1-2 of the Listings Facelift Enhanceme
 - **Phase 1 (Foundation)**: Enhance modal and detail page with better information density and transparency
 - **Phase 2 (Structure)**: Reorganize specifications tab with better UX and optimize detail page layout
 
-**Overall Progress:** 22% (2/9 tasks completed)
+**Overall Progress:** 33% (3/9 tasks completed)
 
 ---
 
@@ -23,7 +23,7 @@ This tracker monitors progress for Phases 1-2 of the Listings Facelift Enhanceme
 
 **Goal:** Enhance modal and detail page with better information density and transparency
 
-**Progress:** 40% (2/5 tasks completed)
+**Progress:** 60% (3/5 tasks completed)
 
 ### TASK-001: Verify and Enhance GPU Display in Modal
 
@@ -61,18 +61,18 @@ This tracker monitors progress for Phases 1-2 of the Listings Facelift Enhanceme
 
 ### TASK-003: Add Detail Page Overview Tooltips
 
-- **Status:** 🔵 Not Started
+- **Status:** ✅ Complete
 - **Feature:** FR-4 (Detail Page Overview Tooltips)
 - **Effort:** M (4-8 hours)
 - **Dependencies:** None
-- **Assigned To:** TBD
-- **Started:** -
-- **Completed:** -
+- **Assigned To:** Lead Architect
+- **Started:** 2025-10-26
+- **Completed:** 2025-10-26
 - **Files Modified:**
-  - `apps/web/components/listings/detail-page-hero.tsx` (or equivalent)
-- **Testing Completed:** [ ]
-- **Committed:** [ ]
-- **Notes:**
+  - `apps/web/components/listings/detail-page-hero.tsx`
+- **Testing Completed:** [x] Code review
+- **Committed:** [ ] Pending commit
+- **Notes:** Added EntityTooltip wrappers for CPU, GPU, and RAM values in detail page hero. Tooltips use correct API endpoints (/v1/cpus/{id}, etc.) and existing tooltip content components.
 
 ---
 

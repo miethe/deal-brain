@@ -2,6 +2,11 @@ import { ProductImage } from "./product-image";
 import { SummaryCard } from "./summary-card";
 import { SummaryCardsGrid } from "./summary-cards-grid";
 import { Badge } from "@/components/ui/badge";
+import { EntityTooltip } from "./entity-tooltip";
+import { CpuTooltipContent } from "./tooltips/cpu-tooltip-content";
+import { GpuTooltipContent } from "./tooltips/gpu-tooltip-content";
+import { RamSpecTooltipContent } from "./tooltips/ram-spec-tooltip-content";
+import { fetchEntityData } from "@/lib/api/entities";
 import type { ListingDetail } from "@/types/listing-detail";
 
 interface DetailPageHeroProps {
@@ -18,18 +23,57 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
     value == null ? "—" : value.toFixed(2);
 
   // CPU summary
-  const cpuValue = listing.cpu?.model || listing.cpu_name || "Unknown";
+  const cpuText = listing.cpu?.model || listing.cpu_name || "Unknown";
+  const cpuValue = listing.cpu?.id ? (
+    <EntityTooltip
+      entityType="cpu"
+      entityId={listing.cpu.id}
+      tooltipContent={(cpu) => <CpuTooltipContent cpu={cpu} />}
+      fetchData={fetchEntityData}
+      variant="inline"
+    >
+      {cpuText}
+    </EntityTooltip>
+  ) : (
+    cpuText
+  );
   const cpuSubtitle =
     listing.cpu?.cores && listing.cpu?.threads
       ? `${listing.cpu.cores}C/${listing.cpu.threads}T`
       : undefined;
 
   // GPU summary
-  const gpuValue = listing.gpu?.model || listing.gpu_name || "None";
+  const gpuText = listing.gpu?.model || listing.gpu_name || "None";
+  const gpuValue = listing.gpu?.id ? (
+    <EntityTooltip
+      entityType="gpu"
+      entityId={listing.gpu.id}
+      tooltipContent={(gpuData) => <GpuTooltipContent gpu={gpuData} />}
+      fetchData={fetchEntityData}
+      variant="inline"
+    >
+      {gpuText}
+    </EntityTooltip>
+  ) : (
+    gpuText
+  );
   const gpuSubtitle = listing.gpu?.vram_gb ? `${listing.gpu.vram_gb}GB VRAM` : undefined;
 
   // RAM summary
-  const ramValue = listing.ram_gb ? `${listing.ram_gb}GB` : "Unknown";
+  const ramText = listing.ram_gb ? `${listing.ram_gb}GB` : "Unknown";
+  const ramValue = listing.ram_spec?.id ? (
+    <EntityTooltip
+      entityType="ram-spec"
+      entityId={listing.ram_spec.id}
+      tooltipContent={(ramData) => <RamSpecTooltipContent ramSpec={ramData} />}
+      fetchData={fetchEntityData}
+      variant="inline"
+    >
+      {ramText}
+    </EntityTooltip>
+  ) : (
+    ramText
+  );
   const ramSubtitle =
     listing.ram_type || listing.ram_speed_mhz
       ? `${listing.ram_type || ""}${listing.ram_speed_mhz ? ` @ ${listing.ram_speed_mhz}MHz` : ""}`.trim()
