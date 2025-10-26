@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,10 @@ import { CpuTooltipContent } from "./tooltips/cpu-tooltip-content";
 import { GpuTooltipContent } from "./tooltips/gpu-tooltip-content";
 import { RamSpecTooltipContent } from "./tooltips/ram-spec-tooltip-content";
 import { StorageProfileTooltipContent } from "./tooltips/storage-profile-tooltip-content";
+import { QuickAddComputeDialog } from "./quick-add-compute-dialog";
+import { QuickAddMemoryDialog } from "./quick-add-memory-dialog";
+import { QuickAddStorageDialog } from "./quick-add-storage-dialog";
+import { QuickAddConnectivityDialog } from "./quick-add-connectivity-dialog";
 
 interface SpecificationsTabProps {
   listing: ListingDetail;
@@ -79,13 +84,18 @@ function SpecificationSubsection({
  * ```
  */
 export function SpecificationsTab({ listing }: SpecificationsTabProps) {
+  const [computeDialogOpen, setComputeDialogOpen] = useState(false);
+  const [memoryDialogOpen, setMemoryDialogOpen] = useState(false);
+  const [storageDialogOpen, setStorageDialogOpen] = useState(false);
+  const [connectivityDialogOpen, setConnectivityDialogOpen] = useState(false);
+
   return (
     <div className="space-y-6">
       {/* Compute Subsection */}
       <SpecificationSubsection
         title="Compute"
         isEmpty={!listing.cpu && !listing.cpu_name && !listing.gpu}
-        onAddClick={() => console.log('Add compute data')}
+        onAddClick={() => setComputeDialogOpen(true)}
       >
         {/* CPU */}
         {(listing.cpu || listing.cpu_name) && (
@@ -155,7 +165,7 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
       <SpecificationSubsection
         title="Memory"
         isEmpty={!listing.ram_gb && !listing.ram_type}
-        onAddClick={() => console.log('Add memory data')}
+        onAddClick={() => setMemoryDialogOpen(true)}
       >
         <FieldGroup label="RAM">
           {listing.ram_spec && listing.ram_spec_id ? (
@@ -184,7 +194,7 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
       <SpecificationSubsection
         title="Storage"
         isEmpty={!listing.primary_storage_gb && !listing.secondary_storage_gb}
-        onAddClick={() => console.log('Add storage data')}
+        onAddClick={() => setStorageDialogOpen(true)}
       >
         {/* Primary Storage */}
         {listing.primary_storage_gb && (
@@ -237,7 +247,7 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
       <SpecificationSubsection
         title="Connectivity"
         isEmpty={!listing.ports_profile}
-        onAddClick={() => console.log('Add connectivity data')}
+        onAddClick={() => setConnectivityDialogOpen(true)}
       >
         {listing.ports_profile && (
           <FieldGroup label="Ports">
@@ -382,6 +392,28 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Quick-Add Dialogs */}
+      <QuickAddComputeDialog
+        listingId={listing.id}
+        open={computeDialogOpen}
+        onOpenChange={setComputeDialogOpen}
+      />
+      <QuickAddMemoryDialog
+        listingId={listing.id}
+        open={memoryDialogOpen}
+        onOpenChange={setMemoryDialogOpen}
+      />
+      <QuickAddStorageDialog
+        listingId={listing.id}
+        open={storageDialogOpen}
+        onOpenChange={setStorageDialogOpen}
+      />
+      <QuickAddConnectivityDialog
+        listingId={listing.id}
+        open={connectivityDialogOpen}
+        onOpenChange={setConnectivityDialogOpen}
+      />
     </div>
   );
 }
