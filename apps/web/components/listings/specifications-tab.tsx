@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import type { ListingDetail } from "@/types/listing-detail";
 import { EntityTooltip } from "./entity-tooltip";
@@ -17,13 +18,56 @@ interface SpecificationsTabProps {
 }
 
 /**
+ * Reusable subsection component for specifications
+ */
+interface SpecificationSubsectionProps {
+  title: string;
+  children: React.ReactNode;
+  isEmpty?: boolean;
+  onAddClick?: () => void;
+}
+
+function SpecificationSubsection({
+  title,
+  children,
+  isEmpty,
+  onAddClick,
+}: SpecificationSubsectionProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center justify-between">
+          {title}
+          {isEmpty && onAddClick && (
+            <Button variant="ghost" size="sm" onClick={onAddClick}>
+              Add +
+            </Button>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isEmpty ? (
+          <p className="text-sm text-muted-foreground">No data available</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {children}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
  * Comprehensive specifications tab component
  *
  * Displays all listing details organized into logical sections:
- * - Hardware: CPU, GPU, RAM, Storage, Ports
+ * - Compute: CPU, GPU, Performance Metrics
+ * - Memory: RAM specs
+ * - Storage: Primary and Secondary storage
+ * - Connectivity: Ports profile
  * - Product Details: Manufacturer, Series, Model, Form Factor
  * - Listing Info: Seller, URLs, Condition, Status
- * - Performance Metrics: Scores and efficiency ratios
  * - Metadata: Timestamps
  * - Custom Fields: Dynamic attributes
  *
@@ -37,154 +81,199 @@ interface SpecificationsTabProps {
 export function SpecificationsTab({ listing }: SpecificationsTabProps) {
   return (
     <div className="space-y-6">
-      {/* Hardware Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Hardware</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* CPU */}
-            {(listing.cpu || listing.cpu_name) && (
-              <FieldGroup label="CPU">
-                {listing.cpu && listing.cpu.id ? (
-                  <EntityTooltip
-                    entityType="cpu"
-                    entityId={listing.cpu.id}
-                    tooltipContent={(cpu) => <CpuTooltipContent cpu={cpu} />}
-                    fetchData={fetchEntityData}
-                    variant="inline"
-                  >
-                    {listing.cpu.model || listing.cpu_name || "—"}
-                  </EntityTooltip>
-                ) : (
-                  <span>{listing.cpu_name || "—"}</span>
+      {/* Compute Subsection */}
+      <SpecificationSubsection
+        title="Compute"
+        isEmpty={!listing.cpu && !listing.cpu_name && !listing.gpu}
+        onAddClick={() => console.log('Add compute data')}
+      >
+        {/* CPU */}
+        {(listing.cpu || listing.cpu_name) && (
+          <FieldGroup label="CPU">
+            {listing.cpu && listing.cpu.id ? (
+              <EntityTooltip
+                entityType="cpu"
+                entityId={listing.cpu.id}
+                tooltipContent={(cpu) => <CpuTooltipContent cpu={cpu} />}
+                fetchData={fetchEntityData}
+                variant="inline"
+              >
+                {listing.cpu.model || listing.cpu_name || "—"}
+              </EntityTooltip>
+            ) : (
+              <span>{listing.cpu_name || "—"}</span>
+            )}
+          </FieldGroup>
+        )}
+
+        {/* GPU */}
+        {listing.gpu && listing.gpu.id && (
+          <FieldGroup label="GPU">
+            <EntityTooltip
+              entityType="gpu"
+              entityId={listing.gpu.id}
+              tooltipContent={(gpu) => <GpuTooltipContent gpu={gpu} />}
+              fetchData={fetchEntityData}
+              variant="inline"
+            >
+              {listing.gpu.model || listing.gpu.name || listing.gpu_name || "—"}
+            </EntityTooltip>
+          </FieldGroup>
+        )}
+
+        {/* Performance Scores */}
+        {listing.score_cpu_multi !== null && (
+          <FieldGroup label="CPU Multi-Thread Score" value={listing.score_cpu_multi.toFixed(1)} />
+        )}
+        {listing.score_cpu_single !== null && (
+          <FieldGroup label="CPU Single-Thread Score" value={listing.score_cpu_single.toFixed(1)} />
+        )}
+        {listing.score_gpu !== null && (
+          <FieldGroup label="GPU Score" value={listing.score_gpu.toFixed(1)} />
+        )}
+
+        {/* Performance Metrics */}
+        {listing.dollar_per_cpu_mark !== null && (
+          <FieldGroup
+            label="$/CPU Mark (Multi)"
+            value={`$${listing.dollar_per_cpu_mark.toFixed(3)}`}
+          />
+        )}
+        {listing.dollar_per_cpu_mark_single !== null &&
+          listing.dollar_per_cpu_mark_single !== undefined && (
+            <FieldGroup
+              label="$/CPU Mark (Single)"
+              value={`$${listing.dollar_per_cpu_mark_single.toFixed(3)}`}
+            />
+          )}
+        {listing.perf_per_watt !== null && listing.perf_per_watt !== undefined && (
+          <FieldGroup label="Performance/Watt" value={listing.perf_per_watt.toFixed(2)} />
+        )}
+      </SpecificationSubsection>
+
+      {/* Memory Subsection */}
+      <SpecificationSubsection
+        title="Memory"
+        isEmpty={!listing.ram_gb && !listing.ram_type}
+        onAddClick={() => console.log('Add memory data')}
+      >
+        <FieldGroup label="RAM">
+          {listing.ram_spec && listing.ram_spec_id ? (
+            <EntityTooltip
+              entityType="ram-spec"
+              entityId={listing.ram_spec_id}
+              tooltipContent={(ram) => <RamSpecTooltipContent ramSpec={ram} />}
+              fetchData={fetchEntityData}
+              variant="inline"
+            >
+              {listing.ram_gb ? `${listing.ram_gb} GB` : "—"}
+              {listing.ram_type && ` ${listing.ram_type}`}
+              {listing.ram_speed_mhz && ` @ ${listing.ram_speed_mhz} MHz`}
+            </EntityTooltip>
+          ) : (
+            <span>
+              {listing.ram_gb ? `${listing.ram_gb} GB` : "—"}
+              {listing.ram_type && ` ${listing.ram_type}`}
+              {listing.ram_speed_mhz && ` @ ${listing.ram_speed_mhz} MHz`}
+            </span>
+          )}
+        </FieldGroup>
+      </SpecificationSubsection>
+
+      {/* Storage Subsection */}
+      <SpecificationSubsection
+        title="Storage"
+        isEmpty={!listing.primary_storage_gb && !listing.secondary_storage_gb}
+        onAddClick={() => console.log('Add storage data')}
+      >
+        {/* Primary Storage */}
+        {listing.primary_storage_gb && (
+          <FieldGroup label="Primary Storage">
+            {listing.primary_storage_profile && listing.primary_storage_profile_id ? (
+              <EntityTooltip
+                entityType="storage-profile"
+                entityId={listing.primary_storage_profile_id}
+                tooltipContent={(storage) => <StorageProfileTooltipContent storageProfile={storage} />}
+                fetchData={fetchEntityData}
+                variant="inline"
+              >
+                {listing.primary_storage_gb} GB
+                {listing.primary_storage_type && ` ${listing.primary_storage_type}`}
+              </EntityTooltip>
+            ) : (
+              <span>
+                {listing.primary_storage_gb} GB
+                {listing.primary_storage_type && ` ${listing.primary_storage_type}`}
+              </span>
+            )}
+          </FieldGroup>
+        )}
+
+        {/* Secondary Storage */}
+        {listing.secondary_storage_gb && (
+          <FieldGroup label="Secondary Storage">
+            {listing.secondary_storage_profile && listing.secondary_storage_profile_id ? (
+              <EntityTooltip
+                entityType="storage-profile"
+                entityId={listing.secondary_storage_profile_id}
+                tooltipContent={(storage) => <StorageProfileTooltipContent storageProfile={storage} />}
+                fetchData={fetchEntityData}
+                variant="inline"
+              >
+                {listing.secondary_storage_gb} GB
+                {listing.secondary_storage_type && ` ${listing.secondary_storage_type}`}
+              </EntityTooltip>
+            ) : (
+              <span>
+                {listing.secondary_storage_gb} GB
+                {listing.secondary_storage_type && ` ${listing.secondary_storage_type}`}
+              </span>
+            )}
+          </FieldGroup>
+        )}
+      </SpecificationSubsection>
+
+      {/* Connectivity Subsection */}
+      <SpecificationSubsection
+        title="Connectivity"
+        isEmpty={!listing.ports_profile}
+        onAddClick={() => console.log('Add connectivity data')}
+      >
+        {listing.ports_profile && (
+          <FieldGroup label="Ports">
+            <div className="flex flex-wrap gap-1">
+              {listing.ports_profile.usb_a_count !== undefined &&
+                listing.ports_profile.usb_a_count !== null &&
+                listing.ports_profile.usb_a_count > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    USB-A ×{listing.ports_profile.usb_a_count}
+                  </Badge>
                 )}
-              </FieldGroup>
-            )}
-
-            {/* GPU */}
-            {listing.gpu && listing.gpu.id && (
-              <FieldGroup label="GPU">
-                <EntityTooltip
-                  entityType="gpu"
-                  entityId={listing.gpu.id}
-                  tooltipContent={(gpu) => <GpuTooltipContent gpu={gpu} />}
-                  fetchData={fetchEntityData}
-                  variant="inline"
-                >
-                  {listing.gpu.model || listing.gpu.name || listing.gpu_name || "—"}
-                </EntityTooltip>
-              </FieldGroup>
-            )}
-
-            {/* RAM */}
-            <FieldGroup label="RAM">
-              {listing.ram_spec && listing.ram_spec_id ? (
-                <EntityTooltip
-                  entityType="ram-spec"
-                  entityId={listing.ram_spec_id}
-                  tooltipContent={(ram) => <RamSpecTooltipContent ramSpec={ram} />}
-                  fetchData={fetchEntityData}
-                  variant="inline"
-                >
-                  {listing.ram_gb ? `${listing.ram_gb} GB` : "—"}
-                  {listing.ram_type && ` ${listing.ram_type}`}
-                  {listing.ram_speed_mhz && ` @ ${listing.ram_speed_mhz} MHz`}
-                </EntityTooltip>
-              ) : (
-                <span>
-                  {listing.ram_gb ? `${listing.ram_gb} GB` : "—"}
-                  {listing.ram_type && ` ${listing.ram_type}`}
-                  {listing.ram_speed_mhz && ` @ ${listing.ram_speed_mhz} MHz`}
-                </span>
-              )}
-            </FieldGroup>
-
-            {/* Primary Storage */}
-            {listing.primary_storage_gb && (
-              <FieldGroup label="Primary Storage">
-                {listing.primary_storage_profile && listing.primary_storage_profile_id ? (
-                  <EntityTooltip
-                    entityType="storage-profile"
-                    entityId={listing.primary_storage_profile_id}
-                    tooltipContent={(storage) => <StorageProfileTooltipContent storageProfile={storage} />}
-                    fetchData={fetchEntityData}
-                    variant="inline"
-                  >
-                    {listing.primary_storage_gb} GB
-                    {listing.primary_storage_type && ` ${listing.primary_storage_type}`}
-                  </EntityTooltip>
-                ) : (
-                  <span>
-                    {listing.primary_storage_gb} GB
-                    {listing.primary_storage_type && ` ${listing.primary_storage_type}`}
-                  </span>
+              {listing.ports_profile.usb_c_count !== undefined &&
+                listing.ports_profile.usb_c_count !== null &&
+                listing.ports_profile.usb_c_count > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    USB-C ×{listing.ports_profile.usb_c_count}
+                  </Badge>
                 )}
-              </FieldGroup>
-            )}
-
-            {/* Secondary Storage */}
-            {listing.secondary_storage_gb && (
-              <FieldGroup label="Secondary Storage">
-                {listing.secondary_storage_profile && listing.secondary_storage_profile_id ? (
-                  <EntityTooltip
-                    entityType="storage-profile"
-                    entityId={listing.secondary_storage_profile_id}
-                    tooltipContent={(storage) => <StorageProfileTooltipContent storageProfile={storage} />}
-                    fetchData={fetchEntityData}
-                    variant="inline"
-                  >
-                    {listing.secondary_storage_gb} GB
-                    {listing.secondary_storage_type && ` ${listing.secondary_storage_type}`}
-                  </EntityTooltip>
-                ) : (
-                  <span>
-                    {listing.secondary_storage_gb} GB
-                    {listing.secondary_storage_type && ` ${listing.secondary_storage_type}`}
-                  </span>
+              {listing.ports_profile.hdmi_count !== undefined &&
+                listing.ports_profile.hdmi_count !== null &&
+                listing.ports_profile.hdmi_count > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    HDMI ×{listing.ports_profile.hdmi_count}
+                  </Badge>
                 )}
-              </FieldGroup>
-            )}
-
-            {/* Ports */}
-            {listing.ports_profile && (
-              <FieldGroup label="Connectivity">
-                <div className="flex flex-wrap gap-1">
-                  {listing.ports_profile.usb_a_count !== undefined &&
-                    listing.ports_profile.usb_a_count !== null &&
-                    listing.ports_profile.usb_a_count > 0 && (
-                      <Badge variant="secondary" className="text-xs">
-                        USB-A ×{listing.ports_profile.usb_a_count}
-                      </Badge>
-                    )}
-                  {listing.ports_profile.usb_c_count !== undefined &&
-                    listing.ports_profile.usb_c_count !== null &&
-                    listing.ports_profile.usb_c_count > 0 && (
-                      <Badge variant="secondary" className="text-xs">
-                        USB-C ×{listing.ports_profile.usb_c_count}
-                      </Badge>
-                    )}
-                  {listing.ports_profile.hdmi_count !== undefined &&
-                    listing.ports_profile.hdmi_count !== null &&
-                    listing.ports_profile.hdmi_count > 0 && (
-                      <Badge variant="secondary" className="text-xs">
-                        HDMI ×{listing.ports_profile.hdmi_count}
-                      </Badge>
-                    )}
-                  {listing.ports_profile.displayport_count !== undefined &&
-                    listing.ports_profile.displayport_count !== null &&
-                    listing.ports_profile.displayport_count > 0 && (
-                      <Badge variant="secondary" className="text-xs">
-                        DisplayPort ×{listing.ports_profile.displayport_count}
-                      </Badge>
-                    )}
-                </div>
-              </FieldGroup>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              {listing.ports_profile.displayport_count !== undefined &&
+                listing.ports_profile.displayport_count !== null &&
+                listing.ports_profile.displayport_count > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    DisplayPort ×{listing.ports_profile.displayport_count}
+                  </Badge>
+                )}
+            </div>
+          </FieldGroup>
+        )}
+      </SpecificationSubsection>
 
       {/* Product Details Section */}
       {(listing.manufacturer || listing.series || listing.model_number || listing.form_factor) && (
@@ -259,51 +348,6 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
           </div>
         </CardContent>
       </Card>
-
-      {/* Performance Metrics Section */}
-      {(listing.score_composite !== null ||
-        listing.score_cpu_multi !== null ||
-        listing.score_cpu_single !== null ||
-        listing.dollar_per_cpu_mark !== null ||
-        listing.perf_per_watt !== null) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Performance Metrics</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {listing.score_composite !== null && (
-                <FieldGroup label="Composite Score" value={listing.score_composite.toFixed(1)} />
-              )}
-              {listing.score_cpu_multi !== null && (
-                <FieldGroup label="CPU Multi-Thread Score" value={listing.score_cpu_multi.toFixed(1)} />
-              )}
-              {listing.score_cpu_single !== null && (
-                <FieldGroup label="CPU Single-Thread Score" value={listing.score_cpu_single.toFixed(1)} />
-              )}
-              {listing.score_gpu !== null && (
-                <FieldGroup label="GPU Score" value={listing.score_gpu.toFixed(1)} />
-              )}
-              {listing.dollar_per_cpu_mark !== null && (
-                <FieldGroup
-                  label="$/CPU Mark (Multi)"
-                  value={`$${listing.dollar_per_cpu_mark.toFixed(3)}`}
-                />
-              )}
-              {listing.dollar_per_cpu_mark_single !== null &&
-                listing.dollar_per_cpu_mark_single !== undefined && (
-                  <FieldGroup
-                    label="$/CPU Mark (Single)"
-                    value={`$${listing.dollar_per_cpu_mark_single.toFixed(3)}`}
-                  />
-                )}
-              {listing.perf_per_watt !== null && listing.perf_per_watt !== undefined && (
-                <FieldGroup label="Performance/Watt" value={listing.perf_per_watt.toFixed(2)} />
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Metadata Section */}
       <Card>
