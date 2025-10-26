@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import { ValuationCell } from "./valuation-cell";
 import { DualMetricCell } from "./dual-metric-cell";
@@ -159,10 +160,20 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                             fetchData={fetchEntityData}
                             variant="inline"
                           >
-                            {listing.gpu_name}
+                            <span className="inline-flex items-center gap-1">
+                              {listing.gpu_name}
+                              {listing.gpu?.type === 'integrated' && (
+                                <Badge variant="outline" className="text-xs">Integrated</Badge>
+                              )}
+                            </span>
                           </EntityTooltip>
                         ) : (
-                          listing.gpu_name
+                          <span className="inline-flex items-center gap-1">
+                            {listing.gpu_name}
+                            {listing.gpu?.type === 'integrated' && (
+                              <Badge variant="outline" className="text-xs">Integrated</Badge>
+                            )}
+                          </span>
                         )}
                       </span>
                     </div>
@@ -264,16 +275,16 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                 <>
                   <Separator />
 
-                  <Section title="Links">
+                  <Section title={`Links${listing.other_urls && listing.other_urls.length > 3 ? ` (${listing.other_urls.length + 1})` : ''}`}>
                     <div className="space-y-2">
                       {listing.listing_url && (
                         <div className="flex items-center gap-2">
-                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                          <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                           <a
                             href={listing.listing_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline"
+                            className="text-sm text-primary hover:underline break-all"
                           >
                             View Original Listing
                           </a>
@@ -282,12 +293,12 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
 
                       {listing.other_urls && listing.other_urls.map((link, index) => (
                         <div key={index} className="flex items-center gap-2">
-                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                          <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                           <a
                             href={link.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline"
+                            className="text-sm text-primary hover:underline break-all"
                           >
                             {link.label || `Additional Link ${index + 1}`}
                           </a>
