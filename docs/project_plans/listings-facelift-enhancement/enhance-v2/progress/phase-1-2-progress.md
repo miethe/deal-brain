@@ -15,7 +15,7 @@ This tracker monitors progress for Phases 1-2 of the Listings Facelift Enhanceme
 - **Phase 1 (Foundation)**: Enhance modal and detail page with better information density and transparency
 - **Phase 2 (Structure)**: Reorganize specifications tab with better UX and optimize detail page layout
 
-**Overall Progress:** 33% (3/9 tasks completed)
+**Overall Progress:** 44% (4/9 tasks completed)
 
 ---
 
@@ -23,7 +23,7 @@ This tracker monitors progress for Phases 1-2 of the Listings Facelift Enhanceme
 
 **Goal:** Enhance modal and detail page with better information density and transparency
 
-**Progress:** 60% (3/5 tasks completed)
+**Progress:** 80% (4/5 tasks completed)
 
 ### TASK-001: Verify and Enhance GPU Display in Modal
 
@@ -78,18 +78,18 @@ This tracker monitors progress for Phases 1-2 of the Listings Facelift Enhanceme
 
 ### TASK-004: Display Valuation Rules in Valuation Tab
 
-- **Status:** 🔵 Not Started
+- **Status:** ✅ Complete
 - **Feature:** FR-6 (Valuation Tab Rules Display)
 - **Effort:** M (4-8 hours)
 - **Dependencies:** None
-- **Assigned To:** TBD
-- **Started:** -
-- **Completed:** -
+- **Assigned To:** Lead Architect
+- **Started:** 2025-10-26
+- **Completed:** 2025-10-26
 - **Files Modified:**
   - `apps/web/components/listings/listing-valuation-tab.tsx`
-- **Testing Completed:** [ ]
-- **Committed:** [ ]
-- **Notes:**
+- **Testing Completed:** [x] Code review
+- **Committed:** [ ] Pending commit
+- **Notes:** Modified valuation tab to show ALL rules (active and inactive). Removed filter that excluded zero-adjustment rules. Added "Inactive" badge for rules with zero adjustments. Increased display from 4 to 6 rules. Updated badges to show "X rules evaluated" and "Y active". Added rule descriptions display.
 
 ---
 

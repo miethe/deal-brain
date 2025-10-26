@@ -164,16 +164,19 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
     breakdown?.ruleset?.name ?? breakdown?.ruleset_name ?? (listing.ruleset_id ? "Static override" : "Auto");
 
   const sortedAdjustments = useMemo(() => {
-    return adjustments
-      .filter(adj => Math.abs(adj.adjustment_amount) > 0)
-      .sort((a, b) => {
-        const absA = Math.abs(a.adjustment_amount);
-        const absB = Math.abs(b.adjustment_amount);
-        if (absA !== absB) {
-          return absB - absA; // Descending by absolute amount
-        }
-        return a.rule_name.localeCompare(b.rule_name); // Ascending by name (tiebreaker)
-      });
+    return adjustments.sort((a, b) => {
+      const absA = Math.abs(a.adjustment_amount);
+      const absB = Math.abs(b.adjustment_amount);
+      // Sort by absolute amount (descending), then by name (ascending)
+      if (absA !== absB) {
+        return absB - absA;
+      }
+      return a.rule_name.localeCompare(b.rule_name);
+    });
+  }, [adjustments]);
+
+  const activeAdjustments = useMemo(() => {
+    return adjustments.filter(adj => Math.abs(adj.adjustment_amount) > 0);
   }, [adjustments]);
 
   const handleToggleRuleset = (rulesetId: number, enabled: boolean) => {
@@ -334,8 +337,13 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
 
           <div className="flex flex-wrap items-center gap-3">
             <Badge variant="secondary">
-              {adjustments.length} rule{adjustments.length === 1 ? "" : "s"} applied
+              {adjustments.length} rule{adjustments.length === 1 ? "" : "s"} evaluated
             </Badge>
+            {activeAdjustments.length > 0 && (
+              <Badge variant="outline">
+                {activeAdjustments.length} active
+              </Badge>
+            )}
             <Button variant="outline" size="sm" onClick={() => setIsBreakdownOpen(true)}>
               View breakdown
             </Button>
@@ -343,39 +351,56 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
 
           {sortedAdjustments.length > 0 ? (
             <ul className="space-y-2">
-              {sortedAdjustments.slice(0, 4).map((adjustment) => (
-                <li
-                  key={`${adjustment.rule_id ?? adjustment.rule_name}`}
-                  className="flex items-center justify-between rounded-md border p-3"
-                >
-                  <div>
-                    <p className="font-medium text-sm">{adjustment.rule_name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {adjustment.actions?.length ?? 0} action{adjustment.actions?.length === 1 ? "" : "s"}
-                    </p>
-                  </div>
-                  <span
-                    className={
-                      adjustment.adjustment_amount < 0
-                        ? "text-emerald-600 font-semibold"
-                        : adjustment.adjustment_amount > 0
-                        ? "text-red-600 font-semibold"
-                        : "text-muted-foreground font-medium"
-                    }
+              {sortedAdjustments.slice(0, 6).map((adjustment) => {
+                const isInactive = Math.abs(adjustment.adjustment_amount) < 0.01;
+                return (
+                  <li
+                    key={`${adjustment.rule_id ?? adjustment.rule_name}`}
+                    className={`flex items-center justify-between rounded-md border p-3 ${
+                      isInactive ? "opacity-60" : ""
+                    }`}
                   >
-                    {formatAdjustment(adjustment.adjustment_amount)}
-                  </span>
-                </li>
-              ))}
-              {sortedAdjustments.length > 4 && (
-                <li className="text-xs text-muted-foreground">
-                  {sortedAdjustments.length - 4} more rule{sortedAdjustments.length - 4 === 1 ? "" : "s"} with adjustments in breakdown
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm">{adjustment.rule_name}</p>
+                        {isInactive && (
+                          <Badge variant="outline" className="text-xs">Inactive</Badge>
+                        )}
+                      </div>
+                      {adjustment.rule_description && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {adjustment.rule_description}
+                        </p>
+                      )}
+                      {adjustment.actions && adjustment.actions.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {adjustment.actions.length} action{adjustment.actions.length === 1 ? "" : "s"}
+                        </p>
+                      )}
+                    </div>
+                    <span
+                      className={`ml-3 whitespace-nowrap ${
+                        adjustment.adjustment_amount < 0
+                          ? "text-emerald-600 font-semibold"
+                          : adjustment.adjustment_amount > 0
+                          ? "text-red-600 font-semibold"
+                          : "text-muted-foreground font-medium"
+                      }`}
+                    >
+                      {formatAdjustment(adjustment.adjustment_amount)}
+                    </span>
+                  </li>
+                );
+              })}
+              {sortedAdjustments.length > 6 && (
+                <li className="text-xs text-muted-foreground text-center py-2">
+                  {sortedAdjustments.length - 6} more rule{sortedAdjustments.length - 6 === 1 ? "" : "s"} in full breakdown
                 </li>
               )}
             </ul>
           ) : (
             <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-              No rule-based adjustments were applied to this listing.
+              No valuation rules available for this listing.
             </div>
           )}
         </CardContent>
