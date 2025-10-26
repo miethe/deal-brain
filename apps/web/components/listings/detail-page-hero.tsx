@@ -80,17 +80,17 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
       : undefined;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-2">
       {/* Left side: Product Image */}
       <div className="flex items-start justify-center lg:justify-start">
         <ProductImage listing={listing} className="h-64 w-full sm:h-80 lg:h-96" />
       </div>
 
       {/* Right side: Summary Cards */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Title and basic info */}
         <div className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{listing.title}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{listing.title}</h1>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="capitalize">
               {listing.condition}
@@ -111,13 +111,13 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
           <SummaryCard
             title="Listing Price"
             value={formatCurrency(listing.price_usd)}
-            size="medium"
+            size="large"
           />
 
           <SummaryCard
             title="Adjusted Price"
             value={formatCurrency(listing.adjusted_price_usd)}
-            size="medium"
+            size="large"
           />
 
           <SummaryCard
@@ -125,7 +125,7 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
             value={cpuValue}
             subtitle={cpuSubtitle}
             size="medium"
-            valueClassName="text-sm"
+            valueClassName="text-base"
           />
 
           <SummaryCard
@@ -133,7 +133,7 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
             value={gpuValue}
             subtitle={gpuSubtitle}
             size="medium"
-            valueClassName="text-sm"
+            valueClassName="text-base"
           />
 
           <SummaryCard
@@ -141,13 +141,13 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
             value={ramValue}
             subtitle={ramSubtitle}
             size="medium"
-            valueClassName="text-sm"
+            valueClassName="text-base"
           />
 
           <SummaryCard
             title="Composite Score"
             value={formatNumber(listing.score_composite)}
-            size="medium"
+            size="large"
           />
         </SummaryCardsGrid>
       </div>

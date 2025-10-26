@@ -1,6 +1,7 @@
 import { BreadcrumbNav } from "./breadcrumb-nav";
 import { DetailPageHero } from "./detail-page-hero";
 import { DetailPageTabs } from "./detail-page-tabs";
+import { Separator } from "@/components/ui/separator";
 import type { ListingDetail } from "@/types/listing-detail";
 
 interface DetailPageLayoutProps {
@@ -9,12 +10,14 @@ interface DetailPageLayoutProps {
 
 export function DetailPageLayout({ listing }: DetailPageLayoutProps) {
   return (
-    <div className="container mx-auto space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="container mx-auto space-y-4 px-4 py-6 sm:px-6 lg:px-8">
       {/* Breadcrumb Navigation */}
       <BreadcrumbNav listingTitle={listing.title} />
 
       {/* Hero Section */}
       <DetailPageHero listing={listing} />
+
+      <Separator className="my-4" />
 
       {/* Tabbed Content */}
       <DetailPageTabs listing={listing} />

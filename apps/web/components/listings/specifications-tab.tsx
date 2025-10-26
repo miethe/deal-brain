@@ -5,6 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { ExternalLink } from "lucide-react";
 import type { ListingDetail } from "@/types/listing-detail";
 import { EntityTooltip } from "./entity-tooltip";
@@ -71,9 +78,8 @@ function SpecificationSubsection({
  * - Memory: RAM specs
  * - Storage: Primary and Secondary storage
  * - Connectivity: Ports profile
- * - Product Details: Manufacturer, Series, Model, Form Factor
- * - Listing Info: Seller, URLs, Condition, Status
- * - Metadata: Timestamps
+ * - Product Details & Listing Info: 2-column layout on desktop
+ * - Metadata: Collapsible accordion
  * - Custom Fields: Dynamic attributes
  *
  * Uses EntityTooltip for hardware components to show rich previews.
@@ -90,7 +96,7 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
   const [connectivityDialogOpen, setConnectivityDialogOpen] = useState(false);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Compute Subsection */}
       <SpecificationSubsection
         title="Compute"
@@ -285,93 +291,98 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
         )}
       </SpecificationSubsection>
 
-      {/* Product Details Section */}
-      {(listing.manufacturer || listing.series || listing.model_number || listing.form_factor) && (
+      <Separator />
+
+      {/* Product Details & Listing Info - 2 column layout on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Product Details Section */}
+        {(listing.manufacturer || listing.series || listing.model_number || listing.form_factor) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Product Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-4">
+                {listing.manufacturer && <FieldGroup label="Manufacturer" value={listing.manufacturer} />}
+                {listing.series && <FieldGroup label="Series" value={listing.series} />}
+                {listing.model_number && <FieldGroup label="Model Number" value={listing.model_number} />}
+                {listing.form_factor && <FieldGroup label="Form Factor" value={listing.form_factor} />}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Listing Info Section */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Product Details</CardTitle>
+            <CardTitle className="text-lg">Listing Information</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {listing.manufacturer && <FieldGroup label="Manufacturer" value={listing.manufacturer} />}
-              {listing.series && <FieldGroup label="Series" value={listing.series} />}
-              {listing.model_number && <FieldGroup label="Model Number" value={listing.model_number} />}
-              {listing.form_factor && <FieldGroup label="Form Factor" value={listing.form_factor} />}
+            <div className="grid grid-cols-1 gap-4">
+              {listing.seller && <FieldGroup label="Seller" value={listing.seller} />}
+
+              {listing.listing_url && (
+                <FieldGroup label="Listing URL">
+                  <a
+                    href={listing.listing_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                  >
+                    View Listing
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </FieldGroup>
+              )}
+
+              {listing.other_urls && listing.other_urls.length > 0 && (
+                <FieldGroup label="Other URLs">
+                  <div className="flex flex-col gap-1">
+                    {listing.other_urls.map((link, index) => (
+                      <a
+                        key={index}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                      >
+                        {link.label || `Link ${index + 1}`}
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    ))}
+                  </div>
+                </FieldGroup>
+              )}
+
+              <FieldGroup label="Condition">
+                <Badge variant={getConditionVariant(listing.condition)}>
+                  {listing.condition}
+                </Badge>
+              </FieldGroup>
+
+              <FieldGroup label="Status">
+                <Badge variant={getStatusVariant(listing.status)}>
+                  {listing.status}
+                </Badge>
+              </FieldGroup>
             </div>
           </CardContent>
         </Card>
-      )}
+      </div>
 
-      {/* Listing Info Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Listing Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {listing.seller && <FieldGroup label="Seller" value={listing.seller} />}
-
-            {listing.listing_url && (
-              <FieldGroup label="Listing URL">
-                <a
-                  href={listing.listing_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-                >
-                  View Listing
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </FieldGroup>
-            )}
-
-            {listing.other_urls && listing.other_urls.length > 0 && (
-              <FieldGroup label="Other URLs">
-                <div className="flex flex-col gap-1">
-                  {listing.other_urls.map((link, index) => (
-                    <a
-                      key={index}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-                    >
-                      {link.label || `Link ${index + 1}`}
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ))}
-                </div>
-              </FieldGroup>
-            )}
-
-            <FieldGroup label="Condition">
-              <Badge variant={getConditionVariant(listing.condition)}>
-                {listing.condition}
-              </Badge>
-            </FieldGroup>
-
-            <FieldGroup label="Status">
-              <Badge variant={getStatusVariant(listing.status)}>
-                {listing.status}
-              </Badge>
-            </FieldGroup>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Metadata Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Metadata</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <FieldGroup label="Created" value={new Date(listing.created_at).toLocaleString()} />
-            <FieldGroup label="Last Updated" value={new Date(listing.updated_at).toLocaleString()} />
-            {listing.ruleset_id && <FieldGroup label="Ruleset ID" value={listing.ruleset_id} />}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Metadata - Collapsed by default in accordion */}
+      <Accordion type="single" collapsible>
+        <AccordionItem value="metadata">
+          <AccordionTrigger className="text-base font-semibold">Additional Information</AccordionTrigger>
+          <AccordionContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+              <FieldGroup label="Created" value={new Date(listing.created_at).toLocaleString()} />
+              <FieldGroup label="Last Updated" value={new Date(listing.updated_at).toLocaleString()} />
+              {listing.ruleset_id && <FieldGroup label="Ruleset ID" value={listing.ruleset_id} />}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       {/* Custom Fields Section */}
       {listing.attributes && Object.keys(listing.attributes).length > 0 && (
