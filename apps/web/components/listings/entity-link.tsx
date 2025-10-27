@@ -72,8 +72,22 @@ export function EntityLink({
   variant = "link",
   onClick,
 }: EntityLinkProps) {
+  // Route mapping for entity types to catalog pages
+  const routeMap: Record<string, string> = {
+    cpu: "/catalog/cpus",
+    gpu: "/catalog/gpus",
+    "ram-spec": "/catalog/ram-specs",
+    "storage-profile": "/catalog/storage-profiles",
+  };
+
   // Generate default href based on entity type
-  const defaultHref = `/catalog/${entityType}s/${entityId}`;
+  const basePath = routeMap[entityType];
+
+  if (!basePath && process.env.NODE_ENV === "development") {
+    console.warn(`EntityLink: Unknown entity type "${entityType}"`);
+  }
+
+  const defaultHref = basePath ? `${basePath}/${entityId}` : "#";
   const finalHref = href || defaultHref;
 
   const variantClasses = {
