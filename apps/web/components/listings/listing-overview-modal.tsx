@@ -21,6 +21,7 @@ import { GpuTooltipContent } from "./tooltips/gpu-tooltip-content";
 import { RamSpecTooltipContent } from "./tooltips/ram-spec-tooltip-content";
 import { StorageProfileTooltipContent } from "./tooltips/storage-profile-tooltip-content";
 import { fetchEntityData } from "../../lib/api/entities";
+import { ProductImageDisplay } from "./product-image-display";
 
 interface ListingOverviewModalProps {
   listingId: number | null;
@@ -59,15 +60,13 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
               <DialogTitle className="text-xl">{listing.title}</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4">
-              {listing.thumbnail_url && (
-                <img
-                  src={listing.thumbnail_url}
-                  alt={listing.title}
-                  className="w-full max-w-md rounded-lg mx-auto"
-                />
-              )}
+            {/* Product Image Display */}
+            <ProductImageDisplay
+              listing={listing}
+              className="w-full max-w-md mx-auto mb-6"
+            />
 
+            <div className="space-y-4">
               <Section title="Pricing">
                 {thresholds && listing.adjusted_price_usd !== null ? (
                   <ValuationCell
