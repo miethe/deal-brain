@@ -23,10 +23,6 @@ import { PerformanceBadges } from "@/app/listings/_components/grid-view/performa
 import { ListingValuationTab } from "./listing-valuation-tab";
 import { formatRamSummary, formatStorageSummary } from "./listing-formatters";
 import { EntityTooltip } from "./entity-tooltip";
-import { CpuTooltipContent } from "./tooltips/cpu-tooltip-content";
-import { GpuTooltipContent } from "./tooltips/gpu-tooltip-content";
-import { RamSpecTooltipContent } from "./tooltips/ram-spec-tooltip-content";
-import { StorageProfileTooltipContent } from "./tooltips/storage-profile-tooltip-content";
 import { fetchEntityData } from "@/lib/api/entities";
 
 /**
@@ -208,7 +204,6 @@ export function ListingDetailsDialog() {
                           <EntityTooltip
                             entityType="cpu"
                             entityId={listing.cpu.id}
-                            tooltipContent={(cpuData) => <CpuTooltipContent cpu={cpuData} />}
                             fetchData={fetchEntityData}
                             variant="inline"
                           >
@@ -228,7 +223,6 @@ export function ListingDetailsDialog() {
                           <EntityTooltip
                             entityType="gpu"
                             entityId={listing.gpu.id}
-                            tooltipContent={(gpuData) => <GpuTooltipContent gpu={gpuData} />}
                             fetchData={fetchEntityData}
                             variant="inline"
                           >
@@ -256,7 +250,6 @@ export function ListingDetailsDialog() {
                           <EntityTooltip
                             entityType="ram-spec"
                             entityId={listing.ram_spec.id}
-                            tooltipContent={(ramData) => <RamSpecTooltipContent ramSpec={ramData} />}
                             fetchData={fetchEntityData}
                             variant="inline"
                           >
@@ -276,7 +269,6 @@ export function ListingDetailsDialog() {
                           <EntityTooltip
                             entityType="storage-profile"
                             entityId={listing.primary_storage_profile.id}
-                            tooltipContent={(storageData) => <StorageProfileTooltipContent storageProfile={storageData} />}
                             fetchData={fetchEntityData}
                             variant="inline"
                           >
@@ -296,7 +288,6 @@ export function ListingDetailsDialog() {
                           <EntityTooltip
                             entityType="storage-profile"
                             entityId={listing.secondary_storage_profile.id}
-                            tooltipContent={(storageData) => <StorageProfileTooltipContent storageProfile={storageData} />}
                             fetchData={fetchEntityData}
                             variant="inline"
                           >

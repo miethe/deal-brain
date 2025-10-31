@@ -6,6 +6,10 @@ import { EntityLink } from "./entity-link";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle } from "lucide-react";
+import { CpuTooltipContent } from "./tooltips/cpu-tooltip-content";
+import { GpuTooltipContent } from "./tooltips/gpu-tooltip-content";
+import { RamSpecTooltipContent } from "./tooltips/ram-spec-tooltip-content";
+import { StorageProfileTooltipContent } from "./tooltips/storage-profile-tooltip-content";
 
 export interface EntityTooltipProps {
   /**
@@ -22,12 +26,6 @@ export interface EntityTooltipProps {
    * Display text for the link
    */
   children: ReactNode;
-
-  /**
-   * Tooltip content component (receives entity data)
-   * Rendered when tooltip is opened
-   */
-  tooltipContent: (data: any) => ReactNode;
 
   /**
    * Function to fetch entity data on hover
@@ -67,18 +65,13 @@ export interface EntityTooltipProps {
  * - Loading and error states
  * - Configurable delay before showing
  * - Explicit hover handlers to work with Next.js Link components
+ * - Automatic tooltip content based on entity type
  *
  * @example
  * ```tsx
  * <EntityTooltip
  *   entityType="cpu"
  *   entityId={123}
- *   tooltipContent={(cpu) => (
- *     <div>
- *       <h4>{cpu.name}</h4>
- *       <p>{cpu.cores} cores / {cpu.threads} threads</p>
- *     </div>
- *   )}
  *   fetchData={fetchCpuData}
  * >
  *   Intel Core i5-12400
@@ -89,7 +82,6 @@ export function EntityTooltip({
   entityType,
   entityId,
   children,
-  tooltipContent,
   fetchData,
   href,
   variant = "link",
@@ -198,7 +190,14 @@ export function EntityTooltip({
         )}
 
         {/* Content state */}
-        {data && !isLoading && !error && tooltipContent(data)}
+        {data && !isLoading && !error && (
+          <>
+            {entityType === "cpu" && <CpuTooltipContent cpu={data} />}
+            {entityType === "gpu" && <GpuTooltipContent gpu={data} />}
+            {entityType === "ram-spec" && <RamSpecTooltipContent ramSpec={data} />}
+            {entityType === "storage-profile" && <StorageProfileTooltipContent storageProfile={data} />}
+          </>
+        )}
 
         {/* No data and no fetch function */}
         {!data && !isLoading && !error && !fetchData && (

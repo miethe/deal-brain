@@ -16,10 +16,6 @@ import { ListingRecord } from "../../types/listings";
 import { formatRamSummary, formatStorageSummary } from "./listing-formatters";
 import { ExternalLink } from "lucide-react";
 import { EntityTooltip } from "./entity-tooltip";
-import { CpuTooltipContent } from "./tooltips/cpu-tooltip-content";
-import { GpuTooltipContent } from "./tooltips/gpu-tooltip-content";
-import { RamSpecTooltipContent } from "./tooltips/ram-spec-tooltip-content";
-import { StorageProfileTooltipContent } from "./tooltips/storage-profile-tooltip-content";
 import { fetchEntityData } from "../../lib/api/entities";
 import { ProductImageDisplay } from "./product-image-display";
 
@@ -135,7 +131,6 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                           <EntityTooltip
                             entityType="cpu"
                             entityId={listing.cpu.id}
-                            tooltipContent={(cpuData) => <CpuTooltipContent cpu={cpuData} />}
                             fetchData={fetchEntityData}
                             variant="inline"
                           >
@@ -155,7 +150,6 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                           <EntityTooltip
                             entityType="gpu"
                             entityId={listing.gpu.id}
-                            tooltipContent={(gpuData) => <GpuTooltipContent gpu={gpuData} />}
                             fetchData={fetchEntityData}
                             variant="inline"
                           >
@@ -185,7 +179,6 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                           <EntityTooltip
                             entityType="ram-spec"
                             entityId={listing.ram_spec.id}
-                            tooltipContent={(ramData) => <RamSpecTooltipContent ramSpec={ramData} />}
                             fetchData={fetchEntityData}
                             variant="inline"
                           >
@@ -209,7 +202,6 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                           <EntityTooltip
                             entityType="storage-profile"
                             entityId={listing.primary_storage_profile.id}
-                            tooltipContent={(storageData) => <StorageProfileTooltipContent storageProfile={storageData} />}
                             fetchData={fetchEntityData}
                             variant="inline"
                           >
@@ -241,7 +233,6 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                           <EntityTooltip
                             entityType="storage-profile"
                             entityId={listing.secondary_storage_profile.id}
-                            tooltipContent={(storageData) => <StorageProfileTooltipContent storageProfile={storageData} />}
                             fetchData={fetchEntityData}
                             variant="inline"
                           >

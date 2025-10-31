@@ -16,10 +16,6 @@ import { ExternalLink } from "lucide-react";
 import type { ListingDetail } from "@/types/listing-detail";
 import { EntityTooltip } from "./entity-tooltip";
 import { fetchEntityData } from "@/lib/api/entities";
-import { CpuTooltipContent } from "./tooltips/cpu-tooltip-content";
-import { GpuTooltipContent } from "./tooltips/gpu-tooltip-content";
-import { RamSpecTooltipContent } from "./tooltips/ram-spec-tooltip-content";
-import { StorageProfileTooltipContent } from "./tooltips/storage-profile-tooltip-content";
 import { QuickAddComputeDialog } from "./quick-add-compute-dialog";
 import { QuickAddMemoryDialog } from "./quick-add-memory-dialog";
 import { QuickAddStorageDialog } from "./quick-add-storage-dialog";
@@ -110,7 +106,6 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
               <EntityTooltip
                 entityType="cpu"
                 entityId={listing.cpu.id}
-                tooltipContent={(cpu) => <CpuTooltipContent cpu={cpu} />}
                 fetchData={fetchEntityData}
                 variant="inline"
               >
@@ -128,7 +123,6 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
             <EntityTooltip
               entityType="gpu"
               entityId={listing.gpu.id}
-              tooltipContent={(gpu) => <GpuTooltipContent gpu={gpu} />}
               fetchData={fetchEntityData}
               variant="inline"
             >
@@ -178,7 +172,6 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
             <EntityTooltip
               entityType="ram-spec"
               entityId={listing.ram_spec_id}
-              tooltipContent={(ram) => <RamSpecTooltipContent ramSpec={ram} />}
               fetchData={fetchEntityData}
               variant="inline"
             >
@@ -209,7 +202,6 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
               <EntityTooltip
                 entityType="storage-profile"
                 entityId={listing.primary_storage_profile_id}
-                tooltipContent={(storage) => <StorageProfileTooltipContent storageProfile={storage} />}
                 fetchData={fetchEntityData}
                 variant="inline"
               >
@@ -232,7 +224,6 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
               <EntityTooltip
                 entityType="storage-profile"
                 entityId={listing.secondary_storage_profile_id}
-                tooltipContent={(storage) => <StorageProfileTooltipContent storageProfile={storage} />}
                 fetchData={fetchEntityData}
                 variant="inline"
               >
