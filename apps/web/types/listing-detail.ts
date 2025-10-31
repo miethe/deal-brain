@@ -44,11 +44,11 @@ export interface ListingDetail extends Omit<ListingRecord, "cpu" | "gpu" | "port
  * Manufacturer logo mapping for fallback images
  */
 export const MANUFACTURER_LOGOS: Record<string, string> = {
-  Intel: "/logos/intel.svg",
-  AMD: "/logos/amd.svg",
-  NVIDIA: "/logos/nvidia.svg",
-  "NVIDIA GeForce": "/logos/nvidia.svg",
-  Default: "/icons/pc-generic.svg",
+  Intel: "/images/fallbacks/intel.svg",
+  AMD: "/images/fallbacks/amd.svg",
+  NVIDIA: "/images/fallbacks/nvidia.svg",
+  "NVIDIA GeForce": "/images/fallbacks/nvidia.svg",
+  Default: "/images/fallbacks/pc-generic.svg",
 };
 
 /**

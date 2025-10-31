@@ -31,7 +31,7 @@ interface ProductImageDisplayProps {
  * 6. Generic fallback: /images/fallbacks/generic-pc.svg
  */
 export function ProductImageDisplay({ listing, className }: ProductImageDisplayProps) {
-  const [imageError, setImageError] = useState(false);
+  const [fallbackLevel, setFallbackLevel] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -50,24 +50,24 @@ export function ProductImageDisplay({ listing, className }: ProductImageDisplayP
    * Determines the image source based on fallback hierarchy
    */
   const getImageSrc = (): string => {
-    // Level 1: Listing thumbnail (if no error yet)
-    if (!imageError && listing.thumbnail_url) {
+    // Level 1: Listing thumbnail
+    if (fallbackLevel === 0 && listing.thumbnail_url) {
       return listing.thumbnail_url;
     }
 
-    // Level 2: Listing image URL (if no error yet)
-    if (!imageError && listing.image_url) {
+    // Level 2: Listing image URL
+    if (fallbackLevel <= 1 && listing.image_url) {
       return listing.image_url;
     }
 
     // Level 3: Manufacturer logo
-    if (listing.manufacturer) {
+    if (fallbackLevel <= 2 && listing.manufacturer) {
       const manufacturerSlug = slugify(listing.manufacturer);
       return `/images/manufacturers/${manufacturerSlug}.svg`;
     }
 
     // Level 4: CPU manufacturer logo (Intel/AMD)
-    if (listing.cpu?.manufacturer) {
+    if (fallbackLevel <= 3 && listing.cpu?.manufacturer) {
       const cpuManufacturer = listing.cpu.manufacturer.toLowerCase();
       if (cpuManufacturer.includes('intel') || cpuManufacturer.includes('amd')) {
         const cleanManufacturer = cpuManufacturer.includes('intel') ? 'intel' : 'amd';
@@ -76,7 +76,7 @@ export function ProductImageDisplay({ listing, className }: ProductImageDisplayP
     }
 
     // Level 5: Form factor icon
-    if (listing.form_factor) {
+    if (fallbackLevel <= 4 && listing.form_factor) {
       const formFactorSlug = slugify(listing.form_factor);
       return `/images/fallbacks/${formFactorSlug}-icon.svg`;
     }
@@ -89,7 +89,7 @@ export function ProductImageDisplay({ listing, className }: ProductImageDisplayP
   const altText = listing.title || 'Product image';
 
   // Determine if we're using a fallback image for styling purposes
-  const isUsingFallback = imageError || !listing.thumbnail_url && !listing.image_url;
+  const isUsingFallback = fallbackLevel > 1;
 
   return (
     <>
@@ -128,10 +128,10 @@ export function ProductImageDisplay({ listing, className }: ProductImageDisplayP
           onLoadingComplete={() => setIsLoading(false)}
           onLoad={() => setIsLoading(false)}
           onError={() => {
-            setImageError(true);
             setIsLoading(false);
+            setFallbackLevel((prev) => prev + 1);
             if (process.env.NODE_ENV === 'development') {
-              console.warn(`[ProductImageDisplay] Image failed to load: ${imageSrc}`);
+              console.warn(`[ProductImageDisplay] Image failed to load (level ${fallbackLevel}): ${imageSrc}`);
             }
           }}
         />
