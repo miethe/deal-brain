@@ -1,6 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { ChevronDown, InfoIcon } from "lucide-react";
 
 import {
   Dialog,
@@ -13,6 +16,8 @@ import { Badge } from "../ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Separator } from "../ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "../ui/hover-card";
 import { apiFetch } from "../../lib/utils";
 import { ValuationCell } from "./valuation-cell";
 import { useValuationThresholds } from "@/hooks/use-valuation-thresholds";
@@ -45,6 +50,97 @@ const formatCurrency = (value: number | null | undefined): string =>
     "—" :
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
+interface RuleCardProps {
+  adjustment: ValuationAdjustment;
+  inactive?: boolean;
+}
+
+function RuleCard({ adjustment, inactive = false }: RuleCardProps) {
+  return (
+    <Card className={inactive ? "opacity-60" : ""}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <div className="flex items-center gap-2">
+          {adjustment.rule_id ? (
+            <Link
+              href={`/valuation/rules/${adjustment.rule_id}`}
+              className="text-base font-semibold text-primary hover:underline"
+            >
+              {adjustment.rule_name}
+            </Link>
+          ) : (
+            <span className="text-base font-semibold">{adjustment.rule_name}</span>
+          )}
+          {adjustment.rule_description && (
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <button
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Rule description"
+                >
+                  <InfoIcon className="h-4 w-4" />
+                </button>
+              </HoverCardTrigger>
+              <HoverCardContent>
+                <p className="text-sm">{adjustment.rule_description}</p>
+              </HoverCardContent>
+            </HoverCard>
+          )}
+        </div>
+        <span
+          className={
+            adjustment.adjustment_amount < 0 ? "text-emerald-600 font-semibold" :
+            adjustment.adjustment_amount > 0 ? "text-red-600 font-semibold" :
+            "text-muted-foreground font-medium"
+          }
+        >
+          {adjustment.adjustment_amount > 0 ? "+" : ""}
+          {formatCurrency(adjustment.adjustment_amount)}
+        </span>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {adjustment.rule_group_name && (
+          <Badge variant="secondary" className="text-xs">
+            {adjustment.rule_group_name}
+          </Badge>
+        )}
+        {adjustment.actions.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            No action details available for this rule.
+          </p>
+        ) : (
+          <ul className="space-y-2 text-xs text-muted-foreground">
+            {adjustment.actions.map((action, actionIndex) => (
+              <li key={actionIndex} className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="font-medium text-foreground">
+                    {action.action_type ?? "Action"}
+                  </span>
+                  {action.metric && <span className="ml-1">· {action.metric}</span>}
+                </div>
+                <div className="text-right">
+                  <span
+                    className={
+                      action.value < 0 ? "text-emerald-600" :
+                      action.value > 0 ? "text-red-600" :
+                      "text-muted-foreground"
+                    }
+                  >
+                    {action.value > 0 ? "+" : ""}
+                    {formatCurrency(action.value)}
+                  </span>
+                  {action.error && (
+                    <div className="text-red-600 mt-0.5">Error: {action.error}</div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ValuationBreakdownModal({
   open,
   onOpenChange,
@@ -62,6 +158,22 @@ export function ValuationBreakdownModal({
 
   const adjustments = breakdown?.adjustments ?? [];
   const legacyLines = breakdown?.legacy_lines ?? [];
+
+  const { contributors, inactive } = useMemo(() => {
+    const contributors = adjustments
+      .filter((adj) => Math.abs(adj.adjustment_amount) > 0)
+      .sort((a, b) => {
+        const diff = Math.abs(b.adjustment_amount) - Math.abs(a.adjustment_amount);
+        if (diff !== 0) return diff;
+        return a.rule_name.localeCompare(b.rule_name);
+      });
+
+    const inactive = adjustments
+      .filter((adj) => Math.abs(adj.adjustment_amount) === 0)
+      .sort((a, b) => a.rule_name.localeCompare(b.rule_name));
+
+    return { contributors, inactive };
+  }, [adjustments]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -134,69 +246,46 @@ export function ValuationBreakdownModal({
               </p>
             )}
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <h4 className="font-medium text-sm text-muted-foreground">Applied rules</h4>
               {adjustments.length === 0 ? (
                 <div className="rounded-md border p-6 text-sm text-muted-foreground">
                   No rule-based adjustments were applied.
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {adjustments.map((adjustment, index) => (
-                    <Card key={`${adjustment.rule_id ?? adjustment.rule_name}-${index}`}>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                        <CardTitle className="text-base font-semibold">
-                          {adjustment.rule_name}
-                        </CardTitle>
-                        <span
-                          className={
-                            adjustment.adjustment_amount < 0 ? "text-emerald-600 font-semibold" :
-                            adjustment.adjustment_amount > 0 ? "text-red-600 font-semibold" :
-                            "text-muted-foreground font-medium"
-                          }
-                        >
-                          {adjustment.adjustment_amount > 0 ? "+" : ""}
-                          {formatCurrency(adjustment.adjustment_amount)}
-                        </span>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        {adjustment.actions.length === 0 ? (
-                          <p className="text-xs text-muted-foreground">
-                            No action details available for this rule.
-                          </p>
-                        ) : (
-                          <ul className="space-y-2 text-xs text-muted-foreground">
-                            {adjustment.actions.map((action, actionIndex) => (
-                              <li key={actionIndex} className="flex items-start justify-between gap-3">
-                                <div>
-                                  <span className="font-medium text-foreground">
-                                    {action.action_type ?? "Action"}
-                                  </span>
-                                  {action.metric && <span className="ml-1">· {action.metric}</span>}
-                                </div>
-                                <div className="text-right">
-                                  <span
-                                    className={
-                                      action.value < 0 ? "text-emerald-600" :
-                                      action.value > 0 ? "text-red-600" :
-                                      "text-muted-foreground"
-                                    }
-                                  >
-                                    {action.value > 0 ? "+" : ""}
-                                    {formatCurrency(action.value)}
-                                  </span>
-                                  {action.error && (
-                                    <div className="text-red-600 mt-0.5">Error: {action.error}</div>
-                                  )}
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                <>
+                  {/* Contributors Section */}
+                  {contributors.length > 0 && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold text-muted-foreground">
+                        Contributing Rules ({contributors.length})
+                      </h3>
+                      {contributors.map((adj, index) => (
+                        <RuleCard key={`${adj.rule_id ?? adj.rule_name}-${index}`} adjustment={adj} />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Separator */}
+                  {contributors.length > 0 && inactive.length > 0 && (
+                    <Separator className="my-4" />
+                  )}
+
+                  {/* Inactive Section (Collapsible) */}
+                  {inactive.length > 0 && (
+                    <Collapsible>
+                      <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors">
+                        <span>Inactive Rules ({inactive.length})</span>
+                        <ChevronDown className="h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180" />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-2 space-y-2">
+                        {inactive.map((adj, index) => (
+                          <RuleCard key={`${adj.rule_id ?? adj.rule_name}-inactive-${index}`} adjustment={adj} inactive />
+                        ))}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+                </>
               )}
             </div>
 

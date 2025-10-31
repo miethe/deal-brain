@@ -222,3 +222,24 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Listing highlight animation */
+@keyframes listing-highlight-pulse {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: hsl(var(--primary) / 0.1);
+  }
+}
+
+[data-highlighted="true"] {
+  animation: listing-highlight-pulse 2s ease-in-out;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  [data-highlighted="true"] {
+    animation: none;
+    background-color: hsl(var(--primary) / 0.08);
+  }
+}

@@ -9,6 +9,7 @@ import { ListingRecord } from "@/types/listings";
 import { formatRamSummary, formatStorageSummary } from "@/components/listings/listing-formatters";
 import { PerformanceBadges } from "./performance-badges";
 import { useCatalogStore } from "@/stores/catalog-store";
+import { EntityTooltip } from "@/components/listings/entity-tooltip";
 
 interface ListingCardProps {
   listing: ListingRecord;
@@ -106,11 +107,40 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
       <CardContent className="pb-3 flex-1 space-y-3">
         {/* Badges Row */}
         <div className="flex flex-wrap gap-1.5">
+          {/* CPU Badge with Tooltip */}
           {listing.cpu_name && (
             <Badge variant="outline" className="text-xs">
-              {listing.cpu_name}
+              {listing.cpu?.id ? (
+                <EntityTooltip
+                  entityType="cpu"
+                  entityId={listing.cpu.id}
+                  variant="inline"
+                >
+                  {listing.cpu_name}
+                </EntityTooltip>
+              ) : (
+                listing.cpu_name
+              )}
             </Badge>
           )}
+
+          {/* GPU Badge with Tooltip */}
+          {listing.gpu_name && (
+            <Badge variant="outline" className="text-xs">
+              {listing.gpu?.id ? (
+                <EntityTooltip
+                  entityType="gpu"
+                  entityId={listing.gpu.id}
+                  variant="inline"
+                >
+                  {listing.gpu_name}
+                </EntityTooltip>
+              ) : (
+                listing.gpu_name
+              )}
+            </Badge>
+          )}
+
           {listing.cpu?.cpu_mark_single && listing.cpu?.cpu_mark_multi && (
             <Badge variant="secondary" className="text-xs font-mono">
               ST {listing.cpu.cpu_mark_single.toLocaleString()} / MT {listing.cpu.cpu_mark_multi.toLocaleString()}

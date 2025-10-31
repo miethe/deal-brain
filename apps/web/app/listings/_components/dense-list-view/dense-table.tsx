@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   Table,
@@ -28,18 +29,23 @@ import {
 import { useCatalogStore } from '@/stores/catalog-store'
 import type { ListingRow } from '@/components/listings/listings-table'
 import { formatRamSummary, formatStorageSummary } from '@/components/listings/listing-formatters'
+import { EntityTooltip } from '@/components/listings/entity-tooltip'
 
 interface DenseTableProps {
   listings: ListingRow[]
+  highlightedId?: number | null
 }
 
 export const DenseTable = React.memo(function DenseTable({
-  listings
+  listings,
+  highlightedId
 }: DenseTableProps) {
   const { openDetailsDialog, openQuickEditDialog } = useCatalogStore()
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
   const [focusedIndex, setFocusedIndex] = useState<number>(-1)
   const tableContainerRef = useRef<HTMLDivElement>(null)
+  const highlightedRef = useRef<HTMLTableRowElement>(null)
+  const router = useRouter()
 
   // Virtual scrolling for large datasets
   const rowVirtualizer = useVirtualizer({
@@ -48,6 +54,33 @@ export const DenseTable = React.memo(function DenseTable({
     estimateSize: () => 64, // 64px row height
     overscan: 5
   })
+
+  // Handle highlighting and scrolling
+  useEffect(() => {
+    if (highlightedId && highlightedRef.current) {
+      // Scroll into view with smooth behavior
+      highlightedRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+
+      // Focus for accessibility
+      highlightedRef.current.focus()
+
+      // Clear highlight param after 2 seconds
+      const timer = setTimeout(() => {
+        const params = new URLSearchParams(window.location.search)
+        params.delete('highlight')
+        const newSearch = params.toString()
+        router.replace(
+          `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}`,
+          { scroll: false }
+        )
+      }, 2000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [highlightedId, router])
 
   // Toggle row selection
   const toggleRow = useCallback((id: number) => {
@@ -157,6 +190,7 @@ export const DenseTable = React.memo(function DenseTable({
               const listing = listings[virtualRow.index]
               const isSelected = selectedRows.has(listing.id)
               const isFocused = focusedIndex === virtualRow.index
+              const isHighlighted = listing.id === highlightedId
               const ramSummary = formatRamSummary(listing)
               const primaryStorageSummary = formatStorageSummary(
                 listing.primary_storage_profile ?? null,
@@ -175,7 +209,11 @@ export const DenseTable = React.memo(function DenseTable({
               return (
                 <TableRow
                   key={listing.id}
+                  ref={isHighlighted ? highlightedRef : null}
                   data-index={virtualRow.index}
+                  data-highlighted={isHighlighted}
+                  tabIndex={isHighlighted ? -1 : undefined}
+                  aria-label={isHighlighted ? "Newly created listing" : undefined}
                   className={`group absolute left-0 top-0 h-16 w-full ${
                     isFocused ? 'ring-2 ring-primary' : ''
                   }`}
@@ -206,11 +244,35 @@ export const DenseTable = React.memo(function DenseTable({
                   <TableCell>
                     <div className="space-y-1">
                       <div className="font-medium">
-                        {listing.cpu?.name || 'Unknown CPU'}
+                        {listing.cpu?.id ? (
+                          <EntityTooltip
+                            entityType="cpu"
+                            entityId={listing.cpu.id}
+                            variant="inline"
+                          >
+                            {listing.cpu_name || listing.cpu.name || 'Unknown CPU'}
+                          </EntityTooltip>
+                        ) : (
+                          listing.cpu_name || listing.cpu?.name || 'Unknown CPU'
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        ST {listing.cpu?.cpu_mark_single?.toLocaleString() || '-'} /
-                        MT {listing.cpu?.cpu_mark_multi?.toLocaleString() || '-'}
+                        {listing.gpu?.id && listing.gpu_name ? (
+                          <EntityTooltip
+                            entityType="gpu"
+                            entityId={listing.gpu.id}
+                            variant="inline"
+                          >
+                            GPU: {listing.gpu_name}
+                          </EntityTooltip>
+                        ) : listing.gpu_name ? (
+                          <>GPU: {listing.gpu_name}</>
+                        ) : (
+                          <>
+                            ST {listing.cpu?.cpu_mark_single?.toLocaleString() || '-'} /
+                            MT {listing.cpu?.cpu_mark_multi?.toLocaleString() || '-'}
+                          </>
+                        )}
                       </div>
                     </div>
                   </TableCell>

@@ -5,12 +5,13 @@ from typing import Sequence
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from dealbrain_core.enums import Condition, ListingStatus, RamGeneration
 from dealbrain_core.schemas import ListingCreate, ListingRead
 
 from ..db import session_dependency
-from ..models import Listing, ValuationRuleset
+from ..models import Listing, ValuationRuleset, ValuationRuleV2, ValuationRuleGroup
 from ..services.custom_fields import CustomFieldService
 from ..services.listings import (
     apply_listing_metrics,
@@ -349,14 +350,15 @@ async def get_valuation_breakdown(
     """Get detailed valuation breakdown for a listing.
 
     This endpoint returns the detailed breakdown of how a listing's adjusted price
-    was calculated, including all applied rules and their individual contributions.
+    was calculated, including all applied rules and their individual contributions,
+    as well as inactive rules from the same ruleset.
 
     Args:
         listing_id: ID of the listing to get breakdown for
         session: Database session
 
     Returns:
-        Detailed valuation breakdown
+        Detailed valuation breakdown with enriched rule metadata
 
     Raises:
         404: Listing not found
@@ -376,7 +378,26 @@ async def get_valuation_breakdown(
     breakdown = listing.valuation_breakdown or {}
     ruleset_info = breakdown.get("ruleset") or {}
 
+    # Parse active adjustments from breakdown JSON
     adjustments_payload = breakdown.get("adjustments") or []
+    active_rule_ids = {
+        payload.get("rule_id")
+        for payload in adjustments_payload
+        if payload.get("rule_id") is not None
+    }
+
+    # Query ValuationRuleV2 with eager loading for active rules
+    rules_by_id: dict[int, ValuationRuleV2] = {}
+    if active_rule_ids:
+        stmt = (
+            select(ValuationRuleV2)
+            .options(selectinload(ValuationRuleV2.group))
+            .where(ValuationRuleV2.id.in_(active_rule_ids))
+        )
+        rules_result = await session.execute(stmt)
+        rules_by_id = {rule.id: rule for rule in rules_result.scalars().all()}
+
+    # Enrich active adjustments with database metadata
     adjustments: list[ValuationAdjustmentDetail] = []
     for payload in adjustments_payload:
         actions_payload = payload.get("actions") or []
@@ -390,15 +411,57 @@ async def get_valuation_breakdown(
             )
             for action in actions_payload
         ]
+
+        rule_id = payload.get("rule_id")
+        rule = rules_by_id.get(rule_id) if rule_id else None
+
         adjustments.append(
             ValuationAdjustmentDetail(
-                rule_id=payload.get("rule_id"),
+                rule_id=rule_id,
                 rule_name=payload.get("rule_name") or "Unnamed Rule",
+                rule_description=rule.description if rule else None,
+                rule_group_id=rule.group_id if rule else None,
+                rule_group_name=rule.group.name if rule and rule.group else None,
                 adjustment_amount=float(payload.get("adjustment_usd") or 0.0),
                 actions=actions,
             )
         )
 
+    # Get ruleset ID from first rule to query inactive rules
+    ruleset_id = None
+    if rules_by_id:
+        first_rule = next(iter(rules_by_id.values()))
+        ruleset_id = first_rule.group.ruleset_id if first_rule.group else None
+
+    # Query and include inactive rules from the same ruleset
+    if ruleset_id and active_rule_ids:
+        inactive_stmt = (
+            select(ValuationRuleV2)
+            .join(ValuationRuleV2.group)
+            .options(selectinload(ValuationRuleV2.group))
+            .where(
+                ValuationRuleGroup.ruleset_id == ruleset_id,
+                ValuationRuleV2.id.notin_(active_rule_ids)
+            )
+        )
+        inactive_result = await session.execute(inactive_stmt)
+        inactive_rules = inactive_result.scalars().all()
+
+        # Add zero-adjustment entries for inactive rules
+        for rule in inactive_rules:
+            adjustments.append(
+                ValuationAdjustmentDetail(
+                    rule_id=rule.id,
+                    rule_name=rule.name,
+                    rule_description=rule.description,
+                    rule_group_id=rule.group_id,
+                    rule_group_name=rule.group.name if rule.group else None,
+                    adjustment_amount=0.0,
+                    actions=[],
+                )
+            )
+
+    # Parse legacy lines
     legacy_payload = breakdown.get("legacy_lines") or breakdown.get("lines") or []
     legacy_lines: list[LegacyValuationLine] = []
     for line in legacy_payload:
@@ -415,15 +478,20 @@ async def get_valuation_breakdown(
             )
         )
 
+    # Calculate totals (only from active adjustments, not inactive)
     total_adjustment = float(
         breakdown.get("total_adjustment")
-        or sum(adjustment.adjustment_amount for adjustment in adjustments)
+        or sum(adj.adjustment_amount for adj in adjustments if adj.adjustment_amount != 0.0)
     )
     total_deductions = breakdown.get("total_deductions")
     if total_deductions is not None:
         total_deductions = float(total_deductions)
 
-    matched_rules_count = int(breakdown.get("matched_rules_count") or len(adjustments))
+    # Count only active rules (non-zero adjustments)
+    matched_rules_count = int(
+        breakdown.get("matched_rules_count")
+        or sum(1 for adj in adjustments if adj.adjustment_amount != 0.0)
+    )
 
     return ValuationBreakdownResponse(
         listing_id=listing.id,

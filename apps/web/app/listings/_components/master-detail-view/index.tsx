@@ -12,11 +12,13 @@ import type { ListingRow } from '@/components/listings/listings-table'
 interface MasterDetailViewProps {
   listings: ListingRow[]
   isLoading?: boolean
+  highlightedId?: number | null
 }
 
 export const MasterDetailView = React.memo(function MasterDetailView({
   listings,
-  isLoading
+  isLoading,
+  highlightedId
 }: MasterDetailViewProps) {
   const { selectedListingId, compareSelections } = useCatalogStore()
 
@@ -53,7 +55,7 @@ export const MasterDetailView = React.memo(function MasterDetailView({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-10">
         {/* Master List - Left Panel */}
         <div className="lg:col-span-4">
-          <MasterList listings={sortedListings} />
+          <MasterList listings={sortedListings} highlightedId={highlightedId} />
         </div>
 
         {/* Detail Panel - Right Panel */}

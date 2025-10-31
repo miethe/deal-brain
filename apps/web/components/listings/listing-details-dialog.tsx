@@ -22,6 +22,7 @@ import type { ListingRecord } from "@/types/listings";
 import { PerformanceBadges } from "@/app/listings/_components/grid-view/performance-badges";
 import { ListingValuationTab } from "./listing-valuation-tab";
 import { formatRamSummary, formatStorageSummary } from "./listing-formatters";
+import { EntityTooltip } from "./entity-tooltip";
 
 /**
  * Listing Details Dialog
@@ -197,7 +198,37 @@ export function ListingDetailsDialog() {
                   {listing.cpu_name && (
                     <>
                       <span className="text-muted-foreground">CPU</span>
-                      <span className="font-medium">{listing.cpu_name}</span>
+                      <span className="font-medium">
+                        {listing.cpu?.id ? (
+                          <EntityTooltip
+                            entityType="cpu"
+                            entityId={listing.cpu.id}
+                            variant="inline"
+                          >
+                            {listing.cpu_name}
+                          </EntityTooltip>
+                        ) : (
+                          listing.cpu_name
+                        )}
+                      </span>
+                    </>
+                  )}
+                  {listing.gpu_name && (
+                    <>
+                      <span className="text-muted-foreground">GPU</span>
+                      <span className="font-medium">
+                        {listing.gpu?.id ? (
+                          <EntityTooltip
+                            entityType="gpu"
+                            entityId={listing.gpu.id}
+                            variant="inline"
+                          >
+                            {listing.gpu_name}
+                          </EntityTooltip>
+                        ) : (
+                          listing.gpu_name
+                        )}
+                      </span>
                     </>
                   )}
                   {listing.cpu?.cpu_mark_single && listing.cpu?.cpu_mark_multi && (
@@ -211,19 +242,55 @@ export function ListingDetailsDialog() {
                   {ramSummary && (
                     <>
                       <span className="text-muted-foreground">RAM</span>
-                      <span className="font-medium">{ramSummary}</span>
+                      <span className="font-medium">
+                        {listing.ram_spec?.id ? (
+                          <EntityTooltip
+                            entityType="ram-spec"
+                            entityId={listing.ram_spec.id}
+                            variant="inline"
+                          >
+                            {ramSummary}
+                          </EntityTooltip>
+                        ) : (
+                          ramSummary
+                        )}
+                      </span>
                     </>
                   )}
                   {primaryStorageSummary && (
                     <>
                       <span className="text-muted-foreground">Primary Storage</span>
-                      <span className="font-medium">{primaryStorageSummary}</span>
+                      <span className="font-medium">
+                        {listing.primary_storage_profile?.id ? (
+                          <EntityTooltip
+                            entityType="storage-profile"
+                            entityId={listing.primary_storage_profile.id}
+                            variant="inline"
+                          >
+                            {primaryStorageSummary}
+                          </EntityTooltip>
+                        ) : (
+                          primaryStorageSummary
+                        )}
+                      </span>
                     </>
                   )}
                   {secondaryStorageSummary && (
                     <>
                       <span className="text-muted-foreground">Secondary Storage</span>
-                      <span className="font-medium">{secondaryStorageSummary}</span>
+                      <span className="font-medium">
+                        {listing.secondary_storage_profile?.id ? (
+                          <EntityTooltip
+                            entityType="storage-profile"
+                            entityId={listing.secondary_storage_profile.id}
+                            variant="inline"
+                          >
+                            {secondaryStorageSummary}
+                          </EntityTooltip>
+                        ) : (
+                          secondaryStorageSummary
+                        )}
+                      </span>
                     </>
                   )}
                   {listing.condition && (

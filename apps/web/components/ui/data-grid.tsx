@@ -80,6 +80,8 @@ interface DataGridProps<TData> {
   onRowSelectionChange?: (selectedRows: TData[]) => void;
   pagination?: PaginationConfig | false;
   stickyColumns?: StickyColumnConfig[];
+  highlightedRowId?: number | null;
+  highlightedRef?: React.RefObject<HTMLTableRowElement>;
 }
 
 interface VirtualizationState<TData> {
@@ -382,6 +384,8 @@ export function DataGrid<TData>({
   density = "comfortable",
   pagination,
   stickyColumns = [],
+  highlightedRowId,
+  highlightedRef,
 }: DataGridProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -578,35 +582,44 @@ export function DataGrid<TData>({
                     <TableCell colSpan={resolvedTable.getAllLeafColumns().length} className="p-0" />
                   </TableRow>
                 ) : null}
-                {virtualization.rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() ? "selected" : undefined}
-                    className="hover:bg-muted/40"
-                    style={{ minHeight: rowHeight }}
-                  >
-                    {row.getVisibleCells().map((cell) => {
-                      const stickyStyles = getStickyColumnStyles(cell.column.id, stickyColumns, columnSizingState);
-                      const meta = cell.column.columnDef.meta as ColumnMetaConfig | undefined;
-                      const minWidth = meta?.minWidth || MIN_COLUMN_WIDTH;
-                      const isConstrained = constrainedColumns.has(cell.column.id);
+                {virtualization.rows.map((row) => {
+                  const rowId = (row.original as any).id;
+                  const isHighlighted = highlightedRowId !== null && highlightedRowId !== undefined && rowId === highlightedRowId;
 
-                      return (
-                        <TableCell
-                          key={cell.id}
-                          style={{ width: cell.column.getSize(), minWidth, ...stickyStyles }}
-                          className={cn(
-                            "align-top text-sm",
-                            meta?.enableTextWrap && "whitespace-normal break-words",
-                            isConstrained && "border-r-2 border-dashed border-amber-400"
-                          )}
-                        >
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))}
+                  return (
+                    <TableRow
+                      key={row.id}
+                      ref={isHighlighted ? highlightedRef : null}
+                      data-state={row.getIsSelected() ? "selected" : undefined}
+                      data-highlighted={isHighlighted}
+                      tabIndex={isHighlighted ? -1 : undefined}
+                      aria-label={isHighlighted ? "Newly created listing" : undefined}
+                      className="hover:bg-muted/40 outline-none"
+                      style={{ minHeight: rowHeight }}
+                    >
+                      {row.getVisibleCells().map((cell) => {
+                        const stickyStyles = getStickyColumnStyles(cell.column.id, stickyColumns, columnSizingState);
+                        const meta = cell.column.columnDef.meta as ColumnMetaConfig | undefined;
+                        const minWidth = meta?.minWidth || MIN_COLUMN_WIDTH;
+                        const isConstrained = constrainedColumns.has(cell.column.id);
+
+                        return (
+                          <TableCell
+                            key={cell.id}
+                            style={{ width: cell.column.getSize(), minWidth, ...stickyStyles }}
+                            className={cn(
+                              "align-top text-sm",
+                              meta?.enableTextWrap && "whitespace-normal break-words",
+                              isConstrained && "border-r-2 border-dashed border-amber-400"
+                            )}
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })}
                 {virtualization.enabled && virtualization.paddingBottom > 0 ? (
                   <TableRow aria-hidden="true" style={{ height: virtualization.paddingBottom }}>
                     <TableCell colSpan={resolvedTable.getAllLeafColumns().length} className="p-0" />

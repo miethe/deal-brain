@@ -16,7 +16,8 @@ import {
 } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { apiFetch, ApiError } from "../../lib/utils";
 import { CpuRecord, ListingFieldSchema, ListingRecord, ListingSchemaResponse, RamSpecRecord, StorageProfileRecord } from "../../types/listings";
@@ -26,6 +27,7 @@ import { DataGrid, type ColumnMetaConfig } from "../ui/data-grid";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
+import { TableRow } from "../ui/table";
 import { ValuationBreakdownModal } from "./valuation-breakdown-modal";
 import { ValuationCell } from "./valuation-cell";
 import { DualMetricCell } from "./dual-metric-cell";
@@ -33,8 +35,7 @@ import { PortsDisplay } from "./ports-display";
 import { ComboBox } from "../forms/combobox";
 import { useConfirmation } from "../ui/confirmation-dialog";
 import { useValuationThresholds } from "@/hooks/use-valuation-thresholds";
-import { CpuTooltip } from "./cpu-tooltip";
-import { CpuDetailsModal } from "./cpu-details-modal";
+import { EntityTooltip } from "./entity-tooltip";
 import { RamSpecSelector } from "../forms/ram-spec-selector";
 import { StorageProfileSelector } from "../forms/storage-profile-selector";
 import { getStorageMediumLabel } from "../../lib/component-catalog";
@@ -136,6 +137,8 @@ export function ListingsTable() {
   const queryClient = useQueryClient();
   const { confirm, dialog: confirmationDialog } = useConfirmation();
   const { data: thresholds } = useValuationThresholds();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = useState<SortingState>([{ id: "title", desc: false }]);
   const [grouping, setGrouping] = useState<GroupingState>([]);
@@ -152,8 +155,13 @@ export function ListingsTable() {
     title: string;
     thumbnailUrl?: string | null;
   } | null>(null);
-  const [cpuModalOpen, setCpuModalOpen] = useState(false);
-  const [selectedCpu, setSelectedCpu] = useState<CpuRecord | null>(null);
+
+  // Highlighted row tracking
+  const highlightedRef = useRef<HTMLTableRowElement>(null);
+  const highlightedId = useMemo(() => {
+    const param = searchParams.get('highlight');
+    return param ? parseInt(param, 10) : null;
+  }, [searchParams]);
 
   // Load saved table state on mount (will be validated when table initializes)
   useEffect(() => {
@@ -178,6 +186,33 @@ export function ListingsTable() {
     const payload = JSON.stringify({ sorting, filters: columnFilters, grouping, search: quickSearch });
     localStorage.setItem(STORAGE_KEY, payload);
   }, [sorting, columnFilters, grouping, quickSearch]);
+
+  // Handle highlighting and scrolling
+  useEffect(() => {
+    if (highlightedId && highlightedRef.current) {
+      // Scroll into view with smooth behavior
+      highlightedRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+
+      // Focus for accessibility
+      highlightedRef.current.focus();
+
+      // Clear highlight param after 2 seconds
+      const timer = setTimeout(() => {
+        const params = new URLSearchParams(window.location.search);
+        params.delete('highlight');
+        const newSearch = params.toString();
+        router.replace(
+          `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}`,
+          { scroll: false }
+        );
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedId, router]);
 
   const { data: schema, isLoading: isSchemaLoading, error: schemaError } = useQuery<ListingSchemaResponse>({
     queryKey: ["listings", "schema"],
@@ -391,6 +426,9 @@ export function ListingsTable() {
         accessorKey: "title",
         cell: ({ row }) => {
           const gpuConfig = fieldMap.get("gpu_id");
+          const gpu = row.original.gpu;
+          const gpuName = row.original.gpu_name;
+
           return (
             <div className="flex flex-col gap-1">
               {titleConfig ? (
@@ -417,8 +455,20 @@ export function ListingsTable() {
                     listing={row.original}
                   />
                 </div>
+              ) : gpu?.id ? (
+                <div className="text-xs">
+                  <EntityTooltip
+                    entityType="gpu"
+                    entityId={gpu.id}
+                    variant="inline"
+                  >
+                    {gpuName || gpu.name || "Unknown GPU"}
+                  </EntityTooltip>
+                </div>
               ) : (
-                <span className="text-xs text-muted-foreground">{row.original.gpu_name ?? "No dedicated GPU"}</span>
+                <span className="text-xs text-muted-foreground">
+                  {gpuName || "No dedicated GPU"}
+                </span>
               )}
             </div>
           );
@@ -439,47 +489,42 @@ export function ListingsTable() {
         cell: ({ row }) => {
           const cpuConfig = fieldMap.get("cpu_id");
           const cpu = row.original.cpu;
+          const cpuName = row.original.cpu_name;
 
+          // If editable, show the selector
           if (cpuConfig && cpuConfig.editable) {
             return (
-              <div className="flex items-center gap-2">
-                <EditableCell
-                  listingId={row.original.id}
-                  field={cpuConfig}
-                  value={row.original.cpu_id}
-                  onSave={handleInlineSave}
-                  isSaving={inlineMutation.isPending}
-                  listing={row.original}
-                />
-                {cpu && (
-                  <CpuTooltip
-                    cpu={cpu}
-                    onViewDetails={() => {
-                      setSelectedCpu(cpu);
-                      setCpuModalOpen(true);
-                    }}
-                  />
-                )}
-              </div>
+              <EditableCell
+                listingId={row.original.id}
+                field={cpuConfig}
+                value={row.original.cpu_id}
+                onSave={handleInlineSave}
+                isSaving={inlineMutation.isPending}
+                listing={row.original}
+              />
             );
           }
 
-          if (!cpu) {
+          // No CPU attached
+          if (!cpu && !cpuName) {
             return <span className="text-sm text-muted-foreground">—</span>;
           }
 
-          return (
-            <div className="flex items-center gap-2">
-              <span className="text-sm">{cpu.name}</span>
-              <CpuTooltip
-                cpu={cpu}
-                onViewDetails={() => {
-                  setSelectedCpu(cpu);
-                  setCpuModalOpen(true);
-                }}
-              />
-            </div>
-          );
+          // CPU with ID - show with tooltip
+          if (cpu?.id) {
+            return (
+              <EntityTooltip
+                entityType="cpu"
+                entityId={cpu.id}
+                variant="inline"
+              >
+                {cpuName || cpu.name || "Unknown"}
+              </EntityTooltip>
+            );
+          }
+
+          // Fallback: CPU name without ID (shouldn't happen with Phase 1 changes)
+          return <span className="text-sm">{cpuName}</span>;
         },
         enableSorting: true,
         enableResizing: true,
@@ -487,7 +532,7 @@ export function ListingsTable() {
         meta: {
           filterType: "multi-select",
           options: cpuOptions,
-          tooltip: "CPU associated with the listing",
+          tooltip: "CPU associated with the listing (hover for details)",
           description: "The processor model (Intel/AMD) powering this system",
         },
         filterFn: (row, columnId, filterValue) => {
@@ -839,7 +884,14 @@ export function ListingsTable() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <DataGrid table={table} enableFilters className="border" storageKey="listings-grid" />
+        <DataGrid
+          table={table}
+          enableFilters
+          className="border"
+          storageKey="listings-grid"
+          highlightedRowId={highlightedId}
+          highlightedRef={highlightedRef}
+        />
 
         {Object.keys(rowSelection).length > 0 && (
           <BulkEditPanel
@@ -864,13 +916,6 @@ export function ListingsTable() {
           thumbnailUrl={selectedListingForBreakdown.thumbnailUrl}
         />
       )}
-
-      {/* CPU Details Modal */}
-      <CpuDetailsModal
-        cpu={selectedCpu}
-        open={cpuModalOpen}
-        onOpenChange={setCpuModalOpen}
-      />
 
       {/* Confirmation Dialog */}
       {confirmationDialog}

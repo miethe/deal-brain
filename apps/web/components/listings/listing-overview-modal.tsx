@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import { ValuationCell } from "./valuation-cell";
 import { DualMetricCell } from "./dual-metric-cell";
@@ -13,6 +14,9 @@ import { apiFetch } from "../../lib/utils";
 import { useValuationThresholds } from "../../hooks/use-valuation-thresholds";
 import { ListingRecord } from "../../types/listings";
 import { formatRamSummary, formatStorageSummary } from "./listing-formatters";
+import { ExternalLink } from "lucide-react";
+import { EntityTooltip } from "./entity-tooltip";
+import { ProductImageDisplay } from "./product-image-display";
 
 interface ListingOverviewModalProps {
   listingId: number | null;
@@ -51,15 +55,13 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
               <DialogTitle className="text-xl">{listing.title}</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4">
-              {listing.thumbnail_url && (
-                <img
-                  src={listing.thumbnail_url}
-                  alt={listing.title}
-                  className="w-full max-w-md rounded-lg mx-auto"
-                />
-              )}
+            {/* Product Image Display */}
+            <ProductImageDisplay
+              listing={listing}
+              className="w-full max-w-md mx-auto mb-6"
+            />
 
+            <div className="space-y-4">
               <Section title="Pricing">
                 {thresholds && listing.adjusted_price_usd !== null ? (
                   <ValuationCell
@@ -120,30 +122,129 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
 
               <Section title="Hardware">
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <SpecRow label="CPU" value={listing.cpu_name} />
-                  <SpecRow label="GPU" value={listing.gpu_name} />
-                  <SpecRow label="RAM" value={formatRamSummary(listing)} />
-                  <SpecRow
-                    label="Primary Storage"
-                    value={formatStorageSummary(
-                      listing.primary_storage_profile ?? null,
-                      listing.primary_storage_gb ?? null,
-                      listing.primary_storage_type ?? null,
-                    )}
-                  />
+                  {listing.cpu_name && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">CPU</span>
+                      <span className="font-medium">
+                        {listing.cpu?.id ? (
+                          <EntityTooltip
+                            entityType="cpu"
+                            entityId={listing.cpu.id}
+                            variant="inline"
+                          >
+                            {listing.cpu_name}
+                          </EntityTooltip>
+                        ) : (
+                          listing.cpu_name
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {listing.gpu_name && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">GPU</span>
+                      <span className="font-medium">
+                        {listing.gpu?.id ? (
+                          <EntityTooltip
+                            entityType="gpu"
+                            entityId={listing.gpu.id}
+                            variant="inline"
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              {listing.gpu_name}
+                              {listing.gpu?.type === 'integrated' && (
+                                <Badge variant="outline" className="text-xs">Integrated</Badge>
+                              )}
+                            </span>
+                          </EntityTooltip>
+                        ) : (
+                          <span className="inline-flex items-center gap-1">
+                            {listing.gpu_name}
+                            {listing.gpu?.type === 'integrated' && (
+                              <Badge variant="outline" className="text-xs">Integrated</Badge>
+                            )}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {formatRamSummary(listing) && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">RAM</span>
+                      <span className="font-medium">
+                        {listing.ram_spec?.id ? (
+                          <EntityTooltip
+                            entityType="ram-spec"
+                            entityId={listing.ram_spec.id}
+                            variant="inline"
+                          >
+                            {formatRamSummary(listing)}
+                          </EntityTooltip>
+                        ) : (
+                          formatRamSummary(listing)
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {formatStorageSummary(
+                    listing.primary_storage_profile ?? null,
+                    listing.primary_storage_gb ?? null,
+                    listing.primary_storage_type ?? null,
+                  ) && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">Primary Storage</span>
+                      <span className="font-medium">
+                        {listing.primary_storage_profile?.id ? (
+                          <EntityTooltip
+                            entityType="storage-profile"
+                            entityId={listing.primary_storage_profile.id}
+                            variant="inline"
+                          >
+                            {formatStorageSummary(
+                              listing.primary_storage_profile ?? null,
+                              listing.primary_storage_gb ?? null,
+                              listing.primary_storage_type ?? null,
+                            )}
+                          </EntityTooltip>
+                        ) : (
+                          formatStorageSummary(
+                            listing.primary_storage_profile ?? null,
+                            listing.primary_storage_gb ?? null,
+                            listing.primary_storage_type ?? null,
+                          )
+                        )}
+                      </span>
+                    </div>
+                  )}
                   {formatStorageSummary(
                     listing.secondary_storage_profile ?? null,
                     listing.secondary_storage_gb ?? null,
                     listing.secondary_storage_type ?? null,
                   ) && (
-                    <SpecRow
-                      label="Secondary Storage"
-                      value={formatStorageSummary(
-                        listing.secondary_storage_profile ?? null,
-                        listing.secondary_storage_gb ?? null,
-                        listing.secondary_storage_type ?? null,
-                      )}
-                    />
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">Secondary Storage</span>
+                      <span className="font-medium">
+                        {listing.secondary_storage_profile?.id ? (
+                          <EntityTooltip
+                            entityType="storage-profile"
+                            entityId={listing.secondary_storage_profile.id}
+                            variant="inline"
+                          >
+                            {formatStorageSummary(
+                              listing.secondary_storage_profile ?? null,
+                              listing.secondary_storage_gb ?? null,
+                              listing.secondary_storage_type ?? null,
+                            )}
+                          </EntityTooltip>
+                        ) : (
+                          formatStorageSummary(
+                            listing.secondary_storage_profile ?? null,
+                            listing.secondary_storage_gb ?? null,
+                            listing.secondary_storage_type ?? null,
+                          )
+                        )}
+                      </span>
+                    </div>
                   )}
                 </div>
                 {listing.ports_profile?.ports && listing.ports_profile.ports.length > 0 && (
@@ -153,6 +254,44 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                   </div>
                 )}
               </Section>
+
+              {(listing.listing_url || (listing.other_urls && listing.other_urls.length > 0)) && (
+                <>
+                  <Separator />
+
+                  <Section title={`Links${listing.other_urls && listing.other_urls.length > 3 ? ` (${listing.other_urls.length + 1})` : ''}`}>
+                    <div className="space-y-2">
+                      {listing.listing_url && (
+                        <div className="flex items-center gap-2">
+                          <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <a
+                            href={listing.listing_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline break-all"
+                          >
+                            View Original Listing
+                          </a>
+                        </div>
+                      )}
+
+                      {listing.other_urls && listing.other_urls.map((link, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline break-all"
+                          >
+                            {link.label || `Additional Link ${index + 1}`}
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </Section>
+                </>
+              )}
 
               <Separator />
 
