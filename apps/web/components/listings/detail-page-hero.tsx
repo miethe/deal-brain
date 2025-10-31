@@ -2,6 +2,7 @@ import { ProductImage } from "./product-image";
 import { SummaryCard } from "./summary-card";
 import { SummaryCardsGrid } from "./summary-cards-grid";
 import { Badge } from "@/components/ui/badge";
+import { EntityTooltip } from "./entity-tooltip";
 import type { ListingDetail } from "@/types/listing-detail";
 
 interface DetailPageHeroProps {
@@ -18,35 +19,68 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
     value == null ? "—" : value.toFixed(2);
 
   // CPU summary
-  const cpuValue = listing.cpu?.model || listing.cpu_name || "Unknown";
+  const cpuText = listing.cpu?.model || listing.cpu_name || "Unknown";
+  const cpuValue = listing.cpu?.id ? (
+    <EntityTooltip
+      entityType="cpu"
+      entityId={listing.cpu.id}
+      variant="inline"
+    >
+      {cpuText}
+    </EntityTooltip>
+  ) : (
+    cpuText
+  );
   const cpuSubtitle =
     listing.cpu?.cores && listing.cpu?.threads
       ? `${listing.cpu.cores}C/${listing.cpu.threads}T`
       : undefined;
 
   // GPU summary
-  const gpuValue = listing.gpu?.model || listing.gpu_name || "None";
+  const gpuText = listing.gpu?.model || listing.gpu_name || "None";
+  const gpuValue = listing.gpu?.id ? (
+    <EntityTooltip
+      entityType="gpu"
+      entityId={listing.gpu.id}
+      variant="inline"
+    >
+      {gpuText}
+    </EntityTooltip>
+  ) : (
+    gpuText
+  );
   const gpuSubtitle = listing.gpu?.vram_gb ? `${listing.gpu.vram_gb}GB VRAM` : undefined;
 
   // RAM summary
-  const ramValue = listing.ram_gb ? `${listing.ram_gb}GB` : "Unknown";
+  const ramText = listing.ram_gb ? `${listing.ram_gb}GB` : "Unknown";
+  const ramValue = listing.ram_spec?.id ? (
+    <EntityTooltip
+      entityType="ram-spec"
+      entityId={listing.ram_spec.id}
+      variant="inline"
+    >
+      {ramText}
+    </EntityTooltip>
+  ) : (
+    ramText
+  );
   const ramSubtitle =
     listing.ram_type || listing.ram_speed_mhz
       ? `${listing.ram_type || ""}${listing.ram_speed_mhz ? ` @ ${listing.ram_speed_mhz}MHz` : ""}`.trim()
       : undefined;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-2">
       {/* Left side: Product Image */}
       <div className="flex items-start justify-center lg:justify-start">
         <ProductImage listing={listing} className="h-64 w-full sm:h-80 lg:h-96" />
       </div>
 
       {/* Right side: Summary Cards */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Title and basic info */}
         <div className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{listing.title}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{listing.title}</h1>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="capitalize">
               {listing.condition}
@@ -67,13 +101,13 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
           <SummaryCard
             title="Listing Price"
             value={formatCurrency(listing.price_usd)}
-            size="medium"
+            size="large"
           />
 
           <SummaryCard
             title="Adjusted Price"
             value={formatCurrency(listing.adjusted_price_usd)}
-            size="medium"
+            size="large"
           />
 
           <SummaryCard
@@ -81,7 +115,7 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
             value={cpuValue}
             subtitle={cpuSubtitle}
             size="medium"
-            valueClassName="text-sm"
+            valueClassName="text-base"
           />
 
           <SummaryCard
@@ -89,7 +123,7 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
             value={gpuValue}
             subtitle={gpuSubtitle}
             size="medium"
-            valueClassName="text-sm"
+            valueClassName="text-base"
           />
 
           <SummaryCard
@@ -97,13 +131,13 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
             value={ramValue}
             subtitle={ramSubtitle}
             size="medium"
-            valueClassName="text-sm"
+            valueClassName="text-base"
           />
 
           <SummaryCard
             title="Composite Score"
             value={formatNumber(listing.score_composite)}
-            size="medium"
+            size="large"
           />
         </SummaryCardsGrid>
       </div>

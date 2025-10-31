@@ -36,9 +36,6 @@ import { ComboBox } from "../forms/combobox";
 import { useConfirmation } from "../ui/confirmation-dialog";
 import { useValuationThresholds } from "@/hooks/use-valuation-thresholds";
 import { EntityTooltip } from "./entity-tooltip";
-import { CpuTooltipContent } from "./tooltips/cpu-tooltip-content";
-import { GpuTooltipContent } from "./tooltips/gpu-tooltip-content";
-import { fetchEntityData } from "@/lib/api/entities";
 import { RamSpecSelector } from "../forms/ram-spec-selector";
 import { StorageProfileSelector } from "../forms/storage-profile-selector";
 import { getStorageMediumLabel } from "../../lib/component-catalog";
@@ -463,8 +460,6 @@ export function ListingsTable() {
                   <EntityTooltip
                     entityType="gpu"
                     entityId={gpu.id}
-                    tooltipContent={(gpuData) => <GpuTooltipContent gpu={gpuData} />}
-                    fetchData={fetchEntityData}
                     variant="inline"
                   >
                     {gpuName || gpu.name || "Unknown GPU"}
@@ -521,8 +516,6 @@ export function ListingsTable() {
               <EntityTooltip
                 entityType="cpu"
                 entityId={cpu.id}
-                tooltipContent={(cpuData) => <CpuTooltipContent cpu={cpuData} />}
-                fetchData={fetchEntityData}
                 variant="inline"
               >
                 {cpuName || cpu.name || "Unknown"}

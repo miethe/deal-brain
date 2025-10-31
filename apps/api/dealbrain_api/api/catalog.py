@@ -2,15 +2,13 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import String, cast, func, or_, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from dealbrain_core.enums import RamGeneration, StorageMedium
 from dealbrain_core.schemas import (
     CpuCreate,
     CpuRead,
     GpuCreate,
     GpuRead,
+    ListingRead,
     PortsProfileCreate,
     PortsProfileRead,
     ProfileCreate,
@@ -20,10 +18,12 @@ from dealbrain_core.schemas import (
     StorageProfileCreate,
     StorageProfileRead,
 )
-from dealbrain_core.enums import RamGeneration, StorageMedium
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import String, cast, func, or_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import session_dependency
-from ..models import Cpu, Gpu, PortsProfile, Port, Profile, RamSpec, StorageProfile
+from ..models import Cpu, Gpu, Listing, Port, PortsProfile, Profile, RamSpec, StorageProfile
 from ..services.component_catalog import (
     get_or_create_ram_spec,
     get_or_create_storage_profile,
@@ -266,3 +266,129 @@ async def create_storage_profile(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return StorageProfileRead.model_validate(profile)
+
+
+# "Used In" Endpoints - Return listings that use each entity type
+
+
+@router.get("/cpus/{cpu_id}/listings", response_model=list[ListingRead])
+async def get_cpu_listings(
+    cpu_id: int,
+    limit: int = Query(
+        default=50, ge=1, le=100, description="Maximum number of listings to return"
+    ),
+    offset: int = Query(default=0, ge=0, description="Number of listings to skip"),
+    session: AsyncSession = Depends(session_dependency),
+) -> Sequence[ListingRead]:
+    """Get all listings that use this CPU."""
+    # Verify CPU exists
+    cpu = await session.get(Cpu, cpu_id)
+    if not cpu:
+        raise HTTPException(status_code=404, detail=f"CPU with id {cpu_id} not found")
+
+    # Query listings
+    stmt = (
+        select(Listing)
+        .where(Listing.cpu_id == cpu_id)
+        .order_by(Listing.updated_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    result = await session.execute(stmt)
+    listings = result.scalars().all()
+
+    return [ListingRead.model_validate(listing) for listing in listings]
+
+
+@router.get("/gpus/{gpu_id}/listings", response_model=list[ListingRead])
+async def get_gpu_listings(
+    gpu_id: int,
+    limit: int = Query(
+        default=50, ge=1, le=100, description="Maximum number of listings to return"
+    ),
+    offset: int = Query(default=0, ge=0, description="Number of listings to skip"),
+    session: AsyncSession = Depends(session_dependency),
+) -> Sequence[ListingRead]:
+    """Get all listings that use this GPU."""
+    # Verify GPU exists
+    gpu = await session.get(Gpu, gpu_id)
+    if not gpu:
+        raise HTTPException(status_code=404, detail=f"GPU with id {gpu_id} not found")
+
+    # Query listings
+    stmt = (
+        select(Listing)
+        .where(Listing.gpu_id == gpu_id)
+        .order_by(Listing.updated_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    result = await session.execute(stmt)
+    listings = result.scalars().all()
+
+    return [ListingRead.model_validate(listing) for listing in listings]
+
+
+@router.get("/ram-specs/{ram_spec_id}/listings", response_model=list[ListingRead])
+async def get_ram_spec_listings(
+    ram_spec_id: int,
+    limit: int = Query(
+        default=50, ge=1, le=100, description="Maximum number of listings to return"
+    ),
+    offset: int = Query(default=0, ge=0, description="Number of listings to skip"),
+    session: AsyncSession = Depends(session_dependency),
+) -> Sequence[ListingRead]:
+    """Get all listings that use this RAM specification."""
+    # Verify RAM spec exists
+    ram_spec = await session.get(RamSpec, ram_spec_id)
+    if not ram_spec:
+        raise HTTPException(status_code=404, detail=f"RAM spec with id {ram_spec_id} not found")
+
+    # Query listings
+    stmt = (
+        select(Listing)
+        .where(Listing.ram_spec_id == ram_spec_id)
+        .order_by(Listing.updated_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    result = await session.execute(stmt)
+    listings = result.scalars().all()
+
+    return [ListingRead.model_validate(listing) for listing in listings]
+
+
+@router.get("/storage-profiles/{storage_profile_id}/listings", response_model=list[ListingRead])
+async def get_storage_profile_listings(
+    storage_profile_id: int,
+    limit: int = Query(
+        default=50, ge=1, le=100, description="Maximum number of listings to return"
+    ),
+    offset: int = Query(default=0, ge=0, description="Number of listings to skip"),
+    session: AsyncSession = Depends(session_dependency),
+) -> Sequence[ListingRead]:
+    """Get all listings that use this storage profile (either primary or secondary)."""
+    # Verify storage profile exists
+    storage_profile = await session.get(StorageProfile, storage_profile_id)
+    if not storage_profile:
+        raise HTTPException(
+            status_code=404, detail=f"Storage profile with id {storage_profile_id} not found"
+        )
+
+    # Query listings (check both primary and secondary storage)
+    stmt = (
+        select(Listing)
+        .where(
+            or_(
+                Listing.primary_storage_profile_id == storage_profile_id,
+                Listing.secondary_storage_profile_id == storage_profile_id,
+            )
+        )
+        .order_by(Listing.updated_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    result = await session.execute(stmt)
+    listings = result.scalars().all()
+
+    return [ListingRead.model_validate(listing) for listing in listings]
