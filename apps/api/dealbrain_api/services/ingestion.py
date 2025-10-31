@@ -388,7 +388,7 @@ class ListingNormalizer:
             if match:
                 brand = match.group(1)
                 # Extract model (next 2-3 words after brand)
-                remaining = title[match.end():].strip()
+                remaining = title[match.end() :].strip()
                 model_match = re.match(r"^([\w\-]+(?:\s+[\w\-]+){0,2})", remaining)
                 if model_match:
                     model = model_match.group(1).strip()
@@ -411,7 +411,7 @@ class ListingNormalizer:
                 r"\s+(Mini PC|Desktop|Tower|SFF|USFF|Computer|PC).*$",
                 "",
                 model,
-                flags=re.IGNORECASE
+                flags=re.IGNORECASE,
             )
 
         logger.debug(
@@ -1099,6 +1099,20 @@ class IngestionService:
                 listing = await self._create_listing(normalized)
                 status = "created"
 
+            # Step 4.5: Calculate performance metrics
+            if listing.cpu_id:
+                from .listings import apply_listing_metrics
+
+                await apply_listing_metrics(self.session, listing)
+                await self.session.refresh(listing)
+                logger.info(
+                    "ingestion.listing.metrics_applied",
+                    listing_id=listing.id,
+                    has_adjusted_price=listing.adjusted_price_usd is not None,
+                    has_single_thread_metric=listing.dollar_per_cpu_mark_single is not None,
+                    has_multi_thread_metric=listing.dollar_per_cpu_mark_multi is not None,
+                )
+
             # Step 5: Emit events
             quality = self.normalizer.assess_quality(normalized)
             if status == "created":
@@ -1354,8 +1368,9 @@ class IngestionService:
             new_price=float(data.price),
             cpu_id=existing.cpu_id,
             ram_gb=data.ram_gb if data.ram_gb is not None else existing.ram_gb,
-            storage_gb=
-            data.storage_gb if data.storage_gb is not None else existing.primary_storage_gb,
+            storage_gb=(
+                data.storage_gb if data.storage_gb is not None else existing.primary_storage_gb
+            ),
             manufacturer=data.manufacturer or existing.manufacturer,
             model_number=data.model_number or existing.model_number,
         )
