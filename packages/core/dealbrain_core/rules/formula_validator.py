@@ -1,12 +1,13 @@
 """Formula validator with AST analysis and field reference extraction"""
 
 import ast
-import logging
 from typing import Any, Optional
 
-from .formula import FormulaParser, FormulaError, FormulaSyntaxError, FormulaValidationError
+import structlog
 
-logger = logging.getLogger(__name__)
+from .formula import FormulaError, FormulaParser, FormulaSyntaxError, FormulaValidationError
+
+logger = structlog.get_logger(__name__)
 
 
 class ValidationError:

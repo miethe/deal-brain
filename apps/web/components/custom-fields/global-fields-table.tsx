@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Lock } from "lucide-react";
 
 import { track } from "../../lib/analytics";
+import { telemetry } from "../../lib/telemetry";
 import { ApiError, apiFetch, cn } from "../../lib/utils";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -463,7 +464,9 @@ export function GlobalFieldsTable({ entity, hideEntityPicker = false }: GlobalFi
   useEffect(() => {
     if (fieldsError) {
       // eslint-disable-next-line no-console
-      console.error("Unable to load fields", fieldsError);
+      telemetry.error("frontend.fields.load_failed", {
+        message: fieldsError?.message ?? "Unknown error",
+      });
     }
   }, [fieldsError]);
 

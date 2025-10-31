@@ -5,6 +5,9 @@ from __future__ import annotations
 from celery import Celery
 from celery.schedules import crontab
 
+from dealbrain_api.settings import get_settings
+from dealbrain_api.telemetry import get_logger, init_telemetry
+
 celery_app = Celery("dealbrain")
 celery_app.config_from_object(
     {
@@ -16,6 +19,9 @@ celery_app.config_from_object(
         "timezone": "UTC",
     }
 )
+
+init_telemetry(get_settings())
+worker_logger = get_logger("dealbrain.celery")
 
 
 @celery_app.task

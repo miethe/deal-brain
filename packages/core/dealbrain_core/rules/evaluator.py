@@ -1,15 +1,16 @@
 """Rule evaluator orchestrates condition checking and action execution"""
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import Any
+
+import structlog
 
 from .actions import Action, ActionEngine
 from .conditions import Condition, ConditionGroup
 from .formula import FormulaEngine
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -157,8 +158,8 @@ class RuleEvaluator:
 
         for rule_dict in sorted_rules:
             # Build conditions and actions from dict
-            from .conditions import build_condition_from_dict
             from .actions import build_action_from_dict
+            from .conditions import build_condition_from_dict
 
             conditions = None
             if "conditions" in rule_dict and rule_dict["conditions"]:

@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-import logging
 from datetime import datetime
 from typing import Any, Iterable
 from urllib.parse import urlparse
 
 from dealbrain_core.enums import ComponentMetric, ComponentType, Condition, StorageMedium
 from dealbrain_core.gpu import compute_gpu_score
+from dealbrain_core.schemas.ingestion import NormalizedListingSchema
 from dealbrain_core.scoring import ListingMetrics, compute_composite_score, dollar_per_metric
 from dealbrain_core.valuation import ComponentValuationInput, compute_adjusted_price
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Cpu, Gpu, Listing, ListingComponent, Profile
+from ..telemetry import get_logger
 from .component_catalog import (
     get_or_create_ram_spec,
     get_or_create_storage_profile,
@@ -22,11 +23,12 @@ from .component_catalog import (
     normalize_storage_profile_payload,
     storage_medium_display,
 )
+from .ingestion import DeduplicationResult
 from .rule_evaluation import RuleEvaluationService
 
 VALUATION_DISABLED_RULESETS_KEY = "valuation_disabled_rulesets"
 
-logger = logging.getLogger(__name__)
+logger = get_logger("dealbrain.listings")
 _RULE_EVALUATION_SERVICE = RuleEvaluationService()
 
 
@@ -102,7 +104,9 @@ def _normalize_other_urls(value: Any) -> list[dict[str, str | None]]:
             continue
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise ValueError("Supplemental link URLs must use http:// or https:// and include a host")
+            raise ValueError(
+                "Supplemental link URLs must use http:// or https:// and include a host"
+            )
         if url in seen:
             continue
         seen.add(url)
@@ -116,7 +120,7 @@ async def _prepare_component_relationships(
     *,
     listing: Listing | None = None,
 ) -> None:
-    """Resolve or create component relationships (RAM specs, storage profiles) for a listing payload."""
+    """Resolve or create component relationships for a listing payload."""
     ram_type_hint = payload.pop("ram_type", None)
     ram_speed_hint = payload.pop("ram_speed_mhz", None)
     ram_spec_payload = payload.pop("ram_spec", None)
@@ -124,16 +128,18 @@ async def _prepare_component_relationships(
     if "ram_spec_id" not in payload:
         total_capacity = normalize_int(payload.get("ram_gb"))
         if total_capacity is None and listing:
-            total_capacity = listing.ram_spec.total_capacity_gb if listing.ram_spec else listing.ram_gb
+            total_capacity = (
+                listing.ram_spec.total_capacity_gb if listing.ram_spec else listing.ram_gb
+            )
         spec_input = normalize_ram_spec_payload(
             ram_spec_payload,
             fallback_total_gb=total_capacity,
-            fallback_generation=normalize_ram_generation(ram_type_hint) if ram_type_hint else (
-                listing.ram_spec.ddr_generation if listing and listing.ram_spec else None
-            ),
-            fallback_speed=normalize_int(ram_speed_hint) or (
-                listing.ram_spec.speed_mhz if listing and listing.ram_spec else None
-            ),
+            fallback_generation=normalize_ram_generation(ram_type_hint)
+            if ram_type_hint
+            else (listing.ram_spec.ddr_generation if listing and listing.ram_spec else None),
+            fallback_speed=
+            normalize_int(ram_speed_hint)
+            or (listing.ram_spec.speed_mhz if listing and listing.ram_spec else None),
         )
         if spec_input:
             ram_spec = await get_or_create_ram_spec(session, spec_input)
@@ -181,11 +187,16 @@ async def _prepare_component_relationships(
         storage_profile = await get_or_create_storage_profile(session, profile_input)
         payload[profile_id_key] = storage_profile.id
 
-        if payload.get(capacity_key) is None and storage_profile.capacity_gb is not None:
+        if (
+            payload.get(capacity_key) is None
+            and storage_profile.capacity_gb is not None
+        ):
             payload[capacity_key] = storage_profile.capacity_gb
 
         if storage_profile.medium and storage_profile.medium != StorageMedium.UNKNOWN:
-            payload[storage_type_key] = payload.get(storage_type_key) or storage_medium_display(storage_profile.medium)
+            payload[storage_type_key] = payload.get(storage_type_key) or storage_medium_display(
+                storage_profile.medium
+            )
 def _format_rule_evaluation_breakdown(summary: dict[str, Any]) -> dict[str, Any]:
     """Normalize rule evaluation summary for storage on the listing record."""
     def _as_float(value: Any) -> float:
@@ -273,6 +284,13 @@ def _format_rule_evaluation_breakdown(summary: dict[str, Any]) -> dict[str, Any]
 async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None:
     evaluation_summary: dict[str, Any] | None = None
 
+    logger.debug(
+        "listing.metrics.start",
+        listing_id=listing.id,
+        ruleset_id=listing.ruleset_id,
+        price=listing.price_usd,
+    )
+
     if listing.id:
         try:
             ruleset_override = listing.ruleset_id if listing.ruleset_id else None
@@ -284,26 +302,34 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
         except ValueError as exc:
             # Expected when no active rulesets are available; fall back to legacy valuation path.
             if "No active ruleset found" not in str(exc):
-                logger.warning("Rule evaluation failed for listing %s: %s", listing.id, exc)
+                logger.warning(
+                    "listing.metrics.rule_evaluation_failed",
+                    listing_id=listing.id,
+                    ruleset_id=ruleset_override,
+                    error=str(exc),
+                )
         except Exception:  # pragma: no cover - defensive logging
-            logger.exception("Unexpected error evaluating rules for listing %s", listing.id)
+            logger.exception(
+                "listing.metrics.rule_evaluation_error",
+                listing_id=listing.id,
+                ruleset_id=ruleset_override,
+            )
 
     if evaluation_summary:
-        logger.debug(
-            "Rule evaluation produced adjustments",
-            extra={
-                "listing_id": listing.id,
-                "ruleset_id": evaluation_summary.get("ruleset_id"),
-                "matched_rules": evaluation_summary.get("matched_rules_count"),
-                "total_adjustment": evaluation_summary.get("total_adjustment"),
-            },
+        logger.info(
+            "listing.metrics.ruleset_applied",
+            listing_id=listing.id,
+            ruleset_id=evaluation_summary.get("ruleset_id"),
+            matched_rules=evaluation_summary.get("matched_rules_count"),
+            total_adjustment=float(evaluation_summary.get("total_adjustment") or 0.0),
         )
         listing.adjusted_price_usd = float(evaluation_summary.get("adjusted_price") or 0.0)
         listing.valuation_breakdown = _format_rule_evaluation_breakdown(evaluation_summary)
     else:
-        logger.debug(
-            "Falling back to legacy valuation path",
-            extra={"listing_id": listing.id, "reason": "rule_evaluation_empty"},
+        logger.info(
+            "listing.metrics.legacy_path",
+            listing_id=listing.id,
+            reason="rule_evaluation_empty",
         )
         # Eagerly load components to avoid lazy-load in async context for legacy valuation fallback.
         await session.refresh(listing, ["components"])
@@ -385,11 +411,25 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
     # New dollar per CPU Mark metrics (single and multi-thread)
     if listing.adjusted_price_usd and cpu:
         if cpu.cpu_mark_single:
-            listing.dollar_per_cpu_mark_single = listing.adjusted_price_usd / cpu.cpu_mark_single
+            listing.dollar_per_cpu_mark_single = (
+                listing.adjusted_price_usd / cpu.cpu_mark_single
+            )
         if cpu.cpu_mark_multi:
-            listing.dollar_per_cpu_mark_multi = listing.adjusted_price_usd / cpu.cpu_mark_multi
+            listing.dollar_per_cpu_mark_multi = (
+                listing.adjusted_price_usd / cpu.cpu_mark_multi
+            )
 
     await session.flush()
+    logger.info(
+        "listing.metrics.computed",
+        listing_id=listing.id,
+        adjusted_price=float(listing.adjusted_price_usd or 0.0),
+        score_composite=
+        float(listing.score_composite or 0.0)
+        if listing.score_composite is not None
+        else None,
+        ruleset_id=listing.ruleset_id,
+    )
 
 
 def build_component_inputs(listing: Listing) -> Iterable[ComponentValuationInput]:
@@ -446,14 +486,21 @@ async def get_default_profile(session: AsyncSession) -> Profile | None:
 
 
 async def create_listing(session: AsyncSession, payload: dict) -> Listing:
-    # Map 'attributes' to 'attributes_json' for SQLAlchemy model
-    if 'attributes' in payload:
-        payload['attributes_json'] = payload.pop('attributes')
+    # Map "attributes" to "attributes_json" for SQLAlchemy model
+    if "attributes" in payload:
+        payload["attributes_json"] = payload.pop("attributes")
     payload = _normalize_listing_payload(payload)
     await _prepare_component_relationships(session, payload)
     listing = Listing(**payload)
     session.add(listing)
     await session.flush()
+    logger.info(
+        "listing.created",
+        listing_id=listing.id,
+        title=listing.title,
+        price=listing.price_usd,
+        ruleset_id=listing.ruleset_id,
+    )
     return listing
 
 
@@ -463,6 +510,12 @@ async def update_listing(session: AsyncSession, listing: Listing, payload: dict)
     for field, value in payload.items():
         setattr(listing, field, value)
     await session.flush()
+    logger.info(
+        "listing.updated",
+        listing_id=listing.id,
+        updated_fields=list(payload.keys()),
+        ruleset_id=listing.ruleset_id,
+    )
     return listing
 
 
@@ -496,6 +549,11 @@ async def sync_listing_components(
             ),
         )
     await session.flush()
+    logger.info(
+        "listing.components.synced",
+        listing_id=listing.id,
+        component_count=len(components_payload),
+    )
 
 
 async def partial_update_listing(
@@ -523,6 +581,14 @@ async def partial_update_listing(
             else:
                 merged[key] = value
         listing.attributes_json = merged
+
+    logger.info(
+        "listing.partial_update",
+        listing_id=listing.id,
+        updated_fields=list(fields.keys()),
+        attribute_keys=list(attributes.keys()),
+        run_metrics=run_metrics,
+    )
 
     await session.flush()
 
@@ -753,8 +819,8 @@ async def bulk_update_listing_metrics(
 
 async def upsert_from_url(
     session: AsyncSession,
-    normalized: "NormalizedListingSchema",  # noqa: F821
-    dedupe_result: "DeduplicationResult",  # noqa: F821
+    normalized: NormalizedListingSchema,
+    dedupe_result: DeduplicationResult,
 ) -> Listing:
     """Upsert listing from URL ingestion.
 

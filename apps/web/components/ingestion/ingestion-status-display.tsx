@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertCircle, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { telemetry } from '@/lib/telemetry';
 import { ImportSuccessResult } from './import-success-result';
 import type { IngestionStatusDisplayProps } from './types';
 
@@ -70,7 +71,11 @@ export function IngestionStatusDisplay({
 
     // Log for debugging during development
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[Progress] ${progress}% (backend: ${backendProgress ?? 'null'}, elapsed: ${elapsed}s)`);
+      telemetry.debug('frontend.import.progress', {
+        progress,
+        backendProgress: backendProgress ?? null,
+        elapsed,
+      });
     }
 
     const message = getPollingMessage(elapsed, backendProgress);

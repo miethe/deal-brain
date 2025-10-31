@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import Iterable, Sequence
 
 from dealbrain_core.enums import ListingStatus
@@ -12,9 +11,10 @@ from sqlalchemy import select
 from ..db import session_scope
 from ..models import Listing
 from ..services.listings import apply_listing_metrics
+from ..telemetry import bind_request_context, clear_context, get_logger, new_request_id
 from ..worker import celery_app
 
-logger = logging.getLogger(__name__)
+logger = get_logger("dealbrain.tasks.valuation")
 
 RECALC_TASK_NAME = "valuation.recalculate_listings"
 
@@ -55,6 +55,14 @@ async def _recalculate_listings_async(
     """
     counters = {"processed": 0, "succeeded": 0, "failed": 0}
 
+    logger.info(
+        "valuation.recalc.start",
+        requested_ids=len(listing_ids or []),
+        ruleset_id=ruleset_id,
+        batch_size=batch_size,
+        include_inactive=include_inactive,
+    )
+
     async with session_scope() as session:
         stmt = select(Listing.id).order_by(Listing.id)
         if listing_ids:
@@ -76,13 +84,11 @@ async def _recalculate_listings_async(
         await session.commit()
 
     logger.info(
-        "Valuation recalculation complete",
-        extra={
-            "processed": counters["processed"],
-            "succeeded": counters["succeeded"],
-            "failed": counters["failed"],
-            "ruleset_id": ruleset_id,
-        },
+        "valuation.recalc.complete",
+        processed=counters["processed"],
+        succeeded=counters["succeeded"],
+        failed=counters["failed"],
+        ruleset_id=ruleset_id,
     )
     return counters
 
@@ -103,7 +109,11 @@ async def _process_batch(session, listing_ids: Sequence[int], counters: dict[str
             counters["succeeded"] += 1
         except Exception as exc:  # pragma: no cover - defensive logging
             counters["failed"] += 1
-            logger.exception("Failed to recalculate listing %s", listing.id, exc_info=exc)
+            logger.exception(
+                "valuation.recalc.listing_failed",
+                listing_id=listing.id,
+                error=str(exc),
+            )
 
 
 @celery_app.task(name=RECALC_TASK_NAME, bind=True)
@@ -118,14 +128,19 @@ def recalculate_listings_task(
 ) -> dict[str, int]:
     """Celery task entry-point for listing recalculation."""
     normalized_ids = _normalize_listing_ids(listing_ids)
+    correlation_id = new_request_id()
+    bind_request_context(
+        correlation_id,
+        task=RECALC_TASK_NAME,
+        ruleset_id=ruleset_id,
+        reason=reason,
+    )
     logger.info(
-        "Starting valuation recalculation",
-        extra={
-            "requested_ids": len(normalized_ids) or "all",
-            "ruleset_id": ruleset_id,
-            "batch_size": batch_size,
-            "reason": reason,
-        },
+        "valuation.recalc.dispatch",
+        requested_ids=len(normalized_ids) or "all",
+        ruleset_id=ruleset_id,
+        batch_size=batch_size,
+        reason=reason,
     )
     # Create fresh event loop for each task execution
     # This prevents "attached to a different loop" errors in forked worker processes
@@ -147,6 +162,7 @@ def recalculate_listings_task(
         finally:
             loop.close()
             asyncio.set_event_loop(None)
+            clear_context()
 
 
 def enqueue_listing_recalculation(
@@ -170,10 +186,10 @@ def enqueue_listing_recalculation(
     try:
         if use_celery:
             recalculate_listings_task.delay(**payload)
-            logger.debug("Queued valuation recalculation", extra=payload)
+            logger.debug("valuation.recalc.queued", **payload)
             return
     except Exception as exc:  # pragma: no cover - fallback path
-        logger.warning("Falling back to synchronous recalculation: %s", exc, exc_info=exc)
+        logger.warning("valuation.recalc.fallback", error=str(exc))
 
     # Synchronous fallback (mostly used in tests/dev)
     recalculate_listings_task(**payload)

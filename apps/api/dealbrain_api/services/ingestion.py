@@ -10,7 +10,6 @@ when importing from URLs. It uses a hybrid approach:
 from __future__ import annotations
 
 import hashlib
-import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -23,7 +22,9 @@ from dealbrain_core.schemas.ingestion import NormalizedListingSchema
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger(__name__)
+from ..telemetry import get_logger
+
+logger = get_logger("dealbrain.ingestion")
 
 
 @dataclass
@@ -105,14 +106,13 @@ class DeduplicationService:
             )
             if result:
                 logger.info(
-                    "Deduplication: vendor_item_id match found",
-                    extra={
-                        "strategy": "vendor_id",
-                        "vendor_item_id": normalized_data.vendor_item_id,
-                        "marketplace": normalized_data.marketplace,
-                        "listing_id": result.id,
-                        "title": result.title,
-                    },
+                    "ingestion.dedup.match",
+                    strategy="vendor_id",
+                    vendor_item_id=normalized_data.vendor_item_id,
+                    marketplace=normalized_data.marketplace,
+                    listing_id=result.id,
+                    title=result.title,
+                    exists=True,
                 )
                 return DeduplicationResult(
                     exists=True,
@@ -127,13 +127,12 @@ class DeduplicationService:
 
         if result:
             logger.info(
-                "Deduplication: hash match found",
-                extra={
-                    "strategy": "hash",
-                    "dedup_hash": dedup_hash[:16] + "...",
-                    "listing_id": result.id,
-                    "title": result.title,
-                },
+                "ingestion.dedup.match",
+                strategy="hash",
+                dedup_hash=f"{dedup_hash[:16]}...",
+                listing_id=result.id,
+                title=result.title,
+                exists=True,
             )
             return DeduplicationResult(
                 exists=True,
@@ -145,12 +144,11 @@ class DeduplicationService:
 
         # 3. Not found
         logger.info(
-            "Deduplication: no match found, will create new listing",
-            extra={
-                "strategy": "none",
-                "dedup_hash": dedup_hash[:16] + "...",
-                "title": normalized_data.title,
-            },
+            "ingestion.dedup.new_listing",
+            strategy="none",
+            dedup_hash=f"{dedup_hash[:16]}...",
+            title=normalized_data.title,
+            exists=False,
         )
         return DeduplicationResult(
             exists=False,
@@ -416,7 +414,12 @@ class ListingNormalizer:
                 flags=re.IGNORECASE
             )
 
-        logger.debug(f"Parsed title '{title[:50]}...' → brand='{brand}', model='{model}'")
+        logger.debug(
+            "ingestion.title.parsed",
+            title_preview=f"{title[:50]}..." if len(title) > 50 else title,
+            brand=brand,
+            model=model,
+        )
 
         return brand, model
 
@@ -1077,6 +1080,7 @@ class IngestionService:
             ... else:
             ...     print(f"Failed: {result.error}")
         """
+        logger.info("ingestion.url.start", url=url)
         try:
             # Step 1: Extract raw data via adapter with fallback chain
             raw_data, adapter_name = await self.router.extract(url)
@@ -1111,7 +1115,7 @@ class IngestionService:
             await self._store_raw_payload(listing, adapter_name, normalized)
 
             # Step 7: Return result
-            return IngestionResult(
+            result = IngestionResult(
                 success=True,
                 listing_id=listing.id,
                 status=status,
@@ -1124,9 +1128,20 @@ class IngestionService:
                 vendor_item_id=listing.vendor_item_id,
                 marketplace=listing.marketplace,
             )
+            logger.info(
+                "ingestion.url.completed",
+                url=url,
+                listing_id=listing.id,
+                status=status,
+                provenance=adapter_name,
+                quality=quality,
+                dedup_exists=dedup_result.exists,
+                dedup_exact=dedup_result.is_exact_match,
+            )
+            return result
 
         except Exception as e:
-            # Log error and return failure result
+            logger.exception("ingestion.url.failed", url=url)
             return IngestionResult(
                 success=False,
                 listing_id=None,
@@ -1161,7 +1176,13 @@ class IngestionService:
         cpu = result.scalars().first()
 
         if cpu:
-            logger.info(f"Found CPU: {cpu.name} (ID: {cpu.id}) for model '{cpu_model}'")
+            logger.info(
+                "ingestion.cpu.match",
+                match_type="model",
+                cpu_id=cpu.id,
+                cpu_name=cpu.name,
+                query=cpu_model,
+            )
             return cpu.id
 
         # Try partial match (e.g., "i9-12900H" matches "Intel Core i9-12900H")
@@ -1173,10 +1194,17 @@ class IngestionService:
                 result = await self.session.execute(stmt)
                 cpu = result.scalars().first()
                 if cpu:
-                    logger.info(f"Found CPU: {cpu.name} (ID: {cpu.id}) for keyword '{keyword}'")
+                    logger.info(
+                        "ingestion.cpu.match",
+                        match_type="keyword",
+                        cpu_id=cpu.id,
+                        cpu_name=cpu.name,
+                        keyword=keyword,
+                        query=cpu_model,
+                    )
                     return cpu.id
 
-        logger.warning(f"No CPU found for model '{cpu_model}'")
+        logger.warning("ingestion.cpu.not_found", query=cpu_model)
         return None
 
     async def _create_listing(self, data: NormalizedListingSchema) -> Listing:
@@ -1213,7 +1241,11 @@ class IngestionService:
         attributes_json = {}
         if data.images:
             attributes_json["images"] = data.images
-            logger.info(f"Storing {len(data.images)} images in attributes_json")
+            logger.info(
+                "ingestion.images.persist",
+                count=len(data.images),
+                listing_title=data.title,
+            )
 
         # Create listing with all fields
         listing = Listing(
@@ -1236,13 +1268,15 @@ class IngestionService:
         )
 
         logger.info(
-            f"Created listing: {listing.title} | "
-            f"CPU: {cpu_id or 'None'} | "
-            f"RAM: {data.ram_gb or 0}GB | "
-            f"Storage: {data.storage_gb or 0}GB | "
-            f"Images: {len(data.images) if data.images else 0} | "
-            f"Brand: {data.manufacturer or 'None'} | "
-            f"Model: {data.model_number or 'None'}"
+            "ingestion.listing.created",
+            title=listing.title,
+            cpu_id=cpu_id,
+            ram_gb=data.ram_gb or 0,
+            storage_gb=data.storage_gb or 0,
+            image_count=len(data.images) if data.images else 0,
+            manufacturer=data.manufacturer,
+            model_number=data.model_number,
+            condition=condition.value,
         )
 
         self.session.add(listing)
@@ -1313,13 +1347,17 @@ class IngestionService:
             flag_modified(existing, "attributes_json")  # Tell SQLAlchemy JSON changed
 
         logger.info(
-            f"Updated listing: {existing.title} | "
-            f"Price: ${old_price} → ${data.price} | "
-            f"CPU: {existing.cpu_id or 'None'} | "
-            f"RAM: {data.ram_gb or 0}GB | "
-            f"Storage: {data.storage_gb or 0}GB | "
-            f"Brand: {data.manufacturer or 'None'} | "
-            f"Model: {data.model_number or 'None'}"
+            "ingestion.listing.updated",
+            listing_id=existing.id,
+            title=existing.title,
+            old_price=float(old_price or 0),
+            new_price=float(data.price),
+            cpu_id=existing.cpu_id,
+            ram_gb=data.ram_gb if data.ram_gb is not None else existing.ram_gb,
+            storage_gb=
+            data.storage_gb if data.storage_gb is not None else existing.primary_storage_gb,
+            manufacturer=data.manufacturer or existing.manufacturer,
+            model_number=data.model_number or existing.model_number,
         )
 
         await self.session.flush()

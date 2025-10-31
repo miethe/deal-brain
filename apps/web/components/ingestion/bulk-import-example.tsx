@@ -11,21 +11,27 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { BulkImportDialog } from './bulk-import-dialog';
 import { Upload } from 'lucide-react';
+import { telemetry } from '@/lib/telemetry';
 import type { BulkIngestionStatusResponse, BulkImportError } from './bulk-import-types';
 
 export function BulkImportExample() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleSuccess = (result: BulkIngestionStatusResponse) => {
-    console.log('Bulk import completed:', result);
-    console.log(`Total: ${result.total_urls}, Success: ${result.success}, Failed: ${result.failed}`);
+    telemetry.info('frontend.import.bulk.success', {
+      total: result.total_urls,
+      success: result.success,
+      failed: result.failed,
+    });
 
     // Optionally close dialog after completion
     // setDialogOpen(false);
   };
 
   const handleError = (error: BulkImportError) => {
-    console.error('Bulk import error:', error);
+    telemetry.error('frontend.import.bulk.failed', {
+      message: error?.message ?? 'Unknown error',
+    });
     // Handle error (show toast notification, etc.)
   };
 

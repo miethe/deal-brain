@@ -19,6 +19,7 @@ from . import (
     rankings,
     rules,
     settings,
+    telemetry,
 )
 
 router = APIRouter()
@@ -38,5 +39,6 @@ router.include_router(metrics.router)
 router.include_router(rules.router)
 router.include_router(entities.router)
 router.include_router(settings.router)
+router.include_router(telemetry.router)
 
 __all__ = ["router"]
