@@ -3,7 +3,6 @@ import { SummaryCard } from "./summary-card";
 import { SummaryCardsGrid } from "./summary-cards-grid";
 import { Badge } from "@/components/ui/badge";
 import { EntityTooltip } from "./entity-tooltip";
-import { fetchEntityData } from "@/lib/api/entities";
 import type { ListingDetail } from "@/types/listing-detail";
 
 interface DetailPageHeroProps {
@@ -25,7 +24,6 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
     <EntityTooltip
       entityType="cpu"
       entityId={listing.cpu.id}
-      fetchData={fetchEntityData}
       variant="inline"
     >
       {cpuText}
@@ -44,7 +42,6 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
     <EntityTooltip
       entityType="gpu"
       entityId={listing.gpu.id}
-      fetchData={fetchEntityData}
       variant="inline"
     >
       {gpuText}
@@ -60,7 +57,6 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
     <EntityTooltip
       entityType="ram-spec"
       entityId={listing.ram_spec.id}
-      fetchData={fetchEntityData}
       variant="inline"
     >
       {ramText}

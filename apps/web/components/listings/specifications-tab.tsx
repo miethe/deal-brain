@@ -15,7 +15,6 @@ import {
 import { ExternalLink } from "lucide-react";
 import type { ListingDetail } from "@/types/listing-detail";
 import { EntityTooltip } from "./entity-tooltip";
-import { fetchEntityData } from "@/lib/api/entities";
 import { QuickAddComputeDialog } from "./quick-add-compute-dialog";
 import { QuickAddMemoryDialog } from "./quick-add-memory-dialog";
 import { QuickAddStorageDialog } from "./quick-add-storage-dialog";
@@ -106,7 +105,6 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
               <EntityTooltip
                 entityType="cpu"
                 entityId={listing.cpu.id}
-                fetchData={fetchEntityData}
                 variant="inline"
               >
                 {listing.cpu.model || listing.cpu_name || "—"}
@@ -123,7 +121,6 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
             <EntityTooltip
               entityType="gpu"
               entityId={listing.gpu.id}
-              fetchData={fetchEntityData}
               variant="inline"
             >
               {listing.gpu.model || listing.gpu.name || listing.gpu_name || "—"}
@@ -172,7 +169,6 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
             <EntityTooltip
               entityType="ram-spec"
               entityId={listing.ram_spec_id}
-              fetchData={fetchEntityData}
               variant="inline"
             >
               {listing.ram_gb ? `${listing.ram_gb} GB` : "—"}
@@ -202,7 +198,6 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
               <EntityTooltip
                 entityType="storage-profile"
                 entityId={listing.primary_storage_profile_id}
-                fetchData={fetchEntityData}
                 variant="inline"
               >
                 {listing.primary_storage_gb} GB
@@ -224,7 +219,6 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
               <EntityTooltip
                 entityType="storage-profile"
                 entityId={listing.secondary_storage_profile_id}
-                fetchData={fetchEntityData}
                 variant="inline"
               >
                 {listing.secondary_storage_gb} GB

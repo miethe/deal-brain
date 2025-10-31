@@ -10,7 +10,6 @@ import { formatRamSummary, formatStorageSummary } from "@/components/listings/li
 import { PerformanceBadges } from "./performance-badges";
 import { useCatalogStore } from "@/stores/catalog-store";
 import { EntityTooltip } from "@/components/listings/entity-tooltip";
-import { fetchEntityData } from "@/lib/api/entities";
 
 interface ListingCardProps {
   listing: ListingRecord;
@@ -115,7 +114,6 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
                 <EntityTooltip
                   entityType="cpu"
                   entityId={listing.cpu.id}
-                  fetchData={fetchEntityData}
                   variant="inline"
                 >
                   {listing.cpu_name}
@@ -133,7 +131,6 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
                 <EntityTooltip
                   entityType="gpu"
                   entityId={listing.gpu.id}
-                  fetchData={fetchEntityData}
                   variant="inline"
                 >
                   {listing.gpu_name}

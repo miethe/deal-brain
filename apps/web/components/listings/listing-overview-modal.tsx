@@ -16,7 +16,6 @@ import { ListingRecord } from "../../types/listings";
 import { formatRamSummary, formatStorageSummary } from "./listing-formatters";
 import { ExternalLink } from "lucide-react";
 import { EntityTooltip } from "./entity-tooltip";
-import { fetchEntityData } from "../../lib/api/entities";
 import { ProductImageDisplay } from "./product-image-display";
 
 interface ListingOverviewModalProps {
@@ -131,7 +130,6 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                           <EntityTooltip
                             entityType="cpu"
                             entityId={listing.cpu.id}
-                            fetchData={fetchEntityData}
                             variant="inline"
                           >
                             {listing.cpu_name}
@@ -150,7 +148,6 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                           <EntityTooltip
                             entityType="gpu"
                             entityId={listing.gpu.id}
-                            fetchData={fetchEntityData}
                             variant="inline"
                           >
                             <span className="inline-flex items-center gap-1">
@@ -179,7 +176,6 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                           <EntityTooltip
                             entityType="ram-spec"
                             entityId={listing.ram_spec.id}
-                            fetchData={fetchEntityData}
                             variant="inline"
                           >
                             {formatRamSummary(listing)}
@@ -202,7 +198,6 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                           <EntityTooltip
                             entityType="storage-profile"
                             entityId={listing.primary_storage_profile.id}
-                            fetchData={fetchEntityData}
                             variant="inline"
                           >
                             {formatStorageSummary(
@@ -233,7 +228,6 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                           <EntityTooltip
                             entityType="storage-profile"
                             entityId={listing.secondary_storage_profile.id}
-                            fetchData={fetchEntityData}
                             variant="inline"
                           >
                             {formatStorageSummary(

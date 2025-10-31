@@ -10,6 +10,7 @@ import { CpuTooltipContent } from "./tooltips/cpu-tooltip-content";
 import { GpuTooltipContent } from "./tooltips/gpu-tooltip-content";
 import { RamSpecTooltipContent } from "./tooltips/ram-spec-tooltip-content";
 import { StorageProfileTooltipContent } from "./tooltips/storage-profile-tooltip-content";
+import { API_URL } from "@/lib/utils";
 
 export interface EntityTooltipProps {
   /**
@@ -26,12 +27,6 @@ export interface EntityTooltipProps {
    * Display text for the link
    */
   children: ReactNode;
-
-  /**
-   * Function to fetch entity data on hover
-   * Should return a Promise that resolves to entity data
-   */
-  fetchData?: (entityType: string, entityId: number) => Promise<any>;
 
   /**
    * Optional custom href (overrides default entity routing)
@@ -57,6 +52,49 @@ export interface EntityTooltipProps {
 }
 
 /**
+ * Fetch entity data for tooltip display
+ *
+ * Internal function used by EntityTooltip to lazy-load entity details on hover.
+ *
+ * @param entityType - Type of entity (cpu, gpu, ram-spec, storage-profile)
+ * @param entityId - ID of the entity to fetch
+ * @returns Promise resolving to entity data
+ */
+async function fetchEntityData(
+  entityType: string,
+  entityId: number
+): Promise<any> {
+  const endpoints: Record<string, string> = {
+    cpu: `/v1/catalog/cpus/${entityId}`,
+    gpu: `/v1/catalog/gpus/${entityId}`,
+    "ram-spec": `/v1/catalog/ram-specs/${entityId}`,
+    "storage-profile": `/v1/catalog/storage-profiles/${entityId}`,
+  };
+
+  const endpoint = endpoints[entityType];
+  if (!endpoint) {
+    throw new Error(`Unknown entity type: ${entityType}`);
+  }
+
+  const url = `${API_URL}${endpoint}`;
+
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch ${entityType}: ${response.status} ${response.statusText}`
+      );
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error(`fetchEntityData error for ${entityType} ${entityId}:`, error);
+    throw error;
+  }
+}
+
+/**
  * Entity link with hover tooltip displaying rich entity information
  *
  * Combines EntityLink with Radix UI Popover to provide:
@@ -72,7 +110,6 @@ export interface EntityTooltipProps {
  * <EntityTooltip
  *   entityType="cpu"
  *   entityId={123}
- *   fetchData={fetchCpuData}
  * >
  *   Intel Core i5-12400
  * </EntityTooltip>
@@ -82,7 +119,6 @@ export function EntityTooltip({
   entityType,
   entityId,
   children,
-  fetchData,
   href,
   variant = "link",
   className,
@@ -107,12 +143,12 @@ export function EntityTooltip({
     setIsOpen(open);
 
     // Fetch data when tooltip opens if not already loaded
-    if (open && !data && !isLoading && !error && fetchData) {
+    if (open && !data && !isLoading && !error) {
       setIsLoading(true);
       setError(null);
 
       try {
-        const result = await fetchData(entityType, entityId);
+        const result = await fetchEntityData(entityType, entityId);
         setData(result);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load data");
@@ -197,13 +233,6 @@ export function EntityTooltip({
             {entityType === "ram-spec" && <RamSpecTooltipContent ramSpec={data} />}
             {entityType === "storage-profile" && <StorageProfileTooltipContent storageProfile={data} />}
           </>
-        )}
-
-        {/* No data and no fetch function */}
-        {!data && !isLoading && !error && !fetchData && (
-          <div className="text-sm text-muted-foreground">
-            No tooltip content available
-          </div>
         )}
       </PopoverContent>
     </Popover>
