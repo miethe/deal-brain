@@ -402,10 +402,10 @@ class Listing(Base, TimestampMixin):
     active_profile_id: Mapped[int | None] = mapped_column(ForeignKey("profile.id"))
 
     # Performance Metrics (New)
-    dollar_per_cpu_mark_single: Mapped[float | None]
-    dollar_per_cpu_mark_single_adjusted: Mapped[float | None]
-    dollar_per_cpu_mark_multi: Mapped[float | None]
-    dollar_per_cpu_mark_multi_adjusted: Mapped[float | None]
+    dollar_per_cpu_mark_single: Mapped[float | None]  # base_price / single-thread mark
+    dollar_per_cpu_mark_single_adjusted: Mapped[float | None]  # (base_price + component_adjustments) / single-thread mark
+    dollar_per_cpu_mark_multi: Mapped[float | None]  # base_price / multi-thread mark
+    dollar_per_cpu_mark_multi_adjusted: Mapped[float | None]  # (base_price + component_adjustments) / multi-thread mark
 
     # Product Metadata (New)
     manufacturer: Mapped[str | None] = mapped_column(String(64))
