@@ -802,7 +802,7 @@ async def bulk_update_listing_metrics(
     Returns:
     -------
         Count of listings updated
-    
+
     """
     from sqlalchemy.orm import joinedload
 
@@ -822,6 +822,46 @@ async def bulk_update_listing_metrics(
 
     await session.commit()
     return updated_count
+
+
+async def delete_listing(
+    session: AsyncSession,
+    listing_id: int,
+) -> None:
+    """Delete listing and cascade related records.
+
+    Cascades delete to:
+    - ListingComponent records
+    - ListingScoreSnapshot records
+    - RawPayload records
+    - EntityFieldValue records (custom fields) via DB FK cascade
+
+    Args:
+    ----
+        session: Database session
+        listing_id: ID of listing to delete
+
+    Raises:
+    ------
+        ValueError: Listing not found
+    """
+    listing = await session.get(Listing, listing_id)
+    if not listing:
+        raise ValueError(f"Listing {listing_id} not found")
+
+    logger.info(
+        "listing.delete",
+        listing_id=listing_id,
+        title=listing.title,
+    )
+
+    await session.delete(listing)
+    await session.commit()
+
+    logger.info(
+        "listing.deleted",
+        listing_id=listing_id,
+    )
 
 
 # ============================================================================

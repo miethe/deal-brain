@@ -18,6 +18,7 @@ from ..services.listings import (
     bulk_update_listing_metrics,
     bulk_update_listings,
     create_listing,
+    delete_listing,
     get_paginated_listings,
     partial_update_listing,
     sync_listing_components,
@@ -345,6 +346,31 @@ async def patch_listing_endpoint(
         attributes=request.attributes or {},
     )
     return ListingRead.model_validate(updated)
+
+
+@router.delete("/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_listing_endpoint(
+    listing_id: int,
+    session: AsyncSession = Depends(session_dependency),
+) -> None:
+    """Delete a listing and all related data.
+
+    Cascade deletes:
+    - ListingComponent records
+    - ListingScoreSnapshot records
+    - RawPayload records
+    - EntityFieldValue records for this listing
+
+    Returns:
+        204 No Content on success
+
+    Raises:
+        HTTPException 404: Listing not found
+    """
+    try:
+        await delete_listing(session, listing_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 def _serialize_listing_override(listing: Listing) -> ListingValuationOverrideResponse:
