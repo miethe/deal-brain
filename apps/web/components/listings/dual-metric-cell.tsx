@@ -63,4 +63,16 @@ function DualMetricCellComponent({
   );
 }
 
-export const DualMetricCell = React.memo(DualMetricCellComponent);
+// Custom comparison for memoization - only re-render if values change
+export const DualMetricCell = React.memo(
+  DualMetricCellComponent,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.raw === nextProps.raw &&
+      prevProps.adjusted === nextProps.adjusted &&
+      prevProps.prefix === nextProps.prefix &&
+      prevProps.suffix === nextProps.suffix &&
+      prevProps.decimals === nextProps.decimals
+    );
+  }
+);

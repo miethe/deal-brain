@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   Popover,
   PopoverContent,
@@ -8,7 +9,7 @@ interface PortsDisplayProps {
   ports: Array<{ port_type: string; quantity: number }>;
 }
 
-export function PortsDisplay({ ports }: PortsDisplayProps) {
+function PortsDisplayComponent({ ports }: PortsDisplayProps) {
   if (!ports || ports.length === 0) {
     return <span className="text-muted-foreground text-sm">—</span>;
   }
@@ -40,3 +41,19 @@ export function PortsDisplay({ ports }: PortsDisplayProps) {
     </Popover>
   );
 }
+
+// Memoize to prevent re-renders when ports array hasn't changed
+export const PortsDisplay = memo(
+  PortsDisplayComponent,
+  (prevProps, nextProps) => {
+    // Deep equality check for ports array
+    if (prevProps.ports.length !== nextProps.ports.length) return false;
+    return prevProps.ports.every((prevPort, index) => {
+      const nextPort = nextProps.ports[index];
+      return (
+        prevPort.port_type === nextPort.port_type &&
+        prevPort.quantity === nextPort.quantity
+      );
+    });
+  }
+);

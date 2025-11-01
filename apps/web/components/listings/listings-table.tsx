@@ -1,5 +1,6 @@
 "use client";
 
+import "@/styles/listings-table.css";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -16,7 +17,7 @@ import {
 } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { apiFetch, ApiError } from "../../lib/utils";
@@ -314,7 +315,8 @@ export function ListingsTable() {
       const parsed = parseFieldValue(field, rawValue);
       inlineMutation.mutate({ listingId, field, value: parsed });
     },
-    [inlineMutation]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [inlineMutation.mutate]
   );
 
   const handleCreateOption = useCallback(
@@ -353,7 +355,7 @@ export function ListingsTable() {
     [fieldConfigs, confirm, queryClient]
   );
 
-  const handleBulkSubmit = async () => {
+  const handleBulkSubmit = useCallback(async () => {
     if (!bulkState.fieldKey || !listings.length) return;
     const field = fieldConfigs.find((item) => item.key === bulkState.fieldKey);
     if (!field) return;
@@ -382,7 +384,7 @@ export function ListingsTable() {
     } finally {
       setIsBulkSubmitting(false);
     }
-  };
+  }, [bulkState.fieldKey, bulkState.value, fieldConfigs, listings.length, queryClient, rowSelection]);
 
   const cpuOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -939,7 +941,7 @@ interface EditableCellProps {
   listing?: ListingRecord;
 }
 
-function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOption, listing }: EditableCellProps) {
+function EditableCellComponent({ listingId, field, value, isSaving, onSave, onCreateOption, listing }: EditableCellProps) {
   const [draft, setDraft] = useState<string>(() => toEditableString(field, value));
 
   // Query for CPU/GPU options if this is a reference field
@@ -1138,6 +1140,19 @@ function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOptio
   );
 }
 
+// Memoize EditableCell to prevent unnecessary re-renders
+const EditableCell = React.memo(
+  EditableCellComponent,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.listingId === nextProps.listingId &&
+      prevProps.field.key === nextProps.field.key &&
+      prevProps.value === nextProps.value &&
+      prevProps.isSaving === nextProps.isSaving
+    );
+  }
+);
+
 interface BulkEditPanelProps {
   fieldConfigs: FieldConfig[];
   state: BulkEditState;
@@ -1148,7 +1163,7 @@ interface BulkEditPanelProps {
   selectionCount: number;
 }
 
-function BulkEditPanel({ fieldConfigs, state, onChange, onSubmit, isSubmitting, message, selectionCount }: BulkEditPanelProps) {
+function BulkEditPanelComponent({ fieldConfigs, state, onChange, onSubmit, isSubmitting, message, selectionCount }: BulkEditPanelProps) {
   const selectedField = fieldConfigs.find((field) => field.key === state.fieldKey);
   return (
     <div className="rounded-md border border-primary/30 bg-primary/5 p-4">
@@ -1217,6 +1232,20 @@ function BulkEditPanel({ fieldConfigs, state, onChange, onSubmit, isSubmitting, 
     </div>
   );
 }
+
+// Memoize BulkEditPanel to prevent unnecessary re-renders
+const BulkEditPanel = React.memo(
+  BulkEditPanelComponent,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.state.fieldKey === nextProps.state.fieldKey &&
+      prevProps.state.value === nextProps.state.value &&
+      prevProps.isSubmitting === nextProps.isSubmitting &&
+      prevProps.message === nextProps.message &&
+      prevProps.selectionCount === nextProps.selectionCount
+    );
+  }
+);
 
 function parseFieldValue(
   field: FieldConfig,

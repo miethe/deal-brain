@@ -469,9 +469,9 @@ export function DataGrid<TData>({
     <div className={gridClassName}>
       <div
         ref={containerRef}
-        className="relative flex-1 overflow-x-auto overflow-y-auto"
+        className="listings-table-container relative flex-1 overflow-x-auto overflow-y-auto"
       >
-        <Table style={{ width: resolvedTable.getTotalSize(), minWidth: "100%" }}>
+        <Table className="listings-table" style={{ width: resolvedTable.getTotalSize(), minWidth: "100%" }}>
           <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
             {headerGroups.map((headerGroup) => (
               <TableRow key={headerGroup.id} className="border-0">
@@ -585,6 +585,7 @@ export function DataGrid<TData>({
                       ref={isHighlighted ? highlightedRef : null}
                       data-state={row.getIsSelected() ? "selected" : undefined}
                       data-highlighted={isHighlighted}
+                      data-listings-table-row={true}
                       tabIndex={isHighlighted ? -1 : undefined}
                       aria-label={isHighlighted ? "Newly created listing" : undefined}
                       className="hover:bg-muted/40 outline-none"
