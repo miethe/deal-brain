@@ -9,7 +9,7 @@ from uuid import UUID
 
 from sqlalchemy import delete, func, select
 
-from ..db import session_scope
+from ..db import dispose_engine, session_scope
 from ..models.core import ImportSession, RawPayload
 from ..services.ingestion import IngestionService
 from ..settings import get_settings
@@ -215,6 +215,11 @@ def ingest_url_task(
 
     try:
         asyncio.set_event_loop(loop)
+
+        # Dispose existing engine if present to prevent "attached to a different loop" errors
+        # The engine will be recreated with the new event loop on first use
+        loop.run_until_complete(dispose_engine())
+
         result = loop.run_until_complete(_ingest_url_async(job_id=job_id, url=url))
 
         logger.info(
