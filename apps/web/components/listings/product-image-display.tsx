@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { resolveProductImage, getImageSource } from "@/lib/image-resolver";
 
 interface ProductImageDisplayProps {
   listing: {
@@ -12,6 +13,8 @@ interface ProductImageDisplayProps {
     thumbnail_url?: string | null;
     image_url?: string | null;
     manufacturer?: string | null;
+    series?: string | null;
+    model_number?: string | null;
     cpu?: { manufacturer?: string | null } | null;
     form_factor?: string | null;
     title?: string | null;
@@ -20,76 +23,32 @@ interface ProductImageDisplayProps {
 }
 
 /**
- * ProductImageDisplay component with 5-level fallback hierarchy
+ * ProductImageDisplay component with 7-level fallback hierarchy
  *
- * Fallback order:
- * 1. listing.thumbnail_url (if available and no error)
- * 2. listing.image_url (if available and no error)
- * 3. Manufacturer logo: /images/manufacturers/{manufacturer-slug}.svg
- * 4. CPU manufacturer logo: /images/fallbacks/{cpu-manufacturer}-logo.svg (intel or amd)
- * 5. Form factor icon: /images/fallbacks/{form-factor-slug}-icon.svg
- * 6. Generic fallback: /images/fallbacks/generic-pc.svg
+ * Uses the centralized image-resolver utility for deterministic image resolution.
+ * No longer manages fallback state - the resolver handles this at call time.
+ *
+ * Fallback order (via image-resolver):
+ * 1. listing.thumbnail_url (external URL)
+ * 2. Model-specific image (config-based)
+ * 3. Series-specific image (config-based)
+ * 4. Manufacturer logo (config-based)
+ * 5. CPU vendor logo (config-based)
+ * 6. Form factor icon (config-based)
+ * 7. Generic fallback (always available)
  */
 export function ProductImageDisplay({ listing, className }: ProductImageDisplayProps) {
-  const [fallbackLevel, setFallbackLevel] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  /**
-   * Converts a string to a URL-friendly slug
-   */
-  const slugify = (text: string): string => {
-    return text
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w-]/g, '');
-  };
-
-  /**
-   * Determines the image source based on fallback hierarchy
-   */
-  const getImageSrc = (): string => {
-    // Level 1: Listing thumbnail
-    if (fallbackLevel === 0 && listing.thumbnail_url) {
-      return listing.thumbnail_url;
-    }
-
-    // Level 2: Listing image URL
-    if (fallbackLevel <= 1 && listing.image_url) {
-      return listing.image_url;
-    }
-
-    // Level 3: Manufacturer logo
-    if (fallbackLevel <= 2 && listing.manufacturer) {
-      const manufacturerSlug = slugify(listing.manufacturer);
-      return `/images/manufacturers/${manufacturerSlug}.svg`;
-    }
-
-    // Level 4: CPU manufacturer logo (Intel/AMD)
-    if (fallbackLevel <= 3 && listing.cpu?.manufacturer) {
-      const cpuManufacturer = listing.cpu.manufacturer.toLowerCase();
-      if (cpuManufacturer.includes('intel') || cpuManufacturer.includes('amd')) {
-        const cleanManufacturer = cpuManufacturer.includes('intel') ? 'intel' : 'amd';
-        return `/images/fallbacks/${cleanManufacturer}-logo.svg`;
-      }
-    }
-
-    // Level 5: Form factor icon
-    if (fallbackLevel <= 4 && listing.form_factor) {
-      const formFactorSlug = slugify(listing.form_factor);
-      return `/images/fallbacks/${formFactorSlug}-icon.svg`;
-    }
-
-    // Level 6: Generic placeholder
-    return '/images/fallbacks/generic-pc.svg';
-  };
-
-  const imageSrc = getImageSrc();
+  // Resolve image using the centralized resolver (deterministic, no state needed)
+  const imageSrc = resolveProductImage(listing);
+  const { isExternal } = getImageSource(listing);
   const altText = listing.title || 'Product image';
 
-  // Determine if we're using a fallback image for styling purposes
-  const isUsingFallback = fallbackLevel > 1;
+  // Determine if we're using a config-based fallback image for styling purposes
+  // External URLs (thumbnail_url) get less padding, config images get more padding
+  const isUsingFallback = !isExternal;
 
   return (
     <>
@@ -127,11 +86,12 @@ export function ProductImageDisplay({ listing, className }: ProductImageDisplayP
           )}
           onLoadingComplete={() => setIsLoading(false)}
           onLoad={() => setIsLoading(false)}
-          onError={() => {
+          onError={(e) => {
             setIsLoading(false);
-            setFallbackLevel((prev) => prev + 1);
+            // Image resolver always returns a valid path, so errors should be rare
+            // Log for debugging purposes only
             if (process.env.NODE_ENV === 'development') {
-              console.warn(`[ProductImageDisplay] Image failed to load (level ${fallbackLevel}): ${imageSrc}`);
+              console.warn('[ProductImageDisplay] Image failed to load:', imageSrc, e);
             }
           }}
         />
