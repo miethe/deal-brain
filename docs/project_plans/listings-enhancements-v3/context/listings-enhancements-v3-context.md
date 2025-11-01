@@ -7,8 +7,9 @@
 ## Current State
 
 **Branch:** feat/listings-enhancements-v3
-**Last Commit:** defafeb (Phase 2 complete)
-**Current Task:** Phase 2 complete - Ready for Phase 3 (CPU Metrics Enhancement)
+**Last Commit:** 72826b8 fix(tasks): resolve async event loop conflicts in Celery workers
+**Current Phase:** Phase 3 - CPU Performance Metrics Layout
+**Current Task:** Creating tracking documents and preparing for implementation
 
 ---
 
@@ -24,6 +25,15 @@
 - **Terminology:** "Adjusted Value" replaces "Adjusted Price" to better reflect valuation methodology
 - **Component Architecture:** Reusable ValuationTooltip with configurable content and modal integration
 - **No Breaking Changes:** Maintain existing API/prop names (adjustedPrice) while updating display labels
+
+**Phase 3 (CPU Metrics):**
+- **Architecture:** Use existing ApplicationSettings table, SettingsService, /settings/{key} endpoint
+- **Component Pattern:** Follow ValuationTooltip approach for PerformanceMetricDisplay
+- **Threshold Values:** Percentage improvement thresholds (excellent: 20%, good: 10%, fair: 5%, neutral: 0%, poor: -10%, premium: -20%)
+- **Layout:** Desktop 2-column (Score | $/Mark), mobile stacked
+- **Display Strategy:** Show both base and adjusted values with delta percentage
+- **Color Coding:** Green (excellent/good), gray (neutral/fair), red (poor/premium) with text labels for accessibility
+- **No Migration Needed:** ApplicationSettings table already exists
 
 ---
 
@@ -41,6 +51,14 @@
 - **Integration:** Tooltip integrated in DetailPageHero with modal link
 - **Zero Breaking Changes:** All API contracts preserved (adjustedPrice props unchanged)
 - **Ahead of Schedule:** Completed in 1 day vs 3-4 estimated
+
+**Phase 3 (In Progress - Started 2025-11-01):**
+- **ApplicationSettings Exists:** No migration needed, just seed data
+- **Existing Data:** dollar_per_cpu_mark_single/multi fields already in Listing model
+- **Component Pattern Reuse:** ValuationTooltip pattern works well, follow for PerformanceMetricDisplay
+- **Color Accessibility:** Must include text labels, not just color coding
+- **Threshold API:** Must handle failures gracefully with hardcoded defaults
+- **Performance:** Memoize PerformanceMetricDisplay component for table rendering
 
 ---
 
@@ -73,9 +91,20 @@ make up
 
 ### Phase 2 Key Files
 - Terminology Updates: apps/web/components/listings/*.tsx (multiple files)
-- New Component: apps/web/components/listings/valuation-tooltip.tsx (to be created)
-- Detail Page: apps/web/components/listings/detail-page-layout.tsx
+- Valuation Tooltip: apps/web/components/listings/valuation-tooltip.tsx
+- Detail Page Hero: apps/web/components/listings/detail-page-hero.tsx
 - Radix UI Tooltip: apps/web/components/ui/tooltip.tsx
+
+### Phase 3 Key Files
+- Backend Settings Service: apps/api/dealbrain_api/services/settings.py
+- Backend Settings Schemas: apps/api/dealbrain_api/schemas/settings.py
+- Backend Listing Model: apps/api/dealbrain_api/models/core.py (has dollar_per_cpu_mark fields)
+- Seed Script (to create): apps/api/dealbrain_api/seeds/cpu_mark_thresholds_seed.py
+- Performance Metric Component (to create): apps/web/components/listings/performance-metric-display.tsx
+- CPU Mark Utilities (to create): apps/web/lib/cpu-mark-utils.ts
+- CPU Mark Hook (to create): apps/web/hooks/use-cpu-mark-thresholds.ts
+- Specifications Tab: apps/web/components/listings/specifications-tab.tsx
+- Theme Styles: apps/web/styles/globals.css
 
 ---
 
@@ -113,6 +142,22 @@ Improved user experience through:
 
 ---
 
-## Phase 3 Scope (Next)
+## Phase 3 Scope (In Progress - Started 2025-11-01)
 
-CPU Metrics Enhancement - improve performance metric displays and calculations
+Implement color-coded CPU performance metrics with paired layout (Score next to $/Mark). Show base and adjusted values with improvement delta. Configurable thresholds stored in ApplicationSettings.
+
+**Tasks:**
+1. [ ] METRICS-001: Create CPU Mark Thresholds Setting (Backend, 4h)
+2. [ ] METRICS-002: Create Performance Metric Display Component (Frontend, 12h)
+3. [ ] METRICS-003: Update Specifications Tab Layout (Frontend, 8h)
+4. [ ] Testing (12h)
+
+**Success Metric:** Users can quickly assess CPU value efficiency via color-coded $/CPU Mark metrics in Specifications tab
+
+**Estimated Effort:** 36h (4h backend + 12h frontend component + 8h integration + 12h testing)
+
+**Key Patterns:**
+- **Settings Pattern:** See valuation_thresholds implementation in SettingsService
+- **Component Pattern:** See ValuationTooltip component
+- **Hook Pattern:** See use-valuation-thresholds.ts
+- **Color Coding:** See getValuationStyle() in valuation-utils.ts
