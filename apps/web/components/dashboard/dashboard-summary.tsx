@@ -58,7 +58,7 @@ export function DashboardSummary() {
       <div className="grid gap-4 md:grid-cols-3">
         <SummaryCard
           title="Best $ / CPU Mark"
-          description="Adjusted price normalized by CPU score"
+          description="Adjusted value normalized by CPU score"
           listing={data.best_value}
           onListingClick={handleListingClick}
         />

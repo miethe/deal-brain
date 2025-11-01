@@ -21,7 +21,7 @@ interface ListingCardProps {
  * Card layout for grid view with:
  * - Header: Title (truncated), Open button
  * - Badges: CPU, Device type, Tags
- * - Price: List price (large), Adjusted price (with color accent)
+ * - Price: List price (large), Adjusted value (with color accent)
  * - Performance badges
  * - Metadata: RAM, Storage, Condition
  * - Footer: Vendor badge, Quick Edit button (hover visible)

@@ -92,7 +92,7 @@ export default function ListingsPage() {
               <CardDescription>Composite scores update automatically after each valuation run.</CardDescription>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
-              Adjusted price removes RAM, storage, and OS value using your valuation rules. Composite scores blend CPU, GPU,
+              Adjusted value removes RAM, storage, and OS value using your valuation rules. Composite scores blend CPU, GPU,
               perf-per-watt, and RAM metrics according to the active profile, so the table is always ready for comparison.
             </CardContent>
           </Card>

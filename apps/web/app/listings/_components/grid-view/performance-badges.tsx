@@ -92,7 +92,7 @@ export const PerformanceBadges = memo(function PerformanceBadges({
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Price per single-thread CPU mark (adjusted price)</p>
+            <p>Price per single-thread CPU mark (adjusted value)</p>
             {isAdjustedBetter(dollarPerSingleAdjusted, dollarPerSingleRaw) && (
               <p className="text-emerald-600 font-medium">Better value after adjustments</p>
             )}
@@ -113,7 +113,7 @@ export const PerformanceBadges = memo(function PerformanceBadges({
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Price per multi-thread CPU mark (adjusted price)</p>
+            <p>Price per multi-thread CPU mark (adjusted value)</p>
             {isAdjustedBetter(dollarPerMultiAdjusted, dollarPerMultiRaw) && (
               <p className="text-emerald-600 font-medium">Better value after adjustments</p>
             )}

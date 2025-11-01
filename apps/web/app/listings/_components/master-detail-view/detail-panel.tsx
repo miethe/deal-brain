@@ -114,7 +114,7 @@ export const DetailPanel = React.memo(function DetailPanel({
             value={formatCurrency(listing.price_usd)}
           />
           <KpiMetric
-            label="Adjusted Price"
+            label="Adjusted Value"
             value={formatCurrency(listing.adjusted_price_usd)}
             accent={valuationAccent}
           />

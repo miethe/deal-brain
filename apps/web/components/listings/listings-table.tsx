@@ -596,7 +596,7 @@ export function ListingsTable() {
         enableColumnFilter: true,
         meta: {
           filterType: "number",
-          tooltip: "Adjusted price based on active ruleset. Click for breakdown.",
+          tooltip: "Adjusted value based on active ruleset. Click for breakdown.",
           description: "Final valuation after applying active ruleset rules",
         },
         filterFn: numericFilterFn,

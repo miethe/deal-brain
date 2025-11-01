@@ -105,7 +105,7 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
           />
 
           <SummaryCard
-            title="Adjusted Price"
+            title="Adjusted Value"
             value={formatCurrency(listing.adjusted_price_usd)}
             size="large"
           />

@@ -354,7 +354,7 @@ export default function AdminActionsPage() {
             <CardHeader>
               <CardTitle>Recalculate CPU Mark Ratios</CardTitle>
               <CardDescription>
-                Updates dollar-per-CPU-mark fields using current adjusted prices.
+                Updates dollar-per-CPU-mark fields using current adjusted values.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

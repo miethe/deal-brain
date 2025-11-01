@@ -327,7 +327,7 @@ export function ListingValuationTab({ listing }: ListingValuationTabProps) {
         <CardContent className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-3">
             <SummaryTile label="Base price" value={basePrice} />
-            <SummaryTile label="Adjusted price" value={adjustedPrice} />
+            <SummaryTile label="Adjusted value" value={adjustedPrice} />
             <SummaryTile
               label="Total adjustment"
               value={basePrice - adjustedPrice}
