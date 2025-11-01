@@ -19,6 +19,7 @@ import { QuickAddComputeDialog } from "./quick-add-compute-dialog";
 import { QuickAddMemoryDialog } from "./quick-add-memory-dialog";
 import { QuickAddStorageDialog } from "./quick-add-storage-dialog";
 import { QuickAddConnectivityDialog } from "./quick-add-connectivity-dialog";
+import { PerformanceMetricDisplay } from "./performance-metric-display";
 
 interface SpecificationsTabProps {
   listing: ListingDetail;
@@ -128,35 +129,76 @@ export function SpecificationsTab({ listing }: SpecificationsTabProps) {
           </FieldGroup>
         )}
 
-        {/* Performance Scores */}
-        {listing.score_cpu_multi !== null && (
-          <FieldGroup label="CPU Multi-Thread Score" value={listing.score_cpu_multi.toFixed(1)} />
-        )}
-        {listing.score_cpu_single !== null && (
-          <FieldGroup label="CPU Single-Thread Score" value={listing.score_cpu_single.toFixed(1)} />
-        )}
+        {/* GPU Score */}
         {listing.score_gpu !== null && (
           <FieldGroup label="GPU Score" value={listing.score_gpu.toFixed(1)} />
         )}
-
-        {/* Performance Metrics */}
-        {listing.dollar_per_cpu_mark !== null && (
-          <FieldGroup
-            label="$/CPU Mark (Multi)"
-            value={`$${listing.dollar_per_cpu_mark.toFixed(3)}`}
-          />
-        )}
-        {listing.dollar_per_cpu_mark_single !== null &&
-          listing.dollar_per_cpu_mark_single !== undefined && (
-            <FieldGroup
-              label="$/CPU Mark (Single)"
-              value={`$${listing.dollar_per_cpu_mark_single.toFixed(3)}`}
-            />
-          )}
-        {listing.perf_per_watt !== null && listing.perf_per_watt !== undefined && (
-          <FieldGroup label="Performance/Watt" value={listing.perf_per_watt.toFixed(2)} />
-        )}
       </SpecificationSubsection>
+
+      {/* Performance Metrics Section - Paired CPU metrics */}
+      {(listing.cpu?.cpu_mark_single || listing.cpu?.cpu_mark_multi) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Performance Metrics</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* Single-Thread Metrics */}
+            {listing.cpu?.cpu_mark_single && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-muted/50 rounded-lg">
+                <PerformanceMetricDisplay
+                  label="Single-Thread Score"
+                  score={listing.cpu.cpu_mark_single}
+                  prefix=""
+                  suffix=""
+                  decimals={0}
+                />
+                <PerformanceMetricDisplay
+                  label="$/Single-Thread Mark"
+                  baseValue={listing.dollar_per_cpu_mark_single ?? undefined}
+                  adjustedValue={listing.dollar_per_cpu_mark_single_adjusted ?? undefined}
+                  showColorCoding
+                  listPrice={listing.price_usd ?? undefined}
+                  adjustedPrice={listing.adjusted_price_usd ?? undefined}
+                  cpuMark={listing.cpu.cpu_mark_single}
+                  prefix="$"
+                  decimals={4}
+                />
+              </div>
+            )}
+
+            {/* Multi-Thread Metrics */}
+            {listing.cpu?.cpu_mark_multi && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-muted/50 rounded-lg">
+                <PerformanceMetricDisplay
+                  label="Multi-Thread Score"
+                  score={listing.cpu.cpu_mark_multi}
+                  prefix=""
+                  suffix=""
+                  decimals={0}
+                />
+                <PerformanceMetricDisplay
+                  label="$/Multi-Thread Mark"
+                  baseValue={listing.dollar_per_cpu_mark_multi ?? undefined}
+                  adjustedValue={listing.dollar_per_cpu_mark_multi_adjusted ?? undefined}
+                  showColorCoding
+                  listPrice={listing.price_usd ?? undefined}
+                  adjustedPrice={listing.adjusted_price_usd ?? undefined}
+                  cpuMark={listing.cpu.cpu_mark_multi}
+                  prefix="$"
+                  decimals={4}
+                />
+              </div>
+            )}
+
+            {/* Performance/Watt (if available) */}
+            {listing.perf_per_watt !== null && listing.perf_per_watt !== undefined && (
+              <div className="grid grid-cols-1 gap-4 p-3 bg-muted/50 rounded-lg">
+                <FieldGroup label="Performance/Watt" value={listing.perf_per_watt.toFixed(2)} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Memory Subsection */}
       <SpecificationSubsection
