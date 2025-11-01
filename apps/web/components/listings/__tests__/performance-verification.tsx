@@ -58,7 +58,7 @@ export function PerformanceVerificationDemo() {
       </p>
       <p>
         <strong>Expected in Dev Mode:</strong> You should see console warnings for slow render
-        (component mount > 50ms) and slow interaction (button click > 200ms).
+        (component mount &gt; 50ms) and slow interaction (button click &gt; 200ms).
       </p>
       <p>
         <strong>Expected in Production:</strong> No warnings, zero overhead.
