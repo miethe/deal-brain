@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "baseUrl": "/images",
+  "manufacturers": {
+    "hpe": {
+      "logo": "/images/manufacturers/hpe.svg"
+    }
+  },
+  "formFactors": {
+    "mini-pc": {
+      "icon": "/images/fallbacks/mini-pc-icon.svg"
+    },
+    "desktop": {
+      "icon": "/images/fallbacks/desktop-icon.svg"
+    }
+  },
+  "cpuVendors": {
+    "intel": "/images/fallbacks/intel-logo.svg",
+    "amd": "/images/fallbacks/amd-logo.svg",
+    "arm": "/images/fallbacks/arm.svg"
+  },
+  "gpuVendors": {
+    "nvidia": "/images/fallbacks/nvidia.svg",
+    "amd": "/images/fallbacks/amd.svg",
+    "intel": "/images/fallbacks/intel.svg"
+  },
+  "fallbacks": {
+    "generic": "/images/fallbacks/generic-pc.svg"
+  }
+}
