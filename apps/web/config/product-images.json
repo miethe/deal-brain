@@ -7,22 +7,23 @@
     }
   },
   "formFactors": {
-    "mini-pc": {
-      "icon": "/images/fallbacks/mini-pc-icon.svg"
-    },
     "desktop": {
-      "icon": "/images/fallbacks/desktop-icon.svg"
+      "icon": "/images/form-factors/desktop.svg"
+    },
+    "mini-pc": {
+      "icon": "/images/form-factors/mini-pc.svg"
+    },
+    "mini_pc": {
+      "icon": "/images/form-factors/mini-pc.svg"
     }
   },
   "cpuVendors": {
-    "intel": "/images/fallbacks/intel-logo.svg",
-    "amd": "/images/fallbacks/amd-logo.svg",
-    "arm": "/images/fallbacks/arm.svg"
+    "intel": "/images/cpu-vendors/intel.svg",
+    "amd": "/images/cpu-vendors/amd.svg",
+    "arm": "/images/cpu-vendors/arm.svg"
   },
   "gpuVendors": {
-    "nvidia": "/images/fallbacks/nvidia.svg",
-    "amd": "/images/fallbacks/amd.svg",
-    "intel": "/images/fallbacks/intel.svg"
+    "nvidia": "/images/gpu-vendors/nvidia.svg"
   },
   "fallbacks": {
     "generic": "/images/fallbacks/generic-pc.svg"

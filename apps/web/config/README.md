@@ -35,13 +35,13 @@ The `product-images.json` file defines:
   },
   "formFactors": {
     "mini-pc": {
-      "icon": "/images/fallbacks/mini-pc-icon.svg",
+      "icon": "/images/form-factors/mini-pc.svg",
       "generic": "/images/fallbacks/mini-pc-generic.svg"
     }
   },
   "cpuVendors": {
-    "intel": "/images/fallbacks/intel-logo.svg",
-    "amd": "/images/fallbacks/amd-logo.svg"
+    "intel": "/images/cpu-vendors/intel.svg",
+    "amd": "/images/cpu-vendors/amd.svg"
   },
   "gpuVendors": {
     "nvidia": "/images/fallbacks/nvidia.svg"

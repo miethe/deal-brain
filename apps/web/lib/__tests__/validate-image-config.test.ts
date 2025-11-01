@@ -26,16 +26,16 @@ describe('validateImageConfig', () => {
     },
     formFactors: {
       'mini-pc': {
-        icon: '/images/fallbacks/mini-pc-icon.svg',
+        icon: '/images/form-factors/mini-pc.svg',
       },
       desktop: {
-        icon: '/images/fallbacks/desktop-icon.svg',
+        icon: '/images/form-factors/desktop.svg',
         generic: '/images/fallbacks/desktop-generic.svg',
       },
     },
     cpuVendors: {
-      intel: '/images/fallbacks/intel-logo.svg',
-      amd: '/images/fallbacks/amd-logo.svg',
+      intel: '/images/cpu-vendors/intel.svg',
+      amd: '/images/cpu-vendors/amd.svg',
       arm: '/images/fallbacks/arm.svg',
     },
     gpuVendors: {
@@ -228,7 +228,7 @@ describe('validateImageConfig', () => {
         ...validConfig,
         formFactors: {
           desktop: {
-            icon: '/images/fallbacks/desktop-icon.svg',
+            icon: '/images/form-factors/desktop.svg',
             generic: '',
           },
         },

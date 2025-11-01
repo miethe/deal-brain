@@ -151,7 +151,7 @@ describe('resolveProductImage', () => {
 
       const result = resolveProductImage(listing);
       // Should fall through to form factor
-      expect(result).toBe('/images/fallbacks/mini-pc-icon.svg');
+      expect(result).toBe('/images/form-factors/mini-pc.svg');
     });
 
     it('should skip model-specific lookup if model_number is missing', () => {
@@ -201,7 +201,7 @@ describe('resolveProductImage', () => {
 
       const result = resolveProductImage(listing);
       // Should fall through to CPU vendor
-      expect(result).toBe('/images/fallbacks/intel-logo.svg');
+      expect(result).toBe('/images/cpu-vendors/intel.svg');
     });
   });
 
@@ -245,7 +245,7 @@ describe('resolveProductImage', () => {
 
       const result = resolveProductImage(listing);
       // Should fall through to CPU vendor
-      expect(result).toBe('/images/fallbacks/amd-logo.svg');
+      expect(result).toBe('/images/cpu-vendors/amd.svg');
     });
   });
 
@@ -271,7 +271,7 @@ describe('resolveProductImage', () => {
       };
 
       const result = resolveProductImage(listing);
-      expect(result).toBe('/images/fallbacks/intel-logo.svg');
+      expect(result).toBe('/images/cpu-vendors/intel.svg');
     });
 
     it('should return AMD CPU vendor logo', () => {
@@ -295,7 +295,7 @@ describe('resolveProductImage', () => {
       };
 
       const result = resolveProductImage(listing);
-      expect(result).toBe('/images/fallbacks/amd-logo.svg');
+      expect(result).toBe('/images/cpu-vendors/amd.svg');
     });
 
     it('should return ARM CPU vendor logo', () => {
@@ -343,7 +343,7 @@ describe('resolveProductImage', () => {
       };
 
       const result = resolveProductImage(listing);
-      expect(result).toBe('/images/fallbacks/intel-logo.svg');
+      expect(result).toBe('/images/cpu-vendors/intel.svg');
     });
 
     it('should skip CPU vendor if cpu is null', () => {
@@ -354,7 +354,7 @@ describe('resolveProductImage', () => {
 
       const result = resolveProductImage(listing);
       // Should fall through to form factor
-      expect(result).toBe('/images/fallbacks/desktop-icon.svg');
+      expect(result).toBe('/images/form-factors/desktop.svg');
     });
 
     it('should skip CPU vendor if cpu.manufacturer is missing', () => {
@@ -380,7 +380,7 @@ describe('resolveProductImage', () => {
 
       const result = resolveProductImage(listing);
       // Should fall through to form factor
-      expect(result).toBe('/images/fallbacks/desktop-icon.svg');
+      expect(result).toBe('/images/form-factors/desktop.svg');
     });
   });
 
@@ -392,7 +392,7 @@ describe('resolveProductImage', () => {
       };
 
       const result = resolveProductImage(listing);
-      expect(result).toBe('/images/fallbacks/mini-pc-icon.svg');
+      expect(result).toBe('/images/form-factors/mini-pc.svg');
     });
 
     it('should return desktop form factor icon', () => {
@@ -402,7 +402,7 @@ describe('resolveProductImage', () => {
       };
 
       const result = resolveProductImage(listing);
-      expect(result).toBe('/images/fallbacks/desktop-icon.svg');
+      expect(result).toBe('/images/form-factors/desktop.svg');
     });
 
     it('should normalize form factor (case insensitive)', () => {
@@ -412,7 +412,7 @@ describe('resolveProductImage', () => {
       };
 
       const result = resolveProductImage(listing);
-      expect(result).toBe('/images/fallbacks/mini-pc-icon.svg');
+      expect(result).toBe('/images/form-factors/mini-pc.svg');
     });
 
     it('should normalize form factor with spaces', () => {
@@ -422,7 +422,7 @@ describe('resolveProductImage', () => {
       };
 
       const result = resolveProductImage(listing);
-      expect(result).toBe('/images/fallbacks/mini-pc-icon.svg');
+      expect(result).toBe('/images/form-factors/mini-pc.svg');
     });
 
     it('should skip form factor if not in config', () => {
@@ -515,7 +515,7 @@ describe('resolveProductImage', () => {
       };
 
       const result = resolveProductImage(listing);
-      expect(result).toBe('/images/fallbacks/desktop-icon.svg');
+      expect(result).toBe('/images/form-factors/desktop.svg');
     });
 
     it('should handle mixed case with extra spaces', () => {
@@ -525,7 +525,7 @@ describe('resolveProductImage', () => {
       };
 
       const result = resolveProductImage(listing);
-      expect(result).toBe('/images/fallbacks/mini-pc-icon.svg');
+      expect(result).toBe('/images/form-factors/mini-pc.svg');
     });
   });
 
@@ -577,7 +577,7 @@ describe('resolveProductImage', () => {
       };
 
       const result = resolveProductImage(listing);
-      expect(result).toBe('/images/fallbacks/amd-logo.svg');
+      expect(result).toBe('/images/cpu-vendors/amd.svg');
     });
 
     it('should prefer form factor icon over generic fallback', () => {
@@ -587,7 +587,7 @@ describe('resolveProductImage', () => {
       };
 
       const result = resolveProductImage(listing);
-      expect(result).toBe('/images/fallbacks/mini-pc-icon.svg');
+      expect(result).toBe('/images/form-factors/mini-pc.svg');
     });
   });
 });
@@ -691,7 +691,7 @@ describe('getImageSource', () => {
 
     const result = getImageSource(listing);
     expect(result).toEqual({
-      path: '/images/fallbacks/intel-logo.svg',
+      path: '/images/cpu-vendors/intel.svg',
       source: 'cpu_vendor_logo',
       isExternal: false,
     });
@@ -705,7 +705,7 @@ describe('getImageSource', () => {
 
     const result = getImageSource(listing);
     expect(result).toEqual({
-      path: '/images/fallbacks/mini-pc-icon.svg',
+      path: '/images/form-factors/mini-pc.svg',
       source: 'form_factor_icon',
       isExternal: false,
     });
@@ -798,8 +798,8 @@ describe('batchResolveProductImages', () => {
     const results = batchResolveProductImages(listings);
     expect(results).toHaveLength(3);
     expect(results[0]).toBe('/images/manufacturers/hpe.svg');
-    expect(results[1]).toBe('/images/fallbacks/desktop-icon.svg');
-    expect(results[2]).toBe('/images/fallbacks/intel-logo.svg');
+    expect(results[1]).toBe('/images/form-factors/desktop.svg');
+    expect(results[2]).toBe('/images/cpu-vendors/intel.svg');
   });
 
   it('should handle empty array', () => {
@@ -815,9 +815,9 @@ describe('batchResolveProductImages', () => {
     ];
 
     const results = batchResolveProductImages(listings);
-    expect(results[0]).toBe('/images/fallbacks/mini-pc-icon.svg');
+    expect(results[0]).toBe('/images/form-factors/mini-pc.svg');
     expect(results[1]).toBe('/images/manufacturers/hpe.svg');
-    expect(results[2]).toBe('/images/fallbacks/desktop-icon.svg');
+    expect(results[2]).toBe('/images/form-factors/desktop.svg');
   });
 
   it('should handle large batches efficiently', () => {
