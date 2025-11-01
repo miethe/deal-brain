@@ -197,6 +197,15 @@ class ListingValuationOverrideResponse(BaseModel):
     disabled_rulesets: list[int] = Field(default_factory=list)
 
 
+class PaginatedListingsResponse(BaseModel):
+    """Cursor-based paginated listings response."""
+    items: list[ListingRead] = Field(..., description="Listings in current page")
+    total: int = Field(..., description="Total count of listings (cached)")
+    limit: int = Field(..., description="Number of items requested per page")
+    next_cursor: str | None = Field(None, description="Cursor for next page (null if last page)")
+    has_next: bool = Field(..., description="Whether more pages are available")
+
+
 __all__ = [
     "BulkRecalculateRequest",
     "BulkRecalculateResponse",
@@ -208,6 +217,7 @@ __all__ = [
     "ListingSchemaResponse",
     "ListingValuationOverrideRequest",
     "ListingValuationOverrideResponse",
+    "PaginatedListingsResponse",
     "PortEntry",
     "PortsResponse",
     "UpdatePortsRequest",
