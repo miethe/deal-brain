@@ -1,15 +1,21 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useToast } from '@/hooks/use-toast'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, Trash2 } from 'lucide-react'
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import { PerformanceBadges } from '../grid-view/performance-badges'
 import { KpiMetric } from './kpi-metric'
 import { KeyValue } from './key-value'
+import { useCatalogStore } from '@/stores/catalog-store'
 import type { ListingRow } from '@/components/listings/listings-table'
 import { formatRamSummary, formatStorageSummary } from '@/components/listings/listing-formatters'
+import { API_URL } from '@/lib/utils'
 
 interface DetailPanelProps {
   listing: ListingRow | undefined
@@ -18,6 +24,41 @@ interface DetailPanelProps {
 export const DetailPanel = React.memo(function DetailPanel({
   listing
 }: DetailPanelProps) {
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const { setSelectedListing } = useCatalogStore()
+  const { toast } = useToast()
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+
+  // Delete mutation
+  const { mutate: deleteListing, isPending: isDeleting } = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${API_URL}/api/v1/listings/${id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Failed to delete listing' }))
+        throw new Error(error.detail || 'Failed to delete listing')
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['listings'] })
+      toast({
+        title: 'Success',
+        description: 'Listing deleted successfully',
+      })
+      setSelectedListing(null) // Clear selection to close panel
+      setDeleteConfirmOpen(false)
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: `Delete failed: ${error.message}`,
+        variant: 'destructive',
+      })
+    },
+  })
+
   // Calculate valuation accent
   const valuationAccent = useMemo(() => {
     if (!listing?.price_usd || !listing?.adjusted_price_usd) return 'neutral'
@@ -240,7 +281,39 @@ export const DetailPanel = React.memo(function DetailPanel({
             </div>
           </div>
         )}
+
+        {/* Action Bar */}
+        <div className="flex gap-2 pt-4 border-t">
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/listings/${listing.id}`)}
+          >
+            View Full Page
+          </Button>
+
+          <Button
+            variant="destructive"
+            onClick={() => setDeleteConfirmOpen(true)}
+            disabled={isDeleting}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+        </div>
       </CardContent>
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete Listing?"
+        description="This action cannot be undone. The listing and all related data will be permanently deleted."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={() => deleteListing(listing.id)}
+        isLoading={isDeleting}
+      />
     </Card>
   )
 })
