@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Button } from "../../components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
 import { AddListingModal } from "../../components/listings/add-listing-modal";
+import { ImportModal } from "../../components/listings/import-modal";
 import { useCatalogStore } from "@/stores/catalog-store";
 import { useUrlSync } from "@/hooks/use-url-sync";
 import { CatalogTab } from "./_components/catalog-tab";
@@ -16,9 +17,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../../lib/utils";
 import { ListingRecord } from "../../types/listings";
 import { useToast } from "@/hooks/use-toast";
+import { Upload, Plus } from "lucide-react";
 
 export default function ListingsPage() {
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -57,6 +60,15 @@ export default function ListingsPage() {
     });
   };
 
+  const handleImportSuccess = () => {
+    // Invalidate listings cache to trigger refresh
+    queryClient.invalidateQueries({ queryKey: ["listings", "records"] });
+    queryClient.invalidateQueries({ queryKey: ["listings", "count"] });
+
+    // Modal will close automatically via onOpenChange
+    // Toast notification will be shown by ImportModal
+  };
+
   return (
     <div className="w-full space-y-6">
       <div className="flex items-center justify-between">
@@ -64,9 +76,16 @@ export default function ListingsPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Listings</h1>
           <p className="text-sm text-muted-foreground">Browse your listings in catalog or data table view.</p>
         </div>
-        <Button onClick={() => setAddModalOpen(true)}>
-          Add listing
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportModalOpen(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            Import
+          </Button>
+          <Button onClick={() => setAddModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add listing
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as 'catalog' | 'data')}>
@@ -103,6 +122,12 @@ export default function ListingsPage() {
         open={addModalOpen}
         onOpenChange={setAddModalOpen}
         onSuccess={handleSuccess}
+      />
+
+      <ImportModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        onSuccess={handleImportSuccess}
       />
 
       {/* Catalog Dialogs */}
