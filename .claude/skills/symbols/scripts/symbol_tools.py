@@ -54,27 +54,19 @@ try:
     _config_loaded = True
 
 except (ImportError, ConfigurationError) as e:
-    # Fallback to hardcoded paths with helpful warning
-    print(f"Warning: Could not load configuration ({e}), using default paths", file=sys.stderr)
-    print("  To use custom paths, ensure config.py and symbols.config.json are available", file=sys.stderr)
+    # Fallback to minimal generic defaults with helpful error message
+    print(f"Warning: Could not load configuration ({e})", file=sys.stderr)
+    print("  Run 'python init_symbols.py' to initialize the symbols system for this project", file=sys.stderr)
+    print("  Falling back to minimal defaults (symbols in 'ai/' directory)", file=sys.stderr)
 
     SYMBOLS_DIR = Path("ai")
+    # Minimal generic fallback - only basic domains
     SYMBOL_FILES = {
-        "ui": SYMBOLS_DIR / "symbols-ui.json",
-        "web": SYMBOLS_DIR / "symbols-web.json",
         "api": SYMBOLS_DIR / "symbols-api.json",
-        "shared": SYMBOLS_DIR / "symbols-web.json",
-        "ui-tests": SYMBOLS_DIR / "symbols-ui-tests.json",
-        "api-tests": SYMBOLS_DIR / "symbols-api-tests.json",
-        "shared-tests": SYMBOLS_DIR / "symbols-shared-tests.json",
+        "ui": SYMBOLS_DIR / "symbols-ui.json",
     }
-    API_LAYER_FILES = {
-        "routers": SYMBOLS_DIR / "symbols-api-routers.json",
-        "services": SYMBOLS_DIR / "symbols-api-services.json",
-        "repositories": SYMBOLS_DIR / "symbols-api-repositories.json",
-        "schemas": SYMBOLS_DIR / "symbols-api-schemas.json",
-        "cores": SYMBOLS_DIR / "symbols-api-cores.json",
-    }
+    # No API layer files in fallback mode
+    API_LAYER_FILES = {}
     _config_loaded = False
     _config = None
 
@@ -559,7 +551,6 @@ def validate_symbols(domain: Optional[str] = None) -> Dict[str, Any]:
         >>> print(f"UI domain has {ui_report['symbols_count']} symbols")
     """
     import time
-    from datetime import datetime
 
     # Use module-level config or try to load it
     global _config, _config_loaded
@@ -569,7 +560,20 @@ def validate_symbols(domain: Optional[str] = None) -> Dict[str, Any]:
             from config import get_config, ConfigurationError
             _config = get_config()
             _config_loaded = True
-        except (ImportError, ConfigurationError) as e:
+        except ImportError as e:
+            return {
+                "status": "errors",
+                "error": f"Configuration not available: {e}",
+                "domains": {},
+                "summary": {
+                    "total_symbols": 0,
+                    "total_errors": 1,
+                    "total_warnings": 0,
+                    "domains_checked": 0,
+                    "validation_time": "0s",
+                },
+            }
+        except ConfigurationError as e:
             return {
                 "status": "errors",
                 "error": f"Configuration not available: {e}",
@@ -590,7 +594,20 @@ def validate_symbols(domain: Optional[str] = None) -> Dict[str, Any]:
     try:
         # Validate config is accessible
         config._project_root
-    except (AttributeError, ConfigurationError) as e:
+    except AttributeError as e:
+        return {
+            "status": "errors",
+            "error": f"Configuration error: {e}",
+            "domains": {},
+            "summary": {
+                "total_symbols": 0,
+                "total_errors": 1,
+                "total_warnings": 0,
+                "domains_checked": 0,
+                "validation_time": "0s",
+            },
+        }
+    except ConfigurationError as e:
         return {
             "status": "errors",
             "error": f"Configuration error: {e}",
@@ -645,7 +662,7 @@ def validate_symbols(domain: Optional[str] = None) -> Dict[str, Any]:
             total_errors += 1
             continue
 
-        report = _validate_domain_file(domain_name, file_path, project_root)
+        report = _validate_domain_file(file_path, project_root)
         domain_reports[domain_name] = report
 
         total_errors += len(report["errors"])
@@ -667,7 +684,7 @@ def validate_symbols(domain: Optional[str] = None) -> Dict[str, Any]:
                 total_errors += 1
                 continue
 
-            report = _validate_domain_file(f"api-{layer_name}", file_path, project_root)
+            report = _validate_domain_file(file_path, project_root)
             domain_reports[f"api-{layer_name}"] = report
 
             total_errors += len(report["errors"])
@@ -705,7 +722,6 @@ def validate_symbols(domain: Optional[str] = None) -> Dict[str, Any]:
 
 
 def _validate_domain_file(
-    domain_name: str,
     file_path: Path,
     project_root: Path
 ) -> Dict[str, Any]:
@@ -713,7 +729,6 @@ def _validate_domain_file(
     Internal helper to validate a single domain symbol file.
 
     Args:
-        domain_name: Domain name (e.g., "ui", "api")
         file_path: Path to symbol file
         project_root: Project root directory
 

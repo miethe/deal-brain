@@ -28,8 +28,8 @@ cp .claude/skills/symbols/templates/react-typescript-fullstack.json symbols.conf
 
 ```bash
 # Extract all symbols
-python .claude/skills/symbols/scripts/extract_typescript_symbols.py
-python .claude/skills/symbols/scripts/extract_python_symbols.py
+python .claude/skills/symbols/scripts/extract_symbols_typescript.py
+python .claude/skills/symbols/scripts/extract_symbols_python.py
 ```
 
 ### 3. Query Symbols
@@ -174,8 +174,8 @@ See: [templates/QUICK_START.md](./templates/QUICK_START.md)
 python .claude/skills/symbols/scripts/validate_schema.py
 
 # Extract symbols
-python .claude/skills/symbols/scripts/extract_typescript_symbols.py
-python .claude/skills/symbols/scripts/extract_python_symbols.py
+python .claude/skills/symbols/scripts/extract_symbols_typescript.py
+python .claude/skills/symbols/scripts/extract_symbols_python.py
 
 # Validate results
 python .claude/skills/symbols/scripts/validate_symbols.py

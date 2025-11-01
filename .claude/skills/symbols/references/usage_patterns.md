@@ -83,7 +83,7 @@ service = get_symbol_context(name="PromptService", include_related=True)
 # Returns: Service + Repository + DTOs
 ```
 
-**Result**: Understand MeatyPrompts patterns: Router → Service → Repository → DB
+**Result**: Understand project architectural patterns (e.g., Router → Service → Repository → DB)
 
 ## Cross-Domain Development
 

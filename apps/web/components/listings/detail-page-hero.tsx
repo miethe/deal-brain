@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { ProductImage } from "./product-image";
 import { SummaryCard } from "./summary-card";

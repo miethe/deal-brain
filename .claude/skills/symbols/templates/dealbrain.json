@@ -1,5 +1,5 @@
 {
-  "$schema": "./symbols-config-schema.json",
+  "$schema": "../symbols-config-schema.json",
   "projectName": "{{PROJECT_NAME}}",
   "symbolsDir": "{{SYMBOLS_DIR}}",
   "domains": {
@@ -60,9 +60,7 @@
         "apps/cli",
         "packages/core"
       ],
-      "extensions": [
-        ".py"
-      ],
+      "extensions": [".py"],
       "excludes": [
         "__pycache__",
         "*.pyc",
@@ -85,12 +83,7 @@
         "apps/mobile",
         "packages/js-ui"
       ],
-      "extensions": [
-        ".ts",
-        ".tsx",
-        ".js",
-        ".jsx"
-      ],
+      "extensions": [".ts", ".tsx", ".js", ".jsx"],
       "excludes": [
         "node_modules/",
         "*.test.*",
@@ -112,7 +105,6 @@
   },
   "metadata": {
     "version": "1.0",
-    "description": "Template for React + TypeScript monorepo with FastAPI backend. Common patterns: Radix UI, React Query, Tailwind, SQLAlchemy, Pydantic. Customize directories, domains, and layers to match your project structure.",
-    "lastUpdated": "2025-11-01T16:22:48.125254Z"
+    "description": "Template for React + TypeScript monorepo with FastAPI backend. Common patterns: Radix UI, React Query, Tailwind, SQLAlchemy, Pydantic. Customize directories, domains, and layers to match your project structure."
   }
 }

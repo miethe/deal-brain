@@ -1,6 +1,12 @@
-# Architecture Integration
+# Architecture Integration - Reference Example
 
-How symbols integrate with MeatyPrompts layered architecture and development workflow.
+**Example Project**: MeatyPrompts (Full-stack TypeScript/Python monorepo)
+
+> **Note**: This document uses MeatyPrompts as a reference implementation example.
+> The symbols skill is framework-agnostic - adapt these patterns to your project's
+> architecture. See SKILL.md for generic usage patterns.
+
+How symbols integrate with project layered architecture and development workflow.
 
 ## Symbol Structure
 
@@ -53,7 +59,7 @@ Located in `ai/` directory:
 
 ## Layered Architecture Mapping
 
-MeatyPrompts follows strict layered architecture: **Router → Service → Repository → DB**
+Example layered architecture pattern: **Router → Service → Repository → DB**
 
 ### Layer Detection
 
@@ -217,7 +223,7 @@ update_symbols(mode="domain", domain="ui", chunk=True)
 
 ## Slash Command Integration
 
-The symbols skill wraps these MeatyPrompts slash commands:
+The symbols skill provides these slash commands:
 
 - `/symbols-query` - Query implementation
 - `/symbols-search` - Search implementation

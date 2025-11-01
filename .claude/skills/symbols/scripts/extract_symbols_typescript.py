@@ -9,14 +9,14 @@ Usage:
     python extract_symbols_typescript.py <path> [--output=file.json] [--exclude-tests] [--exclude-private]
 
 Examples:
-    # Extract symbols from web app
-    python extract_symbols_typescript.py apps/web/src
+    # Extract symbols from source directory
+    python extract_symbols_typescript.py src
 
-    # Extract from UI package with output
-    python extract_symbols_typescript.py packages/ui --output=ui_symbols.json
+    # Extract from specific directory with output
+    python extract_symbols_typescript.py frontend --output=frontend_symbols.json
 
     # Exclude test files and private symbols
-    python extract_symbols_typescript.py apps/web/src --exclude-tests --exclude-private
+    python extract_symbols_typescript.py src --exclude-tests --exclude-private
 
 Output Format:
     {

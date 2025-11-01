@@ -1,21 +1,21 @@
 ---
 name: symbols
-description: Token-efficient codebase navigation through intelligent symbol loading and querying. Use this skill when implementing new features (find existing patterns), exploring codebase structure, searching for components/functions/types, or understanding architectural layers. Reduces token usage by 60-95% compared to loading full files. API layer split enables 50-80% additional backend efficiency.
+description: Token-efficient codebase navigation through intelligent symbol loading and querying. Use this skill when implementing new features (find existing patterns), exploring codebase structure, searching for components/functions/types, or understanding architectural layers. Reduces token usage by 60-95% compared to loading full files. Layer split enables 50-80% additional backend efficiency.
 ---
 
 # Symbols - Intelligent Codebase Symbol Analysis
 
 ## Overview
 
-Enable token-efficient navigation of the MeatyPrompts codebase through pre-generated symbol graphs chunked by domain (UI, Web, API, Shared) and separated from test files. Query symbols by name, kind, path, layer tag, or architectural layer without loading entire files. Load only the context needed for the current task.
+Enable token-efficient navigation through pre-generated symbol graphs chunked by domain and separated from test files. Query symbols by name, kind, path, layer tag, or architectural layer without loading entire files. Load only the context needed for the current task. Reduces token usage by 95-99% compared to loading full files.
 
 **Key Benefits:**
 - 60-95% reduction in token usage vs loading full codebase
 - Progressive loading strategy (load only what's needed)
-- Domain-specific chunking for targeted context (UI primitives, Web frontend, API backend, Shared utilities)
-- API layer split for 50-80% token reduction in backend work (load only routers, services, repositories, schemas, or cores)
-- Architectural layer tags on all 8,888 symbols for precise filtering (router, service, repository, component, hook, etc.)
-- Architectural layer awareness (Router → Service → Repository → DB)
+- Domain-specific chunking for targeted context (configured per project)
+- Layer split for 50-80% token reduction in backend work (load only specific architectural layers)
+- Architectural layer tags for precise filtering (router, service, repository, component, hook, etc.)
+- Architectural layer awareness for validating patterns
 - Test file separation (loaded only when debugging)
 - Precise code references with file paths and line numbers
 - Complete codebase coverage including frontend and backend
@@ -38,24 +38,25 @@ Do NOT use this skill for:
 
 ## Key Capabilities
 
-### Token-Efficient API Access
+### Token-Efficient Layer Access
 
-**API Layer Split:**
-- API domain divided into 5 architectural layers for targeted loading
-- Load only the layer you need: routers, services, repositories, schemas, cores
-- 50-80% token reduction vs loading entire API domain
+**Layer Split:**
+- Backend domains can be divided into architectural layers for targeted loading
+- Load only the layer you need: routers, services, repositories, schemas, cores (or project-specific layers)
+- 50-80% token reduction vs loading entire domain
 
-**Layer Files:**
-- `symbols-api-routers.json` - 289 symbols (241KB) - HTTP endpoints and route handlers
-- `symbols-api-services.json` - 454 symbols (284KB) - Business logic layer
-- `symbols-api-repositories.json` - 387 symbols (278KB) - Data access layer
-- `symbols-api-schemas.json` - 570 symbols (259KB) - DTOs and request/response types
-- `symbols-api-cores.json` - 1,341 symbols (703KB) - Models, core utilities, database, auth
+**Common Layer Types:**
+- Routers/Controllers - HTTP endpoints and route handlers
+- Services - Business logic layer
+- Repositories - Data access layer
+- Schemas/DTOs - Data transfer objects and request/response types
+- Cores/Models - Domain models, core utilities, database entities
 
 **Benefits:**
-- Backend service dev: Load 454 service symbols (284KB) instead of 3,041 API symbols (1.8MB) = 84% reduction
-- API endpoint work: Load 289 router symbols (241KB) instead of 3,041 API symbols (1.8MB) = 87% reduction
-- DTO/schema work: Load 570 schema symbols (259KB) instead of 3,041 API symbols (1.8MB) = 86% reduction
+- Backend service dev: Load only service symbols instead of entire backend
+- API endpoint work: Load only router symbols instead of entire backend
+- DTO/schema work: Load only schema symbols instead of entire backend
+- Typical reduction: 80-90% token savings
 
 ### Schema Standardization
 
@@ -66,13 +67,17 @@ Do NOT use this skill for:
 
 ### Complete Coverage
 
-**Frontend:**
-- UI primitives (packages/ui): 755 symbols (191KB)
-- Web app (apps/web): 1,088 symbols (629KB)
+Symbol files provide complete codebase coverage organized by domain:
 
-**Backend:**
-- API with layer-based access: 3,041 symbols (5 targeted layer files)
-- Separate test file loading for debugging: 3,621 API test symbols (1.8MB)
+**Frontend domains:**
+- UI components and primitives
+- Web/mobile application code (pages, routes, app-specific features)
+
+**Backend domains:**
+- API with layer-based access (targeted loading by architectural layer)
+- Separate test file loading for debugging
+
+Domain structure is configured in `symbols.config.json` and tailored to your project architecture.
 
 ## Core Capabilities
 
@@ -102,7 +107,7 @@ results = query_symbols(kind="hook", domain="ui", summary_only=True)
 **Parameters**:
 - `name` (optional) - Symbol name (supports partial/fuzzy matching)
 - `kind` (optional) - Symbol kind: component, hook, function, class, interface, type, method
-- `domain` (optional) - Domain filter: ui (UI primitives), web (frontend app), api (backend), shared (utilities)
+- `domain` (optional) - Domain filter (configured per project: e.g., ui, web, api, shared, mobile)
 - `path` (optional) - File path pattern (e.g., "components", "hooks", "services")
 - `limit` (optional) - Maximum results to return (default: 20)
 - `summary_only` (optional) - Return only name and summary (default: false)
@@ -134,7 +139,7 @@ shared_context = load_domain(domain="shared", max_symbols=50)
 ```
 
 **Parameters**:
-- `domain` (required) - Domain to load: ui (UI primitives), web (frontend app), api (backend), shared (utilities)
+- `domain` (required) - Domain to load (configured per project: e.g., ui, web, api, shared, mobile)
 - `include_tests` (optional) - Include test file symbols (default: false)
 - `max_symbols` (optional) - Limit number of symbols returned (default: all)
 
@@ -142,58 +147,58 @@ shared_context = load_domain(domain="shared", max_symbols=50)
 
 **Token efficiency**: Load 50-100 symbols (~10-15KB) instead of full domain (~250KB)
 
-**Note for API Domain:** For token efficiency, consider using `load_api_layer()` instead to load only the specific architectural layer you need (routers, services, repositories, schemas, cores).
+**Note for Backend Domains:** For token efficiency, consider using `load_api_layer()` instead to load only the specific architectural layer you need (e.g., routers, services, repositories, schemas).
 
 ### 2.1. Load API Layer
 
-Load symbols from a specific API architectural layer for token-efficient backend development.
+Load symbols from a specific architectural layer for token-efficient backend development.
 
-**When to use**: Backend development requiring only one architectural layer (routers, services, repositories, schemas, or cores). Provides 50-80% token reduction vs loading entire API domain.
+**When to use**: Backend development requiring only one architectural layer (e.g., routers, services, repositories, schemas). Provides 50-80% token reduction vs loading entire backend domain.
 
 **How to use**:
 
 ```python
 from symbol_tools import load_api_layer
 
-# Load only service layer for backend development (454 symbols, ~284KB)
+# Load only service layer for backend development
 services = load_api_layer("services")
 
-# Load schemas for DTO work (570 symbols, ~259KB)
+# Load schemas for DTO work
 schemas = load_api_layer("schemas", max_symbols=100)
 
-# Load routers for endpoint development (289 symbols, ~241KB)
+# Load routers for endpoint development
 routers = load_api_layer("routers")
 
-# Load repositories for data access patterns (387 symbols, ~278KB)
+# Load repositories for data access patterns
 repositories = load_api_layer("repositories")
 
-# Load cores for models and utilities (1,341 symbols, ~703KB)
+# Load cores for models and utilities
 cores = load_api_layer("cores", max_symbols=200)
 ```
 
 **Parameters**:
-- `layer` (required) - API layer to load: routers (289 symbols), services (454), repositories (387), schemas (570), cores (1,341)
+- `layer` (required) - Architectural layer to load (configured per project: e.g., routers, services, repositories, schemas, cores)
 - `max_symbols` (optional) - Limit number of symbols returned (default: all)
 
 **Returns**: Dict with layer, totalSymbols count, and symbols array.
 
 **Token efficiency examples**:
-- Backend service development: Load 454 service symbols (284KB) instead of 3,041 API symbols (1.8MB) = **84% reduction**
-- API endpoint work: Load 289 router symbols (241KB) instead of 3,041 API symbols (1.8MB) = **87% reduction**
-- DTO/schema work: Load 570 schema symbols (259KB) instead of 3,041 API symbols (1.8MB) = **86% reduction**
+- Backend service development: Load only service symbols instead of entire backend = **80-85% reduction**
+- API endpoint work: Load only router symbols instead of entire backend = **85-90% reduction**
+- DTO/schema work: Load only schema symbols instead of entire backend = **85-90% reduction**
 
-**Available Layers**:
-- `routers` - HTTP endpoints, route handlers, validation
-- `services` - Business logic, DTO mapping, service layer
-- `repositories` - Database operations, RLS, data access
-- `schemas` - Request/response DTOs, Pydantic models
-- `cores` - SQLAlchemy models, core utilities, database, auth
+**Common Layer Types** (configured per project):
+- `routers` / `controllers` - HTTP endpoints, route handlers, validation
+- `services` - Business logic, DTO mapping, orchestration
+- `repositories` - Database operations, data access patterns
+- `schemas` / `dtos` - Request/response data transfer objects
+- `cores` / `models` - Domain models, core utilities, database entities
 
 ### 3. Search Patterns
 
 Advanced pattern-based search with architectural layer tags for precise filtering.
 
-**When to use**: Find symbols matching regex patterns, filter by architectural layer tag, validate MeatyPrompts layered architecture patterns.
+**When to use**: Find symbols matching regex patterns, filter by architectural layer tag, validate layered architecture patterns.
 
 **How to use**:
 
@@ -218,14 +223,14 @@ telemetry = search_patterns(layer="observability", domain="api")
 
 **Parameters**:
 - `pattern` (optional) - Search pattern (supports regex)
-- `layer` (optional) - Architectural layer tag: router, service, repository, schema, model, core, auth, middleware, observability (API); component, hook, page, util (Frontend); test (Test layer)
+- `layer` (optional) - Architectural layer tag (configured per project, common types: router, service, repository, schema, model, component, hook, page, util, test)
 - `priority` (optional) - Priority filter: high, medium, low
-- `domain` (optional) - Domain filter: ui, web, api, shared
+- `domain` (optional) - Domain filter (configured per project: e.g., ui, web, api, shared, mobile)
 - `limit` (optional) - Maximum results (default: 30)
 
 **Returns**: List of matching symbols with layer tag, domain, and summary.
 
-**Layer Tags**: All 8,888 symbols include a `layer` field enabling precise architectural filtering. API layers: router, service, repository, schema, model, core, auth, middleware, observability. Frontend layers: component, hook, page, util. Test layer: test.
+**Layer Tags**: All symbols include a `layer` field enabling precise architectural filtering. Common backend layers: router, service, repository, schema, model, core, auth, middleware. Common frontend layers: component, hook, page, util. Test layer: test.
 
 ### 4. Get Symbol Context
 
@@ -239,12 +244,12 @@ Get full context for a specific symbol including definition location and related
 from symbol_tools import get_symbol_context
 
 # Get full context for a component (includes props interface)
-context = get_symbol_context(name="PromptCard", include_related=True)
+context = get_symbol_context(name="Button", include_related=True)
 
 # Get service definition with related symbols
 service = get_symbol_context(
-    name="PromptService",
-    file="services/api/app/services/prompt_service.py",
+    name="UserService",
+    file="backend/services/user_service.py",
     include_related=True
 )
 ```
@@ -326,29 +331,29 @@ similar = query_symbols(name="Card", kind="component", domain="ui", limit=10)
 # 3. Load web domain context for frontend patterns
 web_symbols = load_domain(domain="web", max_symbols=100)
 
-# 4. Find existing API hooks (useContexts, useAgents, etc)
+# 4. Find existing API hooks (useQuery, useMutation, etc)
 api_hooks = query_symbols(path="hooks/queries", domain="web")
 
 # 5. Check shared types and interfaces
 types = query_symbols(path="types", kind="interface", domain="web")
 ```
 
-**Result**: ~100 symbols loaded (~15KB) instead of full 447KB graph = 97% reduction
+**Result**: ~100 symbols loaded (~15KB) instead of full codebase = 95-97% reduction
 
 ### Backend Development Workflow
 
 ```python
 from symbol_tools import load_api_layer, search_patterns, query_symbols
 
-# Targeted API layer loading (recommended)
+# Targeted layer loading (recommended)
 
-# 1. Load only service layer for backend development (454 symbols, ~280KB)
+# 1. Load only service layer for backend development
 services = load_api_layer("services", max_symbols=50)
 
-# 2. Load schemas for DTO patterns (570 symbols, ~250KB)
+# 2. Load schemas for DTO patterns
 schemas = load_api_layer("schemas", max_symbols=30)
 
-# 3. Find similar routers in router layer (289 symbols, ~240KB)
+# 3. Find similar routers in router layer
 routers = load_api_layer("routers", max_symbols=20)
 
 # Alternative: Pattern-based search across layers
@@ -360,7 +365,7 @@ service_patterns = search_patterns(pattern="Service", layer="service", domain="a
 router_patterns = search_patterns(pattern="router", layer="router", domain="api")
 ```
 
-**Result**: ~100 symbols loaded (~20KB) for targeted API context = **84-87% token reduction** vs loading full API domain
+**Result**: ~100 symbols loaded (~20KB) for targeted backend context = **80-90% token reduction** vs loading full backend domain
 
 ### Debugging Workflow
 
@@ -368,13 +373,13 @@ router_patterns = search_patterns(pattern="router", layer="router", domain="api"
 from symbol_tools import get_symbol_context, load_domain, query_symbols
 
 # 1. Load component and related symbols
-component = get_symbol_context(name="PromptCard", include_related=True)
+component = get_symbol_context(name="Button", include_related=True)
 
 # 2. Load test context to understand test cases
 tests = load_domain(domain="ui", include_tests=True, max_symbols=30)
 
 # 3. Search for related hooks in frontend app
-hooks = query_symbols(path="hooks", name="prompt", kind="hook", domain="web")
+hooks = query_symbols(path="hooks", name="user", kind="hook", domain="web")
 
 # 4. Find state management patterns
 state = query_symbols(path="contexts", kind="function", domain="web")
@@ -392,7 +397,7 @@ Follow this three-tier approach for optimal token efficiency:
 **Tier 1: Essential Context (25-30% of budget)**
 - Load 10-20 symbols directly related to current task
 - Focus on interfaces, types, and primary components/services
-- Use: `query_symbols(name="PromptCard", limit=10)`
+- Use: `query_symbols(name="Button", limit=10)`
 
 **Tier 2: Supporting Context (15-20% of budget)**
 - Load related patterns and utilities
@@ -419,19 +424,19 @@ Symbol graph updates can be performed programmatically using domain-specific ext
 
 Usage:
 ```bash
-python .claude/skills/symbols/scripts/extract_symbols_python.py services/api/app
+python .claude/skills/symbols/scripts/extract_symbols_python.py path/to/backend/app
 ```
 
 **TypeScript/JavaScript Symbol Extractor** (`scripts/extract_symbols_typescript.py`):
 - Extracts TypeScript interfaces, types, functions, classes
 - Extracts React components and hooks
 - Parses JSDoc comments for summaries
-- Handles monorepo structure (apps/web, packages/ui)
+- Handles monorepo structures and nested directories
 - Output: JSON-compatible symbol metadata
 
 Usage:
 ```bash
-python .claude/skills/symbols/scripts/extract_symbols_typescript.py apps/web/src
+python .claude/skills/symbols/scripts/extract_symbols_typescript.py path/to/frontend/src
 ```
 
 **Symbol Merger** (`scripts/merge_symbols.py`):
@@ -457,39 +462,37 @@ python .claude/skills/symbols/scripts/merge_symbols.py --domain=api --input=extr
 
 ## Symbol Structure Reference
 
-Symbols are stored in domain-specific JSON files in the `ai/` directory. All 8,888 symbols include a `layer` field for architectural filtering.
+Symbols are stored in domain-specific JSON files in the `ai/` directory. All symbols include a `layer` field for architectural filtering.
 
-**Main symbol files**:
-- `ai/symbols-ui.json` (191KB, 755 symbols) - UI primitives from packages/ui
-- `ai/symbols-web.json` (629KB, 1,088 symbols) - Frontend app (apps/web: hooks, pages, components, types)
-- `ai/symbols-api.json` (1.8MB, 3,041 symbols) - **Unified API (legacy)** - Use layer-specific files instead
-- `ai/symbols-shared.json` - Currently mapped to symbols-web.json (pending separate file creation)
+**Symbol files are organized by domain as configured in `symbols.config.json`. Common domains include:**
 
-**API Layer Files (recommended for backend work)**:
-- `ai/symbols-api-routers.json` (241KB, 289 symbols) - HTTP endpoints and route handlers
-- `ai/symbols-api-services.json` (284KB, 454 symbols) - Business logic layer
-- `ai/symbols-api-repositories.json` (278KB, 387 symbols) - Data access layer
-- `ai/symbols-api-schemas.json` (259KB, 570 symbols) - DTOs and request/response types
-- `ai/symbols-api-cores.json` (703KB, 1,341 symbols) - Models, core utilities, database, auth
+- **UI/Frontend Components** - UI primitives, design system components
+- **Web/Mobile Application** - Application-specific code (pages, routes, features)
+- **Backend API** - Backend code, optionally split by architectural layer
+- **Shared/Common** - Shared utilities, types, and helpers
 
-**Test symbol files** (load separately):
-- `ai/symbols-ui-tests.json` (77KB, 383 symbols)
-- `ai/symbols-api-tests.json` (1.8MB, 3,621 symbols)
-- `ai/symbols-shared-tests.json` (pending creation)
+**Backend Layer Files** (when using layer-based split for token efficiency):
+- `symbols-{domain}-routers.json` - HTTP endpoints and route handlers
+- `symbols-{domain}-services.json` - Business logic layer
+- `symbols-{domain}-repositories.json` - Data access layer
+- `symbols-{domain}-schemas.json` - DTOs and request/response types
+- `symbols-{domain}-cores.json` - Domain models, core utilities, database entities
 
-**Deprecated**:
-- `ai/symbols.graph.json` (436KB) - Complete codebase reference. **DEPRECATED** (last updated 2025-09-08, 50+ days out of date). Use domain-specific files instead for current information. Removed from default loading to reduce overhead.
+**Test symbol files** (loaded separately, on-demand for debugging):
+- `symbols-{domain}-tests.json` - Test helpers, fixtures, and test cases
+
+**Note**: Actual file names, symbol counts, and organization depend on your project configuration in `symbols.config.json`.
 
 **Symbol structure example**:
 ```json
 {
-  "name": "PromptCard",
+  "name": "Button",
   "kind": "component",
-  "file": "packages/ui/src/components/PromptCard.tsx",
-  "line": 42,
-  "domain": "ui",
+  "file": "src/components/Button.tsx",
+  "line": 15,
+  "domain": "frontend",
   "layer": "component",
-  "summary": "Display card for prompt items with metadata"
+  "summary": "Reusable button component with variants"
 }
 ```
 
@@ -502,10 +505,10 @@ Symbols are stored in domain-specific JSON files in the `ai/` directory. All 8,8
 - `interface` - TypeScript interfaces
 - `type` - TypeScript type aliases
 
-**Layer tags** (all symbols include one):
-- API: `router`, `service`, `repository`, `schema`, `model`, `core`, `auth`, `middleware`, `observability`
-- Frontend: `component`, `hook`, `page`, `util`
-- Test: `test`
+**Layer tags** (all symbols include one, configured per project):
+- Common backend layers: `router`, `service`, `repository`, `schema`, `model`, `core`, `auth`, `middleware`
+- Common frontend layers: `component`, `hook`, `page`, `util`
+- Test layer: `test`
 
 ## Resources
 
@@ -545,9 +548,9 @@ Read this reference for comprehensive examples of each workflow type.
 
 ### references/architecture_integration.md
 
-Deep dive into MeatyPrompts architecture integration:
+Deep dive into architecture integration:
 - Symbol structure specification
-- Layered architecture mapping (Router → Service → Repository → DB)
+- Layered architecture mapping (e.g., Router → Service → Repository → DB)
 - Symbol relationship analysis
 - Development workflow integration
 - Regeneration and update strategies
@@ -555,13 +558,13 @@ Deep dive into MeatyPrompts architecture integration:
 - Agent integration patterns
 - Configuration reference
 
-Read this reference to understand how symbols map to MeatyPrompts architectural patterns.
+Read this reference to understand how symbols map to your project's architectural patterns.
 
-## Integration with MeatyPrompts
+## Project Integration
 
 ### Slash Commands
 
-The symbols skill wraps these MeatyPrompts slash commands:
+The symbols skill can integrate with project-specific slash commands:
 - `/symbols-query` - Query implementation
 - `/symbols-search` - Search implementation
 - `/load-symbols` - Domain loading implementation
@@ -570,57 +573,56 @@ The symbols skill wraps these MeatyPrompts slash commands:
 
 ### Related Agents
 
+Common agent patterns that use symbols:
 - `symbols-engineer` - Expert in symbol optimization and graph management
-- `ui-engineer-enhanced` - Uses symbols for frontend work
 - `codebase-explorer` - Uses symbols for efficient code discovery
+- Frontend/backend engineers - Use symbols for targeted context loading
 
-### MeatyPrompts Architecture
+### Architecture Integration
 
-Symbols understand and validate MeatyPrompts layered architecture:
-- **Router layer** - HTTP endpoints, validation
-- **Service layer** - Business logic, DTO mapping
-- **Repository layer** - Database operations, RLS
-- **Component layer** - UI components from `@meaty/ui`
-- **Hook layer** - React hooks and state management
+Symbols understand and validate project-specific layered architectures. Common patterns include:
+
+**Backend layers:**
+- **Router/Controller layer** - HTTP endpoints, validation, request handling
+- **Service layer** - Business logic, orchestration, DTO mapping
+- **Repository layer** - Database operations, data access patterns
+- **Schema/DTO layer** - Request/response data structures
+- **Model layer** - Domain models and database entities
+
+**Frontend layers:**
+- **Component layer** - UI components and design system primitives
+- **Hook layer** - React hooks, state management, data fetching
+- **Page layer** - Application pages, routes, views
 - **Util layer** - Shared utilities and helpers
 
 Use `search_patterns()` with `layer` parameter to filter by architectural layer.
 
 ## Performance
 
-**Symbol Coverage**:
-- Total symbols: 8,888 (all include layer tags)
-- UI domain: 755 symbols (191KB)
-- Web domain: 1,088 symbols (629KB)
-- API domain: 3,041 symbols (1.8MB unified, or split into 5 layers)
-- UI tests: 383 symbols (77KB)
-- API tests: 3,621 symbols (1.8MB)
-
-**API Layer Split**:
-- Routers: 289 symbols (241KB)
-- Services: 454 symbols (284KB)
-- Repositories: 387 symbols (278KB)
-- Schemas: 570 symbols (259KB)
-- Cores: 1,341 symbols (703KB)
+**Symbol Coverage** (varies by project):
+- Symbol counts and file sizes depend on codebase size and configuration
+- All symbols include layer tags for precise filtering
+- Domain-specific organization enables targeted loading
+- Test symbols separated for on-demand debugging
 
 **Token Efficiency Gains**:
-- Full graph: 436KB (deprecated, avoid loading)
-- Domain-specific files: 191KB-1.8MB (targeted to your task)
-- API layers: 241KB-703KB (50-80% reduction vs unified API)
-- Typical query: 10-20 symbols (~2-5KB, 99% reduction)
+- Full codebase loading: Large (avoid when possible)
+- Domain-specific files: Targeted to your task (50-80% reduction)
+- Layer-specific files: Even more targeted (70-90% reduction vs full domain)
+- Typical query: 10-20 symbols (~2-5KB, 95-99% reduction)
 - Layer-filtered queries: 5-15 symbols (~1-3KB, 99%+ reduction)
 
 **Progressive Loading Example**:
-1. Essential context: 20 symbols = ~5KB (99% reduction vs full graph)
-2. Supporting context: +30 symbols = ~12KB total (97% reduction)
-3. On-demand lookup: +10 symbols = ~15KB total (97% reduction)
+1. Essential context: 20 symbols = ~5KB (95-99% reduction vs full codebase)
+2. Supporting context: +30 symbols = ~12KB total (95-97% reduction)
+3. On-demand lookup: +10 symbols = ~15KB total (95-97% reduction)
 
 **Backend Development Example**:
-- Loading entire API domain: 1.8MB
-- Loading service layer only: 284KB
-- **Efficiency gain: 84% reduction**
+- Loading entire backend domain: Large
+- Loading single layer (e.g., services): 70-90% smaller
+- **Typical efficiency gain: 80-90% token reduction**
 
 **Comparison to loading full files**:
 - Loading full files for context: ~200KB+
 - Using domain-specific symbols: ~15KB (93% reduction)
-- Using API layer symbols: ~10KB (95% reduction)
+- Using layer-specific symbols: ~10KB (95% reduction)
