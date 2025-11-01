@@ -12,7 +12,7 @@
 ### Success Criteria
 - [x] JSON configuration created with validation
 - [x] Image resolver implemented with <1ms performance
-- [ ] ProductImageDisplay refactored to use resolver
+- [x] ProductImageDisplay refactored to use resolver
 - [ ] Image directory structure reorganized
 - [ ] User documentation complete
 - [ ] All tests passing (unit, E2E, visual regression)
@@ -22,7 +22,7 @@
 ### Development Checklist
 - [x] IMG-001: Design and Create Image Configuration File (4h)
 - [x] IMG-002: Implement Image Resolver Utility (8h)
-- [ ] IMG-003: Refactor ProductImageDisplay Component (12h)
+- [x] IMG-003: Refactor ProductImageDisplay Component (12h)
 - [ ] IMG-004: Reorganize Image Directory Structure (4h)
 - [ ] IMG-005: Documentation for Non-Technical Users (4h)
 - [ ] Testing: Comprehensive test coverage (12h)
@@ -89,6 +89,27 @@
 **Next Steps:**
 - Execute IMG-003 (Refactor ProductImageDisplay component)
 
+### 2025-11-01 - Session 4
+
+**Completed:**
+- ✅ IMG-003: Refactored ProductImageDisplay to use image-resolver
+- Removed 40 lines of state-based fallback logic (25% reduction)
+- Maintained 100% backward compatibility
+- Eliminated re-render cascade on image errors
+- All features preserved (lightbox, loading, accessibility)
+
+**Subagents Used:**
+- @ui-engineer - Component refactoring
+
+**Commits:**
+- 38c5b6e feat(web): refactor ProductImageDisplay to use image-resolver (IMG-003)
+
+**Blockers/Issues:**
+- None
+
+**Next Steps:**
+- Execute IMG-004 (Reorganize image directory structure)
+
 ---
 
 ## Decisions Log
@@ -120,6 +141,8 @@
 
 ### Modified
 - package.json - Added validation and test scripts
+- apps/web/components/listings/product-image-display.tsx - Refactored to use image-resolver (40 lines removed)
+- apps/web/components/listings/__tests__/product-image-display.test.tsx - Updated test mocks
 
 ### Deleted
 [Will be updated as work progresses]
