@@ -16,8 +16,9 @@ import {
   useReactTable
 } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDebouncedCallback } from "use-debounce";
 import Link from "next/link";
-import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef, Profiler } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { apiFetch, ApiError } from "../../lib/utils";
@@ -40,6 +41,7 @@ import { EntityTooltip } from "./entity-tooltip";
 import { RamSpecSelector } from "../forms/ram-spec-selector";
 import { StorageProfileSelector } from "../forms/storage-profile-selector";
 import { getStorageMediumLabel } from "../../lib/component-catalog";
+import { measureInteraction, measureInteractionAsync, logRenderPerformance } from "../../lib/performance";
 
 // ListingRow is just an alias for ListingRecord - all fields come from the API
 export type ListingRow = ListingRecord;
@@ -145,6 +147,7 @@ export function ListingsTable() {
   const [grouping, setGrouping] = useState<GroupingState>([]);
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const [quickSearch, setQuickSearch] = useState("");
+  const [quickSearchInput, setQuickSearchInput] = useState("");
   const [rowSelection, setRowSelection] = useState({});
   const [bulkState, setBulkState] = useState<BulkEditState>({ ...DEFAULT_BULK_STATE });
   const [inlineError, setInlineError] = useState<string | null>(null);
@@ -164,6 +167,13 @@ export function ListingsTable() {
     return param ? parseInt(param, 10) : null;
   }, [searchParams]);
 
+  // Debounced search with performance tracking (200ms debounce)
+  const debouncedSearch = useDebouncedCallback((value: string) => {
+    measureInteraction('quick_search', () => {
+      setQuickSearch(value);
+    });
+  }, 200);
+
   // Load saved table state on mount (will be validated when table initializes)
   useEffect(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
@@ -175,7 +185,10 @@ export function ListingsTable() {
       if (parsed.sorting) setSorting(parsed.sorting);
       if (parsed.filters) setColumnFilters(parsed.filters);
       if (parsed.grouping) setGrouping(parsed.grouping);
-      if (parsed.search) setQuickSearch(parsed.search);
+      if (parsed.search) {
+        setQuickSearch(parsed.search);
+        setQuickSearchInput(parsed.search);
+      }
     } catch (
       // eslint-disable-next-line no-empty
       _error
@@ -312,8 +325,10 @@ export function ListingsTable() {
       field: FieldConfig,
       rawValue: string | string[] | boolean | number | RamSpecRecord | StorageProfileRecord | null
     ) => {
-      const parsed = parseFieldValue(field, rawValue);
-      inlineMutation.mutate({ listingId, field, value: parsed });
+      measureInteraction('inline_cell_save', () => {
+        const parsed = parseFieldValue(field, rawValue);
+        inlineMutation.mutate({ listingId, field, value: parsed });
+      });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [inlineMutation.mutate]
@@ -365,25 +380,27 @@ export function ListingsTable() {
       .map(([key]) => Number(key));
     if (!selectedIds.length) return;
 
-    setIsBulkSubmitting(true);
-    setBulkMessage(null);
-    try {
-      const parsedValue = parseFieldValue(field, bulkState.value);
-      const payload = buildBulkPayload(field, parsedValue, selectedIds);
-      await apiFetch("/v1/listings/bulk-update", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-      queryClient.invalidateQueries({ queryKey: ["listings", "records"] });
-      setBulkMessage(`Applied changes to ${selectedIds.length} listing(s).`);
-      setRowSelection({});
-      setBulkState({ ...DEFAULT_BULK_STATE });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Bulk update failed";
-      setBulkMessage(message);
-    } finally {
-      setIsBulkSubmitting(false);
-    }
+    await measureInteractionAsync('bulk_edit_submit', async () => {
+      setIsBulkSubmitting(true);
+      setBulkMessage(null);
+      try {
+        const parsedValue = parseFieldValue(field, bulkState.value);
+        const payload = buildBulkPayload(field, parsedValue, selectedIds);
+        await apiFetch("/v1/listings/bulk-update", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        queryClient.invalidateQueries({ queryKey: ["listings", "records"] });
+        setBulkMessage(`Applied changes to ${selectedIds.length} listing(s).`);
+        setRowSelection({});
+        setBulkState({ ...DEFAULT_BULK_STATE });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Bulk update failed";
+        setBulkMessage(message);
+      } finally {
+        setIsBulkSubmitting(false);
+      }
+    });
   }, [bulkState.fieldKey, bulkState.value, fieldConfigs, listings.length, queryClient, rowSelection]);
 
   const cpuOptions = useMemo(() => {
@@ -774,6 +791,19 @@ export function ListingsTable() {
     return [...baseColumns, ...editableColumns];
   }, [cpuOptions, fieldConfigs, fieldMap, handleInlineSave, handleCreateOption, inlineMutation.isPending, thresholds]);
 
+  // Wrap state setters with performance instrumentation
+  const handleSortingChange = useCallback((updater: any) => {
+    measureInteraction('column_sort', () => {
+      setSorting(updater);
+    });
+  }, []);
+
+  const handleColumnFiltersChange = useCallback((updater: any) => {
+    measureInteraction('column_filter', () => {
+      setColumnFilters(updater);
+    });
+  }, []);
+
   const table = useReactTable({
     data: filteredListings,
     columns,
@@ -787,8 +817,8 @@ export function ListingsTable() {
     enableRowSelection: true,
     columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
-    onColumnFiltersChange: setColumnFilters,
-    onSortingChange: setSorting,
+    onColumnFiltersChange: handleColumnFiltersChange,
+    onSortingChange: handleSortingChange,
     onGroupingChange: setGrouping,
     onColumnSizingChange: setColumnSizing,
     getCoreRowModel: getCoreRowModel(),
@@ -829,14 +859,16 @@ export function ListingsTable() {
     setSorting([{ id: "title", desc: false }]);
     setGrouping([]);
     setQuickSearch("");
+    setQuickSearchInput("");
     setRowSelection({});
     setBulkState({ ...DEFAULT_BULK_STATE });
     setBulkMessage(null);
   };
 
   return (
-    <Card className="w-full border-0 bg-background shadow-none">
-      <CardHeader className="space-y-4">
+    <Profiler id="ListingsTable" onRender={logRenderPerformance}>
+      <Card className="w-full border-0 bg-background shadow-none">
+        <CardHeader className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
             <h2 className="text-2xl font-semibold tracking-tight">Listings workspace</h2>
@@ -853,8 +885,12 @@ export function ListingsTable() {
             </Label>
             <Input
               id="listings-search"
-              value={quickSearch}
-              onChange={(event) => setQuickSearch(event.target.value)}
+              value={quickSearchInput}
+              onChange={(event) => {
+                const value = event.target.value;
+                setQuickSearchInput(value);
+                debouncedSearch(value);
+              }}
               placeholder="Title, CPU, custom fields…"
             />
           </div>
@@ -923,7 +959,8 @@ export function ListingsTable() {
 
       {/* Confirmation Dialog */}
       {confirmationDialog}
-    </Card>
+      </Card>
+    </Profiler>
   );
 }
 
