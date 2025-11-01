@@ -13,7 +13,7 @@
 - [x] JSON configuration created with validation
 - [x] Image resolver implemented with <1ms performance
 - [x] ProductImageDisplay refactored to use resolver
-- [ ] Image directory structure reorganized
+- [x] Image directory structure reorganized
 - [ ] User documentation complete
 - [ ] All tests passing (unit, E2E, visual regression)
 - [ ] No broken images
@@ -23,7 +23,7 @@
 - [x] IMG-001: Design and Create Image Configuration File (4h)
 - [x] IMG-002: Implement Image Resolver Utility (8h)
 - [x] IMG-003: Refactor ProductImageDisplay Component (12h)
-- [ ] IMG-004: Reorganize Image Directory Structure (4h)
+- [x] IMG-004: Reorganize Image Directory Structure (4h)
 - [ ] IMG-005: Documentation for Non-Technical Users (4h)
 - [ ] Testing: Comprehensive test coverage (12h)
 
@@ -110,6 +110,29 @@
 **Next Steps:**
 - Execute IMG-004 (Reorganize image directory structure)
 
+### 2025-11-01 - Session 5
+
+**Completed:**
+- ✅ IMG-004: Reorganized image directory structure
+- Created organized directories (cpu-vendors/, gpu-vendors/, form-factors/)
+- Moved 7 image files to appropriate locations
+- Removed duplicate files (amd-logo.svg, intel-logo.svg)
+- Renamed form factor icons (removed -icon suffix)
+- Created 5 README files with user-friendly instructions
+- Updated configuration and all test fixtures
+
+**Subagents Used:**
+- @frontend-developer - Directory reorganization and documentation
+
+**Commits:**
+- cd0fb9d feat(web): reorganize image directory structure (IMG-004)
+
+**Blockers/Issues:**
+- None
+
+**Next Steps:**
+- Execute IMG-005 (User documentation for non-technical users)
+
 ---
 
 ## Decisions Log
@@ -138,11 +161,22 @@
 - docs/img-001-implementation-summary.md - Implementation summary
 - apps/web/lib/image-resolver.ts - Image resolution utility with 7-level fallback
 - apps/web/lib/__tests__/image-resolver.test.ts - Comprehensive test suite (29 tests)
+- apps/web/public/images/cpu-vendors/README.md - CPU vendor documentation
+- apps/web/public/images/gpu-vendors/README.md - GPU vendor documentation
+- apps/web/public/images/form-factors/README.md - Form factor documentation
+- apps/web/public/images/fallbacks/README.md - Fallback documentation
+- apps/web/public/images/manufacturers/README.md - Manufacturer documentation
+- apps/web/lib/__tests__/image-resolver.validation.ts - Validation tests
 
 ### Modified
 - package.json - Added validation and test scripts
 - apps/web/components/listings/product-image-display.tsx - Refactored to use image-resolver (40 lines removed)
 - apps/web/components/listings/__tests__/product-image-display.test.tsx - Updated test mocks
+- apps/web/config/product-images.json - Updated all image paths
+- apps/web/lib/__tests__/image-resolver.test.ts - Updated test fixtures
+- apps/web/lib/__tests__/validate-image-config.test.ts - Updated fixtures
+- apps/web/types/listing-detail.ts - Updated MANUFACTURER_LOGOS constant
 
 ### Deleted
-[Will be updated as work progresses]
+- apps/web/public/images/fallbacks/amd-logo.svg - Removed duplicate
+- apps/web/public/images/fallbacks/intel-logo.svg - Removed duplicate
