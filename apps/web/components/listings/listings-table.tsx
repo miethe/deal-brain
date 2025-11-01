@@ -344,8 +344,8 @@ export function ListingsTable() {
       // Show confirmation dialog
       const confirmed = await confirm({
         title: `Add "${value}" to ${field.label}?`,
-        message: 'This will add the option globally for all listings.',
-        confirmLabel: 'Add Option',
+        description: 'This will add the option globally for all listings.',
+        confirmText: 'Add Option',
         onConfirm: () => {},
       });
 
