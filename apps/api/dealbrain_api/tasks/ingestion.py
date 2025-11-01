@@ -370,6 +370,11 @@ def cleanup_expired_payloads_task() -> dict[str, Any]:
 
     try:
         asyncio.set_event_loop(loop)
+
+        # Dispose existing engine if present to prevent "attached to a different loop" errors
+        # The engine will be recreated with the new event loop on first use
+        loop.run_until_complete(dispose_engine())
+
         result = loop.run_until_complete(_cleanup_expired_payloads_async())
 
         logger.info(

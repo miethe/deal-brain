@@ -5,7 +5,12 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Callable
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 from .settings import get_settings
@@ -89,4 +94,12 @@ async def session_dependency() -> AsyncIterator[AsyncSession]:
         await session.close()
 
 
-__all__ = ["Base", "get_engine", "dispose_engine", "get_session_factory", "session_scope", "SessionDependency", "session_dependency"]
+__all__ = [
+    "Base",
+    "get_engine",
+    "dispose_engine",
+    "get_session_factory",
+    "session_scope",
+    "SessionDependency",
+    "session_dependency",
+]
