@@ -891,6 +891,8 @@ export function ListingsTable() {
           storageKey="listings-grid"
           highlightedRowId={highlightedId}
           highlightedRef={highlightedRef}
+          estimatedRowHeight={48}
+          virtualizationThreshold={100}
         />
 
         {Object.keys(rowSelection).length > 0 && (
