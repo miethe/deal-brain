@@ -60,6 +60,34 @@
 - **Threshold API:** Must handle failures gracefully with hardcoded defaults
 - **Performance:** Memoize PerformanceMetricDisplay component for table rendering
 
+**Root Cause Analysis - Adjusted CPU Mark Fields Not Populating (2025-11-01):**
+
+*Previous Fix Attempts:*
+1. **Commit 76d92a0** (2025-10-31): Added `apply_listing_metrics()` call to URL ingestion pipeline
+   - Fixed NULL base metrics for URL-ingested listings
+   - Added metrics calculation immediately after listing creation/update in `ingestion.py:1102-1114`
+   - Successfully populated base `dollar_per_cpu_mark_single` and `dollar_per_cpu_mark_multi` fields
+
+2. **Commit 72826b8** (2025-11-01): Fixed async event loop conflicts in Celery workers
+   - Added `dispose_engine()` calls before async execution in tasks
+   - Resolved "Task got Future attached to a different loop" errors
+   - Fixed test suite (all 34 async task tests passing)
+   - Prevented event loop conflicts in valuation and ingestion tasks
+
+*Root Cause:*
+- `apply_listing_metrics()` function (`services/listings.py:288-437`) calculates base CPU Mark fields at lines 416-424 only
+  - ✅ Sets `dollar_per_cpu_mark_single` (calculated)
+  - ✅ Sets `dollar_per_cpu_mark_multi` (calculated)
+  - ❌ Does NOT set `dollar_per_cpu_mark_single_adjusted` (missing)
+  - ❌ Does NOT set `dollar_per_cpu_mark_multi_adjusted` (missing)
+- Dedicated function `calculate_cpu_performance_metrics()` exists (lines 710-738) that properly calculates ALL four metrics (base and adjusted)
+- `apply_listing_metrics()` doesn't use it - manually calculates only base fields instead
+- Other functions (`update_listing_metrics` at line 772, `bulk_update_listing_metrics` at line 810) correctly use `calculate_cpu_performance_metrics()`
+
+*Fix Strategy:*
+- Replace manual calculation at lines 416-424 in `apply_listing_metrics()` with call to `calculate_cpu_performance_metrics()`
+- Apply all returned metrics using same pattern as `update_listing_metrics()` (lines 775-776: iterate metrics dict, use setattr)
+
 ---
 
 ## Quick Reference

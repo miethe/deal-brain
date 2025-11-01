@@ -11,13 +11,13 @@ from dealbrain_core.gpu import compute_gpu_score
 from dealbrain_core.schemas.ingestion import NormalizedListingSchema
 from dealbrain_core.scoring import ListingMetrics, compute_composite_score, dollar_per_metric
 from dealbrain_core.valuation import ComponentValuationInput, compute_adjusted_price
-from sqlalchemy import delete, select, func, asc, desc, or_, and_
+from sqlalchemy import and_, asc, delete, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from ..cache import cache_manager
 from ..models import Cpu, Gpu, Listing, ListingComponent, Profile
 from ..telemetry import get_logger
-from ..cache import cache_manager
 from .component_catalog import (
     get_or_create_ram_spec,
     get_or_create_storage_profile,
@@ -364,6 +364,7 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
     # Eagerly load CPU and GPU relationships to avoid lazy-load in async context
     if listing.cpu_id:
         cpu = await session.get(Cpu, listing.cpu_id)
+        listing.cpu = cpu
     else:
         cpu = None
 
@@ -412,16 +413,11 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
         dollar_per_metric(listing.adjusted_price_usd, cpu_single) if cpu_single else None
     )
 
-    # New dollar per CPU Mark metrics (single and multi-thread)
-    if listing.adjusted_price_usd and cpu:
-        if cpu.cpu_mark_single:
-            listing.dollar_per_cpu_mark_single = (
-                listing.adjusted_price_usd / cpu.cpu_mark_single
-            )
-        if cpu.cpu_mark_multi:
-            listing.dollar_per_cpu_mark_multi = (
-                listing.adjusted_price_usd / cpu.cpu_mark_multi
-            )
+    # Calculate all CPU performance metrics (base and adjusted)
+    if cpu:
+        metrics = calculate_cpu_performance_metrics(listing)
+        for key, value in metrics.items():
+            setattr(listing, key, value)
 
     await session.flush()
     logger.info(
