@@ -348,7 +348,7 @@ async def patch_listing_endpoint(
     return ListingRead.model_validate(updated)
 
 
-@router.delete("/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{listing_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_listing_endpoint(
     listing_id: int,
     session: AsyncSession = Depends(session_dependency),
