@@ -43,6 +43,6 @@
 
 **Pattern Used**: Followed working pattern from `apps/api/dealbrain_api/tasks/valuation.py:145-169`
 
-**Testing**: [To be verified after container restart]
+**Testing**: Worker restarted successfully with fixed code, no event loop errors in logs
 
-**Commit**: [To be added after commit]
+**Commit**: 8f93897

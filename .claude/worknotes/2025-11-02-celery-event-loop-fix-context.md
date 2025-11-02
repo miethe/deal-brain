@@ -28,4 +28,4 @@ Followed working pattern from `apps/api/dealbrain_api/tasks/valuation.py:145-169
 - No event loop errors in logs
 
 ## Commit
-[To be added]
+`8f93897` - fix(worker): resolve asyncio event loop conflicts in Celery tasks
