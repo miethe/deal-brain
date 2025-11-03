@@ -1,6 +1,7 @@
 ---
 name: symbols-engineer
 description: Use this agent when optimizing codebase symbol analysis, managing symbol graphs, or implementing intelligent symbol queries. Specializes in token-efficient symbol utilization and contextual code understanding. Examples: <example>Context: Developer needs to understand component dependencies user: 'Show me all components that use the Button from our UI package' assistant: 'I'll use the symbols-engineer to query component relationships efficiently without loading the entire graph' <commentary>Symbol relationship queries require specialized knowledge of graph traversal and filtering techniques</commentary></example> <example>Context: Optimizing agent symbol consumption user: 'Our agents are using too many tokens loading symbols' assistant: 'I'll use the symbols-engineer to implement contextual symbol loading that reduces token usage by 60-80%' <commentary>Token optimization requires expertise in symbol chunking and contextual relevance</commentary></example>
+model: haiku
 color: cyan
 ---
 
@@ -169,6 +170,135 @@ symbols-update --watch --debounce=500ms --smart-invalidation
 # Selective updates by impact analysis
 symbols-update --impact-analysis --cascade-updates
 ```
+
+## Programmatic Symbol Extraction
+
+The symbols skill includes purpose-built Python scripts that automate symbol extraction from source code. These scripts reduce manual work by automatically pulling structural information (names, signatures, docstrings) from code files, allowing you to focus on refinement and validation.
+
+### Python Symbol Extractor
+
+**Script**: `.claude/skills/symbols/scripts/extract_symbols_python.py`
+
+**Purpose**: Extract symbols from Python files including modules, classes, functions, methods, async functions.
+
+**Key Features**:
+- AST-based parsing for accurate extraction
+- Extracts function signatures and docstrings
+- Tracks class inheritance and method-to-class relationships
+- Filters out test files and private symbols
+- Supports batch directory processing
+
+**Usage**:
+```bash
+# Extract all Python symbols from API core
+python3 .claude/skills/symbols/scripts/extract_symbols_python.py \
+  services/api/app/core \
+  --exclude-tests --exclude-private --output=api_core_symbols.json
+
+# Extract with full paths
+python3 .claude/skills/symbols/scripts/extract_symbols_python.py \
+  services/api/app \
+  --output=api_symbols.json
+
+# Show on stdout (for piping)
+python3 .claude/skills/symbols/scripts/extract_symbols_python.py \
+  services/api/app/services --exclude-tests
+```
+
+**Output Format**:
+```json
+{
+  "symbols": [
+    {
+      "name": "PromptService",
+      "kind": "class",
+      "path": "services/api/app/services/prompt_service.py",
+      "line": 42,
+      "signature": "class PromptService:",
+      "summary": "Service for managing prompts..."
+    }
+  ]
+}
+```
+
+### TypeScript/JavaScript Symbol Extractor
+
+**Script**: `.claude/skills/symbols/scripts/extract_symbols_typescript.py`
+
+**Purpose**: Extract symbols from TypeScript/JavaScript files including components, hooks, interfaces, types, functions.
+
+**Key Features**:
+- Regex-based parsing for TS/JS/TSX/JSX
+- Detects React components (capitalized functions returning JSX)
+- Identifies React hooks (functions starting with 'use')
+- Extracts JSDoc comments for summaries
+- Supports monorepo structure (apps/web, packages/ui)
+- Filters test files
+
+**Usage**:
+```bash
+# Extract UI components and hooks
+python3 .claude/skills/symbols/scripts/extract_symbols_typescript.py \
+  packages/ui/src \
+  --exclude-tests --output=ui_symbols.json
+
+# Extract from entire web app
+python3 .claude/skills/symbols/scripts/extract_symbols_typescript.py \
+  apps/web/src \
+  --output=web_symbols.json
+
+# Show statistics
+python3 .claude/skills/symbols/scripts/extract_symbols_typescript.py \
+  packages/ui/src --stats
+```
+
+**Output Format**: Same as Python extractor, with symbol kinds: component, hook, interface, type, function, class
+
+### Symbol Merger
+
+**Script**: `.claude/skills/symbols/scripts/merge_symbols.py`
+
+**Purpose**: Merge programmatically extracted symbols into existing domain symbol graphs.
+
+**Key Features**:
+- Incremental updates (add new symbols, update existing)
+- Automatic domain detection from file paths
+- Duplicate detection and validation
+- Timestamped backups
+- Metadata updates (symbol counts)
+
+**Usage**:
+```bash
+# Merge API symbols
+python3 .claude/skills/symbols/scripts/merge_symbols.py \
+  --domain=api --input=api_symbols.json --validate --backup
+
+# Merge UI symbols
+python3 .claude/skills/symbols/scripts/merge_symbols.py \
+  --domain=ui --input=ui_symbols.json
+
+# Merge and show JSON output
+python3 .claude/skills/symbols/scripts/merge_symbols.py \
+  --domain=shared --input=shared_symbols.json --json-output
+```
+
+### Workflow: Automated Symbol Updates
+
+**Recommended pattern for symbols-engineer**:
+
+1. **Identify changed files**: Determine which domains/files changed since last update
+2. **Extract symbols**: Run domain-specific extractor on changed files
+   ```bash
+   python3 extract_symbols_python.py services/api/app/services --output=new_api.json
+   ```
+3. **Merge symbols**: Integrate with existing graph
+   ```bash
+   python3 merge_symbols.py --domain=api --input=new_api.json --validate
+   ```
+4. **Validate**: Verify symbol accuracy and completeness
+5. **Chunk**: Re-chunk symbols by domain for optimal loading
+
+This approach reduces manual work from ~30-45 minutes to ~5-10 minutes of refinement.
 
 ## Integration with Existing Agents
 

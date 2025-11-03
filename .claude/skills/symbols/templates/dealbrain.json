@@ -1,5 +1,5 @@
 {
-  "$schema": "../symbols-config-schema.json",
+  "$schema": "./symbols-config-schema.json",
   "projectName": "{{PROJECT_NAME}}",
   "symbolsDir": "{{SYMBOLS_DIR}}",
   "domains": {

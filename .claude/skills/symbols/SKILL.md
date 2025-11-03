@@ -20,6 +20,47 @@ Enable token-efficient navigation through pre-generated symbol graphs chunked by
 - Precise code references with file paths and line numbers
 - Complete codebase coverage including frontend and backend
 
+## Symbol System Lifecycle
+
+The symbols system follows a clear lifecycle from configuration to querying:
+
+### 1. Configuration (symbols.config.json)
+The **source of truth** for your project structure. Defines:
+- Which directories to scan (e.g., `apps/web`, `services/api`)
+- Where to output symbol files (e.g., `ai/symbols-web.json`)
+- Domain structure (UI, Web, API, Shared, etc.)
+- Layer definitions (router, service, repository, component, etc.)
+
+### 2. Extraction (extract_* scripts)
+**Tools that USE the config** to generate symbols:
+- `extract_symbols_typescript.py` - Extracts TypeScript/React symbols
+- `extract_symbols_python.py` - Extracts Python symbols
+- Scripts READ the config to know WHAT to scan
+- You RUN scripts manually, passing directory paths as arguments
+- Example: `python extract_symbols_typescript.py apps/web --output=ai/symbols-web.json`
+
+### 3. Layer Tagging (add_layer_tags.py)
+Assigns architectural layer tags based on file path patterns:
+- File path patterns determine layer (e.g., `app/api/*` → router layer)
+- Adds `layer` field to all symbols for precise filtering
+- Example layers: router, service, repository, component, hook, test
+
+### 4. Chunking (split_api_by_layer.py) - OPTIONAL
+Splits large backend domains into layer-specific files for token efficiency:
+- **When**: Backend APIs with many symbols benefit most
+- **How**: Reads layer tags, creates 5+ separate files per layer
+- **Result**: Load only routers OR services OR schemas (not all backend)
+- **Efficiency**: 50-80% token reduction for backend-focused work
+
+### 5. Querying (symbol_tools.py)
+Load and query symbols efficiently:
+- Load domain-specific symbols (e.g., `load_domain("ui")`)
+- Load layer-specific symbols (e.g., `load_api_layer("services")`)
+- Query by name, kind, path, layer (e.g., `query_symbols(name="Button")`)
+- Get context with relationships (e.g., `get_symbol_context(name="Service")`)
+
+**Key Insight**: Config defines structure → Scripts extract using config → Layer tags enable filtering → Chunking optimizes loading → Tools query efficiently
+
 ## When to Use
 
 Use this skill when:
@@ -265,7 +306,7 @@ service = get_symbol_context(
 
 ### 5. Update Symbols
 
-Trigger symbol graph regeneration or incremental update (delegated to symbols-engineer agent).
+Trigger symbol graph regeneration when code changes require updated symbols.
 
 **When to use**: After significant code changes, when symbol files are out of sync with codebase.
 
@@ -277,22 +318,56 @@ Task("symbols-engineer", "Perform incremental symbol update for recent file chan
 Task("symbols-engineer", "Regenerate full symbol graph and re-chunk by domain")
 ```
 
-The `symbols-engineer` agent handles:
-- Analyzing code changes and determining scope of updates
-- Running programmatic symbol extraction using domain-specific scripts
-- Merging extracted symbols into existing graphs
-- Re-chunking symbols by domain for optimal loading
-- Validation of symbol accuracy and completeness
+The `symbols-engineer` agent handles orchestration of the update workflow.
 
-**Alternative - Manual slash commands**:
+**Manual extraction workflow**:
 
-If using slash commands directly (less recommended):
-- `/symbols-update` - Trigger incremental or full update
-- `/symbols-chunk` - Re-chunk updated symbols by domain
+If manually updating symbols:
 
-**Programmatic approach** (for advanced use):
+1. **Review configuration** - Check `symbols.config.json` for domain paths and output files
 
-Symbol extraction can also be done programmatically using scripts:
+2. **Extract symbols** - Run extraction scripts pointing to specific directories:
+
+```bash
+# Extract TypeScript/React symbols
+python .claude/skills/symbols/scripts/extract_symbols_typescript.py apps/web --output=ai/symbols-web.json
+
+# Extract Python symbols
+python .claude/skills/symbols/scripts/extract_symbols_python.py services/api/app --output=ai/symbols-api.json
+
+# The scripts READ symbols.config.json to understand project structure
+# But you MUST specify input directory and output file as arguments
+```
+
+3. **Add layer tags** (if needed):
+
+```bash
+python .claude/skills/symbols/scripts/add_layer_tags.py ai/symbols-api.json
+```
+
+4. **Chunk by layer** (OPTIONAL, for backend token efficiency):
+
+```bash
+# Split large API domain into layer-specific files
+python .claude/skills/symbols/scripts/split_api_by_layer.py ai/symbols-api.json --output-dir=ai/
+```
+
+Creates layer-specific files:
+- `symbols-api-routers.json` - Router/controller layer only
+- `symbols-api-services.json` - Service layer only
+- `symbols-api-repositories.json` - Repository layer only
+- `symbols-api-schemas.json` - Schema/DTO layer only
+- `symbols-api-cores.json` - Core utilities and models
+
+**Result**: 50-80% token reduction when loading backend symbols (load only the layer you need).
+
+**Extraction requirements**:
+- Scripts read `symbols.config.json` to understand project structure
+- You must specify input directory path and output file when running
+- Example: `python extract_symbols_typescript.py <INPUT_DIR> --output=<OUTPUT_FILE>`
+- The config tells scripts WHICH directories to scan, but paths are passed as arguments
+
+**Alternative - Programmatic API**:
 
 ```python
 from symbol_tools import update_symbols
@@ -313,7 +388,7 @@ result = update_symbols(mode="domain", domain="ui")
 - `files` (optional) - Specific files to update (for incremental mode)
 - `chunk` (optional) - Re-chunk symbols after update (default: true)
 
-**Note**: This function provides the interface but delegates to symbols-engineer agent for orchestration.
+**Note**: The programmatic API provides the interface but typically delegates to symbols-engineer agent for orchestration.
 
 ## Quick Start Workflow
 
@@ -411,54 +486,141 @@ Follow this three-tier approach for optimal token efficiency:
 
 ## Programmatic Symbol Extraction
 
-Symbol graph updates can be performed programmatically using domain-specific extraction scripts. These scripts reduce manual work by automatically pulling structural information and summaries from code, allowing the symbols-engineer agent to focus on refinement.
+Symbol extraction is performed programmatically using domain-specific scripts that read `symbols.config.json` to understand project structure.
+
+### Configuration and Scripts Relationship
+
+**symbols.config.json is the SOURCE OF TRUTH:**
+
+- Defines which directories contain code to scan
+- Specifies where to output symbol files
+- Maps domains to directory paths
+- Defines layer classification patterns
+
+**Extraction scripts are TOOLS that USE this config:**
+
+- Read the config to understand project structure
+- You RUN scripts manually (or via automation)
+- You MUST pass input directory path and output file as arguments
+- Example: `python extract_symbols_typescript.py apps/web --output=ai/symbols-web.json`
 
 ### Available Extraction Scripts
 
 **Python Symbol Extractor** (`scripts/extract_symbols_python.py`):
+
 - Extracts Python modules, classes, functions, methods
 - Pulls function signatures and docstrings
 - Filters out test files and internal imports
-- Supports batch processing for entire directories
-- Output: JSON-compatible symbol metadata
+- Reads `symbols.config.json` for project structure
+- You must specify input directory and output file
 
 Usage:
+
 ```bash
-python .claude/skills/symbols/scripts/extract_symbols_python.py path/to/backend/app
+python .claude/skills/symbols/scripts/extract_symbols_python.py services/api/app --output=ai/symbols-api.json
 ```
 
 **TypeScript/JavaScript Symbol Extractor** (`scripts/extract_symbols_typescript.py`):
+
 - Extracts TypeScript interfaces, types, functions, classes
 - Extracts React components and hooks
 - Parses JSDoc comments for summaries
-- Handles monorepo structures and nested directories
-- Output: JSON-compatible symbol metadata
+- Reads `symbols.config.json` for project structure
+- You must specify input directory and output file
 
 Usage:
+
 ```bash
-python .claude/skills/symbols/scripts/extract_symbols_typescript.py path/to/frontend/src
+python .claude/skills/symbols/scripts/extract_symbols_typescript.py apps/web --output=ai/symbols-web.json
 ```
 
+**Layer Tag Assignment** (`scripts/add_layer_tags.py`):
+
+- Assigns architectural layer tags based on file path patterns
+- Patterns defined in script (e.g., `app/api/*` → router layer)
+- Adds `layer` field to all symbols for filtering
+- Run after extraction to enable layer-based querying
+
+Usage:
+
+```bash
+python .claude/skills/symbols/scripts/add_layer_tags.py ai/symbols-api.json
+```
+
+**Layer-Based Chunking** (`scripts/split_api_by_layer.py`):
+
+- **OPTIONAL** - Recommended for large backend APIs only
+- Splits symbol files into layer-specific files
+- Happens AFTER extraction and layer tagging
+- Creates 5+ separate files (routers, services, repositories, schemas, cores)
+- Enables loading only the layer you need (50-80% token reduction)
+
+Usage:
+
+```bash
+python .claude/skills/symbols/scripts/split_api_by_layer.py ai/symbols-api.json --output-dir=ai/
+```
+
+Output files:
+
+- `symbols-api-routers.json` - HTTP endpoints only
+- `symbols-api-services.json` - Business logic only
+- `symbols-api-repositories.json` - Data access only
+- `symbols-api-schemas.json` - DTOs only
+- `symbols-api-cores.json` - Models and utilities only
+
+**How layer chunking works:**
+
+1. Layer assignment happens first (via `add_layer_tags.py`)
+2. Assignment is based on file path patterns (configured in the script)
+3. Example patterns:
+
+   - `app/api/*` or `app/routers/*` → router layer
+   - `app/services/*` → service layer
+   - `app/repositories/*` → repository layer
+   - `app/schemas/*` or `app/dtos/*` → schema layer
+
+4. `split_api_by_layer.py` reads these layer tags and groups symbols
+5. Creates separate JSON files per layer for targeted loading
+
 **Symbol Merger** (`scripts/merge_symbols.py`):
+
 - Merges programmatically extracted symbols into existing graphs
 - Handles incremental updates
 - Maintains symbol relationships and cross-references
 - Validates for consistency and duplicates
 
 Usage:
+
 ```bash
 python .claude/skills/symbols/scripts/merge_symbols.py --domain=api --input=extracted_symbols.json
 ```
 
-### Workflow: Programmatic Updates
+### Workflow: Manual Symbol Update
 
-1. **Analyze changes**: Determine which domains/files changed
-2. **Extract symbols**: Run domain-specific extractor on changed files
-3. **Merge results**: Use symbol merger to integrate with existing graph
-4. **Validate**: Verify accuracy and completeness
-5. **Chunk**: Re-chunk symbols by domain for optimal loading
+1. **Check configuration** - Review `symbols.config.json` for domain paths and outputs
+2. **Extract symbols** - Run domain-specific extractor with input/output paths
+3. **Add layer tags** - Run `add_layer_tags.py` to assign architectural layers
+4. **Chunk by layer** (OPTIONAL) - Run `split_api_by_layer.py` for backend token efficiency
+5. **Validate** - Query symbols to verify accuracy and completeness
 
-**Recommended**: Use `symbols-engineer` agent to orchestrate this workflow.
+**Example full workflow:**
+
+```bash
+# 1. Extract Python symbols from API
+python scripts/extract_symbols_python.py services/api/app --output=ai/symbols-api.json
+
+# 2. Add layer tags
+python scripts/add_layer_tags.py ai/symbols-api.json
+
+# 3. OPTIONAL: Chunk by layer for token efficiency
+python scripts/split_api_by_layer.py ai/symbols-api.json --output-dir=ai/
+
+# Result: 5 layer-specific files + original file
+# Load only the layer you need (80-90% token reduction vs full domain)
+```
+
+**Recommended**: Use `symbols-engineer` agent to orchestrate this workflow automatically.
 
 ## Symbol Structure Reference
 
