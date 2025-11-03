@@ -33,7 +33,7 @@ export const DetailPanel = React.memo(function DetailPanel({
   // Delete mutation
   const { mutate: deleteListing, isPending: isDeleting } = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`${API_URL}/api/v1/listings/${id}`, {
+      const res = await fetch(`${API_URL}/v1/listings/${id}`, {
         method: 'DELETE',
       })
       if (!res.ok) {
