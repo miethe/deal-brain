@@ -154,6 +154,156 @@ Deep Analysis Approach (via explore):
 
 <!-- END SYMBOLS SECTION -->
 
+## Documentation Policy
+
+### Core Principle: Document Only When Explicitly Needed
+
+Documentation should **ONLY** be created when:
+1. Explicitly tasked in an implementation plan, PRD, or user request
+2. Absolutely necessary to provide essential information to users or developers
+3. Part of a defined allowed documentation bucket (see below)
+
+**More documentation ≠ better.** Unnecessary documentation creates debt, becomes outdated, and misleads future developers. When in doubt, ask: "Is this in an allowed bucket?" If not, don't create it.
+
+### Strictly Prohibited Documentation
+
+**DO NOT Create:**
+- **Debugging Summaries**: Never document encountered bugs, errors, or debugging sessions
+- **Bug Fix Summaries**: Never create documents summarizing what was fixed or why
+- **Phase Progress Documents**: Never create summaries of work phases, implementation progress, or status updates
+- **Session Notes**: Never publish personal notes, exploration logs, or investigation results as documentation
+- **Temporary Context Files**: Don't convert worknotes into permanent documentation
+- **Issues/Observations Logs**: Don't create documents listing problems discovered during development
+
+**Examples of What NOT to Create:**
+```
+❌ "2025-11-03-celery-event-loop-fix-context.md" - debugging summary
+❌ "phase-1-3-progress.md" - phase progress tracking
+❌ "bug-fixes-tracking.md" - bug fix summary
+❌ "issues-encountered-during-refactor.md" - debugging notes
+❌ "why-we-changed-the-architecture.md" - exploration summary
+```
+
+These belong in `.claude/worknotes/` (temporary) or as git commit messages, NOT as permanent documentation.
+
+### Allowed Documentation Buckets
+
+Only create documentation that falls into one of these categories:
+
+**1. User Documentation**
+- **Purpose**: Help end users accomplish tasks
+- **Examples**: Setup guides, tutorials, how-to guides, troubleshooting, user walkthroughs
+- **Location**: `/docs/guides/`, `/docs/user-guides/`
+
+**2. Developer Documentation**
+- **Purpose**: Help developers understand code and integrate with systems
+- **Examples**: API documentation, SDK usage guides, integration guides, development setup
+- **Location**: `/docs/api/`, `/docs/development/`, `/docs/integrations/`
+
+**3. Architecture & Design Specifications**
+- **Purpose**: Explain system design decisions and architecture
+- **Examples**: Architecture Decision Records (ADRs), system diagrams, component specifications, design system docs
+- **Location**: `/docs/architecture/`, `/docs/design/`
+
+**4. README Files**
+- **Purpose**: Document projects, packages, modules, and directories
+- **Examples**: Project READMEs, package READMEs, feature READMEs
+- **Location**: Root of project/package/module directory
+
+**5. Configuration Documentation**
+- **Purpose**: Explain how to configure and deploy systems
+- **Examples**: Environment setup, deployment guides, configuration file documentation
+- **Location**: `/docs/configuration/`, `/docs/deployment/`
+
+**6. Test Documentation**
+- **Purpose**: Document testing strategies and approaches
+- **Examples**: Test plans, testing strategies, coverage goals, test data setup
+- **Location**: `/docs/testing/`
+
+**7. Product Documentation**
+- **Purpose**: Define product requirements and implementation plans
+- **Examples**: PRDs, implementation plans, feature specifications
+- **Location**: `/docs/project_plans/`, `/docs/product/`
+
+**8. Monthly Bug-Fix Context (LIMITED EXCEPTION)**
+- **Purpose**: Brief reference of bug fixes completed in a month
+- **Location**: `.claude/worknotes/fixes/` (single file per month: `bug-fixes-tracking-MM-YY.md`)
+- **Format**: Very brief bullet points (1-2 lines per fix), no lengthy explanations
+- **Content example**:
+  ```markdown
+  ---
+  title: "Bug Fixes - November 2025"
+  description: "Brief tracking of significant bug fixes completed"
+  audience: [ai-agents]
+  category: worknotes
+  status: draft
+  ---
+
+  - Fixed Celery event loop conflicts in async tasks (commit: 8f93897)
+  - Corrected DELETE endpoint path for listings (commit: 5b3f538)
+  ```
+
+### Frontmatter Requirements
+
+**ALL new markdown documentation MUST include YAML frontmatter:**
+
+```yaml
+---
+title: "Clear, Descriptive Title"
+description: "Brief summary of what this documentation covers (1-2 sentences)"
+audience: [ai-agents, developers, users, design, pm, qa]
+tags: [relevant, tags, for, searchability]
+created: 2025-11-03
+updated: 2025-11-03
+category: "documentation-category"
+status: draft|review|published|deprecated
+related:
+  - /docs/path/to/related/doc.md
+  - /docs/another/related/doc.md
+---
+```
+
+**Frontmatter Fields:**
+
+| Field | Purpose | Example |
+|-------|---------|---------|
+| `title` | Clear, searchable title | "Authentication API Documentation" |
+| `description` | 1-2 sentence summary | "Comprehensive guide to auth endpoints and flows" |
+| `audience` | Who should read this | `[developers, ai-agents]` or `[users, design]` |
+| `tags` | Keywords for search | `[api, authentication, security, endpoints]` |
+| `created` | Creation date | `2025-11-03` |
+| `updated` | Last modification date | `2025-11-03` |
+| `category` | Documentation bucket | `developer-documentation`, `user-guides`, `architecture` |
+| `status` | Current state | `draft`, `review`, `published`, `deprecated` |
+| `related` | Links to related docs | Array of relative file paths |
+
+**Category Options**: `user-documentation`, `developer-documentation`, `architecture-design`, `api-documentation`, `configuration-deployment`, `test-documentation`, `product-planning`, `worknotes`
+
+**Audience Options**: `users`, `developers`, `ai-agents`, `design`, `pm`, `qa`, `devops`
+
+### Documentation vs. Worknotes
+
+**Use `.claude/worknotes/` For:**
+- Exploration and investigation logs
+- Debugging sessions and findings
+- Temporary implementation context
+- Notes on things to remember
+- Status updates and progress tracking
+
+**Use `/docs/` For:**
+- Permanent, published documentation in allowed buckets
+- Content meant to be read by users or future developers
+- Stable information unlikely to become outdated
+- Officially supported guides and references
+
+### When to Ask Before Documenting
+
+1. **Is this in an allowed bucket?** If not, don't create it.
+2. **Is this explicitly tasked?** If it wasn't requested, is it absolutely necessary?
+3. **Will this become outdated?** If it documents a temporary state or debugging, it doesn't belong.
+4. **Is there already documentation?** Update existing docs instead of creating new ones.
+5. **Is this a worknote instead?** If it's exploration or debugging, it belongs in `.claude/worknotes/`.
+
 ## Monorepo Structure
 
 This is a Python/TypeScript monorepo managed with Poetry (Python) and pnpm (JavaScript):
