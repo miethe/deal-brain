@@ -46,3 +46,49 @@
 **Testing**: Worker restarted successfully with fixed code, no event loop errors in logs
 
 **Commit**: 8f93897
+
+## 2025-11-03: Delete Button Enhancements and UI Fixes
+
+### Issue 1: Missing Delete Buttons
+
+**Issue**: Delete button was only on detail page, missing from listing cards and overview modal
+
+**Locations**:
+- `apps/web/app/listings/_components/grid-view/listing-card.tsx`
+- `apps/web/components/listings/listing-overview-modal.tsx`
+
+**Fix**: Added Delete button to both components:
+- ListingCard: Top-right corner, visible on hover with ghost variant
+- ListingOverviewModal: Next to "View Full Listing" button with destructive variant
+- Both use ConfirmationDialog, React Query mutations, and toast notifications
+- Proper error handling and query invalidation
+
+**Commit**: 4fd0263
+
+### Issue 2: DELETE Endpoint Path Incorrect
+
+**Issue**: DELETE requests failing with "Not Found" error on detail page
+
+**Location**: `apps/web/components/listings/detail-page-layout.tsx` and `apps/web/app/listings/_components/master-detail-view/detail-panel.tsx`
+
+**Root Cause**: Frontend using `/api/v1/listings/${id}` but backend router at `/v1/listings` (without `/api` prefix)
+
+**Fix**: Removed `/api` prefix from DELETE fetch URLs in both components
+
+**Commit**: 7bf9c52
+
+### Issue 3: Nested Anchor Tag Warning
+
+**Issue**: React DOM warning about nested `<a>` tags in clickable containers
+
+**Location**: EntityTooltip rendering EntityLink inside clickable ListingCard and modal
+
+**Root Cause**: EntityLink uses Next.js Link (renders as `<a>`), creating nested anchors when used in clickable containers
+
+**Fix**: Implemented `disableLink` prop pattern:
+- Added `disableLink?: boolean` prop to EntityLink and EntityTooltip
+- When true, renders as `<span>` instead of `<Link>`
+- Applied `disableLink={true}` to all EntityTooltip instances in ListingCard and ListingOverviewModal
+- Maintains visual consistency while preventing invalid HTML
+
+**Commit**: 4fd0263
