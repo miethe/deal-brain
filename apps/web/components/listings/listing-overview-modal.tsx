@@ -1,7 +1,7 @@
 "use client";
 
-import { memo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { memo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
@@ -10,13 +10,15 @@ import { Separator } from "../ui/separator";
 import { ValuationCell } from "./valuation-cell";
 import { DualMetricCell } from "./dual-metric-cell";
 import { PortsDisplay } from "./ports-display";
-import { apiFetch } from "../../lib/utils";
+import { apiFetch, API_URL } from "../../lib/utils";
 import { useValuationThresholds } from "../../hooks/use-valuation-thresholds";
+import { useToast } from "../../hooks/use-toast";
 import { ListingRecord } from "../../types/listings";
 import { formatRamSummary, formatStorageSummary } from "./listing-formatters";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Trash2 } from "lucide-react";
 import { EntityTooltip } from "./entity-tooltip";
 import { ProductImageDisplay } from "./product-image-display";
+import { ConfirmationDialog } from "../ui/confirmation-dialog";
 
 interface ListingOverviewModalProps {
   listingId: number | null;
@@ -25,6 +27,10 @@ interface ListingOverviewModalProps {
 }
 
 function ListingOverviewModalComponent({ listingId, open, onOpenChange }: ListingOverviewModalProps) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
   const { data: listing, isLoading } = useQuery<ListingRecord>({
     queryKey: ['listing', listingId],
     queryFn: async () => {
@@ -36,6 +42,34 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
   });
 
   const { data: thresholds } = useValuationThresholds();
+
+  // Delete mutation
+  const { mutate: deleteListing, isPending: isDeleting } = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${API_URL}/v1/listings/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Failed to delete listing' }));
+        throw new Error(error.detail || 'Failed to delete listing');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      toast({
+        title: 'Success',
+        description: 'Listing deleted successfully',
+      });
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: `Delete failed: ${error.message}`,
+        variant: 'destructive',
+      });
+    },
+  });
 
   if (!open || !listingId) return null;
 
@@ -131,6 +165,7 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                             entityType="cpu"
                             entityId={listing.cpu.id}
                             variant="inline"
+                            disableLink={true}
                           >
                             {listing.cpu_name}
                           </EntityTooltip>
@@ -149,6 +184,7 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                             entityType="gpu"
                             entityId={listing.gpu.id}
                             variant="inline"
+                            disableLink={true}
                           >
                             <span className="inline-flex items-center gap-1">
                               {listing.gpu_name}
@@ -177,6 +213,7 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                             entityType="ram-spec"
                             entityId={listing.ram_spec.id}
                             variant="inline"
+                            disableLink={true}
                           >
                             {formatRamSummary(listing)}
                           </EntityTooltip>
@@ -199,6 +236,7 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                             entityType="storage-profile"
                             entityId={listing.primary_storage_profile.id}
                             variant="inline"
+                            disableLink={true}
                           >
                             {formatStorageSummary(
                               listing.primary_storage_profile ?? null,
@@ -229,6 +267,7 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                             entityType="storage-profile"
                             entityId={listing.secondary_storage_profile.id}
                             variant="inline"
+                            disableLink={true}
                           >
                             {formatStorageSummary(
                               listing.secondary_storage_profile ?? null,
@@ -320,7 +359,28 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                   </Link>
                 </Button>
               )}
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteConfirmOpen(true)}
+                disabled={isDeleting}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
             </div>
+
+            {/* Confirmation Dialog */}
+            <ConfirmationDialog
+              open={deleteConfirmOpen}
+              onOpenChange={setDeleteConfirmOpen}
+              title="Delete Listing?"
+              description="This action cannot be undone. The listing and all related data will be permanently deleted."
+              confirmText="Delete"
+              cancelText="Cancel"
+              variant="destructive"
+              onConfirm={() => deleteListing(listing.id)}
+              isLoading={isDeleting}
+            />
           </>
         ) : (
           <div className="p-8 text-center">
