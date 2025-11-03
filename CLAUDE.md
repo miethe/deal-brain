@@ -168,23 +168,175 @@ Documentation should **ONLY** be created when:
 ### Strictly Prohibited Documentation
 
 **DO NOT Create:**
-- **Debugging Summaries**: Never document encountered bugs, errors, or debugging sessions
-- **Bug Fix Summaries**: Never create documents summarizing what was fixed or why
-- **Phase Progress Documents**: Never create summaries of work phases, implementation progress, or status updates
-- **Session Notes**: Never publish personal notes, exploration logs, or investigation results as documentation
-- **Temporary Context Files**: Don't convert worknotes into permanent documentation
-- **Issues/Observations Logs**: Don't create documents listing problems discovered during development
+- **Debugging Summaries**: Never document encountered bugs, errors, or debugging sessions as standalone docs
+- **Unstructured Progress Docs**: Never create MULTIPLE scattered progress docs per phase (one per phase is allowed, see "Allowed Tracking Documentation")
+- **Unorganized Context Files**: Never create context files outside the structured directories (see "Directory Structure")
+- **Ad-Hoc Observation Logs**: Never create observation logs outside the monthly structure (use `.claude/worknotes/observations/observation-log-MM-YY.md`)
+- **Session Notes as Docs**: Never publish personal notes, exploration logs, or investigation results as permanent documentation
+- **Temporary Context as Docs**: Don't convert worknotes into permanent documentation without explicit need
+- **Daily/Weekly Status Reports**: Don't create status update documents (use git commits and phase progress docs)
 
 **Examples of What NOT to Create:**
 ```
-❌ "2025-11-03-celery-event-loop-fix-context.md" - debugging summary
-❌ "phase-1-3-progress.md" - phase progress tracking
-❌ "bug-fixes-tracking.md" - bug fix summary
-❌ "issues-encountered-during-refactor.md" - debugging notes
-❌ "why-we-changed-the-architecture.md" - exploration summary
+❌ "2025-11-03-celery-event-loop-fix-context.md" - debugging summary (use git commit)
+❌ "phase-1-3-progress.md" - consolidated multi-phase progress (use one per phase)
+❌ "observations-week-1.md" - weekly observations (use monthly observation log)
+❌ "issues-encountered-during-refactor.md" - debugging notes (use worknotes or commits)
+❌ "why-we-changed-the-architecture.md" - exploration summary (use ADR or phase context)
+❌ "random-context-notes.md" - unstructured notes (use organized structure)
 ```
 
-These belong in `.claude/worknotes/` (temporary) or as git commit messages, NOT as permanent documentation.
+**What IS Allowed (See "Allowed Tracking Documentation"):**
+```
+✅ ".claude/progress/listings-enhancements-v3/phase-2-progress.md" - ONE per phase
+✅ ".claude/worknotes/listings-enhancements-v3/phase-2-context.md" - ONE per phase
+✅ ".claude/worknotes/observations/observation-log-11-25.md" - monthly observations
+✅ ".claude/worknotes/fixes/bug-fixes-tracking-11-25.md" - monthly bug fix tracking
+```
+
+**The Key Difference:**
+- ❌ Multiple scattered files per phase → Creates documentation sprawl
+- ✅ ONE structured file per phase → Organized, maintainable tracking
+- ❌ Ad-hoc debugging summaries → Should be in git commits
+- ✅ Structured monthly logs → Brief, organized, time-bounded
+
+### Allowed Tracking Documentation
+
+While permanent documentation should be minimized, **structured tracking documentation** is allowed when following these strict patterns:
+
+**Progress Tracking (One Per Phase):**
+- **Purpose**: Track implementation progress, completed tasks, blockers, and next steps for a specific phase of work
+- **Location**: `.claude/progress/[prd-name]/phase-[N]-progress.md`
+- **Limit**: ONE progress document per phase, not multiple scattered files
+- **Required**: Only when working on multi-phase implementations from a PRD
+- **Audience**: AI agents continuing work across sessions
+- **Example**: `.claude/progress/listings-enhancements-v3/phase-2-progress.md`
+
+**Context/Notes Documentation (One Per Phase):**
+- **Purpose**: Document implementation decisions, technical notes, architecture considerations discovered during a phase
+- **Location**: `.claude/worknotes/[prd-name]/phase-[N]-context.md`
+- **Limit**: ONE context document per phase, organized by PRD name
+- **Content**: Technical decisions, integration patterns, gotchas, architectural notes
+- **Audience**: AI agents and developers who need to understand implementation choices
+- **Example**: `.claude/worknotes/listings-enhancements-v3/phase-2-context.md`
+
+**Monthly Observation Logs (Limited Exception):**
+- **Purpose**: Track observations, learnings, patterns, and insights discovered during development
+- **Location**: `.claude/worknotes/observations/observation-log-MM-YY.md`
+- **Format**: Brief bullet points (1-2 lines per observation), one file per month
+- **Content**: Pattern discoveries, performance insights, architectural learnings
+- **Similar to**: Bug-fix tracking structure (monthly, concise, organized)
+- **Example**: `.claude/worknotes/observations/observation-log-11-25.md`
+
+**Other Changelog-Type Documents:**
+- **When Allowed**: Only if explicitly called out in PRD, implementation plan, or user request
+- **Examples**: CHANGELOG.md updates, release notes, version history
+- **Requirement**: Must be part of the planned work, not created ad-hoc
+- **Location**: Project root or `/docs/` as specified in the plan
+
+**Key Principles for Tracking Docs:**
+1. **One Per Phase**: Don't create multiple progress or context docs for the same phase
+2. **Organized Structure**: Use consistent directory structure (see below)
+3. **Explicit Need**: Only create when working on multi-phase implementations
+4. **Concise Content**: Keep notes brief and actionable, not verbose essays
+5. **Temporary Nature**: These are working documents, not permanent documentation
+
+**When to Create Tracking Docs:**
+- ✅ Working on multi-phase PRD implementation and need to track progress across sessions
+- ✅ Documenting architectural decisions made during implementation (context notes)
+- ✅ Recording monthly observations to improve future development patterns
+- ❌ NOT for debugging sessions (use git commits instead)
+- ❌ NOT for bug fix summaries (use monthly bug-fix tracking)
+- ❌ NOT for exploration or investigation notes (keep in temporary worknotes)
+
+### Directory Structure for Tracking Docs
+
+When creating allowed tracking documentation, follow this **exact structure**:
+
+```
+.claude/
+├── progress/                                    # Phase progress tracking
+│   └── [prd-name]/                             # Organized by PRD
+│       ├── phase-1-progress.md                 # ONE per phase
+│       ├── phase-2-progress.md
+│       └── phase-3-progress.md
+│
+├── worknotes/                                   # Implementation context & notes
+│   ├── [prd-name]/                             # Organized by PRD
+│   │   ├── phase-1-context.md                  # ONE per phase
+│   │   ├── phase-2-context.md
+│   │   └── phase-3-context.md
+│   │
+│   ├── fixes/                                   # Bug fix tracking
+│   │   └── bug-fixes-tracking-MM-YY.md         # ONE per month
+│   │
+│   └── observations/                            # Development observations
+│       └── observation-log-MM-YY.md            # ONE per month
+│
+└── agents/                                      # Agent-specific configurations
+    └── [agent-name]/                           # Agent prompts and configs
+```
+
+**Example for Multi-Phase PRD Implementation:**
+
+```
+.claude/
+├── progress/
+│   └── listings-enhancements-v3/
+│       ├── phase-1-progress.md          # ✅ Tracks Phase 1 tasks
+│       ├── phase-2-progress.md          # ✅ Tracks Phase 2 tasks
+│       └── phase-3-progress.md          # ✅ Tracks Phase 3 tasks
+│
+└── worknotes/
+    ├── listings-enhancements-v3/
+    │   ├── phase-1-context.md           # ✅ Phase 1 decisions/notes
+    │   ├── phase-2-context.md           # ✅ Phase 2 decisions/notes
+    │   └── phase-3-context.md           # ✅ Phase 3 decisions/notes
+    │
+    ├── fixes/
+    │   └── bug-fixes-tracking-11-25.md  # ✅ November 2025 fixes
+    │
+    └── observations/
+        └── observation-log-11-25.md     # ✅ November 2025 observations
+```
+
+**Naming Conventions:**
+
+| Document Type | Naming Pattern | Example |
+|--------------|----------------|---------|
+| Phase Progress | `phase-[N]-progress.md` | `phase-2-progress.md` |
+| Phase Context | `phase-[N]-context.md` | `phase-2-context.md` |
+| Bug Fix Tracking | `bug-fixes-tracking-MM-YY.md` | `bug-fixes-tracking-11-25.md` |
+| Observation Log | `observation-log-MM-YY.md` | `observation-log-11-25.md` |
+
+**Directory Organization Rules:**
+
+1. **By PRD Name**: Group all progress and context docs by the PRD they implement
+2. **By Month**: Group bug fixes and observations by month (MM-YY format)
+3. **One Per Phase**: Never create multiple progress or context docs for the same phase
+4. **Consistent Naming**: Follow the exact naming patterns above
+5. **No Nesting**: Don't create subdirectories within PRD folders (flat structure)
+
+**Anti-Patterns to Avoid:**
+
+```
+❌ .claude/worknotes/2025-11-02-celery-event-loop-fix-context.md
+   → Should be: git commit message or bug-fixes-tracking-11-25.md entry
+
+❌ .claude/progress/listings-enhancements-v3/phase-1-progress-updated.md
+   → Should be: Update existing phase-1-progress.md, not create new file
+
+❌ .claude/worknotes/listings-enhancements-v3/phase-2-context-notes.md
+   → Should be: phase-2-context.md (follow naming convention)
+
+❌ .claude/worknotes/observations/nov-3-observations.md
+   → Should be: observation-log-11-25.md (monthly, not daily)
+```
+
+**When Uncertain:**
+- Ask: "Does this fit the allowed tracking structure?"
+- If yes: Use the exact structure and naming above
+- If no: It probably belongs in a git commit message or shouldn't be created
 
 ### Allowed Documentation Buckets
 
