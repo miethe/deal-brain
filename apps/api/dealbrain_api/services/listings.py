@@ -729,7 +729,7 @@ def calculate_cpu_performance_metrics(listing: Listing) -> dict[str, float]:
     if listing.valuation_breakdown:
         total_adjustment = float(listing.valuation_breakdown.get('total_adjustment', 0.0))
 
-    adjusted_base_price = base_price + total_adjustment
+    adjusted_base_price = base_price - total_adjustment
 
     metrics = {}
 
