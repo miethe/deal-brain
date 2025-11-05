@@ -228,6 +228,13 @@ While permanent documentation should be minimized, **structured tracking documen
 - **Similar to**: Bug-fix tracking structure (monthly, concise, organized)
 - **Example**: `.claude/worknotes/observations/observation-log-11-25.md`
 
+**Monthly Bug-Fix Tracking (Limited Exception):**
+- **Purpose**: Brief reference of significant bug fixes completed in a month
+- **Location**: `.claude/worknotes/fixes/bug-fixes-tracking-MM-YY.md`
+- **Format**: Very brief bullet points (1-2 lines per fix), one file per month
+- **Content**: Brief fix descriptions with commit references
+- **Example**: `.claude/worknotes/fixes/bug-fixes-tracking-11-25.md`
+
 **Other Changelog-Type Documents:**
 - **When Allowed**: Only if explicitly called out in PRD, implementation plan, or user request
 - **Examples**: CHANGELOG.md updates, release notes, version history
@@ -377,27 +384,15 @@ Only create documentation that falls into one of these categories:
 - **Examples**: PRDs, implementation plans, feature specifications
 - **Location**: `/docs/project_plans/`, `/docs/product/`
 
-**8. Monthly Bug-Fix Context (LIMITED EXCEPTION)**
-- **Purpose**: Brief reference of bug fixes completed in a month
-- **Location**: `.claude/worknotes/fixes/` (single file per month: `bug-fixes-tracking-MM-YY.md`)
-- **Format**: Very brief bullet points (1-2 lines per fix), no lengthy explanations
-- **Content example**:
-  ```markdown
-  ---
-  title: "Bug Fixes - November 2025"
-  description: "Brief tracking of significant bug fixes completed"
-  audience: [ai-agents]
-  category: worknotes
-  status: draft
-  ---
-
-  - Fixed Celery event loop conflicts in async tasks (commit: 8f93897)
-  - Corrected DELETE endpoint path for listings (commit: 5b3f538)
-  ```
+**8. Tracking Documentation (Limited Exception)**
+- **Purpose**: Structured tracking of progress, context, observations, and bug fixes across development work
+- **Location**: `.claude/progress/`, `.claude/worknotes/fixes/`, `.claude/worknotes/observations/`
+- **Format**: Follows exact directory structure and naming conventions (see "Directory Structure for Tracking Docs")
+- **Requirement**: ONLY allowed when following exact structured patterns; ad-hoc tracking documents are prohibited
 
 ### Frontmatter Requirements
 
-**ALL new markdown documentation MUST include YAML frontmatter:**
+**ALL new markdown documentation MUST include YAML frontmatter** (except tracking docs in `.claude/`):
 
 ```yaml
 ---
@@ -448,6 +443,8 @@ related:
 - Stable information unlikely to become outdated
 - Officially supported guides and references
 
+**Never mix the two**: Don't store worknotes in `/docs/`, and don't treat worknotes as permanent documentation.
+
 ### When to Ask Before Documenting
 
 1. **Is this in an allowed bucket?** If not, don't create it.
@@ -455,6 +452,8 @@ related:
 3. **Will this become outdated?** If it documents a temporary state or debugging, it doesn't belong.
 4. **Is there already documentation?** Update existing docs instead of creating new ones.
 5. **Is this a worknote instead?** If it's exploration or debugging, it belongs in `.claude/worknotes/`.
+
+**Rule of Thumb**: If you have to ask whether documentation should be created, the answer is usually "no" unless it was explicitly tasked.
 
 ## Monorepo Structure
 
