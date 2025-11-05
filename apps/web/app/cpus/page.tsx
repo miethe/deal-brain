@@ -4,6 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useCPUCatalogStore } from "@/stores/cpu-catalog-store";
 import { useCPUs } from "@/hooks/use-cpus";
+import { useCPUUrlSync } from "@/hooks/use-cpu-url-sync";
 import { Plus, Upload } from "lucide-react";
 
 /**
@@ -28,8 +29,8 @@ export default function CPUsPage() {
   const activeTab = useCPUCatalogStore((state) => state.activeTab);
   const setActiveTab = useCPUCatalogStore((state) => state.setActiveTab);
 
-  // TODO FE-007: URL sync hook for shareable state
-  // useUrlSync();
+  // URL sync for shareable state (FE-007)
+  useCPUUrlSync();
 
   // Error state rendering
   if (error) {
