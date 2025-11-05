@@ -41,7 +41,36 @@ class Cpu(Base, TimestampMixin):
     passmark_id: Mapped[str | None] = mapped_column(String(64))
     attributes_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
+    # Price Target Fields (computed from listing analytics)
+    price_target_good: Mapped[float | None]
+    price_target_great: Mapped[float | None]
+    price_target_fair: Mapped[float | None]
+    price_target_sample_size: Mapped[int] = mapped_column(default=0)
+    price_target_confidence: Mapped[str | None] = mapped_column(String(16))
+    price_target_stddev: Mapped[float | None]
+    price_target_updated_at: Mapped[datetime | None]
+
+    # Performance Value Fields ($/PassMark metrics)
+    dollar_per_mark_single: Mapped[float | None]
+    dollar_per_mark_multi: Mapped[float | None]
+    performance_value_percentile: Mapped[float | None]
+    performance_value_rating: Mapped[str | None] = mapped_column(String(16))
+    performance_metrics_updated_at: Mapped[datetime | None]
+
     listings: Mapped[list["Listing"]] = relationship(back_populates="cpu", lazy="selectin")
+
+    @property
+    def has_sufficient_pricing_data(self) -> bool:
+        """Returns True if sample size >= 2 listings"""
+        return self.price_target_sample_size >= 2
+
+    @property
+    def price_targets_fresh(self) -> bool:
+        """Returns True if updated within last 7 days"""
+        if not self.price_target_updated_at:
+            return False
+        age = datetime.utcnow() - self.price_target_updated_at
+        return age.days < 7
 
 
 class Gpu(Base, TimestampMixin):
