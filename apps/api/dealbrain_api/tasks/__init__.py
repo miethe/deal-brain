@@ -7,6 +7,7 @@ from .admin import (
     recalculate_metrics_task,
 )
 from .baseline import load_baseline_task
+from .cpu_metrics import recalculate_all_cpu_metrics
 from .ingestion import ingest_url_task
 from .valuation import (
     enqueue_listing_recalculation,
@@ -22,4 +23,5 @@ __all__ = [
     "enqueue_listing_recalculation",
     "recalculate_listings_task",
     "ingest_url_task",
+    "recalculate_all_cpu_metrics",
 ]

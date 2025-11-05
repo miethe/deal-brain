@@ -6,6 +6,7 @@ from . import (
     admin,
     baseline,
     catalog,
+    cpus,
     custom_fields,
     dashboard,
     entities,
@@ -26,6 +27,7 @@ router = APIRouter()
 router.include_router(admin.router)
 router.include_router(baseline.router)
 router.include_router(catalog.router)
+router.include_router(cpus.router)
 router.include_router(listings.router)
 router.include_router(rankings.router)
 router.include_router(dashboard.router)
