@@ -27,6 +27,13 @@ from .catalog import (
     ValuationRuleCreate,
     ValuationRuleRead,
 )
+from .cpu import (
+    PriceTarget,
+    PerformanceValue,
+    CPUAnalytics,
+    CPUWithAnalytics,
+    CPUStatistics,
+)
 from .imports import SpreadsheetSeed
 from .listing import (
     ListingBase,
@@ -89,6 +96,11 @@ __all__ = [
     "ValuationRuleBase",
     "ValuationRuleCreate",
     "ValuationRuleRead",
+    "PriceTarget",
+    "PerformanceValue",
+    "CPUAnalytics",
+    "CPUWithAnalytics",
+    "CPUStatistics",
     "ListingBase",
     "ListingComponentBase",
     "ListingComponentCreate",
