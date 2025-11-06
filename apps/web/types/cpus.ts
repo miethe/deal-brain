@@ -120,6 +120,11 @@ export interface PerformanceValue {
  * Extends CPURecord with market data:
  * - Top 10 associated listings (cheapest by adjusted price)
  * - Price distribution for histogram visualization
+ *
+ * Response structure from GET /v1/cpus/{id}:
+ * - All CPURecord fields (flattened at top level)
+ * - associated_listings: Array of listing previews
+ * - market_data: Object containing price_distribution array
  */
 export interface CPUDetail extends CPURecord {
   associated_listings: ListingPreview[]; // Top 10 associated listings

@@ -7,6 +7,7 @@ import { CompareDrawer } from './compare-drawer'
 import { MasterDetailSkeleton } from './master-detail-skeleton'
 import { NoFilterResultsEmptyState } from '@/components/ui/empty-state'
 import { useCPUCatalogStore } from '@/stores/cpu-catalog-store'
+import { useCPUDetail } from '@/hooks/use-cpus'
 import type { CPURecord } from '@/types/cpus'
 
 interface MasterDetailViewProps {
@@ -40,6 +41,13 @@ export const MasterDetailView = React.memo(function MasterDetailView({
     return sortedCPUs.filter((cpu) => compareSelections.includes(cpu.id))
   }, [sortedCPUs, compareSelections])
 
+  // Fetch detailed CPU analytics when a CPU is selected
+  const {
+    data: cpuDetail,
+    isLoading: isLoadingDetail,
+    isError: isErrorDetail
+  } = useCPUDetail(selectedCPU?.id ?? null)
+
   if (isLoading) {
     return <MasterDetailSkeleton />
   }
@@ -58,7 +66,12 @@ export const MasterDetailView = React.memo(function MasterDetailView({
 
         {/* Detail Panel - Right Panel */}
         <div className="lg:col-span-6">
-          <DetailPanel cpu={selectedCPU} />
+          <DetailPanel
+            cpu={selectedCPU}
+            cpuDetail={cpuDetail}
+            isLoadingDetail={isLoadingDetail}
+            isErrorDetail={isErrorDetail}
+          />
         </div>
       </div>
 

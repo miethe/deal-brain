@@ -4,21 +4,29 @@ import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowUpRight, Plus } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
+import { ArrowUpRight, Plus, AlertCircle } from 'lucide-react'
 import { KpiMetric } from './kpi-metric'
 import { KeyValue } from './key-value'
 import { PerformanceBadge } from '../grid-view/performance-badge'
 import { PriceTargets } from '../price-targets'
 import { PerformanceValueBadge } from '../performance-value-badge'
 import { useCPUCatalogStore } from '@/stores/cpu-catalog-store'
-import type { CPURecord } from '@/types/cpus'
+import type { CPURecord, CPUDetail } from '@/types/cpus'
 
 interface DetailPanelProps {
   cpu: CPURecord | undefined
+  cpuDetail: CPUDetail | undefined
+  isLoadingDetail?: boolean
+  isErrorDetail?: boolean
 }
 
 export const DetailPanel = React.memo(function DetailPanel({
-  cpu
+  cpu,
+  cpuDetail,
+  isLoadingDetail,
+  isErrorDetail
 }: DetailPanelProps) {
   const { toggleCompare, compareSelections } = useCPUCatalogStore()
 
@@ -88,6 +96,26 @@ export const DetailPanel = React.memo(function DetailPanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Loading State for Analytics Data */}
+        {isLoadingDetail && (
+          <Alert>
+            <AlertDescription className="flex items-center gap-2">
+              <Skeleton className="h-4 w-4 rounded-full" />
+              <span className="text-sm">Loading market analytics...</span>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Error State for Analytics Data */}
+        {isErrorDetail && !isLoadingDetail && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="text-sm">
+              Failed to load market analytics. Basic CPU information shown.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* KPI Metrics Grid */}
         <div className="grid grid-cols-2 gap-3">
           <KpiMetric
@@ -166,6 +194,57 @@ export const DetailPanel = React.memo(function DetailPanel({
             )}
           </div>
         </div>
+
+        {/* Market Data Section - Shows when analytics loaded */}
+        {cpuDetail?.market_data && (
+          <div>
+            <h4 className="mb-3 text-sm font-semibold">Market Analytics</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <KeyValue
+                label="Total Listings"
+                value={cpuDetail.listings_count || 0}
+              />
+              <KeyValue
+                label="Price Data Points"
+                value={cpuDetail.market_data.price_distribution?.length || 0}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Associated Listings Section - Shows when analytics loaded */}
+        {cpuDetail?.associated_listings && cpuDetail.associated_listings.length > 0 && (
+          <div>
+            <h4 className="mb-3 text-sm font-semibold">
+              Top Listings ({cpuDetail.associated_listings.length})
+            </h4>
+            <div className="space-y-2">
+              {cpuDetail.associated_listings.slice(0, 5).map((listing) => (
+                <div
+                  key={listing.id}
+                  className="flex items-center justify-between p-2 rounded-md bg-muted/50 text-sm"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{listing.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {listing.marketplace} • {listing.condition}
+                    </p>
+                  </div>
+                  <div className="text-right ml-2">
+                    <p className="font-semibold">
+                      {formatCurrency(listing.adjusted_price_usd)}
+                    </p>
+                    {listing.base_price_usd !== listing.adjusted_price_usd && (
+                      <p className="text-xs text-muted-foreground line-through">
+                        {formatCurrency(listing.base_price_usd)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* CPU Specifications */}
         <div>
