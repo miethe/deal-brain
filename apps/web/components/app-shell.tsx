@@ -2,27 +2,64 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ReactNode, useState } from "react";
-import { Menu, Package2, Settings, X } from "lucide-react";
+import { ReactNode, useState, useEffect } from "react";
+import { Menu, Package2, Settings, X, ChevronRight } from "lucide-react";
 
 import { Button } from "./ui/button";
 import { ThemeToggle } from "./ui/theme-toggle";
 import { Toaster } from "./ui/toaster";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./ui/collapsible";
 import { cn } from "../lib/utils";
 
-const NAV_ITEMS = [
-  { href: "/", label: "Dashboard" },
-  { href: "/listings", label: "Listings" },
-  { href: "/profiles", label: "Profiles" },
-  { href: "/valuation-rules", label: "Valuation Rules" },
-  { href: "/global-fields", label: "Global Fields" },
-  { href: "/import", label: "Import" },
-  { href: "/admin", label: "Admin" }
+type NavLink = {
+  type: "link";
+  href: string;
+  label: string;
+};
+
+type NavDropdown = {
+  type: "dropdown";
+  label: string;
+  items: Array<{ href: string; label: string }>;
+};
+
+type NavItem = NavLink | NavDropdown;
+
+const NAV_ITEMS: NavItem[] = [
+  { type: "link", href: "/", label: "Dashboard" },
+  { type: "link", href: "/listings", label: "Listings" },
+  {
+    type: "dropdown",
+    label: "Catalogs",
+    items: [
+      { href: "/cpus", label: "CPUs" },
+    ]
+  },
+  { type: "link", href: "/profiles", label: "Profiles" },
+  { type: "link", href: "/valuation-rules", label: "Valuation Rules" },
+  { type: "link", href: "/global-fields", label: "Global Fields" },
+  { type: "link", href: "/import", label: "Import" },
+  { type: "link", href: "/admin", label: "Admin" }
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [catalogsOpen, setCatalogsOpen] = useState(true);
+
+  // Restore catalogs dropdown state from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('nav:catalogs-open');
+    if (stored !== null) {
+      setCatalogsOpen(stored === 'true');
+    }
+  }, []);
+
+  // Persist catalogs dropdown state to localStorage
+  const handleCatalogsToggle = (open: boolean) => {
+    setCatalogsOpen(open);
+    localStorage.setItem('nav:catalogs-open', String(open));
+  };
 
   return (
     <div className="flex min-h-screen w-full overflow-x-hidden bg-muted/40">
@@ -74,22 +111,80 @@ export function AppShell({ children }: { children: ReactNode }) {
           Deal Brain
         </div>
         <nav className="mt-6 flex flex-col gap-1">
-          {NAV_ITEMS.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)} // Close sidebar on mobile after navigation
-                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
+          {NAV_ITEMS.map((item, index) => {
+            if (item.type === "link") {
+              const active = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setSidebarOpen(false)} // Close sidebar on mobile after navigation
+                  className={cn(
+                    "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            }
+
+            // Handle dropdown items
+            if (item.type === "dropdown") {
+              const isAnyChildActive = item.items.some((child) => pathname.startsWith(child.href));
+
+              return (
+                <Collapsible
+                  key={`dropdown-${index}`}
+                  open={catalogsOpen}
+                  onOpenChange={handleCatalogsToggle}
+                >
+                  <CollapsibleTrigger
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                      isAnyChildActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                    aria-expanded={catalogsOpen}
+                  >
+                    <span>{item.label}</span>
+                    <ChevronRight
+                      className={cn(
+                        "h-4 w-4 transition-transform duration-200",
+                        catalogsOpen && "rotate-90"
+                      )}
+                    />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div role="group" className="flex flex-col gap-1 pt-1">
+                      {item.items.map((child) => {
+                        const childActive = pathname === child.href;
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={() => setSidebarOpen(false)}
+                            className={cn(
+                              "rounded-md pl-8 pr-3 py-2 text-sm font-medium transition-colors",
+                              childActive
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                            )}
+                          >
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            }
+
+            return null;
           })}
         </nav>
         <div className="mt-auto flex flex-col gap-2 px-2 text-xs text-muted-foreground/80">
