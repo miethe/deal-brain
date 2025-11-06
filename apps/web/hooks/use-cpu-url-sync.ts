@@ -10,6 +10,7 @@ import { useDebouncedCallback } from 'use-debounce';
  * - Shareable URLs with filters and view preferences
  * - Browser back/forward navigation
  * - Page refresh state preservation
+ * - Deep linking to CPU detail modals from listings page
  *
  * URL Parameters:
  * - view: 'grid' | 'list' | 'master-detail'
@@ -23,6 +24,8 @@ import { useDebouncedCallback } from 'use-debounce';
  * - igpu: 'true' | 'false' (has integrated GPU)
  * - minMark: minimum PassMark score
  * - perfRating: performance rating filter
+ * - cpuId: CPU ID to display in modal (requires openModal=true)
+ * - openModal: 'true' to open CPU detail modal on page load
  */
 
 const DEFAULTS = {
@@ -53,6 +56,7 @@ export function useCPUUrlSync() {
   const setActiveView = useCPUCatalogStore((state) => state.setActiveView);
   const setActiveTab = useCPUCatalogStore((state) => state.setActiveTab);
   const setFilters = useCPUCatalogStore((state) => state.setFilters);
+  const openDetailsDialog = useCPUCatalogStore((state) => state.openDetailsDialog);
 
   // Hydrate store from URL on mount
   useEffect(() => {
@@ -71,6 +75,10 @@ export function useCPUUrlSync() {
     const igpuParam = searchParams.get('igpu');
     const minMarkParam = searchParams.get('minMark');
     const perfRatingParam = searchParams.get('perfRating');
+
+    // Deep link params for modal opening
+    const cpuIdParam = searchParams.get('cpuId');
+    const openModalParam = searchParams.get('openModal');
 
     // Validate and apply view
     if (viewParam && ['grid', 'list', 'master-detail'].includes(viewParam)) {
@@ -152,7 +160,23 @@ export function useCPUUrlSync() {
     if (Object.keys(urlFilters).length > 0) {
       setFilters(urlFilters);
     }
-  }, [searchParams, setActiveView, setActiveTab, setFilters]);
+
+    // Handle deep link to CPU detail modal
+    if (cpuIdParam && openModalParam === 'true') {
+      const id = parseInt(cpuIdParam, 10);
+      if (!isNaN(id)) {
+        // Open modal with CPU ID
+        openDetailsDialog(id);
+
+        // Clean up URL (remove query params after opening modal)
+        // This keeps the URL clean and avoids re-triggering on subsequent renders
+        const url = new URL(window.location.href);
+        url.searchParams.delete('cpuId');
+        url.searchParams.delete('openModal');
+        router.replace(url.pathname + url.search, { scroll: false });
+      }
+    }
+  }, [searchParams, setActiveView, setActiveTab, setFilters, openDetailsDialog, router]);
 
   // Update URL when store changes (debounced to avoid history pollution)
   const updateUrl = useDebouncedCallback(() => {
