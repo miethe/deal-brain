@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ArrowUpRight, Plus, AlertCircle } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { KpiMetric } from './kpi-metric'
 import { KeyValue } from './key-value'
 import { PerformanceBadge } from '../grid-view/performance-badge'
@@ -58,6 +59,61 @@ export const DetailPanel = React.memo(function DetailPanel({
   ): 'excellent' | 'good' | 'fair' | 'poor' | null => {
     return rating
   }
+
+  // Helper: Create histogram bins from price distribution
+  const createHistogramBins = (prices: number[], binCount: number = 10) => {
+    if (!prices || prices.length === 0) return []
+
+    const min = Math.min(...prices)
+    const max = Math.max(...prices)
+    const binSize = (max - min) / binCount
+
+    const bins = Array.from({ length: binCount }, (_, i) => ({
+      range: `$${Math.round(min + i * binSize)}-${Math.round(min + (i + 1) * binSize)}`,
+      count: 0,
+      minPrice: min + i * binSize,
+      maxPrice: min + (i + 1) * binSize,
+    }))
+
+    prices.forEach(price => {
+      const binIndex = Math.min(
+        Math.floor((price - min) / binSize),
+        binCount - 1
+      )
+      bins[binIndex].count++
+    })
+
+    return bins.filter(bin => bin.count > 0)
+  }
+
+  // Helper: Get chart color for performance metrics
+  const getPerformanceChartColor = (name: string): string => {
+    const colors: Record<string, string> = {
+      'Single-Thread': 'hsl(217, 91%, 60%)', // Blue (primary)
+      'Multi-Thread': 'hsl(262, 83%, 58%)', // Purple
+      'iGPU': 'hsl(330, 81%, 60%)', // Pink
+    }
+    return colors[name] || 'hsl(var(--primary))'
+  }
+
+  // Memoize performance chart data
+  const performanceData = useMemo(() => {
+    if (!cpu) return []
+
+    const data = [
+      { name: 'Single-Thread', value: cpu.cpu_mark_single, maxValue: 5000 },
+      { name: 'Multi-Thread', value: cpu.cpu_mark_multi, maxValue: 50000 },
+      { name: 'iGPU', value: cpu.igpu_mark || 0, maxValue: 10000 },
+    ].filter(item => item.value && item.value > 0)
+
+    return data
+  }, [cpu])
+
+  // Memoize histogram data
+  const histogramData = useMemo(() => {
+    if (!cpuDetail?.market_data.price_distribution) return []
+    return createHistogramBins(cpuDetail.market_data.price_distribution)
+  }, [cpuDetail?.market_data.price_distribution])
 
   if (!cpu) {
     return (
@@ -193,6 +249,64 @@ export const DetailPanel = React.memo(function DetailPanel({
               />
             )}
           </div>
+
+          {/* PassMark Comparison Chart */}
+          {performanceData.length > 0 && (
+            <figure
+              className="mt-4"
+              role="img"
+              aria-label="CPU benchmark performance comparison"
+            >
+              <figcaption className="text-xs text-muted-foreground mb-2">
+                Benchmark Scores
+              </figcaption>
+              <div className="sr-only">
+                Bar chart showing {performanceData.map(d => d.name).join(', ')} benchmark scores
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={performanceData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                  <XAxis
+                    dataKey="name"
+                    fontSize={12}
+                    stroke="hsl(var(--muted-foreground))"
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    fontSize={12}
+                    stroke="hsl(var(--muted-foreground))"
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => value.toLocaleString()}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'hsl(var(--muted) / 0.3)' }}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px',
+                      padding: '8px 12px',
+                    }}
+                    labelStyle={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: 'hsl(var(--foreground))',
+                    }}
+                    itemStyle={{
+                      fontSize: '12px',
+                      color: 'hsl(var(--muted-foreground))',
+                    }}
+                    formatter={(value: number) => [value.toLocaleString(), 'Score']}
+                  />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {performanceData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={getPerformanceChartColor(entry.name)} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </figure>
+          )}
         </div>
 
         {/* Market Data Section - Shows when analytics loaded */}
@@ -209,6 +323,79 @@ export const DetailPanel = React.memo(function DetailPanel({
                 value={cpuDetail.market_data.price_distribution?.length || 0}
               />
             </div>
+
+            {/* Price Distribution Histogram */}
+            {cpuDetail.market_data.price_distribution &&
+              cpuDetail.market_data.price_distribution.length > 0 &&
+              histogramData.length > 0 && (
+                <figure
+                  className="mt-4"
+                  role="img"
+                  aria-label="Price distribution histogram"
+                >
+                  <figcaption className="text-xs text-muted-foreground mb-2">
+                    Price Distribution ({cpuDetail.market_data.price_distribution.length} listings)
+                  </figcaption>
+                  <div className="sr-only">
+                    Histogram showing the distribution of listing prices across {histogramData.length} price ranges
+                  </div>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={histogramData} margin={{ top: 5, right: 10, left: 10, bottom: 80 }}>
+                      <XAxis
+                        dataKey="range"
+                        fontSize={11}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                        stroke="hsl(var(--muted-foreground))"
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        fontSize={12}
+                        stroke="hsl(var(--muted-foreground))"
+                        tickLine={false}
+                        axisLine={false}
+                        label={{
+                          value: 'Listings',
+                          angle: -90,
+                          position: 'insideLeft',
+                          style: {
+                            fontSize: 12,
+                            fill: 'hsl(var(--muted-foreground))',
+                          },
+                        }}
+                      />
+                      <Tooltip
+                        cursor={{ fill: 'hsl(var(--muted) / 0.3)' }}
+                        content={({ payload }) => {
+                          if (!payload || !payload.length) return null
+                          const data = payload[0].payload
+                          return (
+                            <div
+                              className="bg-background border rounded p-2 shadow-md"
+                              style={{
+                                backgroundColor: 'hsl(var(--background))',
+                                border: '1px solid hsl(var(--border))',
+                              }}
+                            >
+                              <p className="text-sm font-medium">{data.range}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {data.count} listing{data.count !== 1 ? 's' : ''}
+                              </p>
+                            </div>
+                          )
+                        }}
+                      />
+                      <Bar
+                        dataKey="count"
+                        fill="hsl(var(--primary))"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </figure>
+              )}
           </div>
         )}
 
