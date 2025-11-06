@@ -5,6 +5,7 @@ import { CPUFilters } from './cpu-filters'
 import { ViewSwitcher } from './view-switcher'
 import { GridView } from './grid-view'
 import { ListView } from './list-view'
+import { MasterDetailView } from './master-detail-view'
 import { useCPUCatalogStore } from '@/stores/cpu-catalog-store'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { CPURecord } from '@/types/cpus'
@@ -63,11 +64,12 @@ export const CatalogTab = React.memo(function CatalogTab({
         </ErrorBoundary>
       )}
       {activeView === 'master-detail' && (
-        <div className="rounded-lg border border-dashed border-muted-foreground/25 p-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            Master-Detail View - Coming in Phase 2 (FE-005)
-          </p>
-        </div>
+        <ErrorBoundary>
+          <MasterDetailView
+            cpus={cpus}
+            isLoading={isLoading}
+          />
+        </ErrorBoundary>
       )}
     </div>
   )
