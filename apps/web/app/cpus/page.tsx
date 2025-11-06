@@ -6,6 +6,7 @@ import { useCPUCatalogStore } from "@/stores/cpu-catalog-store";
 import { useCPUs } from "@/hooks/use-cpus";
 import { useCPUUrlSync } from "@/hooks/use-cpu-url-sync";
 import { Plus, Upload } from "lucide-react";
+import { CatalogTab } from "./_components/catalog-tab";
 
 /**
  * CPU Catalog Main Page
@@ -94,37 +95,10 @@ export default function CPUsPage() {
 
         {/* Catalog Tab - Multi-view interface for browsing CPUs */}
         <TabsContent value="catalog" className="space-y-4">
-          {/* Placeholder for CatalogTab component (FE-002 Part 2) */}
-          <div className="rounded-lg border border-dashed border-muted-foreground/25 p-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              CPU Catalog Tab
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground/75">
-              Views will be implemented in FE-003 (Grid), FE-004 (List), FE-005 (Master-Detail)
-            </p>
-
-            {/* Loading feedback */}
-            {isLoading && (
-              <p className="mt-4 text-xs text-muted-foreground">
-                Loading CPU data...
-              </p>
-            )}
-
-            {/* Success feedback */}
-            {!isLoading && cpus && (
-              <div className="mt-4 space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Ready to display
-                </p>
-                <p className="text-2xl font-bold text-foreground">
-                  {cpus.length}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  CPUs with analytics
-                </p>
-              </div>
-            )}
-          </div>
+          <CatalogTab
+            cpus={cpus || []}
+            isLoading={isLoading}
+          />
         </TabsContent>
 
         {/* Data Tab - Legacy table view for power users */}
