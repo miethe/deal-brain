@@ -20,24 +20,73 @@ interface PerformanceValueBadgeProps {
 /**
  * Performance Value Badge Component
  *
- * Displays $/PassMark rating with color-coded badge and directional arrow indicator.
- * Lower $/mark ratio = better value (cheaper per unit of performance).
+ * Displays CPU performance value ($/PassMark ratio) with color-coded rating badges.
+ * Lower $/mark values indicate better performance per dollar spent.
  *
- * Rating Tiers (based on percentile):
- * - excellent: 0-25th percentile (top 25% value) - Dark green with down arrow
- * - good: 25-50th percentile - Medium green with down arrow
- * - fair: 50-75th percentile - Yellow with minus icon
- * - poor: 75-100th percentile (bottom 25% value) - Red with up arrow
+ * This component is memoized for performance optimization and is typically used in
+ * CPU grid cards, detail panels, and analytics displays.
  *
- * Tooltip displays:
- * - Rating label (e.g., "Excellent Value")
- * - Percentile rank if provided (e.g., "Better than 85% of CPUs")
- * - Description of what the rating means
+ * @component
+ *
+ * @param {PerformanceValueBadgeProps} props - Component props
+ * @param {'excellent' | 'good' | 'fair' | 'poor' | null} props.rating - Performance rating based on percentile
+ * @param {number | null} props.dollarPerMark - The $/PassMark ratio (e.g., 0.0623 = $0.0623 per PassMark point)
+ * @param {number | null} [props.percentile] - Percentile ranking (0-100, where 0 is best value)
+ * @param {'single' | 'multi'} [props.metricType='multi'] - Type of metric (ST=single-thread, MT=multi-thread)
+ *
+ * @returns {React.ReactElement} Badge element with tooltip
+ *
+ * @example
+ * // Excellent value CPU with single-thread metric
+ * <PerformanceValueBadge
+ *   rating="excellent"
+ *   dollarPerMark={0.0623}
+ *   percentile={22.5}
+ *   metricType="single"
+ * />
+ *
+ * @example
+ * // Good multi-thread value
+ * <PerformanceValueBadge
+ *   rating="good"
+ *   dollarPerMark={0.0894}
+ *   percentile={45.2}
+ *   metricType="multi"
+ * />
+ *
+ * @example
+ * // Insufficient data
+ * <PerformanceValueBadge
+ *   rating={null}
+ *   dollarPerMark={null}
+ * />
+ *
+ * Rating Colors & Meanings:
+ * - Excellent (Dark Green): Top 25% value - significantly lower cost per performance mark
+ * - Good (Medium Green): 25-50th percentile - above average value
+ * - Fair (Yellow): 50-75th percentile - average cost per performance mark
+ * - Poor (Red): Bottom 25% value - higher cost per performance mark
+ * - No Data (Gray): Insufficient benchmark or price data
+ *
+ * Tooltip Content:
+ * - Rating label with description
+ * - Percentile rank showing how many CPUs offer better value
+ * - Formatted $/mark metric
+ * - Single-thread (ST) or Multi-thread (MT) indicator
  *
  * Accessibility:
- * - ARIA labels for screen readers
- * - Keyboard navigation via Tooltip
- * - Semantic color coding with text labels
+ * - ARIA labels describing rating and metric
+ * - Icons marked as decorative with aria-hidden="true"
+ * - Keyboard accessible via Tooltip component (arrow key, Enter navigation)
+ * - Sufficient color contrast (WCAG 2.1 AA compliant)
+ * - Works with screen readers (tooltip content announced)
+ *
+ * Performance:
+ * - Memoized with React.memo to prevent unnecessary re-renders
+ * - No expensive calculations in render path
+ * - Tooltip delay set to 300ms to reduce unnecessary DOM operations
+ *
+ * @see PerformanceValueBadgeProps for prop type definitions
  */
 export const PerformanceValueBadge = React.memo(function PerformanceValueBadge({
   rating,
