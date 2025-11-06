@@ -62,6 +62,7 @@ export function CPUFilters() {
     filters.hasIGPU !== null,
     filters.minPassMark !== null,
     filters.performanceRating !== null,
+    !filters.activeListingsOnly, // Count as active when DISABLED (since default is true)
   ].filter(Boolean).length;
 
   // Handle search input change
@@ -274,6 +275,20 @@ export function CPUFilters() {
           </Label>
         </div>
 
+        {/* Active Listings Only Checkbox */}
+        <div className="flex items-center space-x-2 pt-6">
+          <Checkbox
+            id="activeListings"
+            checked={filters.activeListingsOnly}
+            onCheckedChange={(checked) =>
+              setFilters({ activeListingsOnly: checked === true })
+            }
+          />
+          <Label htmlFor="activeListings" className="cursor-pointer text-sm font-medium">
+            Show Only CPUs with Active Listings
+          </Label>
+        </div>
+
         {/* Min PassMark Input */}
         <div className="space-y-2">
           <Label htmlFor="minMark">Min PassMark</Label>
@@ -337,6 +352,7 @@ export function filterCPUs(
     hasIGPU: boolean | null;
     minPassMark: number | null;
     performanceRating: string | null;
+    activeListingsOnly: boolean;
   }
 ): any[] {
   return cpus.filter((cpu) => {
@@ -408,6 +424,11 @@ export function filterCPUs(
       filters.performanceRating &&
       cpu.performance_value_rating !== filters.performanceRating
     ) {
+      return false;
+    }
+
+    // Active listings filter - show only CPUs with active listings when enabled
+    if (filters.activeListingsOnly && (!cpu.listings_count || cpu.listings_count === 0)) {
       return false;
     }
 

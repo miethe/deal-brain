@@ -25,6 +25,7 @@ export interface CPUFilterState {
   hasIGPU: boolean | null;                // null = all, true = only with iGPU
   minPassMark: number | null;             // Minimum PassMark score
   performanceRating: string | null;       // 'excellent' | 'good' | 'fair' | null
+  activeListingsOnly: boolean;            // Show only CPUs with active listings (default: true)
 }
 
 export interface CPUCatalogState {
@@ -72,6 +73,7 @@ const DEFAULT_FILTERS: CPUFilterState = {
   hasIGPU: null,
   minPassMark: null,
   performanceRating: null,
+  activeListingsOnly: true,
 };
 
 export const useCPUCatalogStore = create<CPUCatalogState>()(
