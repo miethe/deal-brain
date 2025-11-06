@@ -6,6 +6,7 @@ import { ViewSwitcher } from './view-switcher'
 import { GridView } from './grid-view'
 import { ListView } from './list-view'
 import { MasterDetailView } from './master-detail-view'
+import { CPUDetailDialog } from './cpu-detail-dialog'
 import { useCPUCatalogStore } from '@/stores/cpu-catalog-store'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { CPURecord } from '@/types/cpus'
@@ -71,6 +72,9 @@ export const CatalogTab = React.memo(function CatalogTab({
           />
         </ErrorBoundary>
       )}
+
+      {/* CPU Detail Dialog */}
+      <CPUDetailDialog />
     </div>
   )
 })
