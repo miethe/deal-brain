@@ -27,20 +27,20 @@ Frontend core implementation including CPU catalog page structure, three view mo
 
 ### Core Requirements (Must Complete)
 
-- [ ] All three view modes render correctly
-- [ ] Tab switching works smoothly
-- [ ] Filters apply client-side without lag
-- [ ] URL parameters sync with store state
-- [ ] View preferences persist across sessions
-- [ ] Mobile responsive (tested on 320px-1920px viewports)
+- [x] All three view modes render correctly
+- [x] Tab switching works smoothly
+- [x] Filters apply client-side without lag
+- [x] URL parameters sync with store state
+- [x] View preferences persist across sessions
+- [ ] Mobile responsive (tested on 320px-1920px viewports) - NEEDS TESTING
 
 ### Quality Metrics
 
-- [ ] Zero console errors or warnings in dev tools
-- [ ] Component props properly typed with TypeScript
-- [ ] Memoized components for performance
-- [ ] Accessibility attributes present (ARIA, semantic HTML)
-- [ ] Loading and error states handled
+- [x] Zero console errors or warnings in dev tools
+- [x] Component props properly typed with TypeScript
+- [x] Memoized components for performance
+- [x] Accessibility attributes present (ARIA, semantic HTML)
+- [x] Loading and error states handled
 
 ---
 
@@ -130,30 +130,30 @@ Frontend core implementation including CPU catalog page structure, three view mo
 
 ### Polish & Accessibility
 
-- [ ] **FE-009: Add Loading & Error States** (3h)
+- [x] **FE-009: Add Loading & Error States** (3h)
   - Skeleton loaders for grid/list views
   - Error boundary component
   - Network error messages
   - Retry functionality
-  - Status: Not Started
-  - Assignee: TBD
+  - Status: Complete (implemented in all views)
+  - Assignee: ui-engineer (Session 2)
 
 - [ ] **FE-010: Responsive Design & Mobile Testing** (4h)
   - Test on 320px, 640px, 1024px, 1920px breakpoints
   - Mobile menu for filters
   - Touch-friendly interactions
   - Fix responsive issues
-  - Status: Not Started
+  - Status: NEEDS TESTING
   - Assignee: TBD
 
-- [ ] **FE-011: Keyboard Navigation & Accessibility** (3h)
+- [x] **FE-011: Keyboard Navigation & Accessibility** (3h)
   - Tab order through filters
   - Enter to apply filters
   - Escape to close modals
   - Screen reader labels
   - ARIA live regions for dynamic content
-  - Status: Not Started
-  - Assignee: TBD
+  - Status: Complete (implemented in List/Master-Detail views)
+  - Assignee: ui-engineer (Session 2)
 
 ### Testing
 
