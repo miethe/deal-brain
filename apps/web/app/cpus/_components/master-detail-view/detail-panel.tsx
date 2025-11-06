@@ -8,6 +8,8 @@ import { ArrowUpRight, Plus } from 'lucide-react'
 import { KpiMetric } from './kpi-metric'
 import { KeyValue } from './key-value'
 import { PerformanceBadge } from '../grid-view/performance-badge'
+import { PriceTargets } from '../price-targets'
+import { PerformanceValueBadge } from '../performance-value-badge'
 import { useCPUCatalogStore } from '@/stores/cpu-catalog-store'
 import type { CPURecord } from '@/types/cpus'
 
@@ -108,29 +110,15 @@ export const DetailPanel = React.memo(function DetailPanel({
           />
         </div>
 
-        {/* Price Target Confidence */}
-        {cpu.price_target_confidence && cpu.price_target_sample_size > 0 && (
-          <div className="rounded-lg border bg-muted/50 p-3">
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-muted-foreground">Price Confidence</div>
-              <Badge
-                variant={
-                  cpu.price_target_confidence === 'high'
-                    ? 'default'
-                    : cpu.price_target_confidence === 'medium'
-                    ? 'secondary'
-                    : 'outline'
-                }
-              >
-                {cpu.price_target_confidence}
-              </Badge>
-            </div>
-            <div className="mt-1 text-sm">
-              Based on {cpu.price_target_sample_size} active{' '}
-              {cpu.price_target_sample_size === 1 ? 'listing' : 'listings'}
-            </div>
-          </div>
-        )}
+        {/* Price Targets - Detailed View */}
+        <PriceTargets
+          priceTargetGreat={cpu.price_target_great}
+          priceTargetGood={cpu.price_target_good}
+          priceTargetFair={cpu.price_target_fair}
+          confidence={cpu.price_target_confidence}
+          sampleSize={cpu.price_target_sample_size}
+          variant="detailed"
+        />
 
         {/* Performance Badges */}
         <div>
@@ -157,10 +145,24 @@ export const DetailPanel = React.memo(function DetailPanel({
                 variant="igpu"
               />
             )}
-            {cpu.performance_value_percentile !== null && (
-              <Badge variant="outline" className="text-xs font-mono">
-                Value Percentile: {cpu.performance_value_percentile.toFixed(0)}
-              </Badge>
+          </div>
+          {/* Performance Value Badges */}
+          <div className="flex flex-wrap gap-2 mt-2">
+            {cpu.dollar_per_mark_single && (
+              <PerformanceValueBadge
+                rating={cpu.performance_value_rating}
+                dollarPerMark={cpu.dollar_per_mark_single}
+                percentile={cpu.performance_value_percentile}
+                metricType="single"
+              />
+            )}
+            {cpu.dollar_per_mark_multi && (
+              <PerformanceValueBadge
+                rating={cpu.performance_value_rating}
+                dollarPerMark={cpu.dollar_per_mark_multi}
+                percentile={cpu.performance_value_percentile}
+                metricType="multi"
+              />
             )}
           </div>
         </div>

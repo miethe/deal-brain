@@ -5,6 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { CPURecord } from "@/types/cpus";
 import { PerformanceBadge } from "./performance-badge";
+import { PriceTargets } from "../price-targets";
 import { useCPUCatalogStore } from "@/stores/cpu-catalog-store";
 import { Cpu } from "lucide-react";
 
@@ -41,20 +42,6 @@ export const CPUCard = memo(function CPUCard({ cpu }: CPUCardProps) {
   // Get performance badge variant based on rating
   const getPerformanceVariant = (): 'excellent' | 'good' | 'fair' | 'poor' | null => {
     return cpu.performance_value_rating as 'excellent' | 'good' | 'fair' | 'poor' | null;
-  };
-
-  // Get confidence badge color
-  const getConfidenceBadgeVariant = () => {
-    switch (cpu.price_target_confidence) {
-      case 'high':
-        return 'default';
-      case 'medium':
-        return 'secondary';
-      case 'low':
-        return 'outline';
-      default:
-        return 'outline';
-    }
   };
 
   return (
@@ -139,45 +126,14 @@ export const CPUCard = memo(function CPUCard({ cpu }: CPUCardProps) {
         )}
 
         {/* Price Targets */}
-        {cpu.price_target_good && (
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Price Targets</span>
-              <Badge variant={getConfidenceBadgeVariant()} className="text-xs">
-                {cpu.price_target_confidence}
-              </Badge>
-            </div>
-            <div className="grid grid-cols-3 gap-1.5 text-xs">
-              {cpu.price_target_great && (
-                <div className="rounded bg-emerald-50 dark:bg-emerald-950/30 p-1.5 text-center">
-                  <div className="text-emerald-700 dark:text-emerald-400 font-medium">
-                    ${cpu.price_target_great.toLocaleString()}
-                  </div>
-                  <div className="text-muted-foreground">Great</div>
-                </div>
-              )}
-              <div className="rounded bg-blue-50 dark:bg-blue-950/30 p-1.5 text-center">
-                <div className="text-blue-700 dark:text-blue-400 font-medium">
-                  ${cpu.price_target_good.toLocaleString()}
-                </div>
-                <div className="text-muted-foreground">Good</div>
-              </div>
-              {cpu.price_target_fair && (
-                <div className="rounded bg-amber-50 dark:bg-amber-950/30 p-1.5 text-center">
-                  <div className="text-amber-700 dark:text-amber-400 font-medium">
-                    ${cpu.price_target_fair.toLocaleString()}
-                  </div>
-                  <div className="text-muted-foreground">Fair</div>
-                </div>
-              )}
-            </div>
-            {cpu.price_target_sample_size > 0 && (
-              <div className="text-xs text-muted-foreground text-center">
-                Based on {cpu.price_target_sample_size} listing{cpu.price_target_sample_size !== 1 ? 's' : ''}
-              </div>
-            )}
-          </div>
-        )}
+        <PriceTargets
+          priceTargetGreat={cpu.price_target_great}
+          priceTargetGood={cpu.price_target_good}
+          priceTargetFair={cpu.price_target_fair}
+          confidence={cpu.price_target_confidence}
+          sampleSize={cpu.price_target_sample_size}
+          variant="compact"
+        />
 
         {/* Performance Value Metrics */}
         {(cpu.dollar_per_mark_single || cpu.dollar_per_mark_multi) && (
