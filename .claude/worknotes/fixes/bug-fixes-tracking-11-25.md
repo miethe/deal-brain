@@ -135,4 +135,32 @@ The JsonLdAdapter only attempted Schema.org and meta tag extraction, failing on 
 - CAPTCHA handling
 - Or using Amazon Product Advertising API for legitimate access
 
-**Commits**: 10d44fa (meta tag fallback), [current] (HTML element fallback + debug logging)
+**Commits**: 10d44fa (meta tag fallback), ae1b735 (HTML element fallback + debug logging)
+
+## 2025-11-07: False Success Toast on Import Failures
+
+**Issue**: Frontend showed "Import successful!" toast even when imports failed (e.g., Amazon URLs with extraction failures)
+
+**Location**: `apps/web/components/ingestion/single-url-import-form.tsx`
+
+**Root Cause**: Success condition only checked `jobData.status === 'complete' && jobData.result` without validating that `listing_id` was actually created. Backend can return `status: 'complete'` with `listing_id: null` in some error scenarios.
+
+**Fix**: Enhanced validation and added error handlers:
+
+1. **Success Validation** (Line 104-110):
+   - Added checks for `listing_id !== null`, `!== undefined`, and `> 0`
+   - Only shows success toast when listing actually persisted
+
+2. **Incomplete Result Handler** (Line 130-147):
+   - Catches `status: 'complete'` with missing/invalid `listing_id`
+   - Shows error toast: "Import failed - Import completed but listing was not created"
+   - Error code: `INCOMPLETE_RESULT`, retryable: `true`
+
+3. **Partial Data Handler** (Line 148-165):
+   - Handles `status: 'partial'` when extraction incomplete
+   - Shows error toast: "Import incomplete - [backend message]"
+   - Error code: `PARTIAL_DATA`, retryable: `true`
+
+**Testing**: Users importing Amazon URLs that fail extraction now see error toasts instead of false success messages
+
+**Commits**: b5785d5 (diagnostic logging), a1efe3c (frontend toast fix)
