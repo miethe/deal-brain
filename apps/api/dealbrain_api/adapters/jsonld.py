@@ -9,6 +9,7 @@ from typing import Any
 
 import extruct
 import httpx
+from bs4 import BeautifulSoup
 from dealbrain_api.adapters.base import AdapterError, AdapterException, BaseAdapter
 from dealbrain_api.settings import get_settings
 from dealbrain_core.enums import Condition
@@ -158,9 +159,18 @@ class JsonLdAdapter(BaseAdapter):
         product_data = self._find_product_schema(structured_data)
 
         if not product_data:
+            # Fallback: Try extracting from meta tags (OpenGraph, Twitter Card)
+            logger.info(f"No Schema.org Product found, trying meta tag fallback for {url}")
+            result = self._extract_from_meta_tags(html, url)
+
+            if result:
+                logger.info(f"Successfully extracted listing from meta tags: {result.title}")
+                return result
+
+            # Both methods failed
             raise AdapterException(
                 AdapterError.NO_STRUCTURED_DATA,
-                "No Schema.org Product data found in page",
+                "No Schema.org Product data or extractable meta tags found in page",
                 metadata={"url": url},
             )
 
@@ -719,6 +729,155 @@ class JsonLdAdapter(BaseAdapter):
             specs["ram_gb"] = int(ram_match.group(1))
 
         return specs
+
+    def _extract_from_meta_tags(self, html: str, url: str) -> NormalizedListingSchema | None:
+        """
+        Extract product data from OpenGraph/Twitter Card meta tags as fallback.
+
+        When Schema.org structured data is not available, this method attempts to
+        extract listing information from standard meta tags that many sites include:
+        - OpenGraph (og:*) - Used by Facebook and widely adopted
+        - Twitter Card (twitter:*) - Used by Twitter
+        - Generic meta tags (name="description", itemprop="price", etc.)
+
+        Priority order:
+        1. OpenGraph tags (highest priority)
+        2. Twitter Card tags
+        3. Generic meta tags
+
+        Required fields for successful extraction:
+        - Title (from og:title, twitter:title, or title tag)
+        - Price (from og:price:amount, itemprop="price", or price-containing meta)
+
+        Optional fields:
+        - Currency (from og:price:currency, defaults to USD)
+        - Images (from og:image or twitter:image)
+        - Description (from og:description, twitter:description, or meta description)
+
+        Args:
+            html: HTML content to parse
+            url: Original URL (for error messages and logging)
+
+        Returns:
+            NormalizedListingSchema with extracted data, or None if insufficient data
+        """
+        try:
+            soup = BeautifulSoup(html, "html.parser")
+            meta_tags = soup.find_all("meta")
+
+            # Build meta data dictionary
+            meta_data: dict[str, str] = {}
+            for tag in meta_tags:
+                # OpenGraph tags (property attribute)
+                if tag.get("property"):
+                    meta_data[tag["property"]] = tag.get("content", "")
+                # Twitter/generic tags (name attribute)
+                if tag.get("name"):
+                    meta_data[tag["name"]] = tag.get("content", "")
+                # Microdata tags (itemprop attribute)
+                if tag.get("itemprop"):
+                    meta_data[f"itemprop:{tag['itemprop']}"] = tag.get("content", "")
+
+            # Extract title (required)
+            title = (
+                meta_data.get("og:title")
+                or meta_data.get("twitter:title")
+                or meta_data.get("title")
+            )
+
+            # Fallback to <title> tag if no meta title found
+            if not title:
+                title_tag = soup.find("title")
+                if title_tag and title_tag.string:
+                    title = title_tag.string.strip()
+
+            if not title:
+                logger.debug(f"Meta tag extraction failed: no title found for {url}")
+                return None
+
+            # Extract price (required)
+            price_str = (
+                meta_data.get("og:price:amount")
+                or meta_data.get("itemprop:price")
+                or meta_data.get("price")
+            )
+
+            # Try to find price in various meta tags if not found
+            if not price_str:
+                for key, value in meta_data.items():
+                    if "price" in key.lower() and value:
+                        price_str = value
+                        break
+
+            if not price_str:
+                logger.debug(f"Meta tag extraction failed: no price found for {url}")
+                return None
+
+            # Parse price
+            price = self._parse_price(price_str)
+            if not price:
+                logger.debug(
+                    f"Meta tag extraction failed: could not parse price '{price_str}' for {url}"
+                )
+                return None
+
+            # Extract currency (optional, defaults to USD)
+            currency = meta_data.get("og:price:currency") or meta_data.get("currency") or "USD"
+
+            # Extract images (optional)
+            images: list[str] = []
+            image_url = (
+                meta_data.get("og:image")
+                or meta_data.get("twitter:image")
+                or meta_data.get("itemprop:image")
+            )
+            if image_url:
+                images = [image_url]
+
+            # Extract description (optional)
+            description = (
+                meta_data.get("og:description")
+                or meta_data.get("twitter:description")
+                or meta_data.get("description")
+            )
+
+            # Parse specs from title + description
+            specs_text = f"{title} {description or ''}"
+            specs = self._extract_specs(specs_text)
+
+            # Extract seller (optional)
+            seller = (
+                meta_data.get("og:site_name")
+                or meta_data.get("twitter:site")
+                or meta_data.get("author")
+            )
+
+            # Build normalized schema
+            logger.info(
+                f"Meta tag extraction successful: title='{title}', "
+                f"price={price}, currency={currency}"
+            )
+
+            return NormalizedListingSchema(
+                title=title,
+                price=price,
+                currency=currency,
+                condition=Condition.NEW.value,  # Default, meta tags rarely specify condition
+                images=images,
+                seller=seller,
+                marketplace="other",  # Generic marketplace
+                vendor_item_id=None,  # Not available from meta tags
+                description=description,
+                cpu_model=specs.get("cpu_model"),
+                ram_gb=specs.get("ram_gb"),
+                storage_gb=specs.get("storage_gb"),
+            )
+
+        except Exception as e:
+            logger.warning(
+                f"Meta tag extraction failed with exception for {url}: {e}", exc_info=True
+            )
+            return None
 
 
 __all__ = ["JsonLdAdapter"]

@@ -1009,3 +1009,361 @@ class TestJsonLdAdapterEdgeCases:
         # Should handle whitespace correctly
         assert result.title.strip() == "Gaming  PC"
         assert result.price == Decimal("599.99")
+
+
+class TestJsonLdAdapterMetaTagFallback:
+    """Test suite for meta tag fallback extraction."""
+
+    @pytest.fixture
+    def adapter(self):
+        """Create JsonLdAdapter instance."""
+        return JsonLdAdapter()
+
+    @pytest.mark.asyncio
+    async def test_extract_from_opengraph_meta_tags(self, adapter):
+        """Test extraction from OpenGraph meta tags when Schema.org absent."""
+        html = """
+        <html>
+        <head>
+            <meta property="og:title" content="MINISFORUM UM690S Gaming PC AMD Ryzen 9 6900HX 16GB DDR5 512GB SSD">
+            <meta property="og:price:amount" content="599.99">
+            <meta property="og:price:currency" content="USD">
+            <meta property="og:image" content="https://example.com/product.jpg">
+            <meta property="og:description" content="Powerful mini PC with AMD Ryzen 9 6900HX processor, 16GB DDR5 RAM, and 512GB NVMe SSD">
+            <meta property="og:site_name" content="Amazon">
+        </head>
+        <body><h1>Product</h1></body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # Verify core fields
+        assert result.title == "MINISFORUM UM690S Gaming PC AMD Ryzen 9 6900HX 16GB DDR5 512GB SSD"
+        assert result.price == Decimal("599.99")
+        assert result.currency == "USD"
+        assert result.images == ["https://example.com/product.jpg"]
+        assert result.description == "Powerful mini PC with AMD Ryzen 9 6900HX processor, 16GB DDR5 RAM, and 512GB NVMe SSD"
+        assert result.seller == "Amazon"
+
+        # Verify extracted specs from title and description
+        assert result.cpu_model is not None
+        assert "ryzen 9 6900hx" in result.cpu_model.lower()
+        assert result.ram_gb == 16
+        assert result.storage_gb == 512
+
+        # Verify defaults
+        assert result.marketplace == "other"
+        assert result.condition == "new"  # Default
+
+    @pytest.mark.asyncio
+    async def test_extract_from_twitter_card_meta_tags(self, adapter):
+        """Test extraction from Twitter Card meta tags."""
+        html = """
+        <html>
+        <head>
+            <meta name="twitter:title" content="Gaming Desktop Intel Core i7-12700K 32GB 1TB">
+            <meta name="twitter:image" content="https://example.com/pc.jpg">
+            <meta name="twitter:description" content="High-performance gaming PC with Intel Core i7-12700K, 32GB DDR4, 1TB SSD">
+            <meta itemprop="price" content="899.99">
+        </head>
+        <body><h1>Product</h1></body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # Verify core fields
+        assert result.title == "Gaming Desktop Intel Core i7-12700K 32GB 1TB"
+        assert result.price == Decimal("899.99")
+        assert result.images == ["https://example.com/pc.jpg"]
+        assert result.description == "High-performance gaming PC with Intel Core i7-12700K, 32GB DDR4, 1TB SSD"
+
+        # Verify extracted specs
+        assert result.cpu_model is not None
+        assert "i7-12700k" in result.cpu_model.lower()
+        assert result.ram_gb == 32
+        assert result.storage_gb == 1024  # 1TB converted to GB
+
+        # Verify defaults
+        assert result.currency == "USD"  # Default
+        assert result.marketplace == "other"
+
+    @pytest.mark.asyncio
+    async def test_fallback_to_meta_tags_when_no_structured_data(self, adapter):
+        """Test fallback from Schema.org to meta tags when no Product schema."""
+        html = """
+        <html>
+        <head>
+            <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@type": "Organization",
+                "name": "Example Store"
+            }
+            </script>
+            <meta property="og:title" content="Mini PC AMD Ryzen 7 5800H 16GB 512GB SSD">
+            <meta property="og:price:amount" content="449.99">
+            <meta property="og:image" content="https://example.com/mini-pc.jpg">
+        </head>
+        <body><h1>Product</h1></body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # Should successfully extract from meta tags
+        assert result.title == "Mini PC AMD Ryzen 7 5800H 16GB 512GB SSD"
+        assert result.price == Decimal("449.99")
+        assert result.images == ["https://example.com/mini-pc.jpg"]
+
+        # Verify specs extracted from title
+        assert result.cpu_model is not None
+        assert "ryzen 7 5800h" in result.cpu_model.lower()
+        assert result.ram_gb == 16
+        assert result.storage_gb == 512
+
+    @pytest.mark.asyncio
+    async def test_meta_tags_without_required_fields(self, adapter):
+        """Test error when meta tags missing required fields (title or price)."""
+        html = """
+        <html>
+        <head>
+            <meta property="og:image" content="https://example.com/product.jpg">
+            <meta property="og:description" content="Some description">
+        </head>
+        <body><h1>Product</h1></body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            with pytest.raises(AdapterException) as exc:
+                await adapter.extract("https://example.com/product")
+
+            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
+            assert "no schema.org product data or extractable meta tags" in exc.value.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_meta_tag_price_formats(self, adapter):
+        """Test price parsing from various meta tag formats."""
+        test_cases = [
+            ("599.99", Decimal("599.99")),
+            ("$599.99", Decimal("599.99")),
+            ("1,299.99", Decimal("1299.99")),
+            ("€599.99", Decimal("599.99")),
+            ("£1,599", Decimal("1599")),
+            ("1299.00", Decimal("1299.00")),
+        ]
+
+        for price_str, expected_price in test_cases:
+            html = f"""
+            <html>
+            <head>
+                <meta property="og:title" content="Test Product">
+                <meta property="og:price:amount" content="{price_str}">
+            </head>
+            <body><h1>Product</h1></body>
+            </html>
+            """
+
+            with patch.object(adapter, "_fetch_html", return_value=html):
+                result = await adapter.extract("https://example.com/product")
+
+            assert result.price == expected_price, f"Failed to parse price '{price_str}'"
+            assert result.title == "Test Product"
+
+    @pytest.mark.asyncio
+    async def test_multiple_image_meta_tags(self, adapter):
+        """Test image extraction with multiple og:image tags."""
+        html = """
+        <html>
+        <head>
+            <meta property="og:title" content="Gaming PC">
+            <meta property="og:price:amount" content="599.99">
+            <meta property="og:image" content="https://example.com/image1.jpg">
+            <meta property="og:image" content="https://example.com/image2.jpg">
+        </head>
+        <body><h1>Product</h1></body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # BeautifulSoup overwrites duplicate meta tags, so last one wins
+        assert len(result.images) == 1
+        assert result.images[0] == "https://example.com/image2.jpg"
+
+    @pytest.mark.asyncio
+    async def test_meta_tags_with_title_tag_fallback(self, adapter):
+        """Test fallback to HTML <title> tag when no meta title."""
+        html = """
+        <html>
+        <head>
+            <title>Product Title from Title Tag</title>
+            <meta itemprop="price" content="399.99">
+        </head>
+        <body><h1>Product</h1></body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.title == "Product Title from Title Tag"
+        assert result.price == Decimal("399.99")
+
+    @pytest.mark.asyncio
+    async def test_meta_tags_spec_extraction_from_combined_fields(self, adapter):
+        """Test spec extraction from combined title + description."""
+        html = """
+        <html>
+        <head>
+            <meta property="og:title" content="Gaming PC Intel i5-11400">
+            <meta property="og:price:amount" content="499.99">
+            <meta property="og:description" content="Desktop computer with 16GB RAM and 512GB SSD storage">
+        </head>
+        <body><h1>Product</h1></body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # Specs should be extracted from both title and description
+        assert result.cpu_model is not None
+        assert "i5-11400" in result.cpu_model.lower()
+        assert result.ram_gb == 16  # From description
+        assert result.storage_gb == 512  # From description
+
+    @pytest.mark.asyncio
+    async def test_meta_tags_with_seller_extraction(self, adapter):
+        """Test seller extraction from various meta tag sources."""
+        html = """
+        <html>
+        <head>
+            <meta property="og:title" content="Test Product">
+            <meta property="og:price:amount" content="299.99">
+            <meta property="og:site_name" content="TechStore">
+            <meta name="twitter:site" content="@techstore">
+            <meta name="author" content="TechStore Inc.">
+        </head>
+        <body><h1>Product</h1></body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # Should prioritize og:site_name
+        assert result.seller == "TechStore"
+
+    @pytest.mark.asyncio
+    async def test_meta_tags_with_generic_price_meta(self, adapter):
+        """Test price extraction from generic price meta tag."""
+        html = """
+        <html>
+        <head>
+            <meta property="og:title" content="Mini PC">
+            <meta name="price" content="349.99">
+            <meta name="currency" content="EUR">
+        </head>
+        <body><h1>Product</h1></body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.price == Decimal("349.99")
+        assert result.currency == "EUR"
+
+    @pytest.mark.asyncio
+    async def test_meta_tags_without_description(self, adapter):
+        """Test extraction when no description meta tag present."""
+        html = """
+        <html>
+        <head>
+            <meta property="og:title" content="Desktop PC Intel Core i7-12700K 32GB 1TB SSD">
+            <meta property="og:price:amount" content="799.99">
+        </head>
+        <body><h1>Product</h1></body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # Should still extract specs from title
+        assert result.cpu_model is not None
+        assert "i7-12700k" in result.cpu_model.lower()
+        assert result.ram_gb == 32
+        assert result.storage_gb == 1024
+        assert result.description is None
+
+    @pytest.mark.asyncio
+    async def test_meta_tags_with_unparseable_price(self, adapter):
+        """Test error when meta tag price cannot be parsed."""
+        html = """
+        <html>
+        <head>
+            <meta property="og:title" content="Test Product">
+            <meta property="og:price:amount" content="Contact for price">
+        </head>
+        <body><h1>Product</h1></body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            with pytest.raises(AdapterException) as exc:
+                await adapter.extract("https://example.com/product")
+
+            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
+
+    @pytest.mark.asyncio
+    async def test_meta_tags_priority_opengraph_over_twitter(self, adapter):
+        """Test that OpenGraph tags take priority over Twitter Card tags."""
+        html = """
+        <html>
+        <head>
+            <meta property="og:title" content="OpenGraph Title">
+            <meta name="twitter:title" content="Twitter Title">
+            <meta property="og:price:amount" content="599.99">
+            <meta itemprop="price" content="699.99">
+            <meta property="og:image" content="https://example.com/og-image.jpg">
+            <meta name="twitter:image" content="https://example.com/twitter-image.jpg">
+        </head>
+        <body><h1>Product</h1></body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # Should prioritize OpenGraph values
+        assert result.title == "OpenGraph Title"
+        assert result.price == Decimal("599.99")
+        assert result.images == ["https://example.com/og-image.jpg"]
+
+    @pytest.mark.asyncio
+    async def test_meta_tags_with_only_title_no_price(self, adapter):
+        """Test that extraction fails when price is missing."""
+        html = """
+        <html>
+        <head>
+            <meta property="og:title" content="Product Without Price">
+            <meta property="og:description" content="Great product">
+            <meta property="og:image" content="https://example.com/image.jpg">
+        </head>
+        <body><h1>Product</h1></body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            with pytest.raises(AdapterException) as exc:
+                await adapter.extract("https://example.com/product")
+
+            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
