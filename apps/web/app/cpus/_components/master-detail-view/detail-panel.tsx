@@ -66,9 +66,27 @@ export const DetailPanel = React.memo(function DetailPanel({
 
     const min = Math.min(...prices)
     const max = Math.max(...prices)
-    const binSize = (max - min) / binCount
 
-    const bins = Array.from({ length: binCount }, (_, i) => ({
+    // Edge case: All prices are identical
+    if (min === max) {
+      return [{
+        range: `$${Math.round(min)}`,
+        count: prices.length,
+        minPrice: min,
+        maxPrice: max,
+      }]
+    }
+
+    // Edge case: Very small price range (less than bin count)
+    // Reduce bin count to avoid empty bins
+    const priceRange = max - min
+    const adjustedBinCount = priceRange < binCount
+      ? Math.max(1, Math.ceil(priceRange))
+      : binCount
+
+    const binSize = (max - min) / adjustedBinCount
+
+    const bins = Array.from({ length: adjustedBinCount }, (_, i) => ({
       range: `$${Math.round(min + i * binSize)}-${Math.round(min + (i + 1) * binSize)}`,
       count: 0,
       minPrice: min + i * binSize,
@@ -76,11 +94,11 @@ export const DetailPanel = React.memo(function DetailPanel({
     }))
 
     prices.forEach(price => {
-      const binIndex = Math.min(
-        Math.floor((price - min) / binSize),
-        binCount - 1
-      )
-      bins[binIndex].count++
+      // Calculate bin index safely
+      const binIndex = Math.floor((price - min) / binSize)
+      // Ensure bin index is within valid range (handle edge case where price === max)
+      const safeBinIndex = Math.min(Math.max(0, binIndex), adjustedBinCount - 1)
+      bins[safeBinIndex].count++
     })
 
     return bins.filter(bin => bin.count > 0)
