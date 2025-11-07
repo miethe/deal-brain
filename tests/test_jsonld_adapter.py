@@ -1144,7 +1144,7 @@ class TestJsonLdAdapterMetaTagFallback:
                 await adapter.extract("https://example.com/product")
 
             assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
-            assert "no schema.org product data or extractable meta tags" in exc.value.message.lower()
+            assert "no schema.org product data, extractable meta tags, or html elements" in exc.value.message.lower()
 
     @pytest.mark.asyncio
     async def test_meta_tag_price_formats(self, adapter):
@@ -1367,3 +1367,326 @@ class TestJsonLdAdapterMetaTagFallback:
                 await adapter.extract("https://example.com/product")
 
             assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
+
+
+class TestJsonLdAdapterHtmlElementFallback:
+    """Test suite for HTML element extraction fallback (Amazon-style)."""
+
+    @pytest.fixture
+    def adapter(self):
+        """Create JsonLdAdapter instance."""
+        return JsonLdAdapter()
+
+    @pytest.mark.asyncio
+    async def test_extract_from_amazon_style_html_elements(self, adapter):
+        """Test extraction from Amazon-style HTML elements when no meta tags."""
+        html = """
+        <html>
+        <head>
+            <meta name="description" content="High performance mini PC for gaming">
+            <title>Amazon.com Product Page</title>
+        </head>
+        <body>
+            <span id="productTitle">MINISFORUM UM690S Gaming PC AMD Ryzen 9 6900HX 16GB DDR5 512GB SSD</span>
+            <span class="a-price">
+                <span class="a-offscreen">$599.99</span>
+            </span>
+            <img data-old-hires="https://example.com/product-hires.jpg" src="https://example.com/product-lowres.jpg">
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://amazon.com/product")
+
+        # Verify core fields
+        assert result.title == "MINISFORUM UM690S Gaming PC AMD Ryzen 9 6900HX 16GB DDR5 512GB SSD"
+        assert result.price == Decimal("599.99")
+        assert result.currency == "USD"  # Default
+        assert result.condition == "new"  # Default
+        assert len(result.images) == 1
+        assert result.images[0] == "https://example.com/product-hires.jpg"  # data-old-hires priority
+
+        # Verify extracted specs
+        assert result.cpu_model is not None
+        assert "ryzen 9 6900hx" in result.cpu_model.lower()
+        assert result.ram_gb == 16
+        assert result.storage_gb == 512
+
+        # Verify defaults
+        assert result.marketplace == "other"
+        assert result.seller is None
+
+    @pytest.mark.asyncio
+    async def test_extract_with_generic_html_patterns(self, adapter):
+        """Test extraction using generic HTML class patterns."""
+        html = """
+        <html>
+        <head>
+            <meta name="description" content="Desktop computer with AMD processor">
+        </head>
+        <body>
+            <h1 class="product-title">Gaming Desktop AMD Ryzen 7 5800X 32GB 1TB SSD</h1>
+            <span class="price">$899.99</span>
+            <img class="product-image" src="https://example.com/pc.jpg">
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://retailer.com/product")
+
+        assert result.title == "Gaming Desktop AMD Ryzen 7 5800X 32GB 1TB SSD"
+        assert result.price == Decimal("899.99")
+        assert result.images == ["https://example.com/pc.jpg"]
+
+        # Verify spec extraction from title
+        assert result.cpu_model is not None
+        assert "ryzen 7 5800x" in result.cpu_model.lower()
+        assert result.ram_gb == 32
+        assert result.storage_gb == 1024
+
+    @pytest.mark.asyncio
+    async def test_html_elements_fallback_after_meta_tags_fail(self, adapter):
+        """Test that HTML elements are tried after meta tags fail."""
+        html = """
+        <html>
+        <head>
+            <meta property="og:image" content="https://example.com/image.jpg">
+            <meta name="description" content="Great product description">
+            <!-- No title or price in meta tags -->
+        </head>
+        <body>
+            <h1 id="productTitle">Intel Core i7-12700K Gaming PC 16GB 512GB</h1>
+            <span itemprop="price">799.99</span>
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # Should successfully extract from HTML elements
+        assert result.title == "Intel Core i7-12700K Gaming PC 16GB 512GB"
+        assert result.price == Decimal("799.99")
+        assert result.description == "Great product description"
+
+    @pytest.mark.asyncio
+    async def test_html_elements_title_fallback_to_h1(self, adapter):
+        """Test fallback to first h1 tag when no specific title selector."""
+        html = """
+        <html>
+        <body>
+            <h1>AMD Ryzen 5 5600X Desktop PC 16GB 256GB</h1>
+            <span class="price">$449.99</span>
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.title == "AMD Ryzen 5 5600X Desktop PC 16GB 256GB"
+        assert result.price == Decimal("449.99")
+
+    @pytest.mark.asyncio
+    async def test_html_elements_price_with_dollar_sign(self, adapter):
+        """Test price extraction with dollar sign in HTML element."""
+        html = """
+        <html>
+        <body>
+            <span id="productTitle">Test Product</span>
+            <span class="a-price">
+                <span class="a-offscreen">$1,299.99</span>
+            </span>
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.price == Decimal("1299.99")
+
+    @pytest.mark.asyncio
+    async def test_html_elements_image_data_attributes(self, adapter):
+        """Test image extraction from various data attributes."""
+        html = """
+        <html>
+        <body>
+            <span id="productTitle">Product</span>
+            <span class="price">599.99</span>
+            <img data-a-image-source="https://example.com/large.jpg" src="https://example.com/thumb.jpg">
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.images == ["https://example.com/large.jpg"]
+
+    @pytest.mark.asyncio
+    async def test_html_elements_skip_1x1_pixel_images(self, adapter):
+        """Test that 1x1 pixel tracking images are skipped."""
+        html = """
+        <html>
+        <body>
+            <span id="productTitle">Product</span>
+            <span class="price">599.99</span>
+            <img src="https://example.com/1x1.gif">
+            <img src="https://example.com/pixel.png">
+            <img src="https://example.com/product.jpg">
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # Should skip 1x1 and pixel images, take product.jpg
+        assert result.images == ["https://example.com/product.jpg"]
+
+    @pytest.mark.asyncio
+    async def test_html_elements_no_title_found(self, adapter):
+        """Test error when no title can be found in HTML elements."""
+        html = """
+        <html>
+        <body>
+            <p>Some content without title</p>
+            <span class="price">599.99</span>
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            with pytest.raises(AdapterException) as exc:
+                await adapter.extract("https://example.com/product")
+
+            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
+            assert "no schema.org product data, extractable meta tags, or html elements" in exc.value.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_html_elements_no_price_found(self, adapter):
+        """Test error when no price can be found in HTML elements."""
+        html = """
+        <html>
+        <body>
+            <span id="productTitle">Test Product</span>
+            <p>No price available</p>
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            with pytest.raises(AdapterException) as exc:
+                await adapter.extract("https://example.com/product")
+
+            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
+
+    @pytest.mark.asyncio
+    async def test_html_elements_with_itemprop_name(self, adapter):
+        """Test title extraction from itemprop="name" attribute."""
+        html = """
+        <html>
+        <body>
+            <div itemprop="name">Desktop PC Intel i7 16GB 512GB</div>
+            <span itemprop="price">699.99</span>
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.title == "Desktop PC Intel i7 16GB 512GB"
+        assert result.price == Decimal("699.99")
+
+    @pytest.mark.asyncio
+    async def test_html_elements_description_from_meta(self, adapter):
+        """Test description extraction from meta description tag."""
+        html = """
+        <html>
+        <head>
+            <meta name="description" content="Gaming PC with Intel Core i5-11400, 16GB RAM, 512GB SSD">
+        </head>
+        <body>
+            <h1>Gaming Desktop PC</h1>
+            <span class="price">$549.99</span>
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.description == "Gaming PC with Intel Core i5-11400, 16GB RAM, 512GB SSD"
+        # Should extract specs from both title and description
+        assert result.cpu_model is not None
+        assert "i5-11400" in result.cpu_model.lower()
+        assert result.ram_gb == 16
+        assert result.storage_gb == 512
+
+    @pytest.mark.asyncio
+    async def test_html_elements_combined_specs_from_title_and_description(self, adapter):
+        """Test spec extraction from combined title and description."""
+        html = """
+        <html>
+        <head>
+            <meta name="description" content="Desktop with 32GB DDR4 RAM and 1TB NVMe storage">
+        </head>
+        <body>
+            <span id="productTitle">Intel Core i9-12900K Gaming PC</span>
+            <span class="a-price"><span class="a-offscreen">$1499.99</span></span>
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        # CPU from title, RAM and storage from description
+        assert result.cpu_model is not None
+        assert "i9-12900k" in result.cpu_model.lower()
+        assert result.ram_gb == 32
+        assert result.storage_gb == 1024
+
+    @pytest.mark.asyncio
+    async def test_html_elements_with_no_images(self, adapter):
+        """Test extraction when no images found."""
+        html = """
+        <html>
+        <body>
+            <span id="productTitle">Test Product</span>
+            <span class="price">299.99</span>
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            result = await adapter.extract("https://example.com/product")
+
+        assert result.images == []
+        assert result.title == "Test Product"
+        assert result.price == Decimal("299.99")
+
+    @pytest.mark.asyncio
+    async def test_all_three_fallbacks_exhausted(self, adapter):
+        """Test error when all three extraction methods fail."""
+        html = """
+        <html>
+        <head>
+            <title>Page Title</title>
+        </head>
+        <body>
+            <p>Some content without structured data, meta tags, or HTML element patterns</p>
+        </body>
+        </html>
+        """
+
+        with patch.object(adapter, "_fetch_html", return_value=html):
+            with pytest.raises(AdapterException) as exc:
+                await adapter.extract("https://example.com/product")
+
+            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
+            assert "no schema.org product data, extractable meta tags, or html elements found" in exc.value.message.lower()

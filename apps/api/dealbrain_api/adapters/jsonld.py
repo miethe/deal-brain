@@ -45,6 +45,12 @@ class JsonLdAdapter(BaseAdapter):
     extruct library to extract Schema.org Product data and maps it to
     NormalizedListingSchema.
 
+    Extraction Strategy (Three-Tier Fallback):
+    ------------------------------------------
+    1. Schema.org structured data (JSON-LD, Microdata, RDFa) - Primary method
+    2. Meta tags (OpenGraph, Twitter Card) - First fallback
+    3. HTML elements (direct element parsing) - Final fallback
+
     Structured Data Support:
     -----------------------
     Extraction priority order:
@@ -62,6 +68,14 @@ class JsonLdAdapter(BaseAdapter):
     - image / images[0] -> images
     - offers.seller.name or brand.name -> seller
     - description -> description (parsed for CPU/RAM/storage)
+
+    HTML Element Fallback:
+    ---------------------
+    For sites like Amazon that don't use structured data or meta tags:
+    - Title: #productTitle, .product-title, itemprop="name", or first h1
+    - Price: span.a-price > span.a-offscreen (Amazon), .price, itemprop="price"
+    - Images: data-old-hires, data-a-image-source, or first non-1x1 img
+    - Description: meta[name="description"] tag
 
     Spec Extraction:
     ---------------
@@ -86,7 +100,7 @@ class JsonLdAdapter(BaseAdapter):
 
     Error Handling:
     --------------
-    - NO_STRUCTURED_DATA: No Product schema found in page
+    - NO_STRUCTURED_DATA: No Product schema, meta tags, or HTML elements found
     - INVALID_SCHEMA: Product schema missing required fields (name, price)
     - PARSE_ERROR: Unable to parse price or specs
     - NETWORK_ERROR: HTTP fetch failed
@@ -159,7 +173,7 @@ class JsonLdAdapter(BaseAdapter):
         product_data = self._find_product_schema(structured_data)
 
         if not product_data:
-            # Fallback: Try extracting from meta tags (OpenGraph, Twitter Card)
+            # Fallback 1: Try extracting from meta tags (OpenGraph, Twitter Card)
             logger.info(f"No Schema.org Product found, trying meta tag fallback for {url}")
             result = self._extract_from_meta_tags(html, url)
 
@@ -167,10 +181,18 @@ class JsonLdAdapter(BaseAdapter):
                 logger.info(f"Successfully extracted listing from meta tags: {result.title}")
                 return result
 
-            # Both methods failed
+            # Fallback 2: Try extracting from HTML elements (Amazon-style)
+            logger.info(f"No meta tags found, trying HTML element fallback for {url}")
+            result = self._extract_from_html_elements(html, url)
+
+            if result:
+                logger.info(f"Successfully extracted listing from HTML elements: {result.title}")
+                return result
+
+            # All three methods failed
             raise AdapterException(
                 AdapterError.NO_STRUCTURED_DATA,
-                "No Schema.org Product data or extractable meta tags found in page",
+                "No Schema.org Product data, extractable meta tags, or HTML elements found in page",
                 metadata={"url": url},
             )
 
@@ -247,7 +269,16 @@ class JsonLdAdapter(BaseAdapter):
                     )
 
                 response.raise_for_status()
-                return response.text
+                html = response.text
+
+                # Debug logging: log HTML characteristics
+                logger.debug(
+                    f"Fetched HTML from {url}: "
+                    f"length={len(html)} chars, "
+                    f"has_meta_tags={html.count('<meta') if html else 0}"
+                )
+
+                return html
 
         except httpx.TimeoutException as e:
             raise AdapterException(
@@ -778,6 +809,20 @@ class JsonLdAdapter(BaseAdapter):
                 if tag.get("itemprop"):
                     meta_data[f"itemprop:{tag['itemprop']}"] = tag.get("content", "")
 
+            # Debug logging: show what meta tags were found
+            logger.debug(f"Meta tag extraction debug for {url}:")
+            logger.debug(f"  Total meta tags found: {len(meta_tags)}")
+            logger.debug(f"  Meta data keys: {list(meta_data.keys())}")
+
+            # Log a sample of meta content for debugging
+            if meta_data:
+                sample_keys = list(meta_data.keys())[:10]
+                for key in sample_keys:
+                    value = meta_data[key][:100] if len(meta_data[key]) > 100 else meta_data[key]
+                    logger.debug(f"  {key}: {value}")
+            else:
+                logger.warning(f"No meta tags found in HTML for {url}")
+
             # Extract title (required)
             title = (
                 meta_data.get("og:title")
@@ -790,6 +835,8 @@ class JsonLdAdapter(BaseAdapter):
                 title_tag = soup.find("title")
                 if title_tag and title_tag.string:
                     title = title_tag.string.strip()
+
+            logger.debug(f"Title extraction attempt: title={title}")
 
             if not title:
                 logger.debug(f"Meta tag extraction failed: no title found for {url}")
@@ -815,6 +862,9 @@ class JsonLdAdapter(BaseAdapter):
 
             # Parse price
             price = self._parse_price(price_str)
+
+            logger.debug(f"Price extraction attempt: price_str={price_str}, parsed_price={price}")
+
             if not price:
                 logger.debug(
                     f"Meta tag extraction failed: could not parse price '{price_str}' for {url}"
@@ -877,6 +927,161 @@ class JsonLdAdapter(BaseAdapter):
             logger.warning(
                 f"Meta tag extraction failed with exception for {url}: {e}", exc_info=True
             )
+            # Log extraction failure summary
+            logger.info(
+                f"Meta tag extraction failed for {url}: "
+                f"title={'present' if 'title' in locals() else 'missing'}, "
+                f"price={'present' if 'price' in locals() and price else 'missing'}"
+            )
+            return None
+
+    def _extract_from_html_elements(self, html: str, url: str) -> NormalizedListingSchema | None:
+        """
+        Extract product data from HTML elements as final fallback.
+
+        This method targets sites like Amazon that don't use meta tags or structured
+        data, but have predictable HTML element patterns. It looks for:
+
+        - Title: Common patterns like #productTitle, h1.product-title, etc.
+        - Price: Common patterns like .a-price > .a-offscreen, .price, etc.
+        - Images: First large img tag in product area
+
+        Args:
+            html: HTML content to parse
+            url: Original URL (for error messages and logging)
+
+        Returns:
+            NormalizedListingSchema with extracted data, or None if insufficient data
+        """
+        try:
+            soup = BeautifulSoup(html, "html.parser")
+
+            # Extract title - try multiple common patterns
+            title = None
+
+            # Amazon: #productTitle
+            element = soup.find(id="productTitle")
+            if element:
+                title = element.get_text(strip=True)
+
+            # Generic: .product-title
+            if not title:
+                element = soup.find(class_="product-title")
+                if element:
+                    title = element.get_text(strip=True)
+
+            # Schema.org microdata: itemprop="name"
+            if not title:
+                element = soup.find(attrs={"itemprop": "name"})  # type: ignore[arg-type]
+                if element:
+                    title = element.get_text(strip=True)
+
+            # Fallback to first h1 if no title found
+            if not title:
+                h1 = soup.find("h1")
+                if h1:
+                    title = h1.get_text(strip=True)
+
+            if not title:
+                logger.debug(f"HTML element extraction failed: no title found for {url}")
+                return None
+
+            # Extract price - try multiple common patterns
+            price = None
+            price_str = None
+
+            # Amazon pattern: span.a-price > span.a-offscreen
+            offscreen_price = soup.select_one("span.a-price span.a-offscreen")
+            if offscreen_price:
+                price_str = offscreen_price.get_text(strip=True)
+                price = self._parse_price(price_str)
+
+            # Generic patterns if Amazon pattern fails
+            if not price:
+                # Try .price class
+                element = soup.find(class_="price")
+                if element:
+                    price_str = element.get_text(strip=True)
+                    price = self._parse_price(price_str)
+
+            # Try itemprop="price"
+            if not price:
+                element = soup.find(attrs={"itemprop": "price"})  # type: ignore[arg-type]
+                if element:
+                    price_str = element.get_text(strip=True)
+                    price = self._parse_price(price_str)
+
+            # Try .product-price class
+            if not price:
+                element = soup.find(class_="product-price")
+                if element:
+                    price_str = element.get_text(strip=True)
+                    price = self._parse_price(price_str)
+
+            if not price:
+                logger.debug(
+                    f"HTML element extraction failed: no price found for {url}, "
+                    f"tried offscreen_price, .price, itemprop='price', and .product-price patterns"
+                )
+                return None
+
+            # Extract images - look for product images
+            images = []
+            img_tag = soup.select_one(
+                "img[data-old-hires], img[data-a-image-name], img.product-image"
+            )
+
+            if not img_tag:
+                # Fallback to first reasonable-sized img
+                all_imgs = soup.find_all("img", src=True)
+                for img in all_imgs:
+                    src = img.get("src", "")
+                    # Skip tiny images (icons, spacers)
+                    if "1x1" not in src and "pixel" not in src.lower():
+                        img_tag = img
+                        break
+
+            if img_tag:
+                img_src = (
+                    img_tag.get("data-old-hires")
+                    or img_tag.get("data-a-image-source")
+                    or img_tag.get("src")
+                )
+                if img_src and isinstance(img_src, str):
+                    images = [img_src]
+
+            # Extract description from meta description as fallback
+            description = None
+            meta_desc = soup.find("meta", attrs={"name": "description"})
+            if meta_desc:
+                description = meta_desc.get("content", "")
+
+            # Extract specs from title + description
+            specs = self._extract_specs((title or "") + " " + (description or ""))
+
+            logger.info(
+                f"Successfully extracted listing from HTML elements: "
+                f"title={title[:50]}..., price={price}"
+            )
+
+            # Build normalized schema
+            return NormalizedListingSchema(
+                title=title,
+                price=price,
+                currency="USD",  # Default, could be enhanced to detect from page
+                condition=str(Condition.NEW.value),  # Default
+                images=images,
+                seller=None,  # Not easily extractable from HTML
+                marketplace="other",
+                vendor_item_id=None,
+                description=description,
+                cpu_model=specs.get("cpu_model"),
+                ram_gb=specs.get("ram_gb"),
+                storage_gb=specs.get("storage_gb"),
+            )
+
+        except Exception as e:
+            logger.warning(f"HTML element extraction exception for {url}: {e}")
             return None
 
 

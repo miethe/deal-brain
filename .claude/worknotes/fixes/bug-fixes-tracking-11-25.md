@@ -92,3 +92,47 @@
 - Maintains visual consistency while preventing invalid HTML
 
 **Commit**: 4fd0263
+
+## 2025-11-07: Amazon URL Ingestion Failure - Missing Product Data Extraction
+
+**Issue**: Amazon product URLs failing with `NO_STRUCTURED_DATA` error during URL ingestion
+
+**Location**: `apps/api/dealbrain_api/adapters/jsonld.py`
+
+**Root Cause**: Amazon doesn't use Schema.org structured data (JSON-LD) or OpenGraph price meta tags. Instead, Amazon uses HTML element selectors for product data:
+- Price: `span.a-price > span.a-offscreen`
+- Title: `span#productTitle`
+- Images: Standard `<img>` tags with data attributes
+
+The JsonLdAdapter only attempted Schema.org and meta tag extraction, failing on Amazon's HTML structure.
+
+**Fix**: Implemented three-tier fallback extraction strategy in JsonLdAdapter:
+1. **Primary**: Schema.org structured data (JSON-LD, Microdata, RDFa) - existing
+2. **Fallback 1**: Meta tags (OpenGraph, Twitter Card) - previously added
+3. **Fallback 2**: HTML elements (Amazon-style direct parsing) - **NEW**
+
+**Implementation Details**:
+- Added `_extract_from_html_elements()` method with Amazon-specific selectors
+- Title extraction: `#productTitle`, `.product-title`, `itemprop="name"`, or first `<h1>`
+- Price extraction: `.a-price > .a-offscreen` (Amazon), `.price`, `itemprop="price"`
+- Image extraction: `data-old-hires`, `data-a-image-source`, or `src` (skips 1x1 tracking pixels)
+- Spec extraction: Reuses existing `_extract_specs()` on title + description
+- Enhanced debug logging to troubleshoot extraction failures
+
+**Testing**:
+- Added 14 comprehensive test cases for HTML element fallback
+- All 90 JsonLdAdapter tests passing
+- No regressions in existing Schema.org or meta tag extraction
+
+**Files Modified**:
+- `apps/api/dealbrain_api/adapters/jsonld.py` - Added HTML element parsing + debug logging
+- `tests/test_jsonld_adapter.py` - Added `TestJsonLdAdapterHtmlElementFallback` test class
+
+**Notes**: Amazon has aggressive bot detection that may still block requests. The HTML element fallback addresses the data format issue, but bot blocking is a separate concern that may require:
+- Better User-Agent rotation
+- Request rate limiting
+- Residential proxies
+- CAPTCHA handling
+- Or using Amazon Product Advertising API for legitimate access
+
+**Commits**: 10d44fa (meta tag fallback), [current] (HTML element fallback + debug logging)
