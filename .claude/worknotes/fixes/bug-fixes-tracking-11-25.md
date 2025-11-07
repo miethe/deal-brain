@@ -164,3 +164,77 @@ The JsonLdAdapter only attempted Schema.org and meta tag extraction, failing on 
 **Testing**: Users importing Amazon URLs that fail extraction now see error toasts instead of false success messages
 
 **Commits**: b5785d5 (diagnostic logging), a1efe3c (frontend toast fix)
+
+## 2025-11-07: Enhanced Amazon Price Extraction with Additional Selectors
+
+**Issue**: Amazon product imports failing with "Price extraction failed" even though price data exists on page. Logs showed title extraction succeeded but price extraction consistently failed for URL: `https://www.amazon.com/dp/B0FD3BCMBS?th=1` (Beelink SER5 MAX - $299)
+
+**Location**: `apps/api/dealbrain_api/adapters/jsonld.py:1041-1122`
+
+**Root Cause**: The HTML element fallback (added earlier on 2025-11-07) only tried 4 price selectors:
+1. `span.a-price span.a-offscreen` (generic Amazon pattern)
+2. `.price` (generic)
+3. `itemprop="price"` (Schema.org - doesn't exist on modern Amazon)
+4. `.product-price` (generic)
+
+Amazon's HTML structure has evolved and now uses more specific container IDs and newer class patterns. The generic `span.a-price span.a-offscreen` selector was not specific enough to match Amazon's current desktop price display structure.
+
+**Research Findings**: Comprehensive research of 2025 Amazon HTML structure revealed:
+- Desktop price container: `#corePriceDisplay_desktop_feature_div`
+- Multiple legacy selectors still in use: `#price_inside_buybox`, `#priceblock_ourprice`, `#priceblock_dealprice`
+- Modern priceToPay pattern: `span.priceToPay span.a-offscreen`
+- Visible price fallback: `.a-price span[aria-hidden='true']`
+
+**Fix**: Enhanced price extraction with comprehensive Amazon-specific selector priority list (6 additional selectors):
+
+**Priority Order** (before generic fallbacks):
+1. `#corePriceDisplay_desktop_feature_div span.a-offscreen` - **NEW** - Most specific desktop price
+2. `span.a-price span.a-offscreen` - Existing generic offscreen
+3. `span.priceToPay span.a-offscreen` - **NEW** - Modern priceToPay pattern
+4. `#price_inside_buybox` - **NEW** - Buy box price (legacy but still used)
+5. `#priceblock_ourprice` - **NEW** - Legacy "our price" selector
+6. `#priceblock_dealprice` - **NEW** - Legacy deal/sale price
+7. `.a-price span[aria-hidden='true']` - **NEW** - Visible price components (aria-hidden pattern)
+8. `.price`, `itemprop="price"`, `.product-price` - Existing generic fallbacks
+
+**Implementation Details**:
+- Added 6 new Amazon-specific CSS selectors before generic patterns
+- Maintains backward compatibility with existing extraction logic
+- Enhanced debug logging to show all attempted selectors
+- Proper line length formatting (< 100 chars)
+
+**Code Changes**:
+```python
+# Before: Only 1 Amazon-specific selector
+offscreen_price = soup.select_one("span.a-price span.a-offscreen")
+
+# After: 7 Amazon-specific selectors in priority order
+# Priority 1: Desktop core price
+offscreen_price = soup.select_one("#corePriceDisplay_desktop_feature_div span.a-offscreen")
+# Priority 2: Generic offscreen
+offscreen_price = soup.select_one("span.a-price span.a-offscreen")
+# Priority 3: Modern priceToPay
+element = soup.select_one("span.priceToPay span.a-offscreen")
+# Priority 4: Buy box
+element = soup.select_one("#price_inside_buybox")
+# Priority 5-6: Legacy selectors
+element = soup.select_one("#priceblock_ourprice")
+element = soup.select_one("#priceblock_dealprice")
+# Priority 7: Visible price with aria-hidden
+element = soup.select_one(".a-price span[aria-hidden='true']")
+```
+
+**Testing**:
+- Code linting passed (ruff)
+- Worker service restarted to apply changes
+- Awaiting real-world Amazon URL import verification
+
+**Expected Outcome**: Amazon product pages with standard 2025 HTML structure should now successfully extract prices using the more comprehensive selector list, particularly the desktop core price display selector.
+
+**Notes**:
+- Amazon frequently updates their HTML structure; quarterly selector audits recommended
+- Bot detection remains a separate concern that may require additional measures
+- Selectors based on research of Amazon.com HTML structure as of 2025
+- Regional Amazon domains (.co.uk, .de, etc.) may have variations
+
+**Commit**: c102b3b

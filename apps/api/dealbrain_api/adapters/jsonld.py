@@ -1042,13 +1042,57 @@ class JsonLdAdapter(BaseAdapter):
             price = None
             price_str = None
 
-            # Amazon pattern: span.a-price > span.a-offscreen
-            offscreen_price = soup.select_one("span.a-price span.a-offscreen")
+            # Amazon-specific patterns (priority order based on 2025 research)
+            # Priority 1: Desktop core price display with offscreen
+            offscreen_price = soup.select_one(
+                "#corePriceDisplay_desktop_feature_div span.a-offscreen"
+            )
             if offscreen_price:
                 price_str = offscreen_price.get_text(strip=True)
                 price = self._parse_price(price_str)
 
-            # Generic patterns if Amazon pattern fails
+            # Priority 2: Generic a-price offscreen (works across many Amazon layouts)
+            if not price:
+                offscreen_price = soup.select_one("span.a-price span.a-offscreen")
+                if offscreen_price:
+                    price_str = offscreen_price.get_text(strip=True)
+                    price = self._parse_price(price_str)
+
+            # Priority 3: Modern priceToPay selector
+            if not price:
+                element = soup.select_one("span.priceToPay span.a-offscreen")
+                if element:
+                    price_str = element.get_text(strip=True)
+                    price = self._parse_price(price_str)
+
+            # Priority 4: Buy box price
+            if not price:
+                element = soup.select_one("#price_inside_buybox")
+                if element:
+                    price_str = element.get_text(strip=True)
+                    price = self._parse_price(price_str)
+
+            # Priority 5: Legacy Amazon selectors
+            if not price:
+                element = soup.select_one("#priceblock_ourprice")
+                if element:
+                    price_str = element.get_text(strip=True)
+                    price = self._parse_price(price_str)
+
+            if not price:
+                element = soup.select_one("#priceblock_dealprice")
+                if element:
+                    price_str = element.get_text(strip=True)
+                    price = self._parse_price(price_str)
+
+            # Priority 6: Visible price with aria-hidden (Amazon modern pattern)
+            if not price:
+                element = soup.select_one(".a-price span[aria-hidden='true']")
+                if element:
+                    price_str = element.get_text(strip=True)
+                    price = self._parse_price(price_str)
+
+            # Generic patterns as fallbacks
             if not price:
                 # Try .price class
                 element = soup.find(class_="price")
@@ -1073,8 +1117,10 @@ class JsonLdAdapter(BaseAdapter):
             if not price:
                 logger.warning("  ❌ Price extraction failed")
                 logger.debug(
-                    "    Tried selectors: .a-price > .a-offscreen, .price, "
-                    "itemprop='price', .product-price"
+                    "    Tried selectors: #corePriceDisplay_desktop_feature_div .a-offscreen, "
+                    ".a-price > .a-offscreen, .priceToPay .a-offscreen, #price_inside_buybox, "
+                    "#priceblock_ourprice, #priceblock_dealprice, .a-price span[aria-hidden], "
+                    ".price, itemprop='price', .product-price"
                 )
 
                 # Log what price-like elements exist
