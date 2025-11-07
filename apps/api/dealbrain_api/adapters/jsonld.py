@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Any
 
 import extruct
@@ -956,6 +958,41 @@ class JsonLdAdapter(BaseAdapter):
         try:
             soup = BeautifulSoup(html, "html.parser")
 
+            # Diagnostic logging: HTML structure analysis
+            logger.info(f"HTML element extraction diagnostics for {url}:")
+            logger.info(f"  HTML length: {len(html)} characters")
+
+            # Check for common bot-blocking indicators
+            title_text = soup.find("title")
+            title_str = title_text.get_text(strip=True) if title_text else "No title"
+            logger.info(f"  Page title: {title_str[:100]}")
+
+            # Check for CAPTCHA indicators
+            captcha_indicators = [
+                "captcha",
+                "robot",
+                "automated",
+                "verify you are human",
+                "unusual traffic",
+                "security check",
+            ]
+            page_text_sample = html[:5000].lower()  # First 5KB
+            found_indicators = [ind for ind in captcha_indicators if ind in page_text_sample]
+            if found_indicators:
+                logger.warning(
+                    f"  ⚠️  Potential bot blocking detected! Found indicators: "
+                    f"{found_indicators}"
+                )
+
+            # Count key elements
+            all_spans = soup.find_all("span")
+            all_divs = soup.find_all("div")
+            all_imgs = soup.find_all("img")
+            logger.info(
+                f"  Element counts: {len(all_spans)} spans, {len(all_divs)} divs, "
+                f"{len(all_imgs)} imgs"
+            )
+
             # Extract title - try multiple common patterns
             title = None
 
@@ -983,8 +1020,23 @@ class JsonLdAdapter(BaseAdapter):
                     title = h1.get_text(strip=True)
 
             if not title:
-                logger.debug(f"HTML element extraction failed: no title found for {url}")
+                logger.warning("  ❌ Title extraction failed")
+                logger.debug(
+                    "    Tried selectors: #productTitle, .product-title, " "itemprop='name', h1"
+                )
+
+                # Log what title-like elements exist
+                h1_tags = soup.find_all("h1", limit=3)
+                if h1_tags:
+                    h1_texts = [h1.get_text(strip=True)[:50] for h1 in h1_tags]
+                    logger.debug(f"    Found {len(h1_tags)} h1 tags: {h1_texts}")
+                else:
+                    logger.debug("    No h1 tags found")
+
+                self._save_html_for_debugging(html, url)
                 return None
+            else:
+                logger.info(f"  ✓ Title found: {title[:80]}...")
 
             # Extract price - try multiple common patterns
             price = None
@@ -1019,11 +1071,31 @@ class JsonLdAdapter(BaseAdapter):
                     price = self._parse_price(price_str)
 
             if not price:
+                logger.warning("  ❌ Price extraction failed")
                 logger.debug(
-                    f"HTML element extraction failed: no price found for {url}, "
-                    f"tried offscreen_price, .price, itemprop='price', and .product-price patterns"
+                    "    Tried selectors: .a-price > .a-offscreen, .price, "
+                    "itemprop='price', .product-price"
                 )
+
+                # Log what price-like elements exist
+                a_price_spans = soup.select("span.a-price")
+                logger.debug(f"    Found {len(a_price_spans)} span.a-price elements")
+
+                price_like_spans = soup.find_all(
+                    "span", class_=lambda c: c and "price" in c.lower() if c else False, limit=5
+                )
+                if price_like_spans:
+                    logger.debug(
+                        f"    Found {len(price_like_spans)} spans with 'price' in " "class name"
+                    )
+                    for span in price_like_spans[:3]:
+                        span_text = span.get_text(strip=True)[:50]
+                        logger.debug(f"      - {span.get('class')}: {span_text}")
+
+                self._save_html_for_debugging(html, url)
                 return None
+            else:
+                logger.info(f"  ✓ Price found: {price}")
 
             # Extract images - look for product images
             images = []
@@ -1083,6 +1155,43 @@ class JsonLdAdapter(BaseAdapter):
         except Exception as e:
             logger.warning(f"HTML element extraction exception for {url}: {e}")
             return None
+
+    def _save_html_for_debugging(self, html: str, url: str) -> None:
+        """
+        Save HTML to a temporary file for manual inspection during debugging.
+
+        Only called when extraction fails and DEBUG logging is enabled.
+        Helps diagnose bot blocking and HTML structure issues.
+
+        Args:
+            html: HTML content to save
+            url: URL the HTML was fetched from
+        """
+        # Only save if DEBUG logging enabled
+        if not logger.isEnabledFor(logging.DEBUG):
+            return
+
+        try:
+            # Create debug directory
+            # S108: Using /tmp is acceptable for debug-only diagnostic files
+            debug_dir = Path("/tmp/dealbrain_adapter_debug")  # noqa: S108
+            debug_dir.mkdir(exist_ok=True)
+
+            # Generate filename from URL hash
+            # S324: MD5 is acceptable for non-security filename generation
+            url_hash = hashlib.md5(url.encode()).hexdigest()[:12]  # noqa: S324
+            filename = f"amazon_{url_hash}.html"
+            filepath = debug_dir / filename
+
+            # Save HTML
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(html)
+
+            logger.debug(f"  📁 Saved HTML to {filepath} for manual inspection")
+            logger.debug(f"     Open in browser: file://{filepath}")
+
+        except Exception as e:
+            logger.debug(f"  Failed to save HTML for debugging: {e}")
 
 
 __all__ = ["JsonLdAdapter"]
