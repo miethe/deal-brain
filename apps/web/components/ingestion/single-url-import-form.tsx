@@ -101,7 +101,13 @@ export function SingleUrlImportForm({
   // Handle job status updates with useEffect to avoid state updates during render
   useEffect(() => {
     if (jobData && importState.status === 'polling') {
-      if (jobData.status === 'complete' && jobData.result) {
+      if (
+        jobData.status === 'complete' &&
+        jobData.result &&
+        jobData.result.listing_id !== null &&
+        jobData.result.listing_id !== undefined &&
+        jobData.result.listing_id > 0
+      ) {
         const successResult: ImportSuccessResult = {
           jobId: jobData.job_id,
           listingId: jobData.result.listing_id,
@@ -121,6 +127,42 @@ export function SingleUrlImportForm({
         });
 
         onSuccess?.(successResult);
+      } else if (jobData.status === 'complete' && (!jobData.result || !jobData.result.listing_id)) {
+        // Backend returned 'complete' but with invalid/missing listing_id
+        // This should be treated as an error
+        const importError = {
+          code: 'INCOMPLETE_RESULT',
+          message: 'Import completed but listing was not created. Please try again.',
+          retryable: true,
+        };
+
+        setImportState({ status: 'error', error: importError });
+
+        toast({
+          variant: 'destructive',
+          title: 'Import failed',
+          description: importError.message,
+        });
+
+        onError?.(importError);
+      } else if (jobData.status === 'partial') {
+        // Backend extracted some data but it was incomplete
+        const importError = {
+          code: 'PARTIAL_DATA',
+          message: jobData.error?.message || 'Incomplete data extracted. Some fields may be missing.',
+          details: jobData.error?.details,
+          retryable: true,
+        };
+
+        setImportState({ status: 'error', error: importError });
+
+        toast({
+          variant: 'destructive',
+          title: 'Import incomplete',
+          description: importError.message,
+        });
+
+        onError?.(importError);
       } else if (jobData.status === 'failed' && jobData.error) {
         const importError = {
           code: jobData.error.code,
