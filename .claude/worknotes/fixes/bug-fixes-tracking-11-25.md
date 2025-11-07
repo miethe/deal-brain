@@ -237,4 +237,4 @@ element = soup.select_one(".a-price span[aria-hidden='true']")
 - Selectors based on research of Amazon.com HTML structure as of 2025
 - Regional Amazon domains (.co.uk, .de, etc.) may have variations
 
-**Commit**: c102b3b
+**Commit**: d0759a0
