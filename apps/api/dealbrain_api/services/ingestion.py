@@ -495,17 +495,17 @@ class ListingNormalizer:
 
     def _convert_to_usd(
         self,
-        price: Decimal,
+        price: Decimal | None,
         currency: str | None,
-    ) -> Decimal:
+    ) -> Decimal | None:
         """Convert price to USD using fixed exchange rates.
 
         Args:
-            price: Original price amount
+            price: Original price amount (may be None for partial extractions)
             currency: ISO currency code (USD|EUR|GBP|CAD)
 
         Returns:
-            Price converted to USD (2 decimal places)
+            Price converted to USD (2 decimal places), or None if price is None
 
         Example:
             >>> normalizer._convert_to_usd(Decimal("500"), "EUR")
@@ -514,7 +514,13 @@ class ListingNormalizer:
             Decimal('599.99')
             >>> normalizer._convert_to_usd(Decimal("599.99"), "JPY")
             Decimal('599.99')  # Unknown currency defaults to USD
+            >>> normalizer._convert_to_usd(None, "USD")
+            None  # Partial extraction without price
         """
+        # Handle None price (partial extraction)
+        if price is None:
+            return None
+
         if not currency or currency not in self.CURRENCY_RATES:
             # Default to USD if unknown currency
             return price.quantize(Decimal("0.01"))

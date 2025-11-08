@@ -359,6 +359,119 @@ Extraction succeeds if **at least title** is present. The schema validator enfor
 - Phase 4: ML-based price estimation for missing prices
 - WebSocket support for import status updates
 
-**Commits**: [Schema + Adapter changes - already in codebase]
+**Commits**: 1153cb8 (initial partial extraction implementation)
 
 **Related**: See comprehensive PRD at `/docs/project_plans/requests/needs-designed/import-partial-data-and-manual-population.md` for full implementation roadmap including frontend enhancements.
+
+## 2025-11-08: Partial Extraction Bug Fixes - None Price Handling and Title Validation
+
+**Issue**: After implementing partial extraction support, two critical bugs prevented imports from completing:
+
+1. **TypeError in currency conversion**: `unsupported operand type(s) for *: 'NoneType' and 'decimal.Decimal'`
+2. **Generic site name extracted as title**: Meta tag extraction returning "Amazon.com" instead of actual product title
+
+**Location**:
+- `/mnt/containers/deal-brain/apps/api/dealbrain_api/services/ingestion.py:523` (currency conversion)
+- `/mnt/containers/deal-brain/apps/api/dealbrain_api/adapters/jsonld.py:828-850` (meta tag title validation)
+
+**Root Cause**:
+
+### Bug 1: Currency Conversion
+The `_convert_to_usd()` method didn't handle None prices from partial extractions:
+```python
+# Before (line 523):
+converted = price * rate  # TypeError when price is None
+```
+
+The normalizer's `normalize()` method always called `_convert_to_usd()` with the price, but the method signature didn't accept None and didn't check for it.
+
+### Bug 2: Generic Title Extraction
+Meta tag fallback was succeeding with generic site names:
+- Amazon pages: `<title>` tag contains "Amazon.com" (not product title)
+- eBay pages: `<title>` tag contains "eBay"
+- Meta tag extraction succeeded with these generic titles
+- HTML element fallback (which extracts proper `#productTitle`) never ran
+
+**Fix**:
+
+### Fix 1: Handle None Prices in Currency Conversion
+
+**File**: `services/ingestion.py:496-530`
+
+Updated method signature and added None check:
+```python
+def _convert_to_usd(
+    self,
+    price: Decimal | None,  # Changed from Decimal to Decimal | None
+    currency: str | None,
+) -> Decimal | None:  # Changed return type to allow None
+    """Convert price to USD using fixed exchange rates.
+
+    Args:
+        price: Original price amount (may be None for partial extractions)
+        currency: ISO currency code
+
+    Returns:
+        Price converted to USD, or None if price is None
+    """
+    # Handle None price (partial extraction)
+    if price is None:
+        return None
+
+    # Original conversion logic for non-None prices
+    if not currency or currency not in self.CURRENCY_RATES:
+        return price.quantize(Decimal("0.01"))
+
+    rate = self.CURRENCY_RATES[currency]
+    converted = price * rate
+    return converted.quantize(Decimal("0.01"))
+```
+
+### Fix 2: Validate Title Meaningfulness
+
+**File**: `adapters/jsonld.py:844-850`
+
+Added validation to reject generic site names and force HTML element fallback:
+```python
+# Validate title is meaningful (not just site name)
+# If title is very short (<10 chars) or looks like domain/site name, fail to HTML fallback
+if not title or len(title.strip()) < 10 or title.lower() in ["amazon.com", "amazon", "ebay"]:
+    logger.debug(
+        f"Meta tag extraction failed: title too short or generic ('{title}') for {url}"
+    )
+    return None  # Force fallback to HTML element extraction
+```
+
+This ensures:
+- Short titles (<10 chars) are rejected as too generic
+- Common site names ("Amazon.com", "eBay") trigger HTML element fallback
+- HTML element extraction runs and finds proper `#productTitle` selector
+
+**Implementation Details**:
+- Type-safe: Updated all type hints to `Decimal | None`
+- Comprehensive: Handles None at conversion entry point
+- Defensive: Title validation catches multiple generic patterns
+- Minimal: 10-character threshold balances safety with flexibility
+- Extensible: Easy to add more site names to validation list
+
+**Testing**:
+- Currency conversion with None price: Returns None correctly
+- Generic title rejection: Forces proper HTML element extraction
+- Worker restarted successfully
+- Awaiting real Amazon URL import test
+
+**Expected Outcome**:
+Amazon URL imports should now:
+1. Skip meta tag extraction (generic "Amazon.com" title rejected)
+2. Fall through to HTML element extraction
+3. Extract proper product title from `#productTitle`
+4. Handle None price gracefully through normalization
+5. Create listing with partial quality indicator
+
+**Impact**:
+- Unblocks partial extraction feature
+- Ensures meaningful titles extracted (not just site names)
+- Enables imports to succeed even with price extraction failures
+- Maintains backward compatibility (full data imports unchanged)
+
+**Commit**: [pending]

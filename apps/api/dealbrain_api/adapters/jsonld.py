@@ -826,6 +826,7 @@ class JsonLdAdapter(BaseAdapter):
                 logger.warning(f"No meta tags found in HTML for {url}")
 
             # Extract title (required)
+            # Prioritize OpenGraph and Twitter Card titles over generic meta title
             title = (
                 meta_data.get("og:title")
                 or meta_data.get("twitter:title")
@@ -840,8 +841,12 @@ class JsonLdAdapter(BaseAdapter):
 
             logger.debug(f"Title extraction attempt: title={title}")
 
-            if not title:
-                logger.debug(f"Meta tag extraction failed: no title found for {url}")
+            # Validate title is meaningful (not just site name)
+            # If title is very short (<10 chars) or looks like just a domain/site name, fail to HTML fallback
+            if not title or len(title.strip()) < 10 or title.lower() in ["amazon.com", "amazon", "ebay"]:
+                logger.debug(
+                    f"Meta tag extraction failed: title too short or generic ('{title}') for {url}"
+                )
                 return None
 
             # Extract price (optional)
