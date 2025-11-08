@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, Boolean, Enum as SAEnum, ForeignKey, Integer, String, Text, UniqueConstraint, func, Index
+from sqlalchemy import JSON, Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, String, Text, UniqueConstraint, func, Index, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -376,10 +376,15 @@ class Listing(Base, TimestampMixin):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     listing_url: Mapped[str | None] = mapped_column(Text)
     seller: Mapped[str | None] = mapped_column(String(128))
-    price_usd: Mapped[float] = mapped_column(nullable=False)
+    price_usd: Mapped[float | None] = mapped_column(nullable=True)
     price_date: Mapped[datetime | None]
     condition: Mapped[str] = mapped_column(String(16), nullable=False, default=Condition.USED.value)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=ListingStatus.ACTIVE.value)
+
+    # Partial Import Support (Phase 1)
+    quality: Mapped[str] = mapped_column(String(20), nullable=False, default="full", server_default="full")
+    extraction_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    missing_fields: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
 
     # URL Ingestion Fields (Phase 1)
     vendor_item_id: Mapped[str | None] = mapped_column(String(128))
@@ -582,6 +587,12 @@ class ImportSession(Base, TimestampMixin):
 
     # Progress tracking for URL ingestion (Phase 2)
     progress_pct: Mapped[int | None] = mapped_column(Integer, nullable=True, default=0)
+
+    # Bulk Job Tracking (Phase 1.2)
+    bulk_job_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    quality: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    listing_id: Mapped[int | None] = mapped_column(ForeignKey("listing.id", ondelete="SET NULL"), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     audit_events: Mapped[list["ImportSessionAudit"]] = relationship(
         back_populates="session", cascade="all, delete-orphan", lazy="selectin"

@@ -438,6 +438,7 @@ class JsonLdAdapter(BaseAdapter):
             # Initialize price and currency with defaults
             price = None
             currency = "USD"
+            offers: list[dict[str, Any]] = []  # Initialize offers variable
 
             if offers_raw:
                 # Normalize offers to list
@@ -453,11 +454,11 @@ class JsonLdAdapter(BaseAdapter):
                     "continuing with title only"
                 )
 
-            # Extract condition from availability (use empty list if no offers)
-            condition = self._extract_condition_from_offers(offers if offers_raw else [])
+            # Extract condition from availability
+            condition = self._extract_condition_from_offers(offers)
 
-            # Extract seller (use empty list if no offers)
-            seller = self._extract_seller(product, offers if offers_raw else [])
+            # Extract seller
+            seller = self._extract_seller(product, offers)
 
             # Extract images
             images = self._extract_images(product)
@@ -467,6 +468,41 @@ class JsonLdAdapter(BaseAdapter):
 
             # Parse specs from description
             specs = self._extract_specs(description or title)
+
+            # Determine data quality and build extraction metadata
+            quality = "partial" if price is None else "full"
+            missing_fields = ["price"] if price is None else []
+
+            # Track what was successfully extracted
+            extraction_metadata: dict[str, str] = {}
+            extracted_fields = {
+                "title": title,
+                "condition": condition,
+                "marketplace": "other",
+                "currency": currency,
+            }
+            if price is not None:
+                extracted_fields["price"] = str(price)
+            if images:
+                extracted_fields["images"] = ",".join(images)
+            if seller:
+                extracted_fields["seller"] = seller
+            if description:
+                extracted_fields["description"] = description
+            if specs.get("cpu_model"):
+                extracted_fields["cpu_model"] = specs["cpu_model"]
+            if specs.get("ram_gb"):
+                extracted_fields["ram_gb"] = str(specs["ram_gb"])
+            if specs.get("storage_gb"):
+                extracted_fields["storage_gb"] = str(specs["storage_gb"])
+
+            # Mark all extracted fields
+            for field_name in extracted_fields:
+                extraction_metadata[field_name] = "extracted"
+
+            # Mark price as extraction_failed if missing
+            if price is None:
+                extraction_metadata["price"] = "extraction_failed"
 
             # Build normalized schema
             return NormalizedListingSchema(
@@ -482,6 +518,9 @@ class JsonLdAdapter(BaseAdapter):
                 cpu_model=specs.get("cpu_model"),
                 ram_gb=specs.get("ram_gb"),
                 storage_gb=specs.get("storage_gb"),
+                quality=quality,
+                extraction_metadata=extraction_metadata,
+                missing_fields=missing_fields,
             )
 
         except Exception as e:
@@ -802,14 +841,29 @@ class JsonLdAdapter(BaseAdapter):
             meta_data: dict[str, str] = {}
             for tag in meta_tags:
                 # OpenGraph tags (property attribute)
-                if tag.get("property"):
-                    meta_data[tag["property"]] = tag.get("content", "")
+                prop = tag.get("property")
+                if prop:
+                    # Convert BeautifulSoup attribute value to string
+                    prop_str = prop if isinstance(prop, str) else str(prop)
+                    content = tag.get("content", "")
+                    content_str = content if isinstance(content, str) else str(content)
+                    meta_data[prop_str] = content_str
                 # Twitter/generic tags (name attribute)
-                if tag.get("name"):
-                    meta_data[tag["name"]] = tag.get("content", "")
+                name = tag.get("name")
+                if name:
+                    # Convert BeautifulSoup attribute value to string
+                    name_str = name if isinstance(name, str) else str(name)
+                    content = tag.get("content", "")
+                    content_str = content if isinstance(content, str) else str(content)
+                    meta_data[name_str] = content_str
                 # Microdata tags (itemprop attribute)
-                if tag.get("itemprop"):
-                    meta_data[f"itemprop:{tag['itemprop']}"] = tag.get("content", "")
+                itemprop = tag.get("itemprop")
+                if itemprop:
+                    # Convert BeautifulSoup attribute value to string
+                    itemprop_str = itemprop if isinstance(itemprop, str) else str(itemprop)
+                    content = tag.get("content", "")
+                    content_str = content if isinstance(content, str) else str(content)
+                    meta_data[f"itemprop:{itemprop_str}"] = content_str
 
             # Debug logging: show what meta tags were found
             logger.debug(f"Meta tag extraction debug for {url}:")
@@ -842,10 +896,17 @@ class JsonLdAdapter(BaseAdapter):
             logger.debug(f"Title extraction attempt: title={title}")
 
             # Validate title is meaningful (not just site name)
-            # If title is very short (<10 chars) or looks like just a domain/site name, fail to HTML fallback
-            if not title or len(title.strip()) < 10 or title.lower() in ["amazon.com", "amazon", "ebay"]:
+            # Reject generic site names but allow short legitimate product titles
+            generic_site_names = ["amazon.com", "amazon", "ebay", "ebay.com", "product page"]
+            title_lower = title.lower() if title else ""
+            is_generic = (
+                not title
+                or title_lower in generic_site_names
+                or "product page" in title_lower  # Catch "Amazon.com Product Page" etc
+            )
+            if is_generic:
                 logger.debug(
-                    f"Meta tag extraction failed: title too short or generic ('{title}') for {url}"
+                    f"Meta tag extraction failed: title generic or missing ('{title}') for {url}"
                 )
                 return None
 
@@ -907,10 +968,45 @@ class JsonLdAdapter(BaseAdapter):
                 or meta_data.get("author")
             )
 
+            # Determine data quality and build extraction metadata
+            quality = "partial" if price is None else "full"
+            missing_fields = ["price"] if price is None else []
+
+            # Track what was successfully extracted
+            extraction_metadata: dict[str, str] = {}
+            extracted_fields = {
+                "title": title,
+                "condition": Condition.NEW.value,
+                "marketplace": "other",
+                "currency": currency,
+            }
+            if price is not None:
+                extracted_fields["price"] = str(price)
+            if images:
+                extracted_fields["images"] = ",".join(images)
+            if seller:
+                extracted_fields["seller"] = seller
+            if description:
+                extracted_fields["description"] = description
+            if specs.get("cpu_model"):
+                extracted_fields["cpu_model"] = specs["cpu_model"]
+            if specs.get("ram_gb"):
+                extracted_fields["ram_gb"] = str(specs["ram_gb"])
+            if specs.get("storage_gb"):
+                extracted_fields["storage_gb"] = str(specs["storage_gb"])
+
+            # Mark all extracted fields
+            for field_name in extracted_fields:
+                extraction_metadata[field_name] = "extracted"
+
+            # Mark price as extraction_failed if missing
+            if price is None:
+                extraction_metadata["price"] = "extraction_failed"
+
             # Build normalized schema
             logger.info(
                 f"Meta tag extraction successful: title='{title}', "
-                f"price={price}, currency={currency}"
+                f"price={price}, currency={currency}, quality={quality}"
             )
 
             return NormalizedListingSchema(
@@ -926,17 +1022,14 @@ class JsonLdAdapter(BaseAdapter):
                 cpu_model=specs.get("cpu_model"),
                 ram_gb=specs.get("ram_gb"),
                 storage_gb=specs.get("storage_gb"),
+                quality=quality,
+                extraction_metadata=extraction_metadata,
+                missing_fields=missing_fields,
             )
 
         except Exception as e:
             logger.warning(
                 f"Meta tag extraction failed with exception for {url}: {e}", exc_info=True
-            )
-            # Log extraction failure summary
-            logger.info(
-                f"Meta tag extraction failed for {url}: "
-                f"title={'present' if 'title' in locals() else 'missing'}, "
-                f"price={'present' if 'price' in locals() and price else 'missing'}"
             )
             return None
 
@@ -1054,7 +1147,14 @@ class JsonLdAdapter(BaseAdapter):
                 price_str = offscreen_price.get_text(strip=True)
                 price = self._parse_price(price_str)
 
-            # Priority 2: Generic a-price offscreen (works across many Amazon layouts)
+            # Priority 2: Simple a-price offscreen (direct child, most common)
+            if not price:
+                offscreen_price = soup.select_one("span.a-price > span.a-offscreen")
+                if offscreen_price:
+                    price_str = offscreen_price.get_text(strip=True)
+                    price = self._parse_price(price_str)
+
+            # Priority 3: Generic a-price offscreen with intermediate wrapper
             if not price:
                 offscreen_price = soup.select_one("span.a-price span.a-price-whole span.a-offscreen")
                 if offscreen_price:
@@ -1135,16 +1235,28 @@ class JsonLdAdapter(BaseAdapter):
                 if a_price_spans:
                     logger.debug(f"    Found {len(a_price_spans)} span.a-price elements")
 
-                price_like_spans = soup.find_all(
-                    "span", class_=lambda c: c and "price" in c.lower() if c else False, limit=5
-                )
+                # Find spans with 'price' in class name - need to handle BeautifulSoup attribute types
+                def has_price_in_class(class_attr: str | list[str] | None) -> bool:
+                    """Check if 'price' appears in any class name."""
+                    if class_attr is None:
+                        return False
+                    if isinstance(class_attr, str):
+                        return "price" in class_attr.lower()
+                    if isinstance(class_attr, list):
+                        return any("price" in c.lower() for c in class_attr if isinstance(c, str))
+                    return False
+
+                price_like_spans = soup.find_all("span", class_=has_price_in_class, limit=5)
                 if price_like_spans:
                     logger.debug(
                         f"    Found {len(price_like_spans)} spans with 'price' in " "class name"
                     )
                     for span in price_like_spans[:3]:
                         span_text = span.get_text(strip=True)[:50]
-                        logger.debug(f"      - {span.get('class')}: {span_text}")
+                        # Convert BeautifulSoup attribute value to string for logging
+                        class_attr = span.get("class")
+                        class_str = str(class_attr) if class_attr else "None"
+                        logger.debug(f"      - {class_str}: {span_text}")
 
                 # Save HTML for debugging only if in debug mode
                 if logger.isEnabledFor(logging.DEBUG):
@@ -1162,9 +1274,11 @@ class JsonLdAdapter(BaseAdapter):
                 # Fallback to first reasonable-sized img
                 all_imgs = soup.find_all("img", src=True)
                 for img in all_imgs:
-                    src = img.get("src", "")
+                    src_attr = img.get("src", "")
+                    # Convert BeautifulSoup attribute value to string
+                    src = src_attr if isinstance(src_attr, str) else str(src_attr) if src_attr else ""
                     # Skip tiny images (icons, spacers)
-                    if "1x1" not in src and "pixel" not in src.lower():
+                    if src and "1x1" not in src and "pixel" not in src.lower():
                         img_tag = img
                         break
 
@@ -1178,17 +1292,57 @@ class JsonLdAdapter(BaseAdapter):
                     images = [img_src]
 
             # Extract description from meta description as fallback
-            description = None
+            description: str | None = None
             meta_desc = soup.find("meta", attrs={"name": "description"})
             if meta_desc:
-                description = meta_desc.get("content", "")
+                content_attr = meta_desc.get("content", "")
+                # Convert BeautifulSoup attribute value to string
+                if isinstance(content_attr, str):
+                    description = content_attr
+                elif content_attr:
+                    description = str(content_attr)
 
             # Extract specs from title + description
-            specs = self._extract_specs((title or "") + " " + (description or ""))
+            # Ensure description is properly typed as str | None
+            desc_str = description if description else ""
+            specs = self._extract_specs((title or "") + " " + desc_str)
+
+            # Determine data quality and build extraction metadata
+            quality = "partial" if price is None else "full"
+            missing_fields = ["price"] if price is None else []
+
+            # Track what was successfully extracted
+            extraction_metadata: dict[str, str] = {}
+            extracted_fields = {
+                "title": title,
+                "condition": str(Condition.NEW.value),
+                "marketplace": "other",
+                "currency": "USD",
+            }
+            if price is not None:
+                extracted_fields["price"] = str(price)
+            if images:
+                extracted_fields["images"] = ",".join(images)
+            if description:
+                extracted_fields["description"] = description
+            if specs.get("cpu_model"):
+                extracted_fields["cpu_model"] = specs["cpu_model"]
+            if specs.get("ram_gb"):
+                extracted_fields["ram_gb"] = str(specs["ram_gb"])
+            if specs.get("storage_gb"):
+                extracted_fields["storage_gb"] = str(specs["storage_gb"])
+
+            # Mark all extracted fields
+            for field_name in extracted_fields:
+                extraction_metadata[field_name] = "extracted"
+
+            # Mark price as extraction_failed if missing
+            if price is None:
+                extraction_metadata["price"] = "extraction_failed"
 
             logger.info(
                 f"Successfully extracted listing from HTML elements: "
-                f"title={title[:50]}..., price={price}"
+                f"title={title[:50]}..., price={price}, quality={quality}"
             )
 
             # Build normalized schema
@@ -1205,6 +1359,9 @@ class JsonLdAdapter(BaseAdapter):
                 cpu_model=specs.get("cpu_model"),
                 ram_gb=specs.get("ram_gb"),
                 storage_gb=specs.get("storage_gb"),
+                quality=quality,
+                extraction_metadata=extraction_metadata,
+                missing_fields=missing_fields,
             )
 
         except Exception as e:

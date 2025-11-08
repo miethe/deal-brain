@@ -32,6 +32,11 @@ class NormalizedListingSchema(DealBrainModel):
         ram_gb: Extracted RAM amount in GB (optional)
         storage_gb: Extracted storage amount in GB (optional)
         description: Full product description text (optional)
+        manufacturer: Product manufacturer/brand (optional)
+        model_number: Product model number (optional)
+        quality: Data completeness indicator (full|partial, default: full)
+        extraction_metadata: Field provenance tracking (default: {})
+        missing_fields: List of fields requiring manual entry (default: [])
     """
 
     title: str = Field(
@@ -101,6 +106,19 @@ class NormalizedListingSchema(DealBrainModel):
         default=None,
         description="Product model number (e.g., OptiPlex 7090, Venus NAB9)",
         max_length=128,
+    )
+    quality: str = Field(
+        default="full",
+        description="Data completeness indicator",
+        pattern=r"^(full|partial)$",
+    )
+    extraction_metadata: dict[str, str] = Field(
+        default_factory=dict,
+        description="Field provenance tracking: {field_name: 'extracted'|'manual'|'extraction_failed'}",
+    )
+    missing_fields: list[str] = Field(
+        default_factory=list,
+        description="List of fields requiring manual entry",
     )
 
     @field_validator("condition")

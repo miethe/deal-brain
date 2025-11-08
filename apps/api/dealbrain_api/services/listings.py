@@ -61,6 +61,13 @@ MUTABLE_LISTING_FIELDS: set[str] = {
     "os_license",
     "notes",
     "ruleset_id",
+    # Partial import fields (Phase 1)
+    "quality",
+    "extraction_metadata",
+    "missing_fields",
+    "vendor_item_id",
+    "marketplace",
+    "provenance",
 }
 
 
@@ -286,6 +293,24 @@ def _format_rule_evaluation_breakdown(summary: dict[str, Any]) -> dict[str, Any]
 
 
 async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None:
+    """Apply valuation rules and calculate performance metrics for a listing.
+
+    Requires listing.price_usd to be set. If price is None, this function
+    should not be called (partial imports should skip metrics calculation).
+
+    Args:
+        session: Database session
+        listing: Listing instance with price_usd set
+
+    Raises:
+        ValueError: If listing.price_usd is None
+    """
+    if listing.price_usd is None:
+        raise ValueError(
+            f"Cannot apply metrics to listing {listing.id} with price_usd=None. "
+            "Metrics calculation requires a price."
+        )
+
     evaluation_summary: dict[str, Any] | None = None
 
     logger.debug(
@@ -593,8 +618,16 @@ async def partial_update_listing(
     await session.flush()
 
     if run_metrics:
-        await apply_listing_metrics(session, listing)
-        await session.refresh(listing)
+        # Only apply metrics if listing has a price
+        if listing.price_usd is not None:
+            await apply_listing_metrics(session, listing)
+            await session.refresh(listing)
+        else:
+            logger.info(
+                "listing.partial_update.skipped_metrics",
+                listing_id=listing.id,
+                reason="price_is_none",
+            )
     return listing
 
 
@@ -668,7 +701,15 @@ async def bulk_update_listings(
 
     await session.flush()
     for listing in listings:
-        await apply_listing_metrics(session, listing)
+        # Only apply metrics if listing has a price
+        if listing.price_usd is not None:
+            await apply_listing_metrics(session, listing)
+        else:
+            logger.info(
+                "listing.bulk_update.skipped_metrics",
+                listing_id=listing.id,
+                reason="price_is_none",
+            )
     await session.flush()
     for listing in listings:
         await session.refresh(listing)
@@ -715,10 +756,10 @@ def calculate_cpu_performance_metrics(listing: Listing) -> dict[str, float]:
     Returns
     -------
         Dictionary with metric keys and calculated values.
-        Empty dict if CPU not assigned or missing benchmark data.
+        Empty dict if CPU not assigned, missing benchmark data, or price is None.
 
     """
-    if not listing.cpu:
+    if not listing.cpu or listing.price_usd is None:
         return {}
 
     cpu = listing.cpu
@@ -867,6 +908,130 @@ async def delete_listing(
 # ============================================================================
 # URL Ingestion Integration (Phase 3 - Task ID-020)
 # ============================================================================
+
+
+async def create_from_ingestion(
+    session: AsyncSession,
+    normalized_data: NormalizedListingSchema,
+    user_id: str | None = None,
+) -> Listing:
+    """Create listing from normalized ingestion data.
+
+    Supports both partial and complete imports:
+    - If price is None: Creates partial listing without metrics calculation
+    - If price is provided: Creates complete listing with full metrics
+
+    Args:
+        session: Database session (caller controls transaction)
+        normalized_data: Normalized listing data from adapter
+        user_id: User ID for audit trail (optional)
+
+    Returns:
+        Created Listing instance
+
+    Raises:
+        ValueError: If normalized data invalid or required fields missing
+
+    Example:
+        >>> from dealbrain_core.schemas.ingestion import NormalizedListingSchema
+        >>> normalized = NormalizedListingSchema(
+        ...     title="Gaming PC",
+        ...     price=Decimal("599.99"),
+        ...     currency="USD",
+        ...     condition="new",
+        ...     marketplace="ebay",
+        ...     quality="full",
+        ... )
+        >>> listing = await create_from_ingestion(session, normalized)
+    """
+    from decimal import Decimal
+
+    from dealbrain_core.enums import Condition
+
+    # Validate input
+    if not isinstance(normalized_data, NormalizedListingSchema):
+        raise ValueError("normalized_data must be a NormalizedListingSchema instance")
+
+    # Map condition string to enum
+    condition_map = {
+        "new": Condition.NEW,
+        "refurb": Condition.REFURB,
+        "used": Condition.USED,
+    }
+    condition_enum = condition_map.get(normalized_data.condition.lower(), Condition.USED)
+
+    # Determine quality: use explicit quality from schema, or infer from price presence
+    quality = normalized_data.quality
+    if quality == "full" and normalized_data.price is None:
+        # If marked as full but missing price, downgrade to partial
+        quality = "partial"
+
+    # Create listing with base fields
+    listing = Listing(
+        title=normalized_data.title,
+        price_usd=float(normalized_data.price) if normalized_data.price else None,
+        condition=condition_enum.value,
+        quality=quality,
+        extraction_metadata=normalized_data.extraction_metadata or {},
+        missing_fields=normalized_data.missing_fields or [],
+        marketplace=normalized_data.marketplace,
+        vendor_item_id=normalized_data.vendor_item_id,
+        seller=normalized_data.seller,
+        last_seen_at=datetime.utcnow(),
+    )
+
+    # Store images in attributes_json if provided
+    if normalized_data.images:
+        listing.attributes_json = {"images": normalized_data.images}
+
+    # Store extracted component data if available
+    # Note: CPU/GPU/RAM/Storage matching would happen in a separate enrichment step
+    # For now, just store raw extracted values in attributes_json
+    component_attrs = {}
+    if normalized_data.cpu_model:
+        component_attrs["cpu_model_raw"] = normalized_data.cpu_model
+    if normalized_data.ram_gb is not None:
+        listing.ram_gb = normalized_data.ram_gb
+    if normalized_data.storage_gb is not None:
+        listing.primary_storage_gb = normalized_data.storage_gb
+    if normalized_data.manufacturer:
+        listing.manufacturer = normalized_data.manufacturer
+    if normalized_data.model_number:
+        listing.device_model = normalized_data.model_number
+
+    if component_attrs:
+        attrs = dict(listing.attributes_json or {})
+        attrs.update(component_attrs)
+        listing.attributes_json = attrs
+
+    session.add(listing)
+    await session.flush()  # Get ID without committing
+
+    # Only calculate metrics if price exists
+    if listing.price_usd is not None:
+        await apply_listing_metrics(session, listing)
+        logger.info(
+            "listing.created_from_ingestion.complete",
+            listing_id=listing.id,
+            title=listing.title,
+            price=listing.price_usd,
+            quality=quality,
+            marketplace=normalized_data.marketplace,
+        )
+    else:
+        # Set valuation_breakdown to None for partial imports
+        listing.valuation_breakdown = None
+        logger.info(
+            "listing.created_from_ingestion.partial",
+            listing_id=listing.id,
+            title=listing.title,
+            quality=quality,
+            marketplace=normalized_data.marketplace,
+            missing_fields=normalized_data.missing_fields,
+            message="Listing created without price - metrics deferred until completion",
+        )
+
+    return listing
 
 
 async def upsert_from_url(
