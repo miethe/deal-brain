@@ -474,4 +474,4 @@ Amazon URL imports should now:
 - Enables imports to succeed even with price extraction failures
 - Maintains backward compatibility (full data imports unchanged)
 
-**Commit**: [pending]
+**Commit**: 664c512
