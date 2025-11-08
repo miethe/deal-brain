@@ -40,9 +40,9 @@ class NormalizedListingSchema(DealBrainModel):
         min_length=1,
         max_length=500,
     )
-    price: Decimal = Field(
-        ...,
-        description="Listing price (must be positive)",
+    price: Decimal | None = Field(
+        None,
+        description="Listing price (must be positive if provided)",
         gt=0,
         decimal_places=2,
     )
@@ -140,6 +140,22 @@ class NormalizedListingSchema(DealBrainModel):
         if isinstance(value, str):
             return [value]
         return list(value)
+
+    @field_validator("price")
+    @classmethod
+    def validate_minimum_data(cls, price: Decimal | None, info) -> Decimal | None:
+        """Require at least title to be present when price is missing.
+
+        This validator ensures we don't create listings with neither title nor price.
+        At minimum, we need a title to create a meaningful listing record.
+        """
+        if price is None:
+            # Check if title exists and is non-empty
+            title = info.data.get("title")
+            if not title or not str(title).strip():
+                raise ValueError("At least title must be provided when price is missing")
+
+        return price
 
 
 class IngestionRequest(DealBrainModel):

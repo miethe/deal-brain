@@ -661,7 +661,7 @@ class ListingNormalizer:
 
         Quality assessment:
         - Full: has title, price, condition, CPU, RAM, storage, images (4+ optional fields)
-        - Partial: missing one or more optional fields (<4 optional fields)
+        - Partial: missing price OR missing one or more optional fields (<4 optional fields)
 
         Args:
             normalized: Normalized listing schema
@@ -670,7 +670,7 @@ class ListingNormalizer:
             Quality level: "full" or "partial"
 
         Raises:
-            ValueError: If required fields (title, price) are missing
+            ValueError: If required field (title) is missing
 
         Example:
             >>> data = NormalizedListingSchema(
@@ -686,16 +686,15 @@ class ListingNormalizer:
             >>> normalizer.assess_quality(data)
             'full'
         """
-        # Check required fields
-        required_fields = [
-            normalized.title,
-            normalized.price,
-        ]
+        # Check required field (title is now the only truly required field)
+        if not normalized.title or not normalized.title.strip():
+            raise ValueError("Missing required field: title")
 
-        if not all(required_fields):
-            raise ValueError("Missing required fields (title, price)")
+        # If price is missing, automatically mark as partial
+        if normalized.price is None:
+            return "partial"
 
-        # Count optional fields
+        # Count optional fields (only if price is present)
         optional_fields = [
             normalized.condition,
             normalized.cpu_model,

@@ -191,10 +191,11 @@ class JsonLdAdapter(BaseAdapter):
                 logger.info(f"Successfully extracted listing from HTML elements: {result.title}")
                 return result
 
-            # All three methods failed
+            # All three methods failed - no extractable data found
             raise AdapterException(
                 AdapterError.NO_STRUCTURED_DATA,
-                "No Schema.org Product data, extractable meta tags, or HTML elements found in page",
+                "No product data could be extracted from page (no title, price, or other "
+                "identifying information found)",
                 metadata={"url": url},
             )
 
@@ -433,31 +434,30 @@ class JsonLdAdapter(BaseAdapter):
 
             # Extract offers (may be dict or list)
             offers_raw = product.get("offers") or product.get("offer")
-            if not offers_raw:
-                raise AdapterException(
-                    AdapterError.INVALID_SCHEMA,
-                    "Product schema missing required field: offers",
-                    metadata={"product": product},
-                )
 
-            # Normalize offers to list
-            offers = self._normalize_offers(offers_raw)
+            # Initialize price and currency with defaults
+            price = None
+            currency = "USD"
 
-            # Extract price from offers (take lowest if multiple)
-            price, currency = self._extract_price_from_offers(offers)
+            if offers_raw:
+                # Normalize offers to list
+                offers = self._normalize_offers(offers_raw)
 
+                # Extract price from offers (take lowest if multiple)
+                price, currency = self._extract_price_from_offers(offers)
+
+            # Price is optional - log but continue if missing
             if price is None:
-                raise AdapterException(
-                    AdapterError.INVALID_SCHEMA,
-                    "No valid price found in offers",
-                    metadata={"offers": offers},
+                logger.info(
+                    f"Partial extraction from Schema.org: price not found for '{title}', "
+                    "continuing with title only"
                 )
 
-            # Extract condition from availability
-            condition = self._extract_condition_from_offers(offers)
+            # Extract condition from availability (use empty list if no offers)
+            condition = self._extract_condition_from_offers(offers if offers_raw else [])
 
-            # Extract seller
-            seller = self._extract_seller(product, offers)
+            # Extract seller (use empty list if no offers)
+            seller = self._extract_seller(product, offers if offers_raw else [])
 
             # Extract images
             images = self._extract_images(product)
@@ -844,7 +844,7 @@ class JsonLdAdapter(BaseAdapter):
                 logger.debug(f"Meta tag extraction failed: no title found for {url}")
                 return None
 
-            # Extract price (required)
+            # Extract price (optional)
             price_str = (
                 meta_data.get("og:price:amount")
                 or meta_data.get("itemprop:price")
@@ -858,20 +858,18 @@ class JsonLdAdapter(BaseAdapter):
                         price_str = value
                         break
 
-            if not price_str:
-                logger.debug(f"Meta tag extraction failed: no price found for {url}")
-                return None
+            # Parse price (may be None)
+            price = None
+            if price_str:
+                price = self._parse_price(price_str)
+                logger.debug(f"Price extraction attempt: price_str={price_str}, parsed_price={price}")
 
-            # Parse price
-            price = self._parse_price(price_str)
-
-            logger.debug(f"Price extraction attempt: price_str={price_str}, parsed_price={price}")
-
+            # Price is optional - log but continue if missing
             if not price:
-                logger.debug(
-                    f"Meta tag extraction failed: could not parse price '{price_str}' for {url}"
+                logger.info(
+                    f"Partial extraction from meta tags: price not found for '{title}', "
+                    "continuing with title only"
                 )
-                return None
 
             # Extract currency (optional, defaults to USD)
             currency = meta_data.get("og:price:currency") or meta_data.get("currency") or "USD"
@@ -1053,7 +1051,7 @@ class JsonLdAdapter(BaseAdapter):
 
             # Priority 2: Generic a-price offscreen (works across many Amazon layouts)
             if not price:
-                offscreen_price = soup.select_one("span.a-price span.a-offscreen")
+                offscreen_price = soup.select_one("span.a-price span.a-price-whole span.a-offscreen")
                 if offscreen_price:
                     price_str = offscreen_price.get_text(strip=True)
                     price = self._parse_price(price_str)
@@ -1114,8 +1112,12 @@ class JsonLdAdapter(BaseAdapter):
                     price_str = element.get_text(strip=True)
                     price = self._parse_price(price_str)
 
+            # Price is optional - log but continue if missing
             if not price:
-                logger.warning("  ❌ Price extraction failed")
+                logger.info(
+                    f"Partial extraction from HTML elements: price not found for '{title}', "
+                    "continuing with title only"
+                )
                 logger.debug(
                     "    Tried selectors: #corePriceDisplay_desktop_feature_div .a-offscreen, "
                     ".a-price > .a-offscreen, .priceToPay .a-offscreen, #price_inside_buybox, "
@@ -1123,9 +1125,10 @@ class JsonLdAdapter(BaseAdapter):
                     ".price, itemprop='price', .product-price"
                 )
 
-                # Log what price-like elements exist
+                # Log what price-like elements exist for debugging
                 a_price_spans = soup.select("span.a-price")
-                logger.debug(f"    Found {len(a_price_spans)} span.a-price elements")
+                if a_price_spans:
+                    logger.debug(f"    Found {len(a_price_spans)} span.a-price elements")
 
                 price_like_spans = soup.find_all(
                     "span", class_=lambda c: c and "price" in c.lower() if c else False, limit=5
@@ -1138,8 +1141,9 @@ class JsonLdAdapter(BaseAdapter):
                         span_text = span.get_text(strip=True)[:50]
                         logger.debug(f"      - {span.get('class')}: {span_text}")
 
-                self._save_html_for_debugging(html, url)
-                return None
+                # Save HTML for debugging only if in debug mode
+                if logger.isEnabledFor(logging.DEBUG):
+                    self._save_html_for_debugging(html, url)
             else:
                 logger.info(f"  ✓ Price found: {price}")
 

@@ -143,7 +143,7 @@ class TestJsonLdAdapter:
 
     @pytest.mark.asyncio
     async def test_no_structured_data(self, adapter):
-        """Test error when no Product schema found."""
+        """Test partial extraction when no Product schema found (fallback to HTML)."""
         html = """
         <html>
         <body>
@@ -154,10 +154,11 @@ class TestJsonLdAdapter:
         """
 
         with patch.object(adapter, "_fetch_html", return_value=html):
-            with pytest.raises(AdapterException) as exc:
-                await adapter.extract("https://example.com/product")
+            result = await adapter.extract("https://example.com/product")
 
-            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
+            # Should succeed with partial data (title from h1)
+            assert result.title == "Product Page"
+            assert result.price is None
 
     @pytest.mark.asyncio
     async def test_missing_required_title(self, adapter):
@@ -183,7 +184,7 @@ class TestJsonLdAdapter:
 
     @pytest.mark.asyncio
     async def test_missing_required_offers(self, adapter):
-        """Test error when Product schema missing offers."""
+        """Test partial extraction when Product schema missing offers (price optional)."""
         html = """
         <script type="application/ld+json">
         {
@@ -194,15 +195,16 @@ class TestJsonLdAdapter:
         """
 
         with patch.object(adapter, "_fetch_html", return_value=html):
-            with pytest.raises(AdapterException) as exc:
-                await adapter.extract("https://example.com/product")
+            result = await adapter.extract("https://example.com/product")
 
-            assert exc.value.error_type == AdapterError.INVALID_SCHEMA
-            assert "offers" in exc.value.message.lower()
+            # Should succeed with partial data (title only, no price)
+            assert result.title == "Gaming PC"
+            assert result.price is None
+            assert result.marketplace == "other"
 
     @pytest.mark.asyncio
     async def test_missing_price_in_offers(self, adapter):
-        """Test error when offers missing price."""
+        """Test partial extraction when offers missing price (price optional)."""
         html = """
         <script type="application/ld+json">
         {
@@ -217,10 +219,13 @@ class TestJsonLdAdapter:
         """
 
         with patch.object(adapter, "_fetch_html", return_value=html):
-            with pytest.raises(AdapterException) as exc:
-                await adapter.extract("https://example.com/product")
+            result = await adapter.extract("https://example.com/product")
 
-            assert exc.value.error_type == AdapterError.INVALID_SCHEMA
+            # Should succeed with partial data (title only, no price)
+            assert result.title == "Gaming PC"
+            assert result.price is None
+            assert result.currency == "USD"
+            assert result.marketplace == "other"
 
     def test_parse_price_string_decimal(self, adapter):
         """Test price parsing from decimal string."""
@@ -679,7 +684,7 @@ class TestJsonLdAdapterEdgeCases:
 
     @pytest.mark.asyncio
     async def test_malformed_json_handled_gracefully(self, adapter):
-        """Test handling of empty JSON-LD (no Product schema)."""
+        """Test handling of empty JSON-LD (no Product schema) with fallback to HTML."""
         html = """
         <html>
         <head>
@@ -697,11 +702,12 @@ class TestJsonLdAdapterEdgeCases:
         """
 
         with patch.object(adapter, "_fetch_html", return_value=html):
-            # Should fail when no Product schema found
-            with pytest.raises(AdapterException) as exc:
-                await adapter.extract("https://example.com/product")
+            # Should attempt HTML fallback and extract title from h1
+            result = await adapter.extract("https://example.com/product")
 
-            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
+            # Should succeed with partial data (title from h1)
+            assert result.title == "Product Page"
+            assert result.price is None
 
     @pytest.mark.asyncio
     async def test_multiple_jsonld_scripts_first_not_product(self, adapter):
@@ -797,7 +803,7 @@ class TestJsonLdAdapterEdgeCases:
 
     @pytest.mark.asyncio
     async def test_empty_offers_array(self, adapter):
-        """Test error when offers array is empty."""
+        """Test partial extraction when offers array is empty (price optional)."""
         html = """
         <script type="application/ld+json">
         {
@@ -809,10 +815,12 @@ class TestJsonLdAdapterEdgeCases:
         """
 
         with patch.object(adapter, "_fetch_html", return_value=html):
-            with pytest.raises(AdapterException) as exc:
-                await adapter.extract("https://example.com/product")
+            result = await adapter.extract("https://example.com/product")
 
-            assert exc.value.error_type == AdapterError.INVALID_SCHEMA
+            # Should succeed with partial data (title only, no price)
+            assert result.title == "PC"
+            assert result.price is None
+            assert result.marketplace == "other"
 
     def test_extract_cpu_with_unusual_formats(self, adapter):
         """Test CPU extraction with unusual formats."""
@@ -1128,7 +1136,7 @@ class TestJsonLdAdapterMetaTagFallback:
 
     @pytest.mark.asyncio
     async def test_meta_tags_without_required_fields(self, adapter):
-        """Test error when meta tags missing required fields (title or price)."""
+        """Test partial extraction when meta tags have no title (fallback to h1)."""
         html = """
         <html>
         <head>
@@ -1140,11 +1148,11 @@ class TestJsonLdAdapterMetaTagFallback:
         """
 
         with patch.object(adapter, "_fetch_html", return_value=html):
-            with pytest.raises(AdapterException) as exc:
-                await adapter.extract("https://example.com/product")
+            result = await adapter.extract("https://example.com/product")
 
-            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
-            assert "no schema.org product data, extractable meta tags, or html elements" in exc.value.message.lower()
+            # Should succeed with partial data (title from h1, no price)
+            assert result.title == "Product"
+            assert result.price is None
 
     @pytest.mark.asyncio
     async def test_meta_tag_price_formats(self, adapter):
@@ -1306,7 +1314,7 @@ class TestJsonLdAdapterMetaTagFallback:
 
     @pytest.mark.asyncio
     async def test_meta_tags_with_unparseable_price(self, adapter):
-        """Test error when meta tag price cannot be parsed."""
+        """Test partial extraction when meta tag price cannot be parsed."""
         html = """
         <html>
         <head>
@@ -1318,10 +1326,11 @@ class TestJsonLdAdapterMetaTagFallback:
         """
 
         with patch.object(adapter, "_fetch_html", return_value=html):
-            with pytest.raises(AdapterException) as exc:
-                await adapter.extract("https://example.com/product")
+            result = await adapter.extract("https://example.com/product")
 
-            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
+            # Should succeed with partial data (title only, price unparseable)
+            assert result.title == "Test Product"
+            assert result.price is None
 
     @pytest.mark.asyncio
     async def test_meta_tags_priority_opengraph_over_twitter(self, adapter):
@@ -1350,7 +1359,7 @@ class TestJsonLdAdapterMetaTagFallback:
 
     @pytest.mark.asyncio
     async def test_meta_tags_with_only_title_no_price(self, adapter):
-        """Test that extraction fails when price is missing."""
+        """Test partial extraction when price is missing from meta tags."""
         html = """
         <html>
         <head>
@@ -1363,10 +1372,13 @@ class TestJsonLdAdapterMetaTagFallback:
         """
 
         with patch.object(adapter, "_fetch_html", return_value=html):
-            with pytest.raises(AdapterException) as exc:
-                await adapter.extract("https://example.com/product")
+            result = await adapter.extract("https://example.com/product")
 
-            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
+            # Should succeed with partial data (title and image only, no price)
+            assert result.title == "Product Without Price"
+            assert result.price is None
+            assert result.images == ["https://example.com/image.jpg"]
+            assert result.description == "Great product"
 
 
 class TestJsonLdAdapterHtmlElementFallback:
@@ -1564,11 +1576,11 @@ class TestJsonLdAdapterHtmlElementFallback:
                 await adapter.extract("https://example.com/product")
 
             assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
-            assert "no schema.org product data, extractable meta tags, or html elements" in exc.value.message.lower()
+            assert "no product data could be extracted" in exc.value.message.lower()
 
     @pytest.mark.asyncio
     async def test_html_elements_no_price_found(self, adapter):
-        """Test error when no price can be found in HTML elements."""
+        """Test partial extraction when no price can be found in HTML elements."""
         html = """
         <html>
         <body>
@@ -1579,10 +1591,11 @@ class TestJsonLdAdapterHtmlElementFallback:
         """
 
         with patch.object(adapter, "_fetch_html", return_value=html):
-            with pytest.raises(AdapterException) as exc:
-                await adapter.extract("https://example.com/product")
+            result = await adapter.extract("https://example.com/product")
 
-            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
+            # Should succeed with partial data (title only, no price)
+            assert result.title == "Test Product"
+            assert result.price is None
 
     @pytest.mark.asyncio
     async def test_html_elements_with_itemprop_name(self, adapter):
@@ -1672,7 +1685,7 @@ class TestJsonLdAdapterHtmlElementFallback:
 
     @pytest.mark.asyncio
     async def test_all_three_fallbacks_exhausted(self, adapter):
-        """Test error when all three extraction methods fail."""
+        """Test error when all three extraction methods fail to find any data."""
         html = """
         <html>
         <head>
@@ -1689,4 +1702,4 @@ class TestJsonLdAdapterHtmlElementFallback:
                 await adapter.extract("https://example.com/product")
 
             assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
-            assert "no schema.org product data, extractable meta tags, or html elements found" in exc.value.message.lower()
+            assert "no product data could be extracted" in exc.value.message.lower()
