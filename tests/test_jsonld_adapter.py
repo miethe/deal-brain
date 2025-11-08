@@ -1685,7 +1685,7 @@ class TestJsonLdAdapterHtmlElementFallback:
 
     @pytest.mark.asyncio
     async def test_all_three_fallbacks_exhausted(self, adapter):
-        """Test error when all three extraction methods fail to find any data."""
+        """Test partial import when only title can be extracted (no price)."""
         html = """
         <html>
         <head>
@@ -1698,8 +1698,11 @@ class TestJsonLdAdapterHtmlElementFallback:
         """
 
         with patch.object(adapter, "_fetch_html", return_value=html):
-            with pytest.raises(AdapterException) as exc:
-                await adapter.extract("https://example.com/product")
+            result = await adapter.extract("https://example.com/product")
 
-            assert exc.value.error_type == AdapterError.NO_STRUCTURED_DATA
-            assert "no product data could be extracted" in exc.value.message.lower()
+        # Should create partial import with title but no price
+        assert result.title == "Page Title"
+        assert result.price is None
+        assert result.quality == "partial"
+        assert result.missing_fields == ["price"]
+        assert result.extraction_metadata["price"] == "extraction_failed"

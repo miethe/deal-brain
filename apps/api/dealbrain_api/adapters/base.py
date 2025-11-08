@@ -318,13 +318,18 @@ class BaseAdapter(ABC):
         """
         Validate raw response data before transformation.
 
+        Only title is required for partial imports. Price is optional.
+        If price is missing, marks the data as "partial" quality and tracks
+        extraction metadata for manual population.
+
         Args:
             data: Raw response data dictionary
 
         Raises:
-            AdapterException: If validation fails
+            AdapterException: If validation fails (title missing)
         """
-        required_fields = ["title", "price"]
+        # Only title is required now (price is optional for partial imports)
+        required_fields = ["title"]
         missing = [f for f in required_fields if f not in data or not data[f]]
         if missing:
             raise AdapterException(
@@ -332,6 +337,30 @@ class BaseAdapter(ABC):
                 f"Missing required fields: {', '.join(missing)}",
                 metadata={"missing_fields": missing},
             )
+
+        # Track extraction quality based on price presence
+        has_price = bool(data.get("price"))
+
+        if not has_price:
+            logger.warning(
+                f"[{self.name}] No price extracted - will create partial import"
+            )
+            data["quality"] = "partial"
+            data["missing_fields"] = ["price"]
+        else:
+            data["quality"] = "full"
+            data["missing_fields"] = []
+
+        # Track what was extracted (all fields that have values)
+        data["extraction_metadata"] = {
+            k: "extracted"
+            for k, v in data.items()
+            if v and k not in ["quality", "missing_fields", "extraction_metadata"]
+        }
+
+        # Mark price extraction as failed if missing
+        if not has_price:
+            data["extraction_metadata"]["price"] = "extraction_failed"
 
 
 __all__ = [
