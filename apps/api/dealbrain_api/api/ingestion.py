@@ -559,26 +559,28 @@ async def get_ingestion_status(
         ) from e
 
 
-@router.get("/bulk/{bulk_job_id}", response_model=BulkIngestionStatusResponse)
-async def get_bulk_ingestion_status(
+@router.get("/bulk/{bulk_job_id}/status", response_model=BulkIngestionStatusResponse)
+async def get_bulk_import_status(
     bulk_job_id: str,
     offset: int = Query(default=0, ge=0, description="Pagination offset"),
-    limit: int = Query(default=100, ge=1, le=1000, description="Pagination limit"),
+    limit: int = Query(default=20, ge=1, le=100, description="Pagination limit"),
     session: AsyncSession = Depends(session_dependency),
 ) -> BulkIngestionStatusResponse:
     """
-    Retrieve the aggregated status of a bulk URL ingestion job.
+    Poll bulk import job status with pagination.
 
-    This endpoint fetches the parent ImportSession and all child ImportSession records
-    for a bulk job, aggregates status counts, and returns per-URL status information
-    with pagination support.
+    Returns overall job status and per-URL details including
+    quality indicators (full/partial) and listing references.
+
+    This endpoint is polled by frontend every 2 seconds until
+    status becomes "complete" or "failed".
 
     Status Aggregation Logic:
     - total_urls: Total number of URLs in the bulk job
     - completed: Number of URLs finished (complete + partial + failed)
-    - success: Number of URLs successfully completed (complete only)
-    - partial: Number of partially completed URLs
-    - failed: Number of failed URLs
+    - success: Number of URLs successfully completed with quality="full"
+    - partial: Number of URLs with quality="partial" (incomplete data extraction)
+    - failed: Number of URLs that failed to import
     - running: Number of URLs currently being processed
     - queued: Number of URLs waiting to be processed
 
@@ -590,13 +592,13 @@ async def get_bulk_ingestion_status(
     - "failed": All children failed
 
     Args:
-        bulk_job_id: Parent ImportSession UUID as string
-        offset: Pagination offset (default: 0)
-        limit: Pagination limit (default: 100, max: 1000)
-        session: Database session (injected)
+        bulk_job_id: Unique bulk job identifier
+        offset: Pagination offset (default 0)
+        limit: Pagination limit (default 20, max 100)
+        session: Database session
 
     Returns:
-        BulkIngestionStatusResponse with aggregated status and per-URL details
+        Bulk job status with per-row details
 
     Raises:
         HTTPException:
@@ -605,7 +607,7 @@ async def get_bulk_ingestion_status(
             500: Unexpected server errors
 
     Example:
-        GET /api/v1/ingest/bulk/550e8400-e29b-41d4-a716-446655440000?offset=0&limit=50
+        GET /api/v1/ingest/bulk/550e8400-e29b-41d4-a716-446655440000/status?offset=0&limit=20
 
         Response (200):
         {
@@ -623,13 +625,14 @@ async def get_bulk_ingestion_status(
                     "url": "https://ebay.com/itm/123",
                     "status": "complete",
                     "listing_id": 456,
+                    "quality": "full",
                     "error": null
                 },
                 ...
             ],
             "offset": 0,
-            "limit": 50,
-            "has_more": false
+            "limit": 20,
+            "has_more": true
         }
     """
     try:
@@ -671,18 +674,29 @@ async def get_bulk_ingestion_status(
         # Apply pagination to per_row_status only
         children = children_all[offset : offset + limit]
 
-        # Aggregate status counts across all children (not paginated)
+        # Aggregate status and quality counts across all children (not paginated)
         status_counts: dict[str, int] = {}
+        quality_counts: dict[tuple[str, str | None], int] = {}
+
         for child in children_all:
             status_counts[child.status] = status_counts.get(child.status, 0) + 1
+            quality_key = (child.status, child.quality)
+            quality_counts[quality_key] = quality_counts.get(quality_key, 0) + 1
 
         # Calculate aggregated metrics
         total_urls = sum(status_counts.values())
-        success_count = status_counts.get("complete", 0)
-        partial_count = status_counts.get("partial", 0)
-        failed_count = status_counts.get("failed", 0)
-        running_count = status_counts.get("running", 0)
         queued_count = status_counts.get("queued", 0)
+        running_count = status_counts.get("running", 0)
+        failed_count = status_counts.get("failed", 0)
+
+        # Count completed URLs by quality
+        # Partial: URLs with status="complete" and quality="partial" OR status="partial" (backward compat)
+        # Success: URLs with status="complete" and quality="full" (or quality=None for backward compat)
+        partial_count = (
+            quality_counts.get(("complete", "partial"), 0)
+            + status_counts.get("partial", 0)  # Backward compatibility with old status="partial"
+        )
+        success_count = quality_counts.get(("complete", "full"), 0) + quality_counts.get(("complete", None), 0)
         completed_count = success_count + partial_count + failed_count
 
         # Determine overall status
@@ -717,6 +731,7 @@ async def get_bulk_ingestion_status(
                     url=child.url or "",
                     status=child.status,
                     listing_id=conflicts.get("listing_id"),
+                    quality=child.quality,
                     error=conflicts.get("error"),
                 )
             )
@@ -763,6 +778,32 @@ async def get_bulk_ingestion_status(
         ) from e
 
 
+@router.get("/bulk/{bulk_job_id}", response_model=BulkIngestionStatusResponse)
+async def get_bulk_ingestion_status(
+    bulk_job_id: str,
+    offset: int = Query(default=0, ge=0, description="Pagination offset"),
+    limit: int = Query(default=100, ge=1, le=1000, description="Pagination limit"),
+    session: AsyncSession = Depends(session_dependency),
+) -> BulkIngestionStatusResponse:
+    """
+    Retrieve the aggregated status of a bulk URL ingestion job.
+
+    This endpoint is deprecated in favor of /bulk/{bulk_job_id}/status.
+    Kept for backward compatibility with existing tests.
+
+    Args:
+        bulk_job_id: Unique bulk job identifier
+        offset: Pagination offset (default 0)
+        limit: Pagination limit (default 100, max 1000)
+        session: Database session
+
+    Returns:
+        Bulk job status with per-row details
+    """
+    # Delegate to the new endpoint
+    return await get_bulk_import_status(bulk_job_id, offset, limit, session)
+
+
 __all__ = [
     "router",
     "parse_csv_file",
@@ -770,5 +811,6 @@ __all__ = [
     "create_bulk_url_import",
     "create_single_url_import",
     "get_ingestion_status",
+    "get_bulk_import_status",
     "get_bulk_ingestion_status",
 ]

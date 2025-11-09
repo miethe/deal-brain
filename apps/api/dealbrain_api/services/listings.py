@@ -905,6 +905,119 @@ async def delete_listing(
     )
 
 
+async def complete_partial_import(
+    session: AsyncSession,
+    listing_id: int,
+    completion_data: dict[str, Any],
+    user_id: str,
+) -> Listing:
+    """
+    Complete a partial import by providing missing fields.
+
+    This method is called by the manual population modal when user
+    provides missing data (typically price). It updates the listing,
+    recalculates metrics, and marks as complete.
+
+    Args:
+        session: Database session
+        listing_id: Listing to complete
+        completion_data: Dict with missing fields (e.g., {"price": 299.99})
+        user_id: User completing the import
+
+    Returns:
+        Updated listing with metrics calculated
+
+    Raises:
+        ValueError: If listing not found or not partial
+        ValueError: If price invalid (must be positive)
+
+    Example:
+        >>> updated = await complete_partial_import(
+        ...     session=session,
+        ...     listing_id=123,
+        ...     completion_data={"price": 299.99},
+        ...     user_id="user123",
+        ... )
+        >>> assert updated.quality == "full"
+        >>> assert updated.price_usd == 299.99
+    """
+    # Fetch and validate listing
+    listing = await session.get(Listing, listing_id)
+    if not listing:
+        raise ValueError(f"Listing {listing_id} not found")
+
+    if listing.quality != "partial":
+        raise ValueError(
+            f"Listing {listing_id} is already complete (quality={listing.quality}). "
+            "Only partial listings can be completed."
+        )
+
+    # Update price field if provided
+    if "price" in completion_data:
+        price_value = completion_data["price"]
+
+        # Validate price is numeric
+        try:
+            price_float = float(price_value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Invalid price value: {price_value}. Price must be a numeric value."
+            ) from exc
+
+        # Validate price is positive
+        if price_float <= 0:
+            raise ValueError(
+                f"Invalid price value: {price_float}. Price must be greater than 0."
+            )
+
+        # Update listing price
+        listing.price_usd = price_float
+
+        # Track in extraction_metadata (need to create new dict for SQLAlchemy to detect change)
+        metadata = dict(listing.extraction_metadata or {})
+        metadata["price"] = "manual"
+        listing.extraction_metadata = metadata
+
+        # Remove "price" from missing_fields if present (create new list for SQLAlchemy to detect change)
+        if listing.missing_fields and "price" in listing.missing_fields:
+            listing.missing_fields = [
+                field for field in listing.missing_fields if field != "price"
+            ]
+
+    # Update quality if all required fields are present
+    if listing.price_usd is not None and (not listing.missing_fields or len(listing.missing_fields) == 0):
+        listing.quality = "full"
+
+    await session.flush()
+
+    # Calculate metrics if quality is now "full" and price exists
+    if listing.quality == "full" and listing.price_usd is not None:
+        await apply_listing_metrics(session, listing)
+        logger.info(
+            "listing.partial_import.completed",
+            listing_id=listing.id,
+            title=listing.title,
+            price=listing.price_usd,
+            user_id=user_id,
+            message="Partial listing completed with metrics calculated",
+        )
+    else:
+        logger.info(
+            "listing.partial_import.updated",
+            listing_id=listing.id,
+            title=listing.title,
+            quality=listing.quality,
+            missing_fields=listing.missing_fields,
+            user_id=user_id,
+            message="Partial listing updated but still incomplete",
+        )
+
+    await session.flush()
+    await session.refresh(listing)
+
+    return listing
+
+
 # ============================================================================
 # URL Ingestion Integration (Phase 3 - Task ID-020)
 # ============================================================================
