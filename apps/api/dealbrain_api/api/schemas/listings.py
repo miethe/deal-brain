@@ -206,9 +206,37 @@ class PaginatedListingsResponse(BaseModel):
     has_next: bool = Field(..., description="Whether more pages are available")
 
 
+class CompletePartialImportRequest(BaseModel):
+    """Request schema for completing a partial import."""
+
+    price: float = Field(
+        ...,
+        gt=0,
+        description="Listing price in USD (must be positive)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {"price": 299.99}
+        }
+
+
+class CompletePartialImportResponse(BaseModel):
+    """Response schema for completed listing."""
+
+    id: int
+    title: str
+    price_usd: float | None
+    quality: str
+    missing_fields: list[str]
+    adjusted_price_usd: float | None
+
+
 __all__ = [
     "BulkRecalculateRequest",
     "BulkRecalculateResponse",
+    "CompletePartialImportRequest",
+    "CompletePartialImportResponse",
     "LegacyValuationLine",
     "ListingBulkUpdateRequest",
     "ListingBulkUpdateResponse",

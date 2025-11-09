@@ -11,12 +11,14 @@ from dealbrain_core.enums import Condition, ListingStatus, RamGeneration
 from dealbrain_core.schemas import ListingCreate, ListingRead
 
 from ..db import session_dependency
+from ..telemetry import get_logger
 from ..models import Listing, ValuationRuleset, ValuationRuleV2, ValuationRuleGroup
 from ..services.custom_fields import CustomFieldService
 from ..services.listings import (
     apply_listing_metrics,
     bulk_update_listing_metrics,
     bulk_update_listings,
+    complete_partial_import,
     create_listing,
     delete_listing,
     get_paginated_listings,
@@ -31,6 +33,8 @@ from ..services import ports as ports_service
 from .schemas.listings import (
     BulkRecalculateRequest,
     BulkRecalculateResponse,
+    CompletePartialImportRequest,
+    CompletePartialImportResponse,
     LegacyValuationLine,
     ListingBulkUpdateRequest,
     ListingBulkUpdateResponse,
@@ -51,6 +55,7 @@ from .schemas.custom_fields import CustomFieldResponse
 
 router = APIRouter(prefix="/v1/listings", tags=["listings"])
 custom_field_service = CustomFieldService()
+logger = get_logger("dealbrain.api.listings")
 
 
 CORE_LISTING_FIELDS: list[ListingFieldSchema] = [
@@ -664,3 +669,74 @@ async def get_listing_ports(
     """Get ports for a listing."""
     ports = await ports_service.get_listing_ports(session, listing_id)
     return PortsResponse(ports=[PortEntry(**p) for p in ports])
+
+
+@router.patch(
+    "/{listing_id}/complete",
+    response_model=CompletePartialImportResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def complete_partial_import_endpoint(
+    listing_id: int,
+    request: CompletePartialImportRequest,
+    session: AsyncSession = Depends(session_dependency),
+    # current_user: dict = Depends(get_current_user),  # TODO: Add auth when available
+) -> CompletePartialImportResponse:
+    """
+    Complete a partial import by providing missing fields.
+
+    This endpoint allows users to fill in missing data (typically price)
+    for listings that were partially imported from URL extraction. After
+    completion, the listing's quality is updated to "full" and metrics
+    are calculated.
+
+    Args:
+        listing_id: ID of the partial listing to complete
+        request: Completion data (at minimum, price)
+        session: Database session
+        current_user: Authenticated user (TODO)
+
+    Returns:
+        Updated listing with metrics calculated and quality="full"
+
+    Raises:
+        404: Listing not found
+        400: Listing is not partial or validation failed
+        422: Invalid request data
+
+    Example:
+        PATCH /v1/listings/123/complete
+        {"price": 299.99}
+
+        → Returns: {"id": 123, "quality": "full", ...}
+    """
+    try:
+        updated_listing = await complete_partial_import(
+            session=session,
+            listing_id=listing_id,
+            completion_data=request.model_dump(),
+            user_id="system",  # TODO: Use current_user["id"] when auth is available
+        )
+        await session.commit()
+
+        return CompletePartialImportResponse(
+            id=updated_listing.id,
+            title=updated_listing.title,
+            price_usd=updated_listing.price_usd,
+            quality=updated_listing.quality,
+            missing_fields=updated_listing.missing_fields or [],
+            adjusted_price_usd=updated_listing.adjusted_price_usd,
+        )
+
+    except ValueError as e:
+        error_msg = str(e)
+        if "not found" in error_msg:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_msg)
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
+    except Exception as e:
+        logger.exception(f"Unexpected error completing partial import for listing {listing_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to complete import"
+        )

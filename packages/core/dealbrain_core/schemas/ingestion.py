@@ -308,6 +308,7 @@ class PerRowStatus(DealBrainModel):
         url: The URL being processed
         status: Job status (queued|running|complete|partial|failed)
         listing_id: Created listing ID if successful (optional)
+        quality: Data quality level (full|partial) for completed imports (optional)
         error: Error message if failed (optional)
     """
 
@@ -323,6 +324,11 @@ class PerRowStatus(DealBrainModel):
     listing_id: int | None = Field(
         default=None,
         description="Created listing ID if successful",
+    )
+    quality: str | None = Field(
+        default=None,
+        description="Data quality level (full|partial) for completed imports",
+        pattern=r"^(full|partial)$",
     )
     error: str | None = Field(
         default=None,
