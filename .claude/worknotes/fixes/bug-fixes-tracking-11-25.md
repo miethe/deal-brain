@@ -475,3 +475,29 @@ Amazon URL imports should now:
 - Maintains backward compatibility (full data imports unchanged)
 
 **Commit**: 664c512
+
+## 2025-11-09: Database Unavailable After Partial Import PRD Implementation
+
+**Issue**: API throwing `sqlalchemy.exc.ProgrammingError: relation "listing" does not exist` after implementing partial import PRD. Web app not loading listings.
+
+**Root Cause**: Environment issue, not code changes:
+1. `dealbrain_core` package not installed in Poetry virtual environment (required by Alembic migrations)
+2. Database containers had port conflicts preventing startup
+3. Migrations couldn't run without package installed
+
+**Fix**: Environment remediation (no code changes):
+1. PYTHONPATH workaround: `export PYTHONPATH=/mnt/containers/deal-brain/packages/core`
+2. Clean podman state: `podman-compose down && podman system prune -a -f --volumes`
+3. Kill orphaned port processes holding 5442/6399
+4. Fresh container start: `podman-compose up -d db redis`
+5. Apply migrations: `PYTHONPATH=/mnt/containers/deal-brain/packages/core poetry run alembic upgrade head`
+
+**Note**: Virtual environment corruption (.venv owned by root, poetry install hangs) requires separate fix outside this session
+
+**Follow-up Fix**: Added comprehensive database error handling to prevent unhandled crashes:
+- Location: `apps/api/dealbrain_api/api/listings.py`
+- Modified: 16 endpoints with try/except blocks
+- Error types handled: `OperationalError` (503), `ProgrammingError` (500), `DatabaseError` (500)
+- Benefit: API now returns proper HTTP responses instead of crashing on database errors
+
+**Commit**: 37fa826
