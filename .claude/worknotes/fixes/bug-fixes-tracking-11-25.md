@@ -552,3 +552,72 @@ def _normalize_price(self, price: Decimal | None) -> str:
 - Maintains backward compatibility with full-data imports
 
 **Commit**: d825a8a
+
+## 2025-11-10: Ingestion Service TypeError on None Prices
+
+**Issue**: Amazon listing imports failing with `TypeError: float() argument must be a string or a real number, not 'NoneType'` in IngestionService when creating or updating listings. Despite the adapter correctly returning `price=None` for partial extractions and the schema allowing None prices, the ingestion service crashed when attempting to convert None to float.
+
+**Location**:
+- `apps/api/dealbrain_api/services/ingestion.py:1277` (_create_listing method)
+- `apps/api/dealbrain_api/services/ingestion.py:1329` (_update_listing method)
+
+**Root Cause**: After implementing partial extraction support, adapters can return `NormalizedListingSchema` with `price=None` (schema allows optional prices). However, IngestionService assumed prices were always present:
+
+```python
+# Before (line 1277)
+listing = Listing(
+    title=data.title,
+    price_usd=float(data.price),  # TypeError when data.price is None
+    ...
+)
+
+# Before (line 1329)
+existing.price_usd = float(data.price)  # TypeError when data.price is None
+```
+
+**Fix**: Added None-safe price handling with 0.00 default, matching the pattern already used for `ram_gb` and `storage_gb`:
+
+**Code Changes**:
+```python
+# After (line 1277)
+listing = Listing(
+    title=data.title,
+    price_usd=float(data.price) if data.price is not None else 0.00,
+    ...
+)
+
+# After (line 1329)
+existing.price_usd = float(data.price) if data.price is not None else 0.00
+```
+
+**Why This Approach**:
+1. **Schema stays clean**: NormalizedListingSchema continues to allow None (optional field)
+2. **Adapter stays honest**: Returns None when extraction fails, not fake 0.00
+3. **Database gets valid data**: price_usd defaults to 0.00 instead of NULL
+4. **User experience**: 0.00 clearly indicates "no price" vs actual zero-cost item
+5. **Consistent pattern**: Matches existing `ram_gb or 0` and `storage_gb or 0` defaults
+
+**Implementation Details**:
+- Updated both `_create_listing()` and `_update_listing()` methods
+- Maintains type safety (float return type from ternary)
+- Also updated debug message in jsonld.py to mention .aok-offscreen selector
+- Minimal changes (3 lines total)
+
+**Testing**:
+- Valid price extraction (Amazon fixture): Works, extracts $299.00
+- Missing price extraction (minimal HTML): Works, defaults to 0.00
+- No TypeError when float(None) would have been attempted
+
+**Expected Outcome**: Amazon listings with partial data (title extracted, price failed) now successfully save to database with price_usd=0.00, allowing users to manually populate missing prices via UI.
+
+**Impact**:
+- Unblocks partial extraction feature end-to-end
+- Listings persist even when price extraction fails
+- Maintains data integrity (0.00 vs NULL preference)
+- No regressions for full-data imports
+
+**Related Fixes**: Completes the None price handling chain:
+- 2025-11-10: Deduplication hash generation (commit d825a8a)
+- 2025-11-10: Ingestion service listing creation/update (this fix)
+
+**Commit**: d3fbdd6
