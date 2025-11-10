@@ -706,3 +706,205 @@ existing.price_usd = float(data.price) if data.price is not None else 0.00
 - `apps/api/dealbrain_api/adapters/jsonld.py` - Added comprehensive price extraction logging
 
 **Commit**: [Pending - changes made in this session]
+
+## 2025-11-10: Amazon Price Extraction Failure - JavaScript-Rendered Prices and Selector Fixes
+
+**Issue**: All Amazon price selectors failing despite valid HTML with 532 spans. Test fixture extracts price successfully, but live Amazon URLs return HTML without any price data. Evidence:
+
+```
+HTML length: 864846 characters
+Page title: Amazon.com: Beelink SER5 MAX Mini PC...
+Element counts: 532 spans, 1153 divs, 96 imgs
+✓ Title found: Beelink SER5 MAX Mini PC...
+[Price] ❌ FAILED TO EXTRACT PRICE - All selectors tried failed
+```
+
+**Locations**:
+- `/mnt/containers/deal-brain/apps/api/dealbrain_api/adapters/jsonld.py:1308-1467` (price extraction)
+- Test fixture: `/mnt/containers/deal-brain/debug_amazon.com_1fe23618.html` (864KB, contains price data)
+- Live fetch: `live_amazon_b0fd3bcmbs.html` (865KB, empty price containers)
+
+**Root Cause Analysis**:
+
+### 1. Test Fixture vs Live HTML Discrepancy
+
+**Test Fixture** (saved from browser after JS execution):
+- `#corePriceDisplay_desktop_feature_div`: 5,211 characters of content
+- Contains: `span.aok-offscreen` with "$299.00 with 29 percent savings"
+- Contains: `span.priceToPay > span.a-offscreen` with "$299.00"
+- Contains: `#tp_price_block_total_price_ww span.a-offscreen` with "$299.00"
+- **All price selectors have valid data**
+
+**Live HTML** (httpx fetch without JavaScript):
+- `#corePriceDisplay_desktop_feature_div`: Only 679 characters (CSS only)
+- **ZERO** `span.a-offscreen` elements (0 found)
+- **ZERO** `span.aok-offscreen` elements (0 found)
+- **No price text anywhere** (no "$299", no price patterns)
+- **Completely empty price containers**
+
+### 2. Amazon's Client-Side Rendering
+
+Amazon uses JavaScript to render prices:
+- Initial HTML contains only structural containers and CSS
+- React/Vue/similar framework hydrates price data after page load
+- HTTP clients (httpx, requests) only fetch the initial HTML shell
+- Browser "Save As HTML" captures the **fully-rendered** DOM after JS execution
+- This explains why test fixture works but live fetches fail
+
+### 3. Bot Detection
+
+Live HTML analysis reveals:
+- Meta tag: `"isRobot":true` (Amazon detected the bot)
+- No JSON-LD structured data with prices
+- Encrypted lazy-load requests for dynamic content
+- Zero price-related data in embedded JSON states
+
+**Selector Issue in Test Fixture**:
+
+While investigating, discovered the old selectors had a validation bug:
+- `span.priceToPay > span.a-offscreen` **exists** but has **empty text** (`''`)
+- Old code didn't validate that extracted text was non-empty
+- This caused false positives where element exists but price extraction fails
+
+**Fix Applied**:
+
+### 1. Added Missing High-Priority Selectors
+
+Based on test fixture analysis, added selectors that actually work:
+
+**Priority 1a** (NEW - highest priority):
+```python
+# span.aok-offscreen (first occurrence)
+# Contains: "$299.00 with 29 percent savings"
+aok_offscreen_price = soup.select_one("span.aok-offscreen")
+if aok_offscreen_price:
+    price_str = aok_offscreen_price.get_text(strip=True)
+    if price_str:
+        price = self._parse_price(price_str)
+        if price:
+            logger.info(f"  [Price]   ✓ Priority 1a SUCCESS: parsed price={price}")
+```
+
+**Priority 2a** (NEW):
+```python
+# #tp_price_block_total_price_ww span.a-offscreen
+# Contains: "$299.00"
+tp_price = soup.select_one("#tp_price_block_total_price_ww span.a-offscreen")
+if tp_price:
+    price_str = tp_price.get_text(strip=True)
+    if price_str:
+        price = self._parse_price(price_str)
+```
+
+### 2. Enhanced Validation for All Selectors
+
+Updated all price selectors to validate:
+1. Element exists
+2. Text content is non-empty
+3. Price parses successfully to Decimal
+
+**Before**:
+```python
+if offscreen_price:
+    price_str = offscreen_price.get_text(strip=True)
+    price = self._parse_price(price_str)  # No validation if empty or None
+```
+
+**After**:
+```python
+if offscreen_price:
+    price_str = offscreen_price.get_text(strip=True)
+    if price_str:  # Validate non-empty
+        price = self._parse_price(price_str)
+        if price:  # Validate successful parse
+            logger.info(f"✓ SUCCESS: parsed price={price}")
+        else:
+            logger.debug(f"Failed to parse price from '{price_str}'")
+    else:
+        logger.debug("Element exists but text is empty (common issue), skipping")
+```
+
+**Updated Selector Priority Order**:
+
+1. **Priority 1a**: `span.aok-offscreen` (first occurrence) - **NEW**, works with test fixture
+2. **Priority 1b**: `#corePriceDisplay_desktop_feature_div span.aok-offscreen` - Updated validation
+3. **Priority 1c**: `#corePriceDisplay_desktop_feature_div span.a-offscreen` - Fallback
+4. **Priority 2a**: `#tp_price_block_total_price_ww span.a-offscreen` - **NEW**, works with test fixture
+5. **Priority 2b**: `span.a-price > span.a-offscreen` - Updated validation
+6. **Priority 3a**: `span.a-price span.a-price-whole span.a-offscreen` - Updated validation
+7. **Priority 3b**: `span.priceToPay span.a-offscreen` - **Empty text issue documented**
+8. Generic fallbacks: `#price_inside_buybox`, `#priceblock_ourprice`, etc.
+
+**Testing Results**:
+
+Test script against fixture HTML:
+```
+✓ SUCCESS    Priority 1a     span.aok-offscreen (first)
+             Text: '$299.00 with 29 percent savings'
+             Parsed: 299.00
+
+✅ Price extraction WOULD SUCCEED with updated code!
+```
+
+**Confirmed Working**:
+- Priority 1a extracts `$299.00` from test fixture ✅
+- Priority 2a extracts `$299.00` from test fixture ✅
+- All empty elements now properly skipped ✅
+- Parse failures properly logged and skipped ✅
+
+**Limitation Identified - JavaScript Requirement**:
+
+The fix addresses the **selector issue** with test fixture HTML, but **cannot solve** the live fetch problem:
+
+- **Test fixture imports**: Will now work (selectors fixed)
+- **Live Amazon URLs**: Still fail (requires JavaScript execution)
+
+**Live Amazon imports require**:
+1. **Headless browser** (Playwright, Selenium, Puppeteer)
+2. **JavaScript execution** to render prices
+3. **Anti-bot measures** (residential proxies, CAPTCHA handling, User-Agent rotation)
+4. **OR** Amazon Product Advertising API for legitimate access
+
+**Workaround for Now**:
+1. Save Amazon pages from browser ("Save As HTML, Complete")
+2. Use saved HTML files for testing price extraction
+3. Updated selectors will successfully extract from saved HTML
+4. Live URL imports will continue to fail until headless browser support added
+
+**Implementation Details**:
+- Added 2 new high-priority selectors
+- Enhanced validation for all 8 Amazon-specific selectors
+- Maintains backward compatibility (test fixture now works)
+- Comprehensive logging shows which selector succeeds/fails
+- Type-safe: All None checks properly implemented
+
+**Files Modified**:
+- `apps/api/dealbrain_api/adapters/jsonld.py` - Lines 1308-1467 (price extraction logic)
+
+**Analysis Scripts Created** (for debugging):
+- `analyze_amazon_html.py` - Analyze test fixture structure
+- `fetch_live_amazon.py` - Fetch and compare live HTML
+- `find_price_in_live_html.py` - Search for price patterns
+- `examine_core_price_display.py` - Compare corePriceDisplay structure
+- `find_embedded_json_data.py` - Search for JSON price data
+- `test_updated_selectors.py` - Verify selector fixes
+
+**Expected Outcome**:
+- **Test fixture HTML**: Price extraction succeeds with Priority 1a ✅
+- **Live Amazon URLs**: Still fail (JavaScript rendering required) ⚠️
+- **User can**: Save Amazon pages from browser and import HTML files as temporary solution
+- **Future enhancement**: Add Playwright/Selenium support for JavaScript rendering
+
+**Impact**:
+- Fixes selector validation bug (empty text handling)
+- Adds working selectors for test fixture HTML
+- Documents JavaScript rendering limitation
+- Provides temporary workaround (save HTML from browser)
+- Prepares codebase for future headless browser integration
+
+**Related**:
+- See analysis in `/mnt/containers/deal-brain/examine_core_price_display.py`
+- Live vs fixture comparison shows 5211 chars (fixture) vs 679 chars (live)
+- Amazon marks bot with `"isRobot":true` in embedded JSON state
+
+**Commit**: [Pending - changes made in this session]
