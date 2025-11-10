@@ -37,6 +37,8 @@ STORAGE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+EMPTY_PRICE: Decimal = Decimal("0.00")
+
 
 class JsonLdAdapter(BaseAdapter):
     """
@@ -436,7 +438,7 @@ class JsonLdAdapter(BaseAdapter):
             offers_raw = product.get("offers") or product.get("offer")
 
             # Initialize price and currency with defaults
-            price = None
+            price: Decimal | None = None
             currency = "USD"
             offers: list[dict[str, Any]] = []  # Initialize offers variable
 
@@ -449,9 +451,10 @@ class JsonLdAdapter(BaseAdapter):
 
             # Price is optional - log but continue if missing
             if price is None:
+                price = EMPTY_PRICE
                 logger.info(
                     f"Partial extraction from Schema.org: price not found for '{title}', "
-                    "continuing with title only"
+                    "continuing with title only with price set to $0.00."
                 )
 
             # Extract condition from availability
@@ -470,8 +473,8 @@ class JsonLdAdapter(BaseAdapter):
             specs = self._extract_specs(description or title)
 
             # Determine data quality and build extraction metadata
-            quality = "partial" if price is None else "full"
-            missing_fields = ["price"] if price is None else []
+            quality = "partial" if (price is None or price == EMPTY_PRICE) else "full"
+            missing_fields = ["price"] if (price is None or price == EMPTY_PRICE) else []
 
             # Track what was successfully extracted
             extraction_metadata: dict[str, str] = {}
@@ -481,7 +484,7 @@ class JsonLdAdapter(BaseAdapter):
                 "marketplace": "other",
                 "currency": currency,
             }
-            if price is not None:
+            if price is not None and price != EMPTY_PRICE:
                 extracted_fields["price"] = str(price)
             if images:
                 extracted_fields["images"] = ",".join(images)
@@ -501,7 +504,7 @@ class JsonLdAdapter(BaseAdapter):
                 extraction_metadata[field_name] = "extracted"
 
             # Mark price as extraction_failed if missing
-            if price is None:
+            if price is None or price == EMPTY_PRICE:
                 extraction_metadata["price"] = "extraction_failed"
 
             # Build normalized schema
