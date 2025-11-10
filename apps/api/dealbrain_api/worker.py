@@ -32,6 +32,7 @@ def ping() -> str:
 
 # Import task modules to register with Celery
 # Note: imports must be after celery_app definition to avoid circular imports
+from .tasks import cpu_metrics as _cpu_metrics_tasks  # noqa: E402, F401
 from .tasks import ingestion as _ingestion_tasks  # noqa: E402, F401
 from .tasks import valuation as _valuation_tasks  # noqa: E402, F401
 
@@ -41,6 +42,13 @@ celery_app.conf.beat_schedule = {
         "task": "ingestion.cleanup_expired_payloads",
         "schedule": crontab(hour=2, minute=0),  # Run at 2 AM daily
         "options": {"expires": 3600},  # Task expires if not run within 1 hour
+    },
+    "recalculate-cpu-metrics-nightly": {
+        "task": "cpu_metrics.recalculate_all",
+        "schedule": crontab(hour=2, minute=30),  # Run at 2:30 AM UTC daily
+        "options": {
+            "expires": 3600 * 2,  # Task expires if not run within 2 hours
+        },
     },
 }
 
