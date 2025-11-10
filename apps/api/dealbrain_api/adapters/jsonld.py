@@ -805,6 +805,174 @@ class JsonLdAdapter(BaseAdapter):
 
         return specs
 
+    def _extract_list_price(self, soup: BeautifulSoup) -> Decimal | None:
+        """
+        Extract list price (original MSRP) from Amazon product page.
+
+        Amazon shows "List Price" or "Was" price separately from deal price.
+        This enables pricing context for deal scoring.
+
+        Selectors:
+        - span.basisPrice span.aok-offscreen (modern)
+        - span.basisPrice span.a-offscreen (legacy)
+
+        Args:
+            soup: BeautifulSoup parsed HTML
+
+        Returns:
+            List price as Decimal or None if not found
+        """
+        # Try modern selector first
+        basis_price = soup.select_one("span.basisPrice span.aok-offscreen")
+        if not basis_price:
+            # Fallback to legacy selector
+            basis_price = soup.select_one("span.basisPrice span.a-offscreen")
+
+        if basis_price:
+            raw_price = basis_price.get_text(strip=True)
+            if raw_price:
+                # Use existing _parse_price method for consistent handling
+                return self._parse_price(raw_price)
+
+        return None
+
+    def _extract_brand(self, soup: BeautifulSoup) -> str | None:
+        """
+        Extract brand/manufacturer from Amazon product page.
+
+        Extraction strategies (in order):
+        1. #bylineInfo link with pattern "Visit the [Brand] Store"
+        2. Product title prefix (first word, min 2 chars)
+
+        Args:
+            soup: BeautifulSoup parsed HTML
+
+        Returns:
+            Brand name string (max 64 chars) or None
+        """
+        # Strategy 1: Extract from bylineInfo link
+        byline = soup.select_one("#bylineInfo")
+        if byline:
+            text = byline.get_text(strip=True)
+            # Pattern: "Visit the [Brand] Store" → extract [Brand]
+            match = re.search(r"Visit the (.+?) Store", text)
+            if match:
+                brand = match.group(1).strip()
+                # Truncate to schema max length (64 chars)
+                return brand[:64] if len(brand) > 64 else brand
+
+        # Strategy 2: Extract from product title (first word)
+        title = soup.select_one("#productTitle")
+        if title:
+            title_text = title.get_text(strip=True)
+            words = title_text.split()
+            if words and len(words[0]) > 1:  # Avoid single letters
+                brand = words[0]
+                return brand[:64] if len(brand) > 64 else brand
+
+        return None
+
+    def _extract_specs_from_table(self, soup: BeautifulSoup) -> dict[str, str]:
+        """
+        Extract structured specs from Amazon product details table.
+
+        Amazon provides prodDetTable with key-value rows. This is more
+        reliable than regex parsing from description text.
+
+        Extracted specs are filtered to relevant components:
+        - CPU/Processor
+        - RAM/Memory
+        - Storage
+        - GPU/Graphics
+
+        Args:
+            soup: BeautifulSoup parsed HTML
+
+        Returns:
+            Dict of normalized spec keys to values (e.g., {"processor": "AMD Ryzen 7"})
+        """
+        specs: dict[str, str] = {}
+
+        # Find the product details table
+        spec_table = soup.select_one("table.prodDetTable")
+        if not spec_table:
+            return specs
+
+        # Parse each row as key-value pair
+        rows = spec_table.find_all("tr")
+        for row in rows:
+            cells = row.find_all("td")
+            if len(cells) >= 2:
+                key = cells[0].get_text(strip=True).rstrip(":")
+                value = cells[1].get_text(strip=True)
+
+                # Normalize key names (lowercase, replace spaces with underscores)
+                key_normalized = key.lower().replace(" ", "_")
+
+                # Extract only relevant specs
+                relevant_terms = ["cpu", "processor", "ram", "memory", "storage", "gpu", "graphics"]
+                if any(term in key_normalized for term in relevant_terms):
+                    specs[key_normalized] = value
+
+        return specs
+
+    def _extract_images(self, soup: BeautifulSoup) -> list[str]:
+        """
+        Extract high-resolution product images from Amazon product gallery.
+
+        Extraction methods (in order):
+        1. img[data-old-hires] attribute - High-res direct URLs
+        2. img[data-a-dynamic-image] attribute - JSON-encoded URL map
+
+        Args:
+            soup: BeautifulSoup parsed HTML
+
+        Returns:
+            List of up to 5 image URLs (all starting with "http")
+        """
+        images: list[str] = []
+
+        # Primary method: data-old-hires attribute (high-res)
+        image_elements = soup.select("img[data-old-hires]")
+        if not image_elements:
+            # Fallback: data-a-dynamic-image attribute
+            image_elements = soup.select("img[data-a-dynamic-image]")
+
+        for img in image_elements:
+            # Extract from data-old-hires attribute
+            if img.has_attr("data-old-hires"):
+                url = img.get("data-old-hires", "")
+                url_str = url if isinstance(url, str) else str(url) if url else ""
+                if url_str and url_str.startswith("http"):
+                    images.append(url_str)
+            # Extract from data-a-dynamic-image attribute (JSON encoded)
+            elif img.has_attr("data-a-dynamic-image"):
+                try:
+                    import json
+
+                    dynamic_attr = img.get("data-a-dynamic-image", "{}")
+                    dynamic_str = (
+                        dynamic_attr
+                        if isinstance(dynamic_attr, str)
+                        else str(dynamic_attr)
+                        if dynamic_attr
+                        else "{}"
+                    )
+                    dynamic_data = json.loads(dynamic_str)
+                    # Keys are image URLs, values are dimensions
+                    for img_url in dynamic_data.keys():
+                        if img_url.startswith("http"):
+                            images.append(img_url)
+                            break  # Take first/largest image
+                except (json.JSONDecodeError, AttributeError):
+                    pass
+
+            # Limit to 5 images
+            if len(images) >= 5:
+                break
+
+        return images[:5]
+
     def _extract_from_meta_tags(self, html: str, url: str) -> NormalizedListingSchema | None:
         """
         Extract product data from OpenGraph/Twitter Card meta tags as fallback.
@@ -1142,13 +1310,20 @@ class JsonLdAdapter(BaseAdapter):
             price_str = None
 
             # Amazon-specific patterns (priority order based on 2025 research)
-            # Priority 1: Desktop core price display with offscreen
+            # Priority 1: Desktop core price display with offscreen (updated 2025)
+            # Try modern aok-offscreen class first, then legacy a-offscreen
             offscreen_price = soup.select_one(
-                "#corePriceDisplay_desktop_feature_div span.a-offscreen"
+                "#corePriceDisplay_desktop_feature_div span.aok-offscreen"
             )
+            if not offscreen_price:
+                offscreen_price = soup.select_one(
+                    "#corePriceDisplay_desktop_feature_div span.a-offscreen"
+                )
             if offscreen_price:
                 price_str = offscreen_price.get_text(strip=True)
-                price = self._parse_price(price_str)
+                # Validate non-empty to avoid parsing empty elements
+                if price_str:
+                    price = self._parse_price(price_str)
 
             # Priority 2: Simple a-price offscreen (direct child, most common)
             if not price:
@@ -1267,32 +1442,47 @@ class JsonLdAdapter(BaseAdapter):
             else:
                 logger.info(f"  ✓ Price found: {price}")
 
-            # Extract images - look for product images
-            images = []
-            img_tag = soup.select_one(
-                "img[data-old-hires], img[data-a-image-name], img.product-image"
-            )
+            # Extract list price (original MSRP) - Amazon-specific
+            list_price = self._extract_list_price(soup)
+            if list_price:
+                logger.info(f"  ✓ List price found: {list_price}")
 
-            if not img_tag:
-                # Fallback to first reasonable-sized img
-                all_imgs = soup.find_all("img", src=True)
-                for img in all_imgs:
-                    src_attr = img.get("src", "")
-                    # Convert BeautifulSoup attribute value to string
-                    src = src_attr if isinstance(src_attr, str) else str(src_attr) if src_attr else ""
-                    # Skip tiny images (icons, spacers)
-                    if src and "1x1" not in src and "pixel" not in src.lower():
-                        img_tag = img
-                        break
+            # Extract brand/manufacturer - Amazon-specific
+            brand = self._extract_brand(soup)
+            if brand:
+                logger.info(f"  ✓ Brand found: {brand}")
 
-            if img_tag:
-                img_src = (
-                    img_tag.get("data-old-hires")
-                    or img_tag.get("data-a-image-source")
-                    or img_tag.get("src")
+            # Extract images using enhanced extractor
+            images = self._extract_images(soup)
+            if not images:
+                # Fallback to legacy method for non-Amazon sites
+                img_tag = soup.select_one(
+                    "img[data-old-hires], img[data-a-image-name], img.product-image"
                 )
-                if img_src and isinstance(img_src, str):
-                    images = [img_src]
+
+                if not img_tag:
+                    # Fallback to first reasonable-sized img
+                    all_imgs = soup.find_all("img", src=True)
+                    for img in all_imgs:
+                        src_attr = img.get("src", "")
+                        # Convert BeautifulSoup attribute value to string
+                        src = src_attr if isinstance(src_attr, str) else str(src_attr) if src_attr else ""
+                        # Skip tiny images (icons, spacers)
+                        if src and "1x1" not in src and "pixel" not in src.lower():
+                            img_tag = img
+                            break
+
+                if img_tag:
+                    img_src = (
+                        img_tag.get("data-old-hires")
+                        or img_tag.get("data-a-image-source")
+                        or img_tag.get("src")
+                    )
+                    if img_src and isinstance(img_src, str):
+                        images = [img_src]
+
+            if images:
+                logger.info(f"  ✓ Images found: {len(images)} image(s)")
 
             # Extract description from meta description as fallback
             description: str | None = None
@@ -1305,10 +1495,20 @@ class JsonLdAdapter(BaseAdapter):
                 elif content_attr:
                     description = str(content_attr)
 
-            # Extract specs from title + description
-            # Ensure description is properly typed as str | None
+            # Extract specs from product details table (Amazon-specific, more reliable)
+            table_specs = self._extract_specs_from_table(soup)
+
+            # Fallback to regex extraction from title + description if table is empty
             desc_str = description if description else ""
-            specs = self._extract_specs((title or "") + " " + desc_str)
+            regex_specs = self._extract_specs((title or "") + " " + desc_str)
+
+            # Merge specs: prefer table extraction, fallback to regex
+            specs = {**regex_specs, **table_specs}  # table_specs overwrites regex_specs
+
+            if table_specs:
+                logger.info(f"  ✓ Specs from table: {list(table_specs.keys())}")
+            if regex_specs and not table_specs:
+                logger.info(f"  ✓ Specs from regex: {list(regex_specs.keys())}")
 
             # Determine data quality and build extraction metadata
             quality = "partial" if price is None else "full"
@@ -1324,6 +1524,10 @@ class JsonLdAdapter(BaseAdapter):
             }
             if price is not None:
                 extracted_fields["price"] = str(price)
+            if list_price is not None:
+                extracted_fields["list_price"] = str(list_price)
+            if brand:
+                extracted_fields["manufacturer"] = brand
             if images:
                 extracted_fields["images"] = ",".join(images)
             if description:
@@ -1339,6 +1543,11 @@ class JsonLdAdapter(BaseAdapter):
             for field_name in extracted_fields:
                 extraction_metadata[field_name] = "extracted"
 
+            # Store raw table specs in extraction_metadata for reference
+            if table_specs:
+                import json
+                extraction_metadata["specs_raw"] = json.dumps(table_specs)
+
             # Mark price as extraction_failed if missing
             if price is None:
                 extraction_metadata["price"] = "extraction_failed"
@@ -1352,6 +1561,7 @@ class JsonLdAdapter(BaseAdapter):
             return NormalizedListingSchema(
                 title=title,
                 price=price,
+                list_price=list_price,  # New field for original MSRP
                 currency="USD",  # Default, could be enhanced to detect from page
                 condition=str(Condition.NEW.value),  # Default
                 images=images,
@@ -1359,6 +1569,7 @@ class JsonLdAdapter(BaseAdapter):
                 marketplace="other",
                 vendor_item_id=None,
                 description=description,
+                manufacturer=brand,  # New field for brand/manufacturer
                 cpu_model=specs.get("cpu_model"),
                 ram_gb=specs.get("ram_gb"),
                 storage_gb=specs.get("storage_gb"),
