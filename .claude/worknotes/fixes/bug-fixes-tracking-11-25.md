@@ -621,3 +621,88 @@ existing.price_usd = float(data.price) if data.price is not None else 0.00
 - 2025-11-10: Ingestion service listing creation/update (this fix)
 
 **Commit**: d3fbdd6
+
+## 2025-11-10: Amazon Price Extraction Investigation - Enhanced Diagnostic Logging
+
+**Issue**: User reported Amazon import completes but price remains null/0.00, with no pricing-related logs suggesting silent failure before reaching extraction logic.
+
+**Investigation Context**:
+- User implemented aok-offscreen selector fix in jsonld.py (commit 01c4946)
+- Unit tests pass with fixture HTML showing $299.00 extraction (`test_full_extraction_from_html`)
+- Live import completes successfully but price remains 0.00
+- No pricing-related logs in output (suggesting extraction path may not execute)
+
+**Root Cause Analysis**:
+
+1. **Extraction Logic Verified Correct**:
+   - Test `test_full_extraction_from_html` **PASSES** with saved HTML
+   - Successfully extracts `price=$299.00` from test fixture
+   - HTML element fallback path works correctly
+   - All selector priority logic functions as designed
+
+2. **Live Testing Blocked by Amazon**:
+   - Test URLs return `HTTP 404 Not Found`
+   - Likely due to bot User-Agent detection
+   - Cannot reproduce live import failure scenario
+   - Saved HTML (debug_amazon.com_1fe23618.html) contains valid price data
+
+3. **Logging Gap Identified**:
+   - Price extraction had minimal logging at INFO level
+   - No visibility into which selectors were tried
+   - No output when extraction silently succeeded/failed
+   - Made debugging live imports nearly impossible
+
+**Fix**: Added comprehensive diagnostic logging throughout price extraction flow:
+
+**Enhanced Logging Points**:
+
+1. **Extraction Path Selection** (lines 181, 189):
+   ```python
+   logger.info(f"📋 No Schema.org Product found, trying meta tag fallback for {url}")
+   logger.info(f"🔍 No meta tags found, trying HTML element fallback for {url}")
+   ```
+
+2. **Priority-by-Priority Logging** (lines 1315-1349):
+   - Priority 1: `logger.debug("  [Price] Testing Priority 1: #corePriceDisplay_desktop_feature_div span.aok-offscreen")`
+   - Shows when aok-offscreen not found, tries a-offscreen fallback
+   - Logs element found vs not found
+   - Logs extracted text with length: `logger.debug(f"  [Price]   Found element, text='{price_str}' (length={len(price_str)})")`
+   - Logs successful parse: `logger.info(f"  [Price]   ✓ Priority 1 SUCCESS: parsed price={price}")`
+   - Logs empty element skip: `logger.debug("  [Price]   Element text is empty, skipping to next priority")`
+
+3. **Failure Summary** (lines 1423-1433):
+   ```python
+   if not price:
+       logger.warning(f"  [Price] ❌ FAILED TO EXTRACT PRICE for '{title}'")
+       logger.warning("  [Price] All selectors tried: Priority 1 (...), Priority 2 (...), ...")
+   ```
+
+**Implementation Details**:
+- Added DEBUG-level logging for each selector attempt
+- Added INFO-level logging for successful extractions
+- Added WARNING-level logging for complete failure
+- Shows exact text extracted and its length to diagnose empty elements
+- Maintains existing extraction logic (no behavioral changes)
+- All logging uses structured format with `[Price]` prefix for easy filtering
+
+**Expected Outcome**:
+- Live Amazon imports will now show detailed logs of price extraction attempts
+- Easy to identify which selector succeeds or if all fail
+- Can diagnose empty element issues vs selector mismatch issues
+- Makes future debugging significantly easier
+
+**Testing**:
+- Code updated and saved
+- Unit test still passes (`test_full_extraction_from_html`)
+- Awaiting live import test with actual Amazon URL
+
+**Next Steps for User**:
+1. Run live import with any Amazon product URL
+2. Check logs for `[Price]` entries to see extraction flow
+3. Report which selector succeeds or if all fail
+4. If all selectors fail, save HTML using `scripts/development/debug_fetch_html.py` for analysis
+
+**Files Modified**:
+- `apps/api/dealbrain_api/adapters/jsonld.py` - Added comprehensive price extraction logging
+
+**Commit**: [Pending - changes made in this session]
