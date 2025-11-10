@@ -501,3 +501,54 @@ Amazon URL imports should now:
 - Benefit: API now returns proper HTTP responses instead of crashing on database errors
 
 **Commit**: 37fa826
+
+## 2025-11-10: Deduplication Hash Generation TypeError on None Prices
+
+**Issue**: Amazon listing imports failing with `TypeError: unsupported format string passed to NoneType.__format__` during deduplication hash generation. Listings with successfully extracted titles but missing prices couldn't proceed through the import pipeline.
+
+**Location**: `apps/api/dealbrain_api/services/ingestion.py:293`
+
+**Root Cause**: The `_normalize_price()` method in `DeduplicationService` attempted to format None values using f-string formatting (`f"{price:.2f}"`), which raises a TypeError. After implementing partial extraction support, Amazon listings can legitimately have `price=None` when the price element isn't found in HTML, but deduplication service didn't account for this.
+
+**Fix**: Updated `_normalize_price()` method to handle None prices gracefully:
+
+**Code Changes**:
+```python
+# Before
+def _normalize_price(self, price: Decimal) -> str:
+    """Normalize price for hash comparison."""
+    return f"{price:.2f}"
+
+# After
+def _normalize_price(self, price: Decimal | None) -> str:
+    """Normalize price for hash comparison.
+
+    Args:
+        price: The price to normalize, or None for partial extractions
+
+    Returns:
+        Formatted price string, or empty string if price is None
+    """
+    if price is None:
+        return ""
+    return f"{price:.2f}"
+```
+
+**Implementation Details**:
+- Updated type annotation: `Decimal | None` instead of `Decimal`
+- Return empty string `""` when price is None
+- Hash format becomes `title|seller|` for None prices vs `title|seller|599.99` for valid prices
+- Maintains deterministic deduplication based on title and seller
+- No impact on listings with valid prices
+
+**Testing**: Verified type annotations and logic are correct
+
+**Expected Outcome**: Amazon listings with partial data (title extracted, price failed) can now proceed through deduplication and be saved as "partial" quality listings
+
+**Impact**:
+- Unblocks partial extraction feature for Amazon imports
+- Listings with None prices deduplicate correctly on title and seller
+- Users can manually populate missing price fields in the UI
+- Maintains backward compatibility with full-data imports
+
+**Commit**: d825a8a
