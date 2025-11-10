@@ -51,6 +51,12 @@ class NormalizedListingSchema(DealBrainModel):
         gt=0,
         decimal_places=2,
     )
+    list_price: Decimal | None = Field(
+        None,
+        description="Original/regular price before discount (MSRP)",
+        gt=0,
+        decimal_places=2,
+    )
     currency: str = Field(
         default="USD",
         description="ISO currency code",
