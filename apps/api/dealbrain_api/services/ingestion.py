@@ -271,16 +271,17 @@ class DeduplicationService:
 
         return text
 
-    def _normalize_price(self, price: Decimal) -> str:
+    def _normalize_price(self, price: Decimal | None) -> str:
         """Normalize price for consistent hashing.
 
         Formats price as string with exactly 2 decimal places.
+        Returns empty string for None prices (partial extractions).
 
         Args:
-            price: Price amount (Decimal)
+            price: Price amount (Decimal or None for partial extractions)
 
         Returns:
-            Price formatted as "XXX.XX" (2 decimal places)
+            Price formatted as "XXX.XX" (2 decimal places), or empty string if None
 
         Example:
             >>> service._normalize_price(Decimal("599.99"))
@@ -289,7 +290,11 @@ class DeduplicationService:
             '599.90'
             >>> service._normalize_price(Decimal("599"))
             '599.00'
+            >>> service._normalize_price(None)
+            ''
         """
+        if price is None:
+            return ""
         return f"{price:.2f}"
 
 
