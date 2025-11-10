@@ -146,9 +146,9 @@ Each CPU card displays:
    - Color-coded: Excellent (green), Good (blue), Fair (yellow), Poor (red)
 
 5. **Price Targets**
-   - Good Price (median market price)
-   - Great Price (25th percentile)
-   - Fair Price (75th percentile)
+   - Good Price (average market price)
+   - Great Price (1σ below average)
+   - Fair Price (1σ above average)
    - Confidence badge (High, Medium, Low)
 
 6. **Market Data**
@@ -242,8 +242,8 @@ Comprehensive CPU information organized into sections:
 
 1. **KPI Metrics Grid**
    - Four tile layout showing:
-     - Good Price (median)
-     - Great Price (25th percentile)
+     - Good Price (average market price)
+     - Great Price (1σ below average)
      - $/Single-Thread Mark
      - $/Multi-Thread Mark
    - Each tile color-coded for value quality
@@ -396,13 +396,13 @@ Price Targets are **statistical benchmarks** derived from actual marketplace lis
 
 ### Price Tiers Explained
 
-Price targets use **percentile-based pricing** from adjusted listing prices:
+Price targets use **standard deviation-based pricing** from adjusted listing prices:
 
-#### Great Price (25th Percentile)
+#### Great Price (Mean - 1σ)
 
-**Definition:** The price point below which **25% of listings** are sold.
+**Definition:** The average price **minus one standard deviation** — excellent deals.
 
-**Meaning:** An excellent deal — you're paying less than 75% of similar listings.
+**Meaning:** An excellent deal — you're paying significantly less than typical market prices.
 
 **When to Target:**
 - Actively hunting for best deals
@@ -412,15 +412,16 @@ Price targets use **percentile-based pricing** from adjusted listing prices:
 **Example:**
 ```
 CPU: Intel Core i7-12700K
-Great Price: $650
-Meaning: Only 25% of listings are priced below $650
+Average Price: $750, Standard Deviation: $100
+Great Price: $650 (= $750 - $100)
+Meaning: Excellent deals priced substantially below market average
 ```
 
-#### Good Price (50th Percentile / Median)
+#### Good Price (Mean / Average)
 
-**Definition:** The **middle price point** — half of listings cost more, half cost less.
+**Definition:** The **average (mean) adjusted price** across all listings.
 
-**Meaning:** A fair market price — reasonable and achievable.
+**Meaning:** A fair market price — reasonable and typical.
 
 **When to Target:**
 - Standard purchase without extended search
@@ -431,14 +432,14 @@ Meaning: Only 25% of listings are priced below $650
 ```
 CPU: Intel Core i7-12700K
 Good Price: $750
-Meaning: Median market price — 50% of listings are above/below this
+Meaning: Average market price from all active listings
 ```
 
-#### Fair Price (75th Percentile)
+#### Fair Price (Mean + 1σ)
 
-**Definition:** The price point below which **75% of listings** are sold.
+**Definition:** The average price **plus one standard deviation** — premium pricing.
 
-**Meaning:** Acceptable but not optimal — you're paying more than 75% of buyers.
+**Meaning:** Acceptable but above typical — you're paying more than average prices.
 
 **When to Target:**
 - Urgent need for the CPU
@@ -448,8 +449,9 @@ Meaning: Median market price — 50% of listings are above/below this
 **Example:**
 ```
 CPU: Intel Core i7-12700K
-Fair Price: $850
-Meaning: 75% of listings are priced below $850
+Average Price: $750, Standard Deviation: $100
+Fair Price: $850 (= $750 + $100)
+Meaning: Premium prices significantly above market average
 ```
 
 ### Confidence Levels
@@ -467,13 +469,15 @@ Price targets include a **confidence indicator** based on sample size:
 
 **Statistical Method:**
 
+Price targets are calculated using the **mean (average) price and standard deviation** of all active listings:
+
 ```
 Sample: All active listings with the CPU
 Metric: Adjusted Price (base price after valuation rules applied)
 
-Great Price = Mean - (1 × Standard Deviation)
-Good Price = Mean (Average adjusted price)
-Fair Price = Mean + (1 × Standard Deviation)
+Good Price = Mean (average of all adjusted prices)
+Great Price = Mean - (1 × Standard Deviation) — below-average deals
+Fair Price = Mean + (1 × Standard Deviation) — above-average prices
 
 Confidence =
   Sample ≥ 10 → High
@@ -492,9 +496,9 @@ Adjusted Prices: $550, $580, $590, $600, $620, $630, $640, $650, $670, $680, $70
 Mean (Good Price): $619
 Standard Deviation: $52
 
-Great Price: $619 - $52 = $567
-Good Price: $619
-Fair Price: $619 + $52 = $671
+Great Price: $619 - $52 = $567 (excellent deals, 1σ below average)
+Good Price: $619 (average market price)
+Fair Price: $619 + $52 = $671 (premium prices, 1σ above average)
 
 Confidence: High (12 listings)
 ```
@@ -774,9 +778,9 @@ The CPU Detail Modal provides comprehensive information organized into sections:
 
 ```
 ┌─────────────────────────────────────┐
-│ Great Deal: $650                    │ ← 25th percentile
-│ Good Price: $750                    │ ← Median (emphasized)
-│ Fair Price: $850                    │ ← 75th percentile
+│ Great Deal: $650                    │ ← Mean - 1σ (excellent deals)
+│ Good Price: $750                    │ ← Mean (average, emphasized)
+│ Fair Price: $850                    │ ← Mean + 1σ (premium pricing)
 │                                     │
 │ Confidence: High (12 listings)     │ ← Badge + sample size
 │ Last Updated: 2025-11-05            │ ← Timestamp
@@ -1401,14 +1405,14 @@ The CPU Detail Modal provides comprehensive information organized into sections:
 **Target Price**
 - Statistical benchmark showing expected market price for a CPU.
 
-**Great Price (25th Percentile)**
-- Excellent deal — 75% of listings cost more.
+**Great Price (Mean - 1σ)**
+- Excellent deal — average price minus one standard deviation.
 
-**Good Price (Median / 50th Percentile)**
-- Fair market price — half of listings cost more, half cost less.
+**Good Price (Mean / Average)**
+- Fair market price — the average of all listing prices.
 
-**Fair Price (75th Percentile)**
-- Acceptable price — 75% of listings cost less.
+**Fair Price (Mean + 1σ)**
+- Acceptable price — average price plus one standard deviation.
 
 **Confidence Level**
 - Reliability indicator for price targets based on sample size (High/Medium/Low/Insufficient).

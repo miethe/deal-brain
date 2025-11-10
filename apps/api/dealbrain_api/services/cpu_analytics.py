@@ -210,10 +210,10 @@ class CPUAnalyticsService:
                     Listing.adjusted_price_usd.isnot(None),
                     Listing.adjusted_price_usd > 0
                 )
-            ).where(
+            ).group_by(Cpu.id).having(
                 # Better = lower $/mark ratio
                 (func.avg(Listing.adjusted_price_usd) / Cpu.cpu_mark_multi) < dollar_per_multi
-            ).group_by(Cpu.id)
+            )
 
             # Count total CPUs with valid data
             total_count_stmt = select(func.count(func.distinct(Cpu.id))).select_from(Cpu).join(

@@ -105,7 +105,7 @@ export const MasterList = React.memo(function MasterList({
           />
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          Use j/k or arrow keys to navigate, c to compare
+          Use j/k or arrow keys to navigate, c to toggle compare
         </p>
       </div>
       <ScrollArea className="h-[70vh]" ref={listRef}>

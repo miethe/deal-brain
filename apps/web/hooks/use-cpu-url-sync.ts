@@ -28,6 +28,12 @@ import { useDebouncedCallback } from 'use-debounce';
  * - openModal: 'true' to open CPU detail modal on page load
  */
 
+// Validation constants for ranges
+const MAX_CPU_CORES = 128;
+const MAX_TDP_WATTS = 500;
+const MIN_CPU_YEAR = 2000;
+const MAX_CPU_YEAR = 2100;
+
 const DEFAULTS = {
   view: 'grid' as ViewMode,
   tab: 'catalog' as TabMode,
@@ -115,7 +121,7 @@ export function useCPUUrlSync() {
     // Core range (min-max format)
     if (coresParam !== null) {
       const [min, max] = coresParam.split('-').map((n) => parseInt(n, 10));
-      if (!isNaN(min) && !isNaN(max) && min >= 0 && max <= 128 && min <= max) {
+      if (!isNaN(min) && !isNaN(max) && min >= 0 && max <= MAX_CPU_CORES && min <= max) {
         urlFilters.coreRange = [min, max];
       }
     }
@@ -123,7 +129,7 @@ export function useCPUUrlSync() {
     // TDP range (min-max format)
     if (tdpParam !== null) {
       const [min, max] = tdpParam.split('-').map((n) => parseInt(n, 10));
-      if (!isNaN(min) && !isNaN(max) && min >= 0 && max <= 500 && min <= max) {
+      if (!isNaN(min) && !isNaN(max) && min >= 0 && max <= MAX_TDP_WATTS && min <= max) {
         urlFilters.tdpRange = [min, max];
       }
     }
@@ -131,7 +137,7 @@ export function useCPUUrlSync() {
     // Year range (min-max format)
     if (yearParam !== null) {
       const [min, max] = yearParam.split('-').map((n) => parseInt(n, 10));
-      if (!isNaN(min) && !isNaN(max) && min >= 2000 && max <= 2100 && min <= max) {
+      if (!isNaN(min) && !isNaN(max) && min >= MIN_CPU_YEAR && max <= MAX_CPU_YEAR && min <= max) {
         urlFilters.yearRange = [min, max];
       }
     }

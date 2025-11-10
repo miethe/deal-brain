@@ -130,7 +130,7 @@ export const PriceTargets = React.memo(function PriceTargets({
   variant = 'compact',
 }: PriceTargetsProps) {
   // Handle insufficient data case
-  if (confidence === 'insufficient' || sampleSize < 2 || !priceTargetGood) {
+  if (confidence === 'insufficient' || !priceTargetGood) {
     return (
       <Alert variant="default" className="border-amber-200 bg-amber-50 dark:bg-amber-950/30">
         <InfoIcon className="h-4 w-4 text-amber-600" />
