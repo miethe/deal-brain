@@ -1310,45 +1310,87 @@ class JsonLdAdapter(BaseAdapter):
             price_str = None
 
             # Amazon-specific patterns (priority order based on 2025 research)
-            # Priority 1: Desktop core price display with offscreen (updated 2025)
-            # Try modern aok-offscreen class first, then legacy a-offscreen
-            logger.debug("  [Price] Testing Priority 1: #corePriceDisplay_desktop_feature_div span.aok-offscreen")
-            offscreen_price = soup.select_one(
-                "#corePriceDisplay_desktop_feature_div span.aok-offscreen"
-            )
-            if not offscreen_price:
-                logger.debug("  [Price]   aok-offscreen not found, trying a-offscreen")
-                offscreen_price = soup.select_one(
-                    "#corePriceDisplay_desktop_feature_div span.a-offscreen"
-                )
-            if offscreen_price:
-                price_str = offscreen_price.get_text(strip=True)
+            # Priority 1a: aok-offscreen class (Amazon 2025 update, works with test fixture)
+            logger.debug("  [Price] Testing Priority 1a: span.aok-offscreen (first occurrence)")
+            aok_offscreen_price = soup.select_one("span.aok-offscreen")
+            if aok_offscreen_price:
+                price_str = aok_offscreen_price.get_text(strip=True)
                 logger.debug(f"  [Price]   Found element, text='{price_str}' (length={len(price_str)})")
                 # Validate non-empty to avoid parsing empty elements
                 if price_str:
                     price = self._parse_price(price_str)
-                    logger.info(f"  [Price]   ✓ Priority 1 SUCCESS: parsed price={price}")
+                    if price:
+                        logger.info(f"  [Price]   ✓ Priority 1a SUCCESS: parsed price={price}")
+                    else:
+                        logger.debug(f"  [Price]   Failed to parse price from '{price_str}'")
                 else:
                     logger.debug("  [Price]   Element text is empty, skipping to next priority")
             else:
-                logger.debug("  [Price]   No element found for Priority 1")
+                logger.debug("  [Price]   No span.aok-offscreen found")
 
-            # Priority 2: Simple a-price offscreen (direct child, most common)
+            # Priority 1b: Desktop core price display with offscreen (fallback)
             if not price:
-                logger.debug("  [Price] Testing Priority 2: span.a-price > span.a-offscreen")
+                logger.debug("  [Price] Testing Priority 1b: #corePriceDisplay_desktop_feature_div span.aok-offscreen")
+                offscreen_price = soup.select_one(
+                    "#corePriceDisplay_desktop_feature_div span.aok-offscreen"
+                )
+                if not offscreen_price:
+                    logger.debug("  [Price]   aok-offscreen not found, trying a-offscreen")
+                    offscreen_price = soup.select_one(
+                        "#corePriceDisplay_desktop_feature_div span.a-offscreen"
+                    )
+                if offscreen_price:
+                    price_str = offscreen_price.get_text(strip=True)
+                    logger.debug(f"  [Price]   Found element, text='{price_str}' (length={len(price_str)})")
+                    # Validate non-empty to avoid parsing empty elements
+                    if price_str:
+                        price = self._parse_price(price_str)
+                        if price:
+                            logger.info(f"  [Price]   ✓ Priority 1b SUCCESS: parsed price={price}")
+                        else:
+                            logger.debug(f"  [Price]   Failed to parse price from '{price_str}'")
+                    else:
+                        logger.debug("  [Price]   Element text is empty, skipping to next priority")
+                else:
+                    logger.debug("  [Price]   No element found for Priority 1b")
+
+            # Priority 2a: tp_price_block (Amazon 2024-2025 pattern, works with test fixture)
+            if not price:
+                logger.debug("  [Price] Testing Priority 2a: #tp_price_block_total_price_ww span.a-offscreen")
+                tp_price = soup.select_one("#tp_price_block_total_price_ww span.a-offscreen")
+                if tp_price:
+                    price_str = tp_price.get_text(strip=True)
+                    logger.debug(f"  [Price]   Found element, text='{price_str}' (length={len(price_str)})")
+                    if price_str:
+                        price = self._parse_price(price_str)
+                        if price:
+                            logger.info(f"  [Price]   ✓ Priority 2a SUCCESS: parsed price={price}")
+                        else:
+                            logger.debug(f"  [Price]   Failed to parse price from '{price_str}'")
+                    else:
+                        logger.debug("  [Price]   Element text is empty, skipping")
+                else:
+                    logger.debug("  [Price]   No #tp_price_block_total_price_ww found")
+
+            # Priority 2b: Simple a-price offscreen (direct child, most common)
+            if not price:
+                logger.debug("  [Price] Testing Priority 2b: span.a-price > span.a-offscreen")
                 offscreen_price = soup.select_one("span.a-price > span.a-offscreen")
                 if offscreen_price:
                     price_str = offscreen_price.get_text(strip=True)
                     logger.debug(f"  [Price]   Found element, text='{price_str}' (length={len(price_str)})")
                     if price_str:
                         price = self._parse_price(price_str)
-                        logger.info(f"  [Price]   ✓ Priority 2 SUCCESS: parsed price={price}")
+                        if price:
+                            logger.info(f"  [Price]   ✓ Priority 2b SUCCESS: parsed price={price}")
+                        else:
+                            logger.debug(f"  [Price]   Failed to parse price from '{price_str}'")
                     else:
                         logger.debug("  [Price]   Element text is empty, skipping")
                 else:
-                    logger.debug("  [Price]   No element found for Priority 2")
+                    logger.debug("  [Price]   No element found for Priority 2b")
 
-            # Priority 3: Generic a-price offscreen with intermediate wrapper
+            # Priority 3a: Generic a-price offscreen with intermediate wrapper
             if not price:
                 logger.debug("  [Price] Testing Priority 3a: span.a-price span.a-price-whole span.a-offscreen")
                 offscreen_price = soup.select_one("span.a-price span.a-price-whole span.a-offscreen")
@@ -1357,9 +1399,16 @@ class JsonLdAdapter(BaseAdapter):
                     logger.debug(f"  [Price]   Found element, text='{price_str}'")
                     if price_str:
                         price = self._parse_price(price_str)
-                        logger.info(f"  [Price]   ✓ Priority 3a SUCCESS: parsed price={price}")
+                        if price:
+                            logger.info(f"  [Price]   ✓ Priority 3a SUCCESS: parsed price={price}")
+                        else:
+                            logger.debug(f"  [Price]   Failed to parse price from '{price_str}'")
+                    else:
+                        logger.debug("  [Price]   Element text is empty, skipping")
+                else:
+                    logger.debug("  [Price]   No element found for Priority 3a")
 
-            # Priority 3b: Modern priceToPay selector
+            # Priority 3b: Modern priceToPay selector (may be empty in some HTML versions)
             if not price:
                 logger.debug("  [Price] Testing Priority 3b: span.priceToPay span.a-offscreen")
                 element = soup.select_one("span.priceToPay span.a-offscreen")
@@ -1368,7 +1417,14 @@ class JsonLdAdapter(BaseAdapter):
                     logger.debug(f"  [Price]   Found element, text='{price_str}'")
                     if price_str:
                         price = self._parse_price(price_str)
-                        logger.info(f"  [Price]   ✓ Priority 3b SUCCESS: parsed price={price}")
+                        if price:
+                            logger.info(f"  [Price]   ✓ Priority 3b SUCCESS: parsed price={price}")
+                        else:
+                            logger.debug(f"  [Price]   Failed to parse price from '{price_str}'")
+                    else:
+                        logger.debug("  [Price]   Element exists but text is empty (common issue), skipping")
+                else:
+                    logger.debug("  [Price]   No element found for Priority 3b")
 
             # Priority 4: Buy box price
             if not price:
