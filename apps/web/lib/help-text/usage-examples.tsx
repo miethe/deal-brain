@@ -150,8 +150,13 @@ export function InfoBannerExample() {
   // Map banner variant to Alert variant
   // Banner variants: "info", "warning", "tip"
   // Alert variants: "default" | "destructive" | undefined
+  const bannerVariantToAlertVariant: Record<string, "default" | "destructive" | undefined> = {
+    info: "default",
+    warning: "destructive",
+    tip: "default",
+  };
   const alertVariant: "default" | "destructive" | undefined =
-    banner.variant === "warning" ? "destructive" : "default";
+    bannerVariantToAlertVariant[banner.variant] ?? "default";
 
   return (
     <Alert variant={alertVariant} className="mb-4">

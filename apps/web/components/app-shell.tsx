@@ -49,16 +49,26 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   // Restore catalogs dropdown state from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem('nav:catalogs-open');
-    if (stored !== null) {
-      setCatalogsOpen(stored === 'true');
+    try {
+      const stored = localStorage.getItem('nav:catalogs-open');
+      if (stored !== null) {
+        setCatalogsOpen(stored === 'true');
+      }
+    } catch (error) {
+      // Handle SecurityError in private browsing mode or when localStorage is disabled
+      console.warn('localStorage access denied:', error);
     }
   }, []);
 
   // Persist catalogs dropdown state to localStorage
   const handleCatalogsToggle = (open: boolean) => {
     setCatalogsOpen(open);
-    localStorage.setItem('nav:catalogs-open', String(open));
+    try {
+      localStorage.setItem('nav:catalogs-open', String(open));
+    } catch (error) {
+      // Handle SecurityError in private browsing mode or when localStorage is disabled
+      console.warn('localStorage write failed:', error);
+    }
   };
 
   return (
