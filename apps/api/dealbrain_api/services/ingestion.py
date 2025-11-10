@@ -1274,7 +1274,7 @@ class IngestionService:
         # Create listing with all fields
         listing = Listing(
             title=data.title,
-            price_usd=float(data.price),
+            price_usd=float(data.price) if data.price is not None else 0.00,
             condition=condition.value,
             marketplace=data.marketplace,
             vendor_item_id=data.vendor_item_id,
@@ -1326,7 +1326,7 @@ class IngestionService:
 
         # Update price and check for changes
         old_price = existing.price_usd
-        existing.price_usd = float(data.price)
+        existing.price_usd = float(data.price) if data.price is not None else 0.00
         existing.last_seen_at = datetime.utcnow()
 
         # Update condition if changed
