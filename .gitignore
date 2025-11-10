@@ -27,7 +27,7 @@ yarn-debug.log*
 npm-debug.log*
 .pnpm-debug.log*
 dist-*/
-**/tsconfig.tsbuildinfo
+tsconfig.tsbuildinfo
 
 # Editors/OS
 .DS_Store
@@ -50,6 +50,7 @@ volumes/
 # Playwright
 playwright-report/
 playwright/.cache/
+**/coverage
 
 # Temporary implementation summaries (development artifacts)
 BASELINE_HYDRATION_FIXES_SUMMARY.md

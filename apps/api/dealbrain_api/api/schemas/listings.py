@@ -197,9 +197,46 @@ class ListingValuationOverrideResponse(BaseModel):
     disabled_rulesets: list[int] = Field(default_factory=list)
 
 
+class PaginatedListingsResponse(BaseModel):
+    """Cursor-based paginated listings response."""
+    items: list[ListingRead] = Field(..., description="Listings in current page")
+    total: int = Field(..., description="Total count of listings (cached)")
+    limit: int = Field(..., description="Number of items requested per page")
+    next_cursor: str | None = Field(None, description="Cursor for next page (null if last page)")
+    has_next: bool = Field(..., description="Whether more pages are available")
+
+
+class CompletePartialImportRequest(BaseModel):
+    """Request schema for completing a partial import."""
+
+    price: float = Field(
+        ...,
+        gt=0,
+        description="Listing price in USD (must be positive)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {"price": 299.99}
+        }
+
+
+class CompletePartialImportResponse(BaseModel):
+    """Response schema for completed listing."""
+
+    id: int
+    title: str
+    price_usd: float | None
+    quality: str
+    missing_fields: list[str]
+    adjusted_price_usd: float | None
+
+
 __all__ = [
     "BulkRecalculateRequest",
     "BulkRecalculateResponse",
+    "CompletePartialImportRequest",
+    "CompletePartialImportResponse",
     "LegacyValuationLine",
     "ListingBulkUpdateRequest",
     "ListingBulkUpdateResponse",
@@ -208,6 +245,7 @@ __all__ = [
     "ListingSchemaResponse",
     "ListingValuationOverrideRequest",
     "ListingValuationOverrideResponse",
+    "PaginatedListingsResponse",
     "PortEntry",
     "PortsResponse",
     "UpdatePortsRequest",

@@ -315,14 +315,17 @@ class TestSchemaMapping:
         assert "Missing required field: title" in exc.value.message
 
     def test_map_to_schema_missing_price(self, adapter, ebay_responses):
-        """Test mapping fails when price is missing."""
+        """Test mapping creates partial import when price is missing."""
         item_data = ebay_responses["error_missing_price"]
 
-        with pytest.raises(AdapterException) as exc:
-            adapter._map_to_schema(item_data)
+        # Should not raise exception, but create partial import
+        result = adapter._map_to_schema(item_data)
 
-        assert exc.value.error_type == AdapterError.INVALID_SCHEMA
-        assert "Missing required field: price.value" in exc.value.message
+        # Verify partial import quality indicators
+        assert result.quality == "partial"
+        assert result.missing_fields == ["price"]
+        assert result.price is None
+        assert result.extraction_metadata["price"] == "extraction_failed"
 
 
 class TestApiFetching:

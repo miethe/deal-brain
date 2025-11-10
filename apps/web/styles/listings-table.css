@@ -1,0 +1,58 @@
+/**
+ * CSS Performance Optimizations for ListingsTable
+ * Part of PERF-004: React Component Rendering Optimization
+ *
+ * Layer 3: Browser-level containment and rendering hints
+ */
+
+/* Table row containment for better rendering performance */
+[data-listings-table-row] {
+  /* CSS containment: tell browser this element is isolated */
+  contain: layout style paint;
+
+  /* Content visibility for progressive rendering */
+  content-visibility: auto;
+
+  /* Intrinsic size hint for stable scroll behavior */
+  contain-intrinsic-size: auto 48px;
+}
+
+/* Highlighted row animation - optimized with will-change */
+[data-listings-table-row][data-highlighted="true"] {
+  animation: highlight-pulse 2s ease-in-out;
+  will-change: background-color;
+}
+
+@keyframes highlight-pulse {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(59, 130, 246, 0.1); /* blue-500 with low opacity */
+  }
+}
+
+/* Cell containment for complex cells */
+[data-editable-cell],
+[data-valuation-cell],
+[data-ports-cell] {
+  contain: layout style;
+}
+
+/* Force GPU acceleration for scrolling */
+.listings-table-container {
+  transform: translateZ(0);
+  will-change: scroll-position;
+}
+
+/* Optimize table layout */
+.listings-table {
+  /* Table layout fixed for better performance */
+  table-layout: fixed;
+}
+
+/* Prevent layout shifts during loading */
+.listings-table-skeleton {
+  min-height: 400px;
+  contain: layout;
+}

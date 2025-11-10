@@ -1,8 +1,13 @@
+"use client";
+
+import { useState } from "react";
 import { ProductImage } from "./product-image";
 import { SummaryCard } from "./summary-card";
 import { SummaryCardsGrid } from "./summary-cards-grid";
 import { Badge } from "@/components/ui/badge";
 import { EntityTooltip } from "./entity-tooltip";
+import { ValuationTooltip } from "./valuation-tooltip";
+import { ValuationBreakdownModal } from "./valuation-breakdown-modal";
 import type { ListingDetail } from "@/types/listing-detail";
 
 interface DetailPageHeroProps {
@@ -10,6 +15,8 @@ interface DetailPageHeroProps {
 }
 
 export function DetailPageHero({ listing }: DetailPageHeroProps) {
+  const [breakdownModalOpen, setBreakdownModalOpen] = useState(false);
+
   const formatCurrency = (value: number | null | undefined) =>
     value == null
       ? "—"
@@ -105,9 +112,19 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
           />
 
           <SummaryCard
-            title="Adjusted Price"
+            title="Adjusted Value"
             value={formatCurrency(listing.adjusted_price_usd)}
             size="large"
+            icon={
+              listing.price_usd && listing.adjusted_price_usd ? (
+                <ValuationTooltip
+                  listPrice={listing.price_usd}
+                  adjustedValue={listing.adjusted_price_usd}
+                  valuationBreakdown={listing.valuation_breakdown}
+                  onViewDetails={() => setBreakdownModalOpen(true)}
+                />
+              ) : null
+            }
           />
 
           <SummaryCard
@@ -141,6 +158,15 @@ export function DetailPageHero({ listing }: DetailPageHeroProps) {
           />
         </SummaryCardsGrid>
       </div>
+
+      {/* Valuation Breakdown Modal */}
+      <ValuationBreakdownModal
+        open={breakdownModalOpen}
+        onOpenChange={setBreakdownModalOpen}
+        listingId={listing.id}
+        listingTitle={listing.title}
+        thumbnailUrl={listing.thumbnail_url}
+      />
     </div>
   );
 }

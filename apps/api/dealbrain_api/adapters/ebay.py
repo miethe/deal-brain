@@ -270,7 +270,8 @@ class EbayAdapter(BaseAdapter):
         Map eBay API response to NormalizedListingSchema.
 
         Extracts fields from the eBay Browse API response and transforms them
-        into the canonical NormalizedListingSchema format.
+        into the canonical NormalizedListingSchema format. Supports partial
+        imports when price is unavailable.
 
         eBay Response Structure:
         -----------------------
@@ -296,7 +297,7 @@ class EbayAdapter(BaseAdapter):
             NormalizedListingSchema with mapped data
 
         Raises:
-            AdapterException: If required fields are missing or invalid
+            AdapterException: If required fields are missing (title required, price optional)
         """
         try:
             # Extract basic fields
@@ -308,18 +309,20 @@ class EbayAdapter(BaseAdapter):
                     metadata={"item_data": item_data},
                 )
 
-            # Extract and validate price
+            # Extract price (optional - may be None for partial imports)
+            price = None
+            currency = "USD"  # Default currency
             price_obj = item_data.get("price", {})
             price_value = price_obj.get("value")
-            if not price_value:
-                raise AdapterException(
-                    AdapterError.INVALID_SCHEMA,
-                    "Missing required field: price.value",
-                    metadata={"item_data": item_data},
-                )
 
-            price = Decimal(str(price_value))
-            currency = price_obj.get("currency", "USD")
+            if price_value:
+                price = Decimal(str(price_value))
+                currency = price_obj.get("currency", "USD")
+            else:
+                logger.warning(
+                    f"[{self.name}] No price found in eBay API response - "
+                    f"creating partial import for item: {title}"
+                )
 
             # Extract condition and normalize
             condition_raw = item_data.get("condition", "Used")
@@ -352,6 +355,43 @@ class EbayAdapter(BaseAdapter):
             ram_gb = self._extract_ram_from_aspects(aspects)
             storage_gb = self._extract_storage_from_aspects(aspects)
 
+            # Determine data quality and build extraction metadata
+            quality = "partial" if price is None else "full"
+            missing_fields = ["price"] if price is None else []
+
+            # Track what was successfully extracted
+            extraction_metadata: dict[str, str] = {}
+            extracted_fields = {
+                "title": title,
+                "condition": condition,
+                "marketplace": "ebay",
+                "currency": currency,
+            }
+            if price is not None:
+                extracted_fields["price"] = str(price)
+            if vendor_item_id:
+                extracted_fields["vendor_item_id"] = vendor_item_id
+            if images:
+                extracted_fields["images"] = ",".join(images)
+            if seller:
+                extracted_fields["seller"] = seller
+            if description:
+                extracted_fields["description"] = description
+            if cpu_model:
+                extracted_fields["cpu_model"] = cpu_model
+            if ram_gb:
+                extracted_fields["ram_gb"] = str(ram_gb)
+            if storage_gb:
+                extracted_fields["storage_gb"] = str(storage_gb)
+
+            # Mark all extracted fields
+            for field_name in extracted_fields:
+                extraction_metadata[field_name] = "extracted"
+
+            # Mark price as extraction_failed if missing
+            if price is None:
+                extraction_metadata["price"] = "extraction_failed"
+
             # Build normalized schema
             return NormalizedListingSchema(
                 title=title,
@@ -366,6 +406,9 @@ class EbayAdapter(BaseAdapter):
                 cpu_model=cpu_model,
                 ram_gb=ram_gb,
                 storage_gb=storage_gb,
+                quality=quality,
+                extraction_metadata=extraction_metadata,
+                missing_fields=missing_fields,
             )
 
         except Exception as e:

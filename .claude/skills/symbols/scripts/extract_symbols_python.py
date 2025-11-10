@@ -13,14 +13,14 @@ Usage:
     python extract_symbols_python.py <path> [--output=file.json] [--exclude-tests] [--exclude-private]
 
 Examples:
-    # Extract symbols from API directory
-    python extract_symbols_python.py services/api/app
+    # Extract symbols from backend directory
+    python extract_symbols_python.py backend
 
     # Extract with output file
-    python extract_symbols_python.py services/api/app --output=api_symbols.json
+    python extract_symbols_python.py api --output=api_symbols.json
 
     # Exclude test files and private methods
-    python extract_symbols_python.py services/api/app --exclude-tests --exclude-private
+    python extract_symbols_python.py backend --exclude-tests --exclude-private
 
 Output Format:
     {
@@ -38,8 +38,10 @@ Output Format:
 
 Symbol Kinds:
     - class: Class declarations
-    - function: Module-level functions (includes async functions)
-    - method: Class methods (includes async methods)
+    - function: Module-level functions
+    - method: Class methods (includes class context)
+    - async_function: Async functions
+    - async_method: Async methods
 """
 
 import ast
@@ -154,12 +156,12 @@ class PythonSymbolExtractor(ast.NodeVisitor):
         if node.name.startswith('_') and not node.name.startswith('__'):
             return
 
-        # Determine if this is a method or function (map async to regular kinds)
+        # Determine if this is an async method or function
         if self.current_class:
-            kind = "method"
+            kind = "async_method"
             parent = self.current_class
         else:
-            kind = "function"
+            kind = "async_function"
             parent = None
 
         # Build signature

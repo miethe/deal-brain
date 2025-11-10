@@ -12,6 +12,7 @@ from dealbrain_core.schemas import SpreadsheetSeed
 from ..db import Base, get_engine, session_scope
 from ..models import Cpu, Gpu, Listing, PortsProfile, Port, Profile
 from .component_catalog import seed_component_catalog
+from .cpu_mark_thresholds_seed import seed_cpu_mark_thresholds
 from ..services.listings import (
     apply_listing_metrics,
     create_listing,
@@ -25,6 +26,7 @@ from ..settings import get_settings
 async def apply_seed(seed: SpreadsheetSeed) -> None:
     async with session_scope() as session:
         await seed_component_catalog(session)
+        await seed_cpu_mark_thresholds(session)
 
         for cpu in seed.cpus:
             existing = await session.scalar(select(Cpu).where(Cpu.name == cpu.name))

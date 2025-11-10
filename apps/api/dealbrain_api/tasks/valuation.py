@@ -8,7 +8,7 @@ from typing import Iterable, Sequence
 from dealbrain_core.enums import ListingStatus
 from sqlalchemy import select
 
-from ..db import session_scope
+from ..db import dispose_engine, session_scope
 from ..models import Listing
 from ..services.listings import apply_listing_metrics
 from ..telemetry import bind_request_context, clear_context, get_logger, new_request_id
@@ -147,6 +147,11 @@ def recalculate_listings_task(
     loop = asyncio.new_event_loop()
     try:
         asyncio.set_event_loop(loop)
+
+        # Dispose existing engine if present to prevent "attached to a different loop" errors
+        # The engine will be recreated with the new event loop on first use
+        loop.run_until_complete(dispose_engine())
+
         return loop.run_until_complete(
             _recalculate_listings_async(
                 listing_ids=normalized_ids or None,

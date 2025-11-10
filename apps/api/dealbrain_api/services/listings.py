@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
+import base64
+import json
+from datetime import datetime, timedelta
 from typing import Any, Iterable
 from urllib.parse import urlparse
 
@@ -9,9 +11,11 @@ from dealbrain_core.gpu import compute_gpu_score
 from dealbrain_core.schemas.ingestion import NormalizedListingSchema
 from dealbrain_core.scoring import ListingMetrics, compute_composite_score, dollar_per_metric
 from dealbrain_core.valuation import ComponentValuationInput, compute_adjusted_price
-from sqlalchemy import delete, select
+from sqlalchemy import and_, asc, delete, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from ..cache import cache_manager
 from ..models import Cpu, Gpu, Listing, ListingComponent, Profile
 from ..telemetry import get_logger
 from .component_catalog import (
@@ -57,6 +61,13 @@ MUTABLE_LISTING_FIELDS: set[str] = {
     "os_license",
     "notes",
     "ruleset_id",
+    # Partial import fields (Phase 1)
+    "quality",
+    "extraction_metadata",
+    "missing_fields",
+    "vendor_item_id",
+    "marketplace",
+    "provenance",
 }
 
 
@@ -282,6 +293,24 @@ def _format_rule_evaluation_breakdown(summary: dict[str, Any]) -> dict[str, Any]
 
 
 async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None:
+    """Apply valuation rules and calculate performance metrics for a listing.
+
+    Requires listing.price_usd to be set. If price is None, this function
+    should not be called (partial imports should skip metrics calculation).
+
+    Args:
+        session: Database session
+        listing: Listing instance with price_usd set
+
+    Raises:
+        ValueError: If listing.price_usd is None
+    """
+    if listing.price_usd is None:
+        raise ValueError(
+            f"Cannot apply metrics to listing {listing.id} with price_usd=None. "
+            "Metrics calculation requires a price."
+        )
+
     evaluation_summary: dict[str, Any] | None = None
 
     logger.debug(
@@ -360,6 +389,7 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
     # Eagerly load CPU and GPU relationships to avoid lazy-load in async context
     if listing.cpu_id:
         cpu = await session.get(Cpu, listing.cpu_id)
+        listing.cpu = cpu
     else:
         cpu = None
 
@@ -408,16 +438,11 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
         dollar_per_metric(listing.adjusted_price_usd, cpu_single) if cpu_single else None
     )
 
-    # New dollar per CPU Mark metrics (single and multi-thread)
-    if listing.adjusted_price_usd and cpu:
-        if cpu.cpu_mark_single:
-            listing.dollar_per_cpu_mark_single = (
-                listing.adjusted_price_usd / cpu.cpu_mark_single
-            )
-        if cpu.cpu_mark_multi:
-            listing.dollar_per_cpu_mark_multi = (
-                listing.adjusted_price_usd / cpu.cpu_mark_multi
-            )
+    # Calculate all CPU performance metrics (base and adjusted)
+    if cpu:
+        metrics = calculate_cpu_performance_metrics(listing)
+        for key, value in metrics.items():
+            setattr(listing, key, value)
 
     await session.flush()
     logger.info(
@@ -593,8 +618,16 @@ async def partial_update_listing(
     await session.flush()
 
     if run_metrics:
-        await apply_listing_metrics(session, listing)
-        await session.refresh(listing)
+        # Only apply metrics if listing has a price
+        if listing.price_usd is not None:
+            await apply_listing_metrics(session, listing)
+            await session.refresh(listing)
+        else:
+            logger.info(
+                "listing.partial_update.skipped_metrics",
+                listing_id=listing.id,
+                reason="price_is_none",
+            )
     return listing
 
 
@@ -668,7 +701,15 @@ async def bulk_update_listings(
 
     await session.flush()
     for listing in listings:
-        await apply_listing_metrics(session, listing)
+        # Only apply metrics if listing has a price
+        if listing.price_usd is not None:
+            await apply_listing_metrics(session, listing)
+        else:
+            logger.info(
+                "listing.bulk_update.skipped_metrics",
+                listing_id=listing.id,
+                reason="price_is_none",
+            )
     await session.flush()
     for listing in listings:
         await session.refresh(listing)
@@ -706,30 +747,42 @@ def _coerce_condition(value: Any) -> Condition:
 def calculate_cpu_performance_metrics(listing: Listing) -> dict[str, float]:
     """Calculate all CPU-based performance metrics for a listing.
 
+    Adjusted metrics use component-based adjustment delta:
+    adjusted_base_price = base_price + total_adjustment
+
+    Where total_adjustment comes from valuation_breakdown['total_adjustment']
+    (negative values decrease price, positive values increase price)
+
     Returns
     -------
         Dictionary with metric keys and calculated values.
-        Empty dict if CPU not assigned or missing benchmark data.
-    
+        Empty dict if CPU not assigned, missing benchmark data, or price is None.
+
     """
-    if not listing.cpu:
+    if not listing.cpu or listing.price_usd is None:
         return {}
 
     cpu = listing.cpu
     base_price = float(listing.price_usd)
-    adjusted_price = float(listing.adjusted_price_usd) if listing.adjusted_price_usd else base_price
+
+    # Extract adjustment delta from valuation breakdown
+    total_adjustment = 0.0
+    if listing.valuation_breakdown:
+        total_adjustment = float(listing.valuation_breakdown.get('total_adjustment', 0.0))
+
+    adjusted_base_price = base_price - total_adjustment
 
     metrics = {}
 
     # Single-thread metrics
     if cpu.cpu_mark_single and cpu.cpu_mark_single > 0:
         metrics['dollar_per_cpu_mark_single'] = base_price / cpu.cpu_mark_single
-        metrics['dollar_per_cpu_mark_single_adjusted'] = adjusted_price / cpu.cpu_mark_single
+        metrics['dollar_per_cpu_mark_single_adjusted'] = adjusted_base_price / cpu.cpu_mark_single
 
     # Multi-thread metrics
     if cpu.cpu_mark_multi and cpu.cpu_mark_multi > 0:
         metrics['dollar_per_cpu_mark_multi'] = base_price / cpu.cpu_mark_multi
-        metrics['dollar_per_cpu_mark_multi_adjusted'] = adjusted_price / cpu.cpu_mark_multi
+        metrics['dollar_per_cpu_mark_multi_adjusted'] = adjusted_base_price / cpu.cpu_mark_multi
 
     return metrics
 
@@ -790,7 +843,7 @@ async def bulk_update_listing_metrics(
     Returns:
     -------
         Count of listings updated
-    
+
     """
     from sqlalchemy.orm import joinedload
 
@@ -812,9 +865,286 @@ async def bulk_update_listing_metrics(
     return updated_count
 
 
+async def delete_listing(
+    session: AsyncSession,
+    listing_id: int,
+) -> None:
+    """Delete listing and cascade related records.
+
+    Cascades delete to:
+    - ListingComponent records
+    - ListingScoreSnapshot records
+    - RawPayload records
+    - EntityFieldValue records (custom fields) via DB FK cascade
+
+    Args:
+    ----
+        session: Database session
+        listing_id: ID of listing to delete
+
+    Raises:
+    ------
+        ValueError: Listing not found
+    """
+    listing = await session.get(Listing, listing_id)
+    if not listing:
+        raise ValueError(f"Listing {listing_id} not found")
+
+    logger.info(
+        "listing.delete",
+        listing_id=listing_id,
+        title=listing.title,
+    )
+
+    await session.delete(listing)
+    await session.commit()
+
+    logger.info(
+        "listing.deleted",
+        listing_id=listing_id,
+    )
+
+
+async def complete_partial_import(
+    session: AsyncSession,
+    listing_id: int,
+    completion_data: dict[str, Any],
+    user_id: str,
+) -> Listing:
+    """
+    Complete a partial import by providing missing fields.
+
+    This method is called by the manual population modal when user
+    provides missing data (typically price). It updates the listing,
+    recalculates metrics, and marks as complete.
+
+    Args:
+        session: Database session
+        listing_id: Listing to complete
+        completion_data: Dict with missing fields (e.g., {"price": 299.99})
+        user_id: User completing the import
+
+    Returns:
+        Updated listing with metrics calculated
+
+    Raises:
+        ValueError: If listing not found or not partial
+        ValueError: If price invalid (must be positive)
+
+    Example:
+        >>> updated = await complete_partial_import(
+        ...     session=session,
+        ...     listing_id=123,
+        ...     completion_data={"price": 299.99},
+        ...     user_id="user123",
+        ... )
+        >>> assert updated.quality == "full"
+        >>> assert updated.price_usd == 299.99
+    """
+    # Fetch and validate listing
+    listing = await session.get(Listing, listing_id)
+    if not listing:
+        raise ValueError(f"Listing {listing_id} not found")
+
+    if listing.quality != "partial":
+        raise ValueError(
+            f"Listing {listing_id} is already complete (quality={listing.quality}). "
+            "Only partial listings can be completed."
+        )
+
+    # Update price field if provided
+    if "price" in completion_data:
+        price_value = completion_data["price"]
+
+        # Validate price is numeric
+        try:
+            price_float = float(price_value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Invalid price value: {price_value}. Price must be a numeric value."
+            ) from exc
+
+        # Validate price is positive
+        if price_float <= 0:
+            raise ValueError(
+                f"Invalid price value: {price_float}. Price must be greater than 0."
+            )
+
+        # Update listing price
+        listing.price_usd = price_float
+
+        # Track in extraction_metadata (need to create new dict for SQLAlchemy to detect change)
+        metadata = dict(listing.extraction_metadata or {})
+        metadata["price"] = "manual"
+        listing.extraction_metadata = metadata
+
+        # Remove "price" from missing_fields if present (create new list for SQLAlchemy to detect change)
+        if listing.missing_fields and "price" in listing.missing_fields:
+            listing.missing_fields = [
+                field for field in listing.missing_fields if field != "price"
+            ]
+
+    # Update quality if all required fields are present
+    if listing.price_usd is not None and (not listing.missing_fields or len(listing.missing_fields) == 0):
+        listing.quality = "full"
+
+    await session.flush()
+
+    # Calculate metrics if quality is now "full" and price exists
+    if listing.quality == "full" and listing.price_usd is not None:
+        await apply_listing_metrics(session, listing)
+        logger.info(
+            "listing.partial_import.completed",
+            listing_id=listing.id,
+            title=listing.title,
+            price=listing.price_usd,
+            user_id=user_id,
+            message="Partial listing completed with metrics calculated",
+        )
+    else:
+        logger.info(
+            "listing.partial_import.updated",
+            listing_id=listing.id,
+            title=listing.title,
+            quality=listing.quality,
+            missing_fields=listing.missing_fields,
+            user_id=user_id,
+            message="Partial listing updated but still incomplete",
+        )
+
+    await session.flush()
+    await session.refresh(listing)
+
+    return listing
+
+
 # ============================================================================
 # URL Ingestion Integration (Phase 3 - Task ID-020)
 # ============================================================================
+
+
+async def create_from_ingestion(
+    session: AsyncSession,
+    normalized_data: NormalizedListingSchema,
+    user_id: str | None = None,
+) -> Listing:
+    """Create listing from normalized ingestion data.
+
+    Supports both partial and complete imports:
+    - If price is None: Creates partial listing without metrics calculation
+    - If price is provided: Creates complete listing with full metrics
+
+    Args:
+        session: Database session (caller controls transaction)
+        normalized_data: Normalized listing data from adapter
+        user_id: User ID for audit trail (optional)
+
+    Returns:
+        Created Listing instance
+
+    Raises:
+        ValueError: If normalized data invalid or required fields missing
+
+    Example:
+        >>> from dealbrain_core.schemas.ingestion import NormalizedListingSchema
+        >>> normalized = NormalizedListingSchema(
+        ...     title="Gaming PC",
+        ...     price=Decimal("599.99"),
+        ...     currency="USD",
+        ...     condition="new",
+        ...     marketplace="ebay",
+        ...     quality="full",
+        ... )
+        >>> listing = await create_from_ingestion(session, normalized)
+    """
+    from decimal import Decimal
+
+    from dealbrain_core.enums import Condition
+
+    # Validate input
+    if not isinstance(normalized_data, NormalizedListingSchema):
+        raise ValueError("normalized_data must be a NormalizedListingSchema instance")
+
+    # Map condition string to enum
+    condition_map = {
+        "new": Condition.NEW,
+        "refurb": Condition.REFURB,
+        "used": Condition.USED,
+    }
+    condition_enum = condition_map.get(normalized_data.condition.lower(), Condition.USED)
+
+    # Determine quality: use explicit quality from schema, or infer from price presence
+    quality = normalized_data.quality
+    if quality == "full" and normalized_data.price is None:
+        # If marked as full but missing price, downgrade to partial
+        quality = "partial"
+
+    # Create listing with base fields
+    listing = Listing(
+        title=normalized_data.title,
+        price_usd=float(normalized_data.price) if normalized_data.price else None,
+        condition=condition_enum.value,
+        quality=quality,
+        extraction_metadata=normalized_data.extraction_metadata or {},
+        missing_fields=normalized_data.missing_fields or [],
+        marketplace=normalized_data.marketplace,
+        vendor_item_id=normalized_data.vendor_item_id,
+        seller=normalized_data.seller,
+        last_seen_at=datetime.utcnow(),
+    )
+
+    # Store images in attributes_json if provided
+    if normalized_data.images:
+        listing.attributes_json = {"images": normalized_data.images}
+
+    # Store extracted component data if available
+    # Note: CPU/GPU/RAM/Storage matching would happen in a separate enrichment step
+    # For now, just store raw extracted values in attributes_json
+    component_attrs = {}
+    if normalized_data.cpu_model:
+        component_attrs["cpu_model_raw"] = normalized_data.cpu_model
+    if normalized_data.ram_gb is not None:
+        listing.ram_gb = normalized_data.ram_gb
+    if normalized_data.storage_gb is not None:
+        listing.primary_storage_gb = normalized_data.storage_gb
+    if normalized_data.manufacturer:
+        listing.manufacturer = normalized_data.manufacturer
+    if normalized_data.model_number:
+        listing.device_model = normalized_data.model_number
+
+    if component_attrs:
+        attrs = dict(listing.attributes_json or {})
+        attrs.update(component_attrs)
+        listing.attributes_json = attrs
+
+    session.add(listing)
+    await session.flush()  # Get ID without committing
+
+    # Only calculate metrics if price exists
+    if listing.price_usd is not None:
+        await apply_listing_metrics(session, listing)
+        logger.info(
+            "listing.created_from_ingestion.complete",
+            listing_id=listing.id,
+            title=listing.title,
+            price=listing.price_usd,
+            quality=quality,
+            marketplace=normalized_data.marketplace,
+        )
+    else:
+        # Set valuation_breakdown to None for partial imports
+        listing.valuation_breakdown = None
+        logger.info(
+            "listing.created_from_ingestion.partial",
+            listing_id=listing.id,
+            title=listing.title,
+            quality=quality,
+            marketplace=normalized_data.marketplace,
+            missing_fields=normalized_data.missing_fields,
+            message="Listing created without price - metrics deferred until completion",
+        )
+
+    return listing
 
 
 async def upsert_from_url(
@@ -977,3 +1307,230 @@ async def upsert_from_url(
     )
 
     return listing
+
+
+# ============================================================================
+# Cursor-based Pagination (PERF-003)
+# ============================================================================
+
+
+def encode_cursor(listing_id: int, sort_value: Any) -> str:
+    """Encode cursor for keyset pagination.
+
+    Args:
+        listing_id: Listing ID
+        sort_value: Value of the sort column (converted to string for serialization)
+
+    Returns:
+        Base64-encoded cursor string
+    """
+    cursor_data = {
+        "id": listing_id,
+        "sort_value": str(sort_value) if sort_value is not None else None,
+    }
+    cursor_json = json.dumps(cursor_data)
+    cursor_bytes = cursor_json.encode("utf-8")
+    return base64.urlsafe_b64encode(cursor_bytes).decode("utf-8")
+
+
+def decode_cursor(cursor: str) -> tuple[int, str | None]:
+    """Decode cursor for keyset pagination.
+
+    Args:
+        cursor: Base64-encoded cursor string
+
+    Returns:
+        Tuple of (listing_id, sort_value)
+
+    Raises:
+        ValueError: If cursor is invalid
+    """
+    try:
+        cursor_bytes = base64.urlsafe_b64decode(cursor.encode("utf-8"))
+        cursor_json = cursor_bytes.decode("utf-8")
+        cursor_data = json.loads(cursor_json)
+        return cursor_data["id"], cursor_data.get("sort_value")
+    except Exception as exc:
+        raise ValueError(f"Invalid cursor format: {exc}") from exc
+
+
+async def get_paginated_listings(
+    session: AsyncSession,
+    *,
+    limit: int = 50,
+    cursor: str | None = None,
+    sort_by: str = "updated_at",
+    sort_order: str = "desc",
+    form_factor: str | None = None,
+    manufacturer: str | None = None,
+    min_price: float | None = None,
+    max_price: float | None = None,
+) -> dict[str, Any]:
+    """Get paginated listings using cursor-based (keyset) pagination.
+
+    Implements high-performance cursor-based pagination with:
+    - Composite key (sort_column, id) for stable pagination
+    - Base64-encoded cursors to prevent manipulation
+    - Cached total count (5 minutes TTL)
+    - Support for dynamic sorting and filtering
+
+    Args:
+        session: Database session
+        limit: Number of items per page (1-500, default 50)
+        cursor: Pagination cursor from previous response
+        sort_by: Column to sort by (default "updated_at")
+        sort_order: Sort direction ("asc" or "desc", default "desc")
+        form_factor: Filter by form factor
+        manufacturer: Filter by manufacturer
+        min_price: Filter by minimum price
+        max_price: Filter by maximum price
+
+    Returns:
+        Dictionary with:
+        - items: List of Listing objects
+        - total: Total count (cached)
+        - limit: Requested limit
+        - next_cursor: Cursor for next page (None if last page)
+        - has_next: Boolean indicating if more pages exist
+
+    Raises:
+        ValueError: If sort_by contains invalid characters or cursor is malformed
+    """
+    # Validate sort_by to prevent SQL injection
+    if not sort_by.replace("_", "").isalpha():
+        raise ValueError(f"Invalid sort column: {sort_by}")
+
+    # Validate limit
+    if limit < 1 or limit > 500:
+        raise ValueError("Limit must be between 1 and 500")
+
+    # Get sortable column
+    sort_column = getattr(Listing, sort_by, None)
+    if sort_column is None:
+        raise ValueError(f"Invalid sort column: {sort_by}")
+
+    # Build base query with eager loading
+    stmt = (
+        select(Listing)
+        .options(
+            selectinload(Listing.cpu),
+            selectinload(Listing.gpu),
+            selectinload(Listing.ports_profile),
+        )
+    )
+
+    # Apply filters
+    filters = []
+    if form_factor:
+        filters.append(Listing.form_factor == form_factor)
+    if manufacturer:
+        filters.append(Listing.manufacturer == manufacturer)
+    if min_price is not None:
+        filters.append(Listing.price_usd >= min_price)
+    if max_price is not None:
+        filters.append(Listing.price_usd <= max_price)
+
+    if filters:
+        stmt = stmt.where(and_(*filters))
+
+    # Apply cursor-based filtering (keyset pagination)
+    if cursor:
+        cursor_id, cursor_sort_value = decode_cursor(cursor)
+
+        # Build keyset condition based on sort order
+        if sort_order.lower() == "desc":
+            # For DESC: (sort_col < cursor_value) OR (sort_col = cursor_value AND id < cursor_id)
+            if cursor_sort_value is not None:
+                # Convert cursor_sort_value back to appropriate type
+                if isinstance(sort_column.type, type(Listing.id.type)):  # Integer column
+                    cursor_sort_value = int(cursor_sort_value)
+                elif hasattr(sort_column.type, 'python_type'):
+                    # For datetime columns
+                    if sort_column.type.python_type == datetime:
+                        cursor_sort_value = datetime.fromisoformat(cursor_sort_value)
+                    else:
+                        cursor_sort_value = float(cursor_sort_value)
+
+                stmt = stmt.where(
+                    or_(
+                        sort_column < cursor_sort_value,
+                        and_(sort_column == cursor_sort_value, Listing.id < cursor_id)
+                    )
+                )
+            else:
+                # If sort_value is NULL, only filter by ID
+                stmt = stmt.where(Listing.id < cursor_id)
+        else:
+            # For ASC: (sort_col > cursor_value) OR (sort_col = cursor_value AND id > cursor_id)
+            if cursor_sort_value is not None:
+                # Convert cursor_sort_value back to appropriate type
+                if isinstance(sort_column.type, type(Listing.id.type)):  # Integer column
+                    cursor_sort_value = int(cursor_sort_value)
+                elif hasattr(sort_column.type, 'python_type'):
+                    # For datetime columns
+                    if sort_column.type.python_type == datetime:
+                        cursor_sort_value = datetime.fromisoformat(cursor_sort_value)
+                    else:
+                        cursor_sort_value = float(cursor_sort_value)
+
+                stmt = stmt.where(
+                    or_(
+                        sort_column > cursor_sort_value,
+                        and_(sort_column == cursor_sort_value, Listing.id > cursor_id)
+                    )
+                )
+            else:
+                # If sort_value is NULL, only filter by ID
+                stmt = stmt.where(Listing.id > cursor_id)
+
+    # Apply sorting (composite key: sort_column, id)
+    if sort_order.lower() == "desc":
+        stmt = stmt.order_by(desc(sort_column), desc(Listing.id))
+    else:
+        stmt = stmt.order_by(asc(sort_column), asc(Listing.id))
+
+    # Fetch limit+1 to determine has_next (without separate count query per page)
+    stmt = stmt.limit(limit + 1)
+
+    result = await session.execute(stmt)
+    listings = list(result.scalars().unique().all())
+
+    # Determine if there's a next page
+    has_next = len(listings) > limit
+    if has_next:
+        listings = listings[:limit]  # Remove the extra item
+
+    # Generate next_cursor from last item
+    next_cursor = None
+    if has_next and listings:
+        last_listing = listings[-1]
+        last_sort_value = getattr(last_listing, sort_by)
+        # Handle datetime serialization for cursor
+        if isinstance(last_sort_value, datetime):
+            last_sort_value = last_sort_value.isoformat()
+        next_cursor = encode_cursor(last_listing.id, last_sort_value)
+
+    # Get cached total count
+    cache_key = "listings:total_count"
+    cached_total = await cache_manager.get(cache_key)
+
+    if cached_total is not None:
+        total = int(cached_total)
+    else:
+        # Calculate total and cache it
+        count_stmt = select(func.count()).select_from(Listing)
+        if filters:
+            count_stmt = count_stmt.where(and_(*filters))
+        total_result = await session.execute(count_stmt)
+        total = total_result.scalar() or 0
+
+        # Cache for 5 minutes
+        await cache_manager.set(cache_key, str(total), ttl=timedelta(minutes=5))
+
+    return {
+        "items": listings,
+        "total": total,
+        "limit": limit,
+        "next_cursor": next_cursor,
+        "has_next": has_next,
+    }

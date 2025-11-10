@@ -111,7 +111,7 @@ Input:
   - listing.image_url = null
   - listing.manufacturer = null
   - listing.cpu.manufacturer = "Intel Core i5"
-Result: /images/fallbacks/intel-logo.svg displayed
+Result: /images/cpu-vendors/intel.svg displayed
 ```
 
 **Scenario 4: Everything fails**

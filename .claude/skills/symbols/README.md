@@ -1,481 +1,189 @@
 # Symbols Skill - Token-Efficient Codebase Navigation
 
-A token-efficient codebase symbol analysis system for intelligent code discovery and exploration. Query and load pre-generated symbol graphs chunked by domain (UI, Web, API, Shared) instead of loading entire files. Reduce token usage by 60-95% compared to traditional codebase loading.
+A token-efficient codebase symbol analysis system for intelligent code discovery. Query pre-generated symbol graphs chunked by domain (UI, Web, API) instead of loading entire files. **Achieve 95-99% token reduction** compared to traditional file reading.
 
 ## What Is This?
 
-The symbols skill enables you to navigate your codebase efficiently without loading full files or directories. It provides:
+The symbols skill enables AI agents to navigate codebases efficiently without loading full files. Query structured metadata about functions, classes, components, hooks, and types - get exact file:line references for immediate lookup.
 
-- **Token-Efficient Discovery**: Load only the symbols you need (5-20KB) instead of full files (200KB+) = 95%+ reduction
-- **Domain-Specific Chunking**: Separate symbols by domain (UI primitives, Web app, API backend, Shared utilities)
-- **API Layer Split**: For large backends, load only the layer you need (routers, services, repositories, schemas, cores)
-- **Architectural Awareness**: All 8,888+ symbols tagged by architectural layer (router, service, repository, component, hook, etc.)
-- **Precise References**: Get exact file paths and line numbers for immediate code lookup
+**Key Benefits:**
+
+- **0.1 second** queries vs **2-3 minute** full scans
+- **~$0.001** per query vs **~$0.01-0.02** for exploration
+- **Domain chunking**: Load only UI (191KB), API (1.7MB), or Web (~500KB)
+- **Layer chunking**: Load only routers, services, repositories for 50-80% reduction
+- **Architectural awareness**: 8,888+ symbols tagged by layer (router, service, component, etc.)
 
 ## Quick Start
 
-### 1. Initialize Configuration (First Time Only)
-
 ```bash
-# Interactive setup wizard (recommended)
-python .claude/skills/symbols/scripts/init_symbols.py
+# 1. Initialize configuration (first time only)
+python scripts/init_symbols.py --auto-detect
 
-# Or select a template
-cp .claude/skills/symbols/templates/react-typescript-fullstack.json symbols.config.json
+# 2. Extract symbols
+python scripts/extract_symbols_typescript.py apps/web --output=ai/symbols-web.json --exclude-tests
+python scripts/extract_symbols_python.py services/api --output=ai/symbols-api.json --exclude-tests
+
+# 3. Add layer tags
+python scripts/add_layer_tags.py --all --inplace
+
+# 4. Split API for token efficiency (optional but recommended)
+python scripts/split_api_by_layer.py
+
+# 5. Validate
+python scripts/validate_symbols.py
 ```
 
-### 2. Generate Symbols
+**See [scripts/README.md](./scripts/README.md) for complete workflows and detailed human guide.**
 
-```bash
-# Extract all symbols
-python .claude/skills/symbols/scripts/extract_typescript_symbols.py
-python .claude/skills/symbols/scripts/extract_python_symbols.py
+## Documentation Map
+
+| Document | Purpose | Audience |
+|----------|---------|----------|
+| **[SKILL.md](./SKILL.md)** | Complete AI agent reference - all query functions, integration patterns | AI Agents |
+| **[scripts/README.md](./scripts/README.md)** | Complete human guide - workflows, configuration, troubleshooting | Developers |
+| **[symbols.config.json](./symbols.config.json)** | Project configuration - domains, paths, extraction rules | Configuration |
+| **[docs/project_plans/impl_tracking/ai/skill-symbol/](../../docs/project_plans/impl_tracking/ai/skill-symbol/)** | Historical docs and detailed planning | Archive |
+
+## Key Capabilities
+
+1. **Query Symbols** - Find specific code by name, kind, domain, or layer
+2. **Load Domains** - Get complete symbol set for UI, Web, or API
+3. **Load API Layers** - Load only routers, services, repositories, schemas, or cores
+4. **Search Patterns** - Advanced regex search with architectural filtering
+5. **Get Context** - Detailed information about specific symbols with related entities
+
+## For Distribution
+
+When sharing this skill with other projects:
+
+**Include:**
+
+```text
+.claude/skills/symbols/
+├── scripts/                    # All Python tools
+├── templates/                  # Configuration templates
+├── SKILL.md                   # AI agent reference
+├── README.md                  # This file
+├── symbols-config-schema.json # Configuration schema
+└── docs/                      # Guides (optional)
 ```
 
-### 3. Query Symbols
+**Exclude:**
 
-```python
-from scripts.symbol_tools import query_symbols, load_domain, load_api_layer
+- `symbols.config.json` (project-specific)
+- `ai/symbols-*.json` (generated files)
+- `__pycache__/`, `.pytest_cache/` (build artifacts)
 
-# Find React components with "Card" in name
-cards = query_symbols(name="Card", kind="component", domain="ui", limit=10)
+**For New Project:**
 
-# Load entire UI domain for broader context
-ui_context = load_domain(domain="ui", max_symbols=100)
+1. Copy files listed above to target project
+2. Run: `python scripts/init_symbols.py --auto-detect`
+3. Extract symbols and validate
+4. Start querying via agents or Python API
 
-# Load only service layer for backend development (50-80% token reduction)
-services = load_api_layer("services", max_symbols=50)
-```
+## Example Configuration
 
-## Documentation Index
+Pre-configured with:
 
-### Getting Started
+**Domains:**
 
-- **[SKILL.md](./SKILL.md)** - Complete skill reference
-  - Overview, capabilities, when to use
-  - All query functions and workflows
-  - Symbol structure reference
-  - Performance benchmarks
+- `ui` - 755 symbols (191KB) - React components, hooks
+- `web` - 1,088 symbols (629KB) - Next.js app router
+- `api` - 3,041 symbols (1.8MB) - FastAPI backend
 
-### Configuration
+**API Layers** (50-80% token reduction):
 
-- **[CONFIG_README.md](./CONFIG_README.md)** - Configuration system
-  - How to configure for your project
-  - Configuration structure and options
-  - Python API reference
-  - Error handling and validation
+- `routers` - 289 symbols (HTTP endpoints)
+- `services` - 454 symbols (business logic)
+- `repositories` - 387 symbols (data access)
+- `schemas` - 570 symbols (DTOs)
+- `cores` - 1,341 symbols (auth, observability)
 
-- **[templates/](./templates/)** - Ready-to-use templates
-  - [README.md](./templates/README.md) - Template guide
-  - [QUICK_START.md](./templates/QUICK_START.md) - 3-step setup
-  - 5 templates for common frameworks (React, Vue, Django, FastAPI, Next.js)
+**Test Files** (loaded separately):
 
-### Initialization
+- `ui-tests` - 383 symbols
+- `api-tests` - 3,621 symbols
 
-- **[scripts/INIT_README.md](./scripts/INIT_README.md)** - Initialization wizard
-  - Interactive CLI setup
-  - Template selection
-  - Non-interactive automation
+## Performance
 
-### Validation
+| Metric | Symbol Query | Full Exploration |
+|--------|-------------|------------------|
+| Duration | 0.1 seconds | 2-3 minutes |
+| Token Usage | ~10KB | ~250KB+ |
+| Cost | ~$0.001 | ~$0.01-0.02 |
+| Best For | "What and where" | "How and why" |
 
-- **[VALIDATION_QUICK_REF.md](./VALIDATION_QUICK_REF.md)** - Quick validation guide
-  - CLI commands
-  - Programmatic API
-  - Exit codes
+## Integration with Agents
 
-- **[docs/validation-guide.md](./docs/validation-guide.md)** - Complete validation documentation
-  - Validation workflow
-  - Troubleshooting
-  - Report interpretation
+```markdown
+# Quick discovery (0.1s, 95-99% token reduction)
+Task("codebase-explorer", "Find all Button component implementations")
 
-### References
+# Deep analysis (2-3 min, full context)
+Task("explore", "Analyze authentication flow patterns")
 
-- **[references/usage_patterns.md](./references/usage_patterns.md)** - Detailed usage examples
-  - Frontend development workflows
-  - Backend API development workflows
-  - Debugging patterns
-  - Cross-domain development
+# Optimal workflow: Phase 1 → Phase 2
+Task("codebase-explorer", "Find repository patterns")
+→ Get instant symbol inventory
+→ Identify key files
 
-- **[references/architecture_integration.md](./references/architecture_integration.md)** - Architecture guide
-  - Symbol structure specification
-  - Layered architecture mapping
-  - Development workflow integration
-  - Agent integration patterns
-
-## Directory Structure
-
-```
-symbols/                              # Root skill directory
-├── README.md                         # This file - start here!
-├── SKILL.md                          # Complete skill reference
-├── CONFIG_README.md                  # Configuration guide
-├── VALIDATION_QUICK_REF.md          # Quick validation reference
-├── symbols.config.json              # Configuration file (MeatyPrompts-specific)
-├── symbols-config-schema.json       # JSON Schema for validation
-│
-├── scripts/                         # Python tools and utilities
-│   ├── INIT_README.md              # Initialization wizard guide
-│   ├── symbol_tools.py             # Core query and load functions
-│   ├── init_symbols.py             # Interactive setup wizard
-│   ├── extract_symbols_python.py   # Python symbol extractor
-│   ├── extract_symbols_typescript.py # TypeScript symbol extractor
-│   ├── merge_symbols.py            # Symbol merger for updates
-│   ├── validate_symbols.py         # Symbol validation tool
-│   ├── validate_schema.py          # Config schema validation
-│   ├── add_layer_tags.py           # Add architectural layer tags
-│   ├── split_api_by_layer.py       # Split API symbols by layer
-│   ├── backfill_schema.py          # Backfill missing symbol fields
-│   ├── config.py                   # Configuration loader
-│   └── config_example.py           # Configuration usage examples
-│
-├── templates/                       # Configuration templates
-│   ├── README.md                   # Template guide and selection criteria
-│   ├── QUICK_START.md              # 3-step template setup
-│   ├── INDEX.md                    # Template reference index
-│   ├── react-typescript-fullstack.json  # Full-stack React + FastAPI
-│   ├── python-fastapi.json         # FastAPI backend only
-│   ├── nextjs-monorepo.json        # Next.js frontend monorepo
-│   ├── vue-typescript.json         # Vue 3 application
-│   ├── python-django.json          # Django backend
-│   └── validate_templates.py       # Template validation utility
-│
-├── docs/                           # Detailed documentation
-│   └── validation-guide.md         # Complete validation documentation
-│
-└── references/                     # Reference documentation
-    ├── usage_patterns.md           # Detailed usage examples
-    └── architecture_integration.md # Architecture integration guide
+Task("explore", "Analyze patterns in prompt_repository.py")
+→ Get full implementation context
 ```
 
 ## Common Tasks
 
-### Set Up Symbols for New Project
+### Query symbols programmatically
 
-Use one of these approaches:
-
-**Interactive Setup:**
-```bash
-python .claude/skills/symbols/scripts/init_symbols.py
-```
-
-**Template Selection:**
-1. Choose template from `templates/` (see [selection guide](./templates/README.md))
-2. Copy to project root: `cp templates/react-typescript-fullstack.json symbols.config.json`
-3. Customize `projectName` and `symbolsDir`
-4. Run extraction scripts
-
-See: [templates/QUICK_START.md](./templates/QUICK_START.md)
-
-### Generate Symbols for Existing Project
-
-```bash
-# Install validator
-python .claude/skills/symbols/scripts/validate_schema.py
-
-# Extract symbols
-python .claude/skills/symbols/scripts/extract_typescript_symbols.py
-python .claude/skills/symbols/scripts/extract_python_symbols.py
-
-# Validate results
-python .claude/skills/symbols/scripts/validate_symbols.py
-```
-
-### Query Symbols Programmatically
-
-Frontend development:
 ```python
-from symbol_tools import query_symbols, load_domain
+from symbol_tools import query_symbols, load_domain, load_api_layer
 
 # Find React components
 components = query_symbols(kind="component", domain="ui", limit=20)
 
 # Load web app context
 web = load_domain(domain="web", max_symbols=100)
-```
 
-Backend development:
-```python
-from symbol_tools import load_api_layer
-
-# Load only service layer for 84% token reduction
+# Load only service layer (84% token reduction)
 services = load_api_layer("services", max_symbols=50)
-
-# Load schemas for DTO work
-schemas = load_api_layer("schemas", max_symbols=50)
 ```
 
-See: [references/usage_patterns.md](./references/usage_patterns.md)
+### Update symbols after code changes
 
-### Validate Symbol Files
-
-Quick check:
 ```bash
-python .claude/skills/symbols/scripts/validate_symbols.py
+# Re-extract changed domain
+python scripts/extract_symbols_typescript.py packages/ui --output=ai/symbols-ui.json
+python scripts/add_layer_tags.py --input=ai/symbols-ui.json --output=ai/symbols-ui.json
+python scripts/validate_symbols.py --domain=ui
 ```
 
-Detailed report:
+### Validate symbol files
+
 ```bash
-python .claude/skills/symbols/scripts/validate_symbols.py --verbose --json
+# Quick check
+python scripts/validate_symbols.py
+
+# Detailed report
+python scripts/validate_symbols.py --verbose --json
 ```
 
-See: [VALIDATION_QUICK_REF.md](./VALIDATION_QUICK_REF.md)
-
-### Update Symbols After Code Changes
-
-**Recommended approach** - Use symbols-engineer agent:
-```markdown
-Task("symbols-engineer", "Update symbols for the API domain after schema changes")
-```
-
-**Manual approach:**
-```bash
-python .claude/skills/symbols/scripts/extract_typescript_symbols.py
-python .claude/skills/symbols/scripts/extract_python_symbols.py
-python .claude/skills/symbols/scripts/merge_symbols.py
-```
-
-See: [SKILL.md](./SKILL.md#5-update-symbols)
-
-## Key Capabilities
-
-### Query Symbols
-
-Find specific symbols by name, kind, domain, or layer:
-
-```python
-from symbol_tools import query_symbols
-
-# Find all services
-query_symbols(kind="function", name="Service", domain="api")
-
-# Find components in UI domain
-query_symbols(kind="component", domain="ui", limit=20)
-
-# Find authentication layer
-query_symbols(layer="auth", domain="api")
-```
-
-### Load Domains
-
-Get complete symbol set for a specific domain:
-
-```python
-from symbol_tools import load_domain
-
-# Load UI primitives
-ui = load_domain(domain="ui", max_symbols=100)
-
-# Load API with tests for debugging
-api = load_domain(domain="api", include_tests=True)
-```
-
-### Load API Layers
-
-For token efficiency, load only the backend layer you need:
-
-```python
-from symbol_tools import load_api_layer
-
-# Services: 454 symbols, 284KB (84% reduction vs full API)
-services = load_api_layer("services")
-
-# Routers: 289 symbols, 241KB (87% reduction vs full API)
-routers = load_api_layer("routers")
-
-# Schemas: 570 symbols, 259KB (86% reduction vs full API)
-schemas = load_api_layer("schemas")
-```
-
-### Search Patterns
-
-Advanced pattern-based search with architectural filtering:
-
-```python
-from symbol_tools import search_patterns
-
-# Find service layer patterns
-search_patterns(layer="service", domain="api")
-
-# Find router endpoints
-search_patterns(pattern="router", layer="router")
-
-# Find React components
-search_patterns(pattern="^[A-Z].*", kind="component")
-```
-
-### Get Symbol Context
-
-Get detailed information about a specific symbol:
-
-```python
-from symbol_tools import get_symbol_context
-
-# Get component with props interface
-context = get_symbol_context(
-    name="PromptCard",
-    include_related=True
-)
-```
-
-## MeatyPrompts Configuration
-
-This skill is pre-configured for MeatyPrompts with:
-
-**Domains:**
-- UI primitives (packages/ui): 755 symbols (191KB)
-- Web app (apps/web): 1,088 symbols (629KB)
-- API backend (services/api): 3,041 symbols (1.8MB)
-- Shared utilities: Mapped to web domain
-
-**API Layers** (for token-efficient backend work):
-- Routers: 289 symbols (241KB) - HTTP endpoints
-- Services: 454 symbols (284KB) - Business logic
-- Repositories: 387 symbols (278KB) - Data access
-- Schemas: 570 symbols (259KB) - DTOs and validation
-- Cores: 1,341 symbols (703KB) - Models and utilities
-
-**Test Files** (loaded separately):
-- UI tests: 383 symbols (77KB)
-- API tests: 3,621 symbols (1.8MB)
-
-## Token Efficiency
-
-Progressive loading strategy for optimal token usage:
-
-| Approach | Token Usage | Efficiency |
-|----------|-------------|-----------|
-| Load full file | 200KB+ | Baseline |
-| Load full domain | 191KB-1.8MB | 90% reduction |
-| Load API layer | 241KB-703KB | 50-80% reduction |
-| Query 20 symbols | 5KB | 97% reduction |
-| Layer-filtered query | 1-3KB | 99%+ reduction |
-
-**Example - Backend Development:**
-- Full API domain: 1.8MB
-- Service layer only: 284KB
-- **Efficiency gain: 84% reduction**
-
-See: [SKILL.md](./SKILL.md#performance) for detailed benchmarks.
-
-## For Distribution
-
-When sharing the symbols skill with other projects:
-
-**Include:**
-- All files in `scripts/`
-- All files in `templates/`
-- `symbols-config-schema.json`
-- `SKILL.md`, `CONFIG_README.md`, `README.md` (documentation)
-- `references/` (reference documentation)
-- `docs/` (detailed guides)
-
-**Exclude:**
-- `symbols.config.json` (project-specific)
-- `ai/symbols-*.json` (generated files)
-- `.pytest_cache/`, `__pycache__/` (build artifacts)
-- `.git/` (version control)
-
-**For New Project:**
-1. Copy all files listed above
-2. Users run: `python scripts/init_symbols.py`
-3. Users select their template
-4. Users customize and generate symbols
-
-See: [CONFIG_README.md](./CONFIG_README.md#project-specific-configuration) for migration guide.
-
-## Performance Highlights
-
-**Symbol Coverage:**
-- Total symbols: 8,888+ (all include architectural layer tags)
-- Complete codebase coverage: UI, Web, API, Shared
-
-**Query Performance:**
-- Symbol query: 0.1 seconds for ~20 results (~5KB context)
-- Domain load: ~0.5 seconds for ~100 symbols (~15KB context)
-- API layer load: ~0.3 seconds for ~50 symbols (~10KB context)
-
-**Token Efficiency:**
-- 95-99% reduction for targeted queries
-- 84-87% reduction for API layer work
-- 90%+ reduction for domain-specific work
-
-**File Sizes:**
-- UI domain: 191KB (755 symbols)
-- Web domain: 629KB (1,088 symbols)
-- API domain layers: 241KB-703KB each
-- API tests: 1.8MB (3,621 symbols)
-- UI tests: 77KB (383 symbols)
-
-## Integration
-
-### With MeatyPrompts
-
-The symbols skill integrates with MeatyPrompts agents and commands:
-
-- **codebase-explorer** - Uses symbols for efficient code discovery
-- **symbols-engineer** - Expert in symbol updates and optimization
-- **ui-engineer-enhanced** - Uses symbols for frontend work
-- **documentation-writer** - Uses symbols for context-efficient docs
-
-### Slash Commands
-
-- `/symbols-query` - Query implementation
-- `/symbols-search` - Search implementation
-- `/load-symbols` - Domain loading
-- `/symbols-update` - Symbol updates
-- `/symbols-chunk` - Re-chunking symbols
-
-See: [SKILL.md](./SKILL.md#integration-with-meatyprompts) for complete integration guide.
+**See [scripts/README.md](./scripts/README.md) for complete workflows.**
 
 ## Getting Help
 
-### Understand the Skill
-
-Start here: [SKILL.md](./SKILL.md)
-- Complete overview and capabilities
-- All query functions explained
-- Workflows for different scenarios
-- Performance and reference data
-
-### Set Up Symbols
-
-Quick setup: [templates/QUICK_START.md](./templates/QUICK_START.md)
-Full guide: [CONFIG_README.md](./CONFIG_README.md)
-Wizard: [scripts/INIT_README.md](./scripts/INIT_README.md)
-
-### Use Symbols Effectively
-
-Examples: [references/usage_patterns.md](./references/usage_patterns.md)
-Architecture: [references/architecture_integration.md](./references/architecture_integration.md)
-
-### Validate Symbols
-
-Quick ref: [VALIDATION_QUICK_REF.md](./VALIDATION_QUICK_REF.md)
-Detailed: [docs/validation-guide.md](./docs/validation-guide.md)
-
-### Troubleshoot Issues
-
-- Configuration: See [CONFIG_README.md](./CONFIG_README.md) "Error Handling"
-- Templates: See [templates/README.md](./templates/README.md) "Troubleshooting"
-- Validation: See [docs/validation-guide.md](./docs/validation-guide.md)
-- Initialization: See [scripts/INIT_README.md](./scripts/INIT_README.md)
-
-## Next Steps
-
-1. **Understand the skill**: Read [SKILL.md](./SKILL.md)
-2. **Configure for your project**: Use [templates/QUICK_START.md](./templates/QUICK_START.md)
-3. **Generate symbols**: Run extraction scripts
-4. **Start using symbols**: See [references/usage_patterns.md](./references/usage_patterns.md)
+- **Understand the skill**: Read [SKILL.md](./SKILL.md) for AI agent reference
+- **Set up symbols**: See [scripts/README.md](./scripts/README.md) for complete workflows
+- **Configure for your project**: Run `python scripts/init_symbols.py --auto-detect`
+- **Troubleshoot issues**: See [scripts/README.md](./scripts/README.md#troubleshooting)
 
 ## Summary
 
 The symbols skill provides **token-efficient codebase navigation** through smart symbol discovery:
 
-- Query specific symbols instead of loading full files
+- Query specific symbols instead of loading full files (95-99% reduction)
 - Load only what you need by domain or architectural layer
-- Reduce token usage by 60-95% on development tasks
 - Get precise code references with file:line locations
-- Follow MeatyPrompts architectural patterns (Router → Service → Repository → DB)
+- Follow architectural patterns (Router → Service → Repository)
 
-Start with [SKILL.md](./SKILL.md) for complete documentation, or use [templates/QUICK_START.md](./templates/QUICK_START.md) to set up symbols for your project in 3 steps.
+**Start with [scripts/README.md](./scripts/README.md) for complete workflows, or [SKILL.md](./SKILL.md) for AI agent integration.**

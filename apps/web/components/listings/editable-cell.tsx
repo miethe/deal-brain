@@ -95,8 +95,8 @@ export function EditableCell({
 
     const confirmed = await confirm({
       title: `Add "${newValue}" to ${fieldKey}?`,
-      message: "This will add the option to Global Fields and make it available everywhere.",
-      confirmLabel: "Add Option",
+      description: "This will add the option to Global Fields and make it available everywhere.",
+      confirmText: "Add Option",
       onConfirm: () => {},
     });
 

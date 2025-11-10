@@ -385,6 +385,7 @@ rounded-full: 9999px (badges, pills)
 
 Each design project should include:
 
+````markdown
 1. **Summary Document**
    - Overview and key decisions
    - Component architecture
@@ -435,6 +436,7 @@ Each design project should include:
 - Specify absolute file paths
 - Document accessibility considerations
 - Provide implementation estimates
+````
 
 ---
 
@@ -446,7 +448,6 @@ For design questions or clarifications:
 2. Check component examples in codebase
 3. Consult shadcn/ui documentation
 4. Reference WCAG guidelines for accessibility
-5. Ask in team chat for design review
 
 ---
 

@@ -1,20 +1,85 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SingleUrlImportForm } from '@/components/ingestion/single-url-import-form';
 import { BulkImportDialog } from '@/components/ingestion/bulk-import-dialog';
 import { ImporterWorkspace } from '@/components/import/importer-workspace';
+import { PartialImportModal } from '@/components/imports/PartialImportModal';
+import { ListingRecord } from '@/types/listings';
 import { telemetry } from '@/lib/telemetry';
 import { Globe, FileSpreadsheet, Link, Upload } from 'lucide-react';
 
 export default function ImportPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('url');
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [partialListing, setPartialListing] = useState<ListingRecord | null>(null);
+  const [completedListings, setCompletedListings] = useState<ListingRecord[]>([]);
+
+  // Listen for import completion events from bulk status polling
+  useEffect(() => {
+    const handleImportComplete = (event: CustomEvent<{
+      listing: ListingRecord;
+      quality: string;
+    }>) => {
+      const { listing, quality } = event.detail;
+
+      if (quality === 'partial') {
+        setPartialListing(listing);
+        telemetry.info('frontend.import.partial_detected', {
+          listingId: listing.id,
+          title: listing.title,
+        });
+      } else {
+        setCompletedListings(prev => [...prev, listing]);
+        telemetry.info('frontend.import.complete', {
+          listingId: listing.id,
+          quality,
+        });
+      }
+    };
+
+    window.addEventListener(
+      'import-complete',
+      handleImportComplete as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        'import-complete',
+        handleImportComplete as EventListener
+      );
+    };
+  }, []);
+
+  const handlePartialComplete = () => {
+    if (partialListing) {
+      setCompletedListings(prev => [...prev, partialListing]);
+      setPartialListing(null);
+
+      // Invalidate queries to refresh listings
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+
+      telemetry.info('frontend.import.partial_completed', {
+        listingId: partialListing.id,
+      });
+    }
+  };
+
+  const handlePartialSkip = () => {
+    if (partialListing) {
+      telemetry.info('frontend.import.partial_skipped', {
+        listingId: partialListing.id,
+      });
+    }
+    setPartialListing(null);
+  };
 
   return (
     <div className="container max-w-6xl py-8 space-y-6">
@@ -59,7 +124,6 @@ export default function ImportPage() {
             onSuccess={(result) => {
               telemetry.info('frontend.import.single.success', {
                 listingId: result.listingId,
-                status: result.status,
                 provenance: result.provenance,
                 quality: result.quality,
               });
@@ -122,7 +186,7 @@ export default function ImportPage() {
         onOpenChange={setBulkDialogOpen}
         onSuccess={(result) => {
           telemetry.info('frontend.import.bulk.success', {
-            total: result.total,
+            total: result.total_urls,
             success: result.success,
             failed: result.failed,
           });
@@ -133,6 +197,55 @@ export default function ImportPage() {
           });
         }}
       />
+
+      {/* Partial Import Modal */}
+      {partialListing && (
+        <PartialImportModal
+          listing={partialListing}
+          onComplete={handlePartialComplete}
+          onSkip={handlePartialSkip}
+        />
+      )}
+
+      {/* Completed Listings Section */}
+      {completedListings.length > 0 && (
+        <div className="mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Imported Listings ({completedListings.length})</CardTitle>
+              <CardDescription>
+                Successfully imported listings in this session
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {completedListings.map((listing) => (
+                  <div
+                    key={listing.id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium">{listing.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {listing.cpu?.name && `CPU: ${listing.cpu.name}`}
+                        {listing.ram_gb && ` • RAM: ${listing.ram_gb}GB`}
+                        {listing.price_usd && ` • $${listing.price_usd.toFixed(2)}`}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`/listings/${listing.id}`)}
+                    >
+                      View Details
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

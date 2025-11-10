@@ -49,6 +49,13 @@ export interface EntityTooltipProps {
    * @default 200
    */
   openDelay?: number;
+
+  /**
+   * Disable link functionality (render as span instead)
+   * Use when inside clickable containers to avoid nested anchor tags
+   * @default false
+   */
+  disableLink?: boolean;
 }
 
 /**
@@ -123,6 +130,7 @@ export function EntityTooltip({
   variant = "link",
   className,
   openDelay = 200,
+  disableLink = false,
 }: EntityTooltipProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -197,6 +205,7 @@ export function EntityTooltip({
             href={href}
             variant={variant}
             className={className}
+            disableLink={disableLink}
           >
             {children}
           </EntityLink>

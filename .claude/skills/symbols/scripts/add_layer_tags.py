@@ -2,15 +2,36 @@
 """
 Add architectural layer tags to all symbols based on file path.
 
+Uses symbols.config.json to determine which files to process. Falls back to
+minimal defaults if configuration is unavailable.
+
 Usage:
     python3 add_layer_tags.py --input symbols-api.json --output symbols-api-tagged.json
-    python3 add_layer_tags.py --all  # Process all symbol files
+    python3 add_layer_tags.py --all  # Process all configured symbol files
+    python3 add_layer_tags.py --all --inplace  # Update files in place
+
+Configuration:
+    Automatically loads symbols.config.json via config.py. If configuration is
+    not available, run 'python init_symbols.py' to initialize the symbols system.
 """
 
 import json
 import argparse
 import sys
 from pathlib import Path
+from typing import List, Optional
+
+# Try to load configuration
+try:
+    from config import get_config, ConfigurationError
+    _config = get_config()
+    _config_loaded = True
+except (ImportError, ConfigurationError) as e:
+    print(f"Warning: Could not load configuration ({e})", file=sys.stderr)
+    print("  Run 'python init_symbols.py' to initialize the symbols system", file=sys.stderr)
+    print("  Falling back to minimal defaults", file=sys.stderr)
+    _config = None
+    _config_loaded = False
 
 # Path pattern to layer mapping
 LAYER_MAPPING = {
@@ -135,22 +156,60 @@ def process_file(input_path: str, output_path: str = None) -> tuple[int, int]:
 
     return total, total  # Simplified for Phase 1
 
+def get_symbol_files() -> List[str]:
+    """
+    Get list of symbol files to process from configuration.
+
+    Returns:
+        List of file paths (relative or absolute as strings)
+    """
+    if _config_loaded and _config:
+        files = []
+
+        # Add all enabled domain files
+        for domain in _config.get_enabled_domains():
+            try:
+                domain_file = _config.get_domain_file(domain)
+                files.append(str(domain_file))
+
+                # Add test file if configured
+                test_file = _config.get_test_file(domain)
+                if test_file:
+                    files.append(str(test_file))
+            except ConfigurationError:
+                pass  # Skip domains with issues
+
+        # Add API layer files if configured
+        if _config.get_api_layers():
+            for layer in _config.get_enabled_api_layers():
+                try:
+                    layer_file = _config.get_api_layer_file(layer)
+                    files.append(str(layer_file))
+                except ConfigurationError:
+                    pass  # Skip layers with issues
+
+        return files
+    else:
+        # Minimal generic fallback
+        return [
+            'ai/symbols-api.json',
+            'ai/symbols-ui.json',
+        ]
+
 def main():
-    parser = argparse.ArgumentParser(description='Add architectural layer tags to symbols')
+    parser = argparse.ArgumentParser(
+        description='Add architectural layer tags to symbols',
+        epilog='Use --all to process all configured symbol files, or --input to process a specific file.'
+    )
     parser.add_argument('--input', help='Input symbol file')
     parser.add_argument('--output', help='Output symbol file (default: input-tagged.json)')
-    parser.add_argument('--all', action='store_true', help='Process all symbol files')
+    parser.add_argument('--all', action='store_true', help='Process all configured symbol files')
     parser.add_argument('--inplace', action='store_true', help='Overwrite input file')
 
     args = parser.parse_args()
 
-    symbol_files = [
-        'ai/symbols-api.json',
-        'ai/symbols-api-tests.json',
-        'ai/symbols-ui.json',
-        'ai/symbols-ui-tests.json',
-        'ai/symbols-web.json',
-    ]
+    # Get symbol files from configuration
+    symbol_files = get_symbol_files()
 
     if args.all:
         print("Processing all symbol files...\n")

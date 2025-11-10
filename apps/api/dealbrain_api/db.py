@@ -5,7 +5,12 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Callable
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 from .settings import get_settings
@@ -35,6 +40,19 @@ def get_engine() -> AsyncEngine:
             },
         )
     return _engine
+
+
+async def dispose_engine() -> None:
+    """Dispose the current engine and reset globals.
+
+    This is necessary when switching event loops (e.g., in Celery workers)
+    to prevent "attached to a different loop" errors.
+    """
+    global _engine, _session_factory
+    if _engine is not None:
+        await _engine.dispose()
+        _engine = None
+        _session_factory = None
 
 
 def get_session_factory() -> async_sessionmaker[AsyncSession]:
@@ -76,4 +94,12 @@ async def session_dependency() -> AsyncIterator[AsyncSession]:
         await session.close()
 
 
-__all__ = ["Base", "get_engine", "get_session_factory", "session_scope", "SessionDependency", "session_dependency"]
+__all__ = [
+    "Base",
+    "get_engine",
+    "dispose_engine",
+    "get_session_factory",
+    "session_scope",
+    "SessionDependency",
+    "session_dependency",
+]

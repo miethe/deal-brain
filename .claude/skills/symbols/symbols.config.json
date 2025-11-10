@@ -1,7 +1,7 @@
 {
   "$schema": "./symbols-config-schema.json",
-  "projectName": "deal-brain",
-  "symbolsDir": "ai",
+  "projectName": "{{PROJECT_NAME}}",
+  "symbolsDir": "{{SYMBOLS_DIR}}",
   "domains": {
     "ui": {
       "file": "symbols-ui.json",
@@ -20,9 +20,9 @@
       "testFile": "symbols-api-tests.json",
       "enabled": true
     },
-    "shared": {
-      "file": "symbols-shared.json",
-      "description": "Shared types and utilities - Type definitions, constants, helpers used across frontend and backend.",
+    "cli": {
+      "file": "symbols-cli.json",
+      "description": "Command-line interface utilities - CLI commands, argument parsing, user interaction.",
       "enabled": true
     }
   },
@@ -81,7 +81,9 @@
     },
     "typescript": {
       "directories": [
-        "apps/web"
+        "apps/web",
+        "apps/mobile",
+        "packages/js-ui"
       ],
       "extensions": [
         ".ts",
@@ -111,6 +113,6 @@
   "metadata": {
     "version": "1.0",
     "description": "Template for React + TypeScript monorepo with FastAPI backend. Common patterns: Radix UI, React Query, Tailwind, SQLAlchemy, Pydantic. Customize directories, domains, and layers to match your project structure.",
-    "lastUpdated": "2025-10-31T19:03:22.064426Z"
+    "lastUpdated": "2025-11-03T19:49:15.016655Z"
   }
 }

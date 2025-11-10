@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, Boolean, Enum as SAEnum, ForeignKey, Integer, String, Text, UniqueConstraint, func, Index
+from sqlalchemy import JSON, Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, String, Text, UniqueConstraint, func, Index, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -41,7 +41,36 @@ class Cpu(Base, TimestampMixin):
     passmark_id: Mapped[str | None] = mapped_column(String(64))
     attributes_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
 
+    # Price Target Fields (computed from listing analytics)
+    price_target_good: Mapped[float | None]
+    price_target_great: Mapped[float | None]
+    price_target_fair: Mapped[float | None]
+    price_target_sample_size: Mapped[int] = mapped_column(default=0)
+    price_target_confidence: Mapped[str | None] = mapped_column(String(16))
+    price_target_stddev: Mapped[float | None]
+    price_target_updated_at: Mapped[datetime | None]
+
+    # Performance Value Fields ($/PassMark metrics)
+    dollar_per_mark_single: Mapped[float | None]
+    dollar_per_mark_multi: Mapped[float | None]
+    performance_value_percentile: Mapped[float | None]
+    performance_value_rating: Mapped[str | None] = mapped_column(String(16))
+    performance_metrics_updated_at: Mapped[datetime | None]
+
     listings: Mapped[list["Listing"]] = relationship(back_populates="cpu", lazy="selectin")
+
+    @property
+    def has_sufficient_pricing_data(self) -> bool:
+        """Returns True if sample size >= 2 listings"""
+        return self.price_target_sample_size >= 2
+
+    @property
+    def price_targets_fresh(self) -> bool:
+        """Returns True if updated within last 7 days"""
+        if not self.price_target_updated_at:
+            return False
+        age = datetime.utcnow() - self.price_target_updated_at
+        return age.days < 7
 
 
 class Gpu(Base, TimestampMixin):
@@ -347,10 +376,15 @@ class Listing(Base, TimestampMixin):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     listing_url: Mapped[str | None] = mapped_column(Text)
     seller: Mapped[str | None] = mapped_column(String(128))
-    price_usd: Mapped[float] = mapped_column(nullable=False)
+    price_usd: Mapped[float | None] = mapped_column(nullable=True)
     price_date: Mapped[datetime | None]
     condition: Mapped[str] = mapped_column(String(16), nullable=False, default=Condition.USED.value)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default=ListingStatus.ACTIVE.value)
+
+    # Partial Import Support (Phase 1)
+    quality: Mapped[str] = mapped_column(String(20), nullable=False, default="full", server_default="full")
+    extraction_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    missing_fields: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
 
     # URL Ingestion Fields (Phase 1)
     vendor_item_id: Mapped[str | None] = mapped_column(String(128))
@@ -402,10 +436,10 @@ class Listing(Base, TimestampMixin):
     active_profile_id: Mapped[int | None] = mapped_column(ForeignKey("profile.id"))
 
     # Performance Metrics (New)
-    dollar_per_cpu_mark_single: Mapped[float | None]
-    dollar_per_cpu_mark_single_adjusted: Mapped[float | None]
-    dollar_per_cpu_mark_multi: Mapped[float | None]
-    dollar_per_cpu_mark_multi_adjusted: Mapped[float | None]
+    dollar_per_cpu_mark_single: Mapped[float | None]  # base_price / single-thread mark
+    dollar_per_cpu_mark_single_adjusted: Mapped[float | None]  # (base_price + component_adjustments) / single-thread mark
+    dollar_per_cpu_mark_multi: Mapped[float | None]  # base_price / multi-thread mark
+    dollar_per_cpu_mark_multi_adjusted: Mapped[float | None]  # (base_price + component_adjustments) / multi-thread mark
 
     # Product Metadata (New)
     manufacturer: Mapped[str | None] = mapped_column(String(64))
@@ -553,6 +587,12 @@ class ImportSession(Base, TimestampMixin):
 
     # Progress tracking for URL ingestion (Phase 2)
     progress_pct: Mapped[int | None] = mapped_column(Integer, nullable=True, default=0)
+
+    # Bulk Job Tracking (Phase 1.2)
+    bulk_job_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    quality: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    listing_id: Mapped[int | None] = mapped_column(ForeignKey("listing.id", ondelete="SET NULL"), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     audit_events: Mapped[list["ImportSessionAudit"]] = relationship(
         back_populates="session", cascade="all, delete-orphan", lazy="selectin"

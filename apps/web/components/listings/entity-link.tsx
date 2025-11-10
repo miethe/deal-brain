@@ -38,6 +38,13 @@ export interface EntityLinkProps {
    * Optional click handler (in addition to navigation)
    */
   onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+
+  /**
+   * Disable link functionality (render as span instead)
+   * Use when inside clickable containers to avoid nested anchor tags
+   * @default false
+   */
+  disableLink?: boolean;
 }
 
 /**
@@ -47,7 +54,7 @@ export interface EntityLinkProps {
  * keyboard accessibility and hover states.
  *
  * **Routes:**
- * - cpu → /catalog/cpus/{id}
+ * - cpu → /cpus?cpuId={id}&openModal=true (deep link to modal)
  * - gpu → /catalog/gpus/{id}
  * - ram-spec → /catalog/ram-specs/{id}
  * - storage-profile → /catalog/storage-profiles/{id}
@@ -71,10 +78,11 @@ export function EntityLink({
   href,
   variant = "link",
   onClick,
+  disableLink = false,
 }: EntityLinkProps) {
   // Route mapping for entity types to catalog pages
   const routeMap: Record<string, string> = {
-    cpu: "/catalog/cpus",
+    cpu: "/cpus",
     gpu: "/catalog/gpus",
     "ram-spec": "/catalog/ram-specs",
     "storage-profile": "/catalog/storage-profiles",
@@ -87,13 +95,34 @@ export function EntityLink({
     console.warn(`EntityLink: Unknown entity type "${entityType}"`);
   }
 
-  const defaultHref = basePath ? `${basePath}/${entityId}` : "#";
+  // Special handling for CPU links - use query params to trigger modal
+  const defaultHref = basePath
+    ? entityType === 'cpu'
+      ? `${basePath}?cpuId=${entityId}&openModal=true`
+      : `${basePath}/${entityId}`
+    : "#";
+
   const finalHref = href || defaultHref;
 
   const variantClasses = {
     link: "font-medium text-primary underline-offset-4 hover:underline",
     inline: "text-foreground underline-offset-2 hover:underline hover:text-primary",
   };
+
+  // If disableLink is true, render as span
+  if (disableLink) {
+    return (
+      <span
+        className={cn(
+          "cursor-default",
+          variantClasses[variant],
+          className
+        )}
+      >
+        {children}
+      </span>
+    );
+  }
 
   return (
     <Link

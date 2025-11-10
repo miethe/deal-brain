@@ -6,11 +6,20 @@ Creates a customized symbols.config.json for your project with an interactive CL
 Supports multiple project templates and allows customization of all settings.
 
 Usage:
-    # Interactive mode (recommended)
+    # Interactive mode with auto-detection (recommended)
     python .claude/skills/symbols/scripts/init_symbols.py
+
+    # Auto-detect and configure without prompts
+    python .claude/skills/symbols/scripts/init_symbols.py --auto-detect
+
+    # Verbose output showing detection details
+    python .claude/skills/symbols/scripts/init_symbols.py --auto-detect --verbose
 
     # Quick setup with template
     python .claude/skills/symbols/scripts/init_symbols.py --template=react-typescript-fullstack
+
+    # Load from custom config file
+    python .claude/skills/symbols/scripts/init_symbols.py --config-file=paths.json
 
     # Non-interactive with all options
     python .claude/skills/symbols/scripts/init_symbols.py \\
@@ -26,8 +35,18 @@ Usage:
     python .claude/skills/symbols/scripts/init_symbols.py --dry-run
 
 Features:
+    - Automatic codebase structure detection
+        * Detects package managers (pnpm, npm, yarn, uv, poetry, etc.)
+        * Identifies monorepo type (pnpm-workspace, turborepo, lerna, etc.)
+        * Finds backend code (Python, Node.js)
+        * Finds frontend code (React, Next.js, Vue)
+        * Finds mobile code (React Native, Expo)
+        * Finds shared packages
+        * Suggests appropriate template based on detection
     - Interactive CLI with input validation
     - 5 project templates (React, FastAPI, Next.js, Vue, Django)
+    - Custom config file support (--config-file)
+    - Path validation with confidence scoring
     - Customizable domains, layers, and extraction paths
     - Schema validation before writing
     - Color output for better UX (when colorama available)
@@ -35,12 +54,13 @@ Features:
 """
 
 import argparse
+import glob as glob_module
 import json
 import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 # Try to import colorama for colored output
 try:
@@ -97,6 +117,446 @@ TEMPLATES = {
         "best_for": "Vue applications with TypeScript and modern tooling",
     },
 }
+
+
+# =============================================================================
+# Codebase Detection
+# =============================================================================
+
+
+def detect_package_manager(project_root: Path) -> Optional[str]:
+    """Detect package manager used in the project."""
+    if (project_root / "pnpm-lock.yaml").exists():
+        return "pnpm"
+    if (project_root / "yarn.lock").exists():
+        return "yarn"
+    if (project_root / "package-lock.json").exists():
+        return "npm"
+    if (project_root / "bun.lockb").exists():
+        return "bun"
+    if (project_root / "uv.lock").exists() or (project_root / "pyproject.toml").exists():
+        return "uv/pip"
+    if (project_root / "Pipfile.lock").exists():
+        return "pipenv"
+    if (project_root / "poetry.lock").exists():
+        return "poetry"
+    if (project_root / "Cargo.lock").exists():
+        return "cargo"
+    return None
+
+
+def detect_monorepo_type(project_root: Path) -> Optional[str]:
+    """Detect monorepo structure type."""
+    if (project_root / "pnpm-workspace.yaml").exists():
+        return "pnpm-workspace"
+    if (project_root / "lerna.json").exists():
+        return "lerna"
+    if (project_root / "turbo.json").exists():
+        return "turborepo"
+
+    # Check for workspaces in package.json
+    package_json = project_root / "package.json"
+    if package_json.exists():
+        try:
+            with open(package_json) as f:
+                data = json.load(f)
+                if "workspaces" in data:
+                    return "npm-workspaces"
+        except Exception:
+            pass
+
+    return None
+
+
+def count_files_by_extension(directory: Path, extensions: List[str]) -> int:
+    """Count files with given extensions in a directory."""
+    count = 0
+    for ext in extensions:
+        pattern = f"**/*{ext}"
+        try:
+            matches = list(directory.glob(pattern))
+            count += len(matches)
+        except Exception:
+            pass
+    return count
+
+
+def detect_backend_paths(project_root: Path) -> List[Dict[str, Any]]:
+    """
+    Detect backend code locations.
+
+    Returns list of detected paths with metadata:
+        [{"path": "services/api", "language": "python", "confidence": "high", "file_count": 50}]
+    """
+    candidates = []
+
+    # Common backend directory patterns
+    backend_patterns = [
+        "api", "backend", "server", "services", "services/api",
+        "apps/api", "packages/api", "src/api", "src/server"
+    ]
+
+    for pattern in backend_patterns:
+        path = project_root / pattern
+        if not path.exists() or not path.is_dir():
+            continue
+
+        # Check for Python
+        py_count = count_files_by_extension(path, [".py"])
+        if py_count > 0:
+            confidence = "high" if py_count > 10 else "medium" if py_count > 3 else "low"
+            candidates.append({
+                "path": pattern,
+                "language": "python",
+                "confidence": confidence,
+                "file_count": py_count
+            })
+
+        # Check for Node.js backend
+        js_count = count_files_by_extension(path, [".js", ".ts"])
+        has_express = (path / "package.json").exists()
+        if js_count > 0 and has_express:
+            confidence = "high" if js_count > 10 else "medium"
+            candidates.append({
+                "path": pattern,
+                "language": "typescript",
+                "confidence": confidence,
+                "file_count": js_count
+            })
+
+    # Sort by confidence and file count
+    confidence_order = {"high": 3, "medium": 2, "low": 1}
+    candidates.sort(key=lambda x: (confidence_order.get(x["confidence"], 0), x["file_count"]), reverse=True)
+
+    return candidates
+
+
+def detect_frontend_paths(project_root: Path) -> List[Dict[str, Any]]:
+    """
+    Detect frontend code locations.
+
+    Returns list of detected paths with metadata.
+    """
+    candidates = []
+
+    # Common frontend directory patterns
+    frontend_patterns = [
+        "web", "frontend", "client", "app", "apps/web", "apps/frontend",
+        "packages/web", "src", "src/client"
+    ]
+
+    for pattern in frontend_patterns:
+        path = project_root / pattern
+        if not path.exists() or not path.is_dir():
+            continue
+
+        # Check for React/Next.js/Vue
+        tsx_count = count_files_by_extension(path, [".tsx", ".ts", ".jsx", ".js"])
+        vue_count = count_files_by_extension(path, [".vue"])
+
+        has_package_json = (path / "package.json").exists()
+        has_nextjs = (path / "next.config.js").exists() or (path / "next.config.mjs").exists()
+        has_vite = (path / "vite.config.ts").exists() or (path / "vite.config.js").exists()
+
+        if tsx_count > 0 or vue_count > 0:
+            confidence = "high" if (has_package_json or has_nextjs or has_vite) else "medium"
+
+            framework = None
+            if has_nextjs:
+                framework = "nextjs"
+            elif vue_count > 0:
+                framework = "vue"
+            elif tsx_count > 0:
+                framework = "react"
+
+            candidates.append({
+                "path": pattern,
+                "language": "typescript",
+                "confidence": confidence,
+                "file_count": tsx_count + vue_count,
+                "framework": framework
+            })
+
+    # Sort by confidence and file count
+    confidence_order = {"high": 3, "medium": 2, "low": 1}
+    candidates.sort(key=lambda x: (confidence_order.get(x["confidence"], 0), x["file_count"]), reverse=True)
+
+    return candidates
+
+
+def detect_mobile_paths(project_root: Path) -> List[Dict[str, Any]]:
+    """Detect mobile app code locations."""
+    candidates = []
+
+    mobile_patterns = [
+        "mobile", "apps/mobile", "packages/mobile",
+        "ios", "android", "react-native"
+    ]
+
+    for pattern in mobile_patterns:
+        path = project_root / pattern
+        if not path.exists() or not path.is_dir():
+            continue
+
+        # Check for React Native
+        has_expo = (path / "app.json").exists() and (path / "package.json").exists()
+        has_rn = (path / "ios").exists() and (path / "android").exists()
+
+        tsx_count = count_files_by_extension(path, [".tsx", ".ts", ".jsx", ".js"])
+
+        if has_expo or has_rn or tsx_count > 0:
+            confidence = "high" if (has_expo or has_rn) else "medium"
+            framework = "expo" if has_expo else "react-native" if has_rn else "unknown"
+
+            candidates.append({
+                "path": pattern,
+                "language": "typescript",
+                "confidence": confidence,
+                "file_count": tsx_count,
+                "framework": framework
+            })
+
+    confidence_order = {"high": 3, "medium": 2, "low": 1}
+    candidates.sort(key=lambda x: (confidence_order.get(x["confidence"], 0), x["file_count"]), reverse=True)
+
+    return candidates
+
+
+def detect_shared_paths(project_root: Path) -> List[Dict[str, Any]]:
+    """Detect shared code/package locations."""
+    candidates = []
+
+    shared_patterns = [
+        "packages/ui", "packages/shared", "packages/common",
+        "libs/shared", "libs/common", "shared", "common"
+    ]
+
+    for pattern in shared_patterns:
+        path = project_root / pattern
+        if not path.exists() or not path.is_dir():
+            continue
+
+        tsx_count = count_files_by_extension(path, [".tsx", ".ts", ".jsx", ".js"])
+        py_count = count_files_by_extension(path, [".py"])
+
+        total_count = tsx_count + py_count
+        if total_count > 0:
+            language = "typescript" if tsx_count > py_count else "python"
+            confidence = "high" if total_count > 5 else "medium"
+
+            candidates.append({
+                "path": pattern,
+                "language": language,
+                "confidence": confidence,
+                "file_count": total_count
+            })
+
+    confidence_order = {"high": 3, "medium": 2, "low": 1}
+    candidates.sort(key=lambda x: (confidence_order.get(x["confidence"], 0), x["file_count"]), reverse=True)
+
+    return candidates
+
+
+def detect_codebase_structure(project_root: Path, verbose: bool = False) -> Dict[str, Any]:
+    """
+    Scan project and detect code organization.
+
+    Args:
+        project_root: Path to project root
+        verbose: Show detailed detection information
+
+    Returns:
+        {
+            'backend': [{'path': 'services/api', 'language': 'python', 'confidence': 'high', 'file_count': 50}],
+            'frontend': [{'path': 'apps/web', 'language': 'typescript', 'confidence': 'high', 'file_count': 120}],
+            'mobile': [],
+            'shared': [{'path': 'packages/ui', 'language': 'typescript', 'confidence': 'high', 'file_count': 30}],
+            'is_monorepo': True,
+            'monorepo_type': 'pnpm-workspace',
+            'package_manager': 'pnpm',
+            'suggested_template': 'react-typescript-fullstack'
+        }
+    """
+    if verbose:
+        print_info(f"Scanning project root: {project_root}")
+
+    # Detect infrastructure
+    package_manager = detect_package_manager(project_root)
+    monorepo_type = detect_monorepo_type(project_root)
+    is_monorepo = monorepo_type is not None
+
+    if verbose and package_manager:
+        print_info(f"Detected package manager: {package_manager}")
+    if verbose and monorepo_type:
+        print_info(f"Detected monorepo type: {monorepo_type}")
+
+    # Detect code locations
+    backend = detect_backend_paths(project_root)
+    frontend = detect_frontend_paths(project_root)
+    mobile = detect_mobile_paths(project_root)
+    shared = detect_shared_paths(project_root)
+
+    if verbose:
+        print_info(f"Found {len(backend)} backend paths, {len(frontend)} frontend paths, "
+                  f"{len(mobile)} mobile paths, {len(shared)} shared paths")
+
+    # Suggest template based on detection
+    suggested_template = suggest_template_from_detection({
+        "backend": backend,
+        "frontend": frontend,
+        "mobile": mobile,
+        "shared": shared,
+        "is_monorepo": is_monorepo
+    })
+
+    return {
+        "backend": backend,
+        "frontend": frontend,
+        "mobile": mobile,
+        "shared": shared,
+        "is_monorepo": is_monorepo,
+        "monorepo_type": monorepo_type,
+        "package_manager": package_manager,
+        "suggested_template": suggested_template
+    }
+
+
+def suggest_template_from_detection(detected: Dict[str, Any]) -> Optional[str]:
+    """Suggest the most appropriate template based on detection results."""
+    has_backend = len(detected.get("backend", [])) > 0
+    has_frontend = len(detected.get("frontend", [])) > 0
+    has_mobile = len(detected.get("mobile", [])) > 0
+    is_monorepo = detected.get("is_monorepo", False)
+
+    # Get primary languages
+    backend_lang = detected["backend"][0]["language"] if has_backend else None
+    frontend_framework = None
+    if has_frontend:
+        frontend_framework = detected["frontend"][0].get("framework")
+
+    # Template selection logic
+    if is_monorepo and has_backend and has_frontend:
+        return "react-typescript-fullstack"
+    elif has_frontend and frontend_framework == "nextjs":
+        return "nextjs-monorepo"
+    elif has_backend and backend_lang == "python":
+        # Check for Django vs FastAPI
+        return "python-fastapi"  # Default to FastAPI for now
+    elif has_frontend and frontend_framework == "vue":
+        return "vue-typescript"
+    elif has_frontend:
+        return "nextjs-monorepo"  # Default frontend template
+
+    return None
+
+
+def load_config_from_file(config_file: Path) -> Dict[str, Any]:
+    """Load configuration from a custom JSON file."""
+    if not config_file.exists():
+        raise FileNotFoundError(f"Config file not found: {config_file}")
+
+    try:
+        with open(config_file) as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in config file: {e}")
+
+
+def validate_paths(config: Dict[str, Any], project_root: Path) -> List[str]:
+    """
+    Validate that configured paths exist.
+
+    Returns:
+        List of warning messages (empty if all valid)
+    """
+    warnings = []
+
+    # Check extraction directories
+    for lang, extraction in config.get("extraction", {}).items():
+        for directory in extraction.get("directories", []):
+            path = project_root / directory
+            if not path.exists():
+                warnings.append(f"{lang} directory does not exist: {directory}")
+            elif not path.is_dir():
+                warnings.append(f"{lang} path is not a directory: {directory}")
+
+    return warnings
+
+
+def show_detection_results(detected: Dict[str, Any]) -> None:
+    """Display detection results to the user."""
+    print()
+    print(f"{Style.BRIGHT}Detected Project Structure:{Style.RESET_ALL}")
+    print()
+
+    # Infrastructure
+    if detected.get("package_manager"):
+        print(f"  Package Manager: {Fore.CYAN}{detected['package_manager']}{Style.RESET_ALL}")
+
+    if detected.get("is_monorepo"):
+        monorepo_type = detected.get("monorepo_type", "unknown")
+        print(f"  Monorepo: {Fore.GREEN}Yes{Style.RESET_ALL} ({monorepo_type})")
+    else:
+        print(f"  Monorepo: {Fore.YELLOW}No{Style.RESET_ALL}")
+
+    print()
+
+    # Code locations
+    def show_paths(label: str, paths: List[Dict[str, Any]]):
+        if paths:
+            print(f"  {Fore.GREEN}✓{Style.RESET_ALL} {Style.BRIGHT}{label}:{Style.RESET_ALL}")
+            for p in paths[:3]:  # Show top 3
+                conf_color = Fore.GREEN if p["confidence"] == "high" else Fore.YELLOW if p["confidence"] == "medium" else Fore.RED
+                framework_info = f" ({p.get('framework', '')})" if p.get('framework') else ""
+                print(f"      {p['path']} - {p['language']}{framework_info} [{conf_color}{p['confidence']}{Style.RESET_ALL} confidence, {p['file_count']} files]")
+        else:
+            print(f"  {Fore.RED}✗{Style.RESET_ALL} {Style.BRIGHT}{label}:{Style.RESET_ALL} not detected")
+
+    show_paths("Backend", detected.get("backend", []))
+    show_paths("Frontend", detected.get("frontend", []))
+    show_paths("Mobile", detected.get("mobile", []))
+    show_paths("Shared", detected.get("shared", []))
+
+    print()
+
+    # Suggested template
+    if detected.get("suggested_template"):
+        template_name = TEMPLATES[detected["suggested_template"]]["name"]
+        print(f"  {Style.BRIGHT}Suggested Template:{Style.RESET_ALL} {Fore.CYAN}{template_name}{Style.RESET_ALL}")
+    else:
+        print(f"  {Style.BRIGHT}Suggested Template:{Style.RESET_ALL} {Fore.YELLOW}No clear match - manual selection recommended{Style.RESET_ALL}")
+
+
+def prompt_detection_choice() -> int:
+    """
+    Prompt user to choose what to do with detection results.
+
+    Returns:
+        1: Use detected structure
+        2: Customize paths interactively
+        3: Load from custom config file
+    """
+    print()
+    print(f"{Style.BRIGHT}What would you like to do?{Style.RESET_ALL}")
+    print(f"  {Fore.CYAN}1.{Style.RESET_ALL} Use detected structure (recommended)")
+    print(f"  {Fore.CYAN}2.{Style.RESET_ALL} Customize paths interactively")
+    print(f"  {Fore.CYAN}3.{Style.RESET_ALL} Load from custom config file")
+    print()
+
+    while True:
+        choice = prompt_input("Select option (1-3)", default="1")
+        try:
+            choice_int = int(choice)
+            if 1 <= choice_int <= 3:
+                return choice_int
+        except ValueError:
+            pass
+        print_error("Invalid choice. Please enter 1, 2, or 3.")
+
+
+# =============================================================================
+# Original Helper Functions
+# =============================================================================
 
 
 def print_header(text: str, char: str = "=") -> None:
@@ -535,8 +995,17 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Interactive mode (recommended)
+  # Interactive mode with auto-detection (recommended)
   python init_symbols.py
+
+  # Auto-detect and configure without prompts
+  python init_symbols.py --auto-detect
+
+  # Auto-detect with verbose output
+  python init_symbols.py --auto-detect --verbose --dry-run
+
+  # Load from custom config file
+  python init_symbols.py --config-file=custom-paths.json
 
   # Quick setup with template
   python init_symbols.py --template=react-typescript-fullstack
@@ -593,6 +1062,26 @@ Examples:
         action="store_true",
         help="Quick setup with defaults (implies --template if not specified)",
     )
+    parser.add_argument(
+        "--auto-detect",
+        action="store_true",
+        help="Automatically detect and use structure (skip prompts)",
+    )
+    parser.add_argument(
+        "--config-file",
+        type=Path,
+        help="Load configuration from JSON file",
+    )
+    parser.add_argument(
+        "--no-interactive",
+        action="store_true",
+        help="Use detected structure without prompting",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show detailed detection information",
+    )
 
     args = parser.parse_args()
 
@@ -601,8 +1090,38 @@ Examples:
         list_templates()
         return 0
 
+    # Handle config file mode
+    if args.config_file:
+        try:
+            print_info(f"Loading configuration from: {args.config_file}")
+            config = load_config_from_file(args.config_file)
+
+            # Validate paths
+            project_root = find_project_root()
+            warnings = validate_paths(config, project_root)
+            if warnings:
+                print_warning("Path validation warnings:")
+                for warning in warnings:
+                    print(f"  - {warning}")
+                print()
+                if not args.force and not prompt_yes_no("Continue anyway?", default=False):
+                    return 1
+
+            # Determine output path
+            output_path = args.output if args.output else project_root / ".claude" / "skills" / "symbols" / "symbols.config.json"
+
+            # Write configuration
+            success = write_configuration(config, output_path, dry_run=args.dry_run, force=args.force)
+            if success and not args.dry_run:
+                show_next_steps(config, output_path)
+                return 0
+            return 0 if success else 1
+        except Exception as e:
+            print_error(f"Failed to load config file: {e}")
+            return 1
+
     # Determine if running in non-interactive mode
-    non_interactive = bool(args.template and args.name and args.symbols_dir) or args.quick
+    non_interactive = bool(args.template and args.name and args.symbols_dir) or args.quick or args.auto_detect or args.no_interactive
 
     # Quick mode defaults
     if args.quick:
@@ -613,14 +1132,78 @@ Examples:
         non_interactive = True
 
     try:
-        # Welcome screen (skip in non-interactive mode)
-        if not non_interactive:
+        # Welcome screen (skip in non-interactive/auto-detect mode)
+        if not non_interactive and not args.auto_detect:
             if not show_welcome():
                 print_info("Setup cancelled.")
                 return 0
 
-        # Template selection
-        template_id = select_template(non_interactive, args.template)
+        # Auto-detection phase
+        detected_structure = None
+        if args.auto_detect or (not args.template and not non_interactive):
+            print_step(1, "Automatic Codebase Detection")
+            project_root = find_project_root()
+            detected_structure = detect_codebase_structure(project_root, verbose=args.verbose)
+
+            # Show detection results
+            show_detection_results(detected_structure)
+
+            # Auto-detect mode: use detected template
+            if args.auto_detect or args.no_interactive:
+                if detected_structure.get("suggested_template"):
+                    args.template = detected_structure["suggested_template"]
+                    print()
+                    print_success(f"Auto-selected template: {TEMPLATES[args.template]['name']}")
+                    # Set defaults for project name and symbols dir if not provided
+                    if not args.name:
+                        args.name = detect_project_name()
+                    if not args.symbols_dir:
+                        args.symbols_dir = "ai"
+                else:
+                    print_error("Could not auto-detect appropriate template")
+                    print_info("Please run without --auto-detect to select manually")
+                    return 1
+            else:
+                # Interactive mode: prompt user
+                choice = prompt_detection_choice()
+
+                if choice == 1:
+                    # Use detected structure
+                    if detected_structure.get("suggested_template"):
+                        args.template = detected_structure["suggested_template"]
+                        print_success(f"Using detected template: {TEMPLATES[args.template]['name']}")
+                    else:
+                        print_warning("No template auto-detected, falling back to manual selection")
+                        # Fall through to manual template selection
+                elif choice == 2:
+                    # Customize interactively - will use template selection below
+                    print_info("Proceeding with interactive customization...")
+                elif choice == 3:
+                    # Load from config file
+                    config_file_path = Path(prompt_input("Config file path"))
+                    try:
+                        config = load_config_from_file(config_file_path)
+                        project_root = find_project_root()
+                        warnings = validate_paths(config, project_root)
+                        if warnings:
+                            print_warning("Path validation warnings:")
+                            for warning in warnings:
+                                print(f"  - {warning}")
+
+                        output_path = args.output if args.output else project_root / ".claude" / "skills" / "symbols" / "symbols.config.json"
+                        success = write_configuration(config, output_path, dry_run=args.dry_run, force=args.force)
+                        if success and not args.dry_run:
+                            show_next_steps(config, output_path)
+                        return 0 if success else 1
+                    except Exception as e:
+                        print_error(f"Failed to load config file: {e}")
+                        return 1
+
+        # Template selection (if not already set by detection)
+        if not args.template:
+            template_id = select_template(non_interactive, args.template)
+        else:
+            template_id = args.template
 
         # Load template
         template_config = load_template(template_id)

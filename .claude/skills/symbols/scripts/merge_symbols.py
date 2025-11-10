@@ -81,7 +81,7 @@ class SymbolMerger:
             except Exception:
                 pass  # Will use fallback paths
 
-        # Build domain files mapping from config or use defaults
+        # Build domain files mapping from config or use minimal defaults
         if self._config:
             self.DOMAIN_FILES = {}
             for domain in self._config.get_enabled_domains():
@@ -100,14 +100,12 @@ class SymbolMerger:
                 except Exception:
                     pass
         else:
-            # Fallback to default paths
+            # Minimal generic fallback - only basic domains
+            print("Warning: Configuration not loaded, using minimal defaults", file=sys.stderr)
+            print("  Run 'python init_symbols.py' to initialize the symbols system", file=sys.stderr)
             self.DOMAIN_FILES = {
-                'ui': 'ai/symbols-ui.json',
                 'api': 'ai/symbols-api.json',
-                'shared': 'ai/symbols-shared.json',
-                'ui-tests': 'ai/symbols-ui-tests.json',
-                'api-tests': 'ai/symbols-api-tests.json',
-                'shared-tests': 'ai/symbols-shared-tests.json',
+                'ui': 'ai/symbols-ui.json',
             }
 
     def merge(
@@ -245,7 +243,7 @@ class SymbolMerger:
         index: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
         domains = existing_data.get('domains', {})
-        for domain_name, domain_data in domains.items():
+        for domain_data in domains.values():
             modules = domain_data.get('modules', [])
             for module in modules:
                 path = module.get('path', '')

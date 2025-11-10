@@ -229,7 +229,7 @@ export function ValuationBreakdownModal({
 
             <div className="grid gap-3 sm:grid-cols-3">
               <SummaryStat label="Base price" value={breakdown.base_price_usd} />
-              <SummaryStat label="Adjusted price" value={breakdown.adjusted_price_usd} />
+              <SummaryStat label="Adjusted value" value={breakdown.adjusted_price_usd} />
               <SummaryStat
                 label="Total adjustment"
                 value={breakdown.total_adjustment}
@@ -326,7 +326,7 @@ export function ValuationBreakdownModal({
 
             <div className="flex items-center justify-between rounded-lg bg-muted/40 p-4">
               <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">Adjusted price</div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Adjusted value</div>
                 <div className="text-lg font-semibold">
                   {formatCurrency(breakdown.adjusted_price_usd)}
                 </div>

@@ -79,3 +79,29 @@ class SettingsService:
                 "premium_warning": 10.0
             }
         return thresholds
+
+    async def get_cpu_mark_thresholds(self, session: AsyncSession) -> dict[str, float]:
+        """Get CPU Mark thresholds with defaults.
+
+        These are percentage improvement values representing price-to-performance efficiency.
+        Positive values indicate better efficiency (lower $/mark), negative values indicate
+        worse efficiency (higher $/mark) compared to baseline.
+
+        Args:
+            session: Database session
+
+        Returns:
+            Thresholds dict with excellent, good, fair, neutral, poor, premium
+        """
+        thresholds = await self.get_setting(session, "cpu_mark_thresholds")
+        if not thresholds:
+            # Return defaults if not configured
+            return {
+                "excellent": 20.0,
+                "good": 10.0,
+                "fair": 5.0,
+                "neutral": 0.0,
+                "poor": -10.0,
+                "premium": -20.0
+            }
+        return thresholds

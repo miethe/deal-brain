@@ -271,16 +271,17 @@ class DeduplicationService:
 
         return text
 
-    def _normalize_price(self, price: Decimal) -> str:
+    def _normalize_price(self, price: Decimal | None) -> str:
         """Normalize price for consistent hashing.
 
         Formats price as string with exactly 2 decimal places.
+        Returns empty string for None prices (partial extractions).
 
         Args:
-            price: Price amount (Decimal)
+            price: Price amount (Decimal or None for partial extractions)
 
         Returns:
-            Price formatted as "XXX.XX" (2 decimal places)
+            Price formatted as "XXX.XX" (2 decimal places), or empty string if None
 
         Example:
             >>> service._normalize_price(Decimal("599.99"))
@@ -289,7 +290,11 @@ class DeduplicationService:
             '599.90'
             >>> service._normalize_price(Decimal("599"))
             '599.00'
+            >>> service._normalize_price(None)
+            ''
         """
+        if price is None:
+            return ""
         return f"{price:.2f}"
 
 
@@ -495,17 +500,17 @@ class ListingNormalizer:
 
     def _convert_to_usd(
         self,
-        price: Decimal,
+        price: Decimal | None,
         currency: str | None,
-    ) -> Decimal:
+    ) -> Decimal | None:
         """Convert price to USD using fixed exchange rates.
 
         Args:
-            price: Original price amount
+            price: Original price amount (may be None for partial extractions)
             currency: ISO currency code (USD|EUR|GBP|CAD)
 
         Returns:
-            Price converted to USD (2 decimal places)
+            Price converted to USD (2 decimal places), or None if price is None
 
         Example:
             >>> normalizer._convert_to_usd(Decimal("500"), "EUR")
@@ -514,7 +519,13 @@ class ListingNormalizer:
             Decimal('599.99')
             >>> normalizer._convert_to_usd(Decimal("599.99"), "JPY")
             Decimal('599.99')  # Unknown currency defaults to USD
+            >>> normalizer._convert_to_usd(None, "USD")
+            None  # Partial extraction without price
         """
+        # Handle None price (partial extraction)
+        if price is None:
+            return None
+
         if not currency or currency not in self.CURRENCY_RATES:
             # Default to USD if unknown currency
             return price.quantize(Decimal("0.01"))
@@ -661,7 +672,7 @@ class ListingNormalizer:
 
         Quality assessment:
         - Full: has title, price, condition, CPU, RAM, storage, images (4+ optional fields)
-        - Partial: missing one or more optional fields (<4 optional fields)
+        - Partial: missing price OR missing one or more optional fields (<4 optional fields)
 
         Args:
             normalized: Normalized listing schema
@@ -670,7 +681,7 @@ class ListingNormalizer:
             Quality level: "full" or "partial"
 
         Raises:
-            ValueError: If required fields (title, price) are missing
+            ValueError: If required field (title) is missing
 
         Example:
             >>> data = NormalizedListingSchema(
@@ -686,16 +697,15 @@ class ListingNormalizer:
             >>> normalizer.assess_quality(data)
             'full'
         """
-        # Check required fields
-        required_fields = [
-            normalized.title,
-            normalized.price,
-        ]
+        # Check required field (title is now the only truly required field)
+        if not normalized.title or not normalized.title.strip():
+            raise ValueError("Missing required field: title")
 
-        if not all(required_fields):
-            raise ValueError("Missing required fields (title, price)")
+        # If price is missing, automatically mark as partial
+        if normalized.price is None:
+            return "partial"
 
-        # Count optional fields
+        # Count optional fields (only if price is present)
         optional_fields = [
             normalized.condition,
             normalized.cpu_model,
@@ -1264,7 +1274,7 @@ class IngestionService:
         # Create listing with all fields
         listing = Listing(
             title=data.title,
-            price_usd=float(data.price),
+            price_usd=float(data.price) if data.price is not None else 0.00,
             condition=condition.value,
             marketplace=data.marketplace,
             vendor_item_id=data.vendor_item_id,
@@ -1316,7 +1326,7 @@ class IngestionService:
 
         # Update price and check for changes
         old_price = existing.price_usd
-        existing.price_usd = float(data.price)
+        existing.price_usd = float(data.price) if data.price is not None else 0.00
         existing.last_seen_at = datetime.utcnow()
 
         # Update condition if changed
