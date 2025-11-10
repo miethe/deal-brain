@@ -178,15 +178,15 @@ class JsonLdAdapter(BaseAdapter):
 
         if not product_data:
             # Fallback 1: Try extracting from meta tags (OpenGraph, Twitter Card)
-            logger.info(f"No Schema.org Product found, trying meta tag fallback for {url}")
+            logger.info(f"📋 No Schema.org Product found, trying meta tag fallback for {url}")
             result = self._extract_from_meta_tags(html, url)
 
             if result:
-                logger.info(f"Successfully extracted listing from meta tags: {result.title}")
+                logger.info(f"✅ Successfully extracted listing from meta tags: {result.title}")
                 return result
 
             # Fallback 2: Try extracting from HTML elements (Amazon-style)
-            logger.info(f"No meta tags found, trying HTML element fallback for {url}")
+            logger.info(f"🔍 No meta tags found, trying HTML element fallback for {url}")
             result = self._extract_from_html_elements(html, url)
 
             if result:
@@ -1312,39 +1312,63 @@ class JsonLdAdapter(BaseAdapter):
             # Amazon-specific patterns (priority order based on 2025 research)
             # Priority 1: Desktop core price display with offscreen (updated 2025)
             # Try modern aok-offscreen class first, then legacy a-offscreen
+            logger.debug("  [Price] Testing Priority 1: #corePriceDisplay_desktop_feature_div span.aok-offscreen")
             offscreen_price = soup.select_one(
                 "#corePriceDisplay_desktop_feature_div span.aok-offscreen"
             )
             if not offscreen_price:
+                logger.debug("  [Price]   aok-offscreen not found, trying a-offscreen")
                 offscreen_price = soup.select_one(
                     "#corePriceDisplay_desktop_feature_div span.a-offscreen"
                 )
             if offscreen_price:
                 price_str = offscreen_price.get_text(strip=True)
+                logger.debug(f"  [Price]   Found element, text='{price_str}' (length={len(price_str)})")
                 # Validate non-empty to avoid parsing empty elements
                 if price_str:
                     price = self._parse_price(price_str)
+                    logger.info(f"  [Price]   ✓ Priority 1 SUCCESS: parsed price={price}")
+                else:
+                    logger.debug("  [Price]   Element text is empty, skipping to next priority")
+            else:
+                logger.debug("  [Price]   No element found for Priority 1")
 
             # Priority 2: Simple a-price offscreen (direct child, most common)
             if not price:
+                logger.debug("  [Price] Testing Priority 2: span.a-price > span.a-offscreen")
                 offscreen_price = soup.select_one("span.a-price > span.a-offscreen")
                 if offscreen_price:
                     price_str = offscreen_price.get_text(strip=True)
-                    price = self._parse_price(price_str)
+                    logger.debug(f"  [Price]   Found element, text='{price_str}' (length={len(price_str)})")
+                    if price_str:
+                        price = self._parse_price(price_str)
+                        logger.info(f"  [Price]   ✓ Priority 2 SUCCESS: parsed price={price}")
+                    else:
+                        logger.debug("  [Price]   Element text is empty, skipping")
+                else:
+                    logger.debug("  [Price]   No element found for Priority 2")
 
             # Priority 3: Generic a-price offscreen with intermediate wrapper
             if not price:
+                logger.debug("  [Price] Testing Priority 3a: span.a-price span.a-price-whole span.a-offscreen")
                 offscreen_price = soup.select_one("span.a-price span.a-price-whole span.a-offscreen")
                 if offscreen_price:
                     price_str = offscreen_price.get_text(strip=True)
-                    price = self._parse_price(price_str)
+                    logger.debug(f"  [Price]   Found element, text='{price_str}'")
+                    if price_str:
+                        price = self._parse_price(price_str)
+                        logger.info(f"  [Price]   ✓ Priority 3a SUCCESS: parsed price={price}")
 
-            # Priority 3: Modern priceToPay selector
+            # Priority 3b: Modern priceToPay selector
             if not price:
+                logger.debug("  [Price] Testing Priority 3b: span.priceToPay span.a-offscreen")
                 element = soup.select_one("span.priceToPay span.a-offscreen")
                 if element:
                     price_str = element.get_text(strip=True)
-                    price = self._parse_price(price_str)
+                    logger.debug(f"  [Price]   Found element, text='{price_str}'")
+                    if price_str:
+                        price = self._parse_price(price_str)
+                        logger.info(f"  [Price]   ✓ Priority 3b SUCCESS: parsed price={price}")
 
             # Priority 4: Buy box price
             if not price:
@@ -1395,17 +1419,17 @@ class JsonLdAdapter(BaseAdapter):
                     price_str = element.get_text(strip=True)
                     price = self._parse_price(price_str)
 
-            # Price is optional - log but continue if missing
+            # Price extraction summary
             if not price:
-                logger.info(
-                    f"Partial extraction from HTML elements: price not found for '{title}', "
-                    "continuing with title only"
+                logger.warning(
+                    f"  [Price] ❌ FAILED TO EXTRACT PRICE for '{title}'"
                 )
-                logger.debug(
-                    "    Tried selectors: #corePriceDisplay_desktop_feature_div .aok-offscreen/.a-offscreen, "
-                    ".a-price > .a-offscreen, .priceToPay .a-offscreen, #price_inside_buybox, "
-                    "#priceblock_ourprice, #priceblock_dealprice, .a-price span[aria-hidden], "
-                    ".price, itemprop='price', .product-price"
+                logger.warning(
+                    "  [Price] All selectors tried: Priority 1 (#corePriceDisplay .aok-offscreen/.a-offscreen), "
+                    "Priority 2 (span.a-price > span.a-offscreen), Priority 3a (span.a-price span.a-price-whole span.a-offscreen), "
+                    "Priority 3b (span.priceToPay span.a-offscreen), Priority 4 (#price_inside_buybox), "
+                    "Priority 5 (#priceblock_ourprice, #priceblock_dealprice), Priority 6 (.a-price span[aria-hidden]), "
+                    "Generic (.price, itemprop='price', .product-price)"
                 )
 
                 # Log what price-like elements exist for debugging
