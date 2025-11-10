@@ -1402,7 +1402,7 @@ class JsonLdAdapter(BaseAdapter):
                     "continuing with title only"
                 )
                 logger.debug(
-                    "    Tried selectors: #corePriceDisplay_desktop_feature_div .a-offscreen, "
+                    "    Tried selectors: #corePriceDisplay_desktop_feature_div .aok-offscreen/.a-offscreen, "
                     ".a-price > .a-offscreen, .priceToPay .a-offscreen, #price_inside_buybox, "
                     "#priceblock_ourprice, #priceblock_dealprice, .a-price span[aria-hidden], "
                     ".price, itemprop='price', .product-price"
