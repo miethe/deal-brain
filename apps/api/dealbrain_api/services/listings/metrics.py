@@ -40,21 +40,21 @@ def calculate_cpu_performance_metrics(listing: Listing) -> dict[str, float]:
     # Extract adjustment delta from valuation breakdown
     total_adjustment = 0.0
     if listing.valuation_breakdown:
-        total_adjustment = float(listing.valuation_breakdown.get('total_adjustment', 0.0))
+        total_adjustment = float(listing.valuation_breakdown.get("total_adjustment", 0.0))
 
-    adjusted_base_price = base_price - total_adjustment
+    adjusted_base_price = base_price + total_adjustment
 
     metrics = {}
 
     # Single-thread metrics
     if cpu.cpu_mark_single and cpu.cpu_mark_single > 0:
-        metrics['dollar_per_cpu_mark_single'] = base_price / cpu.cpu_mark_single
-        metrics['dollar_per_cpu_mark_single_adjusted'] = adjusted_base_price / cpu.cpu_mark_single
+        metrics["dollar_per_cpu_mark_single"] = base_price / cpu.cpu_mark_single
+        metrics["dollar_per_cpu_mark_single_adjusted"] = adjusted_base_price / cpu.cpu_mark_single
 
     # Multi-thread metrics
     if cpu.cpu_mark_multi and cpu.cpu_mark_multi > 0:
-        metrics['dollar_per_cpu_mark_multi'] = base_price / cpu.cpu_mark_multi
-        metrics['dollar_per_cpu_mark_multi_adjusted'] = adjusted_base_price / cpu.cpu_mark_multi
+        metrics["dollar_per_cpu_mark_multi"] = base_price / cpu.cpu_mark_multi
+        metrics["dollar_per_cpu_mark_multi_adjusted"] = adjusted_base_price / cpu.cpu_mark_multi
 
     return metrics
 

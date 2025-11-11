@@ -97,6 +97,8 @@ class ImageParser:
                             images.append(img_url)
                             break  # Take first/largest image
                 except (json.JSONDecodeError, AttributeError):
+                    # Malformed or missing JSON in data-a-dynamic-image attribute is expected;
+                    # skip this image and continue processing others.
                     pass
 
             # Limit to 5 images

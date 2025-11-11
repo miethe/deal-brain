@@ -14,7 +14,7 @@ from dealbrain_core.scoring import ListingMetrics, compute_composite_score, doll
 from dealbrain_core.valuation import compute_adjusted_price
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...models import Cpu, Gpu, Listing, Profile
+from ...models import Cpu, Gpu, Listing
 from ...telemetry import get_logger
 from ..rule_evaluation import RuleEvaluationService
 

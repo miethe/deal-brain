@@ -201,6 +201,8 @@ class ImportValidator:
             if pd.isna(value):
                 return None
         except TypeError:
+            # pd.isna() raises TypeError for unhashable types (e.g., dict, list);
+            # these are valid non-NA values, so continue with normal processing.
             pass
         return value
 

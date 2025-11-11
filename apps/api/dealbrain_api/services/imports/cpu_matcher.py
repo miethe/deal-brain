@@ -158,7 +158,9 @@ class CpuMatcher:
         if not cpu_column or cpu_column not in dataframe.columns:
             return []
 
-        matches = CpuMatcher.match_components(dataframe, cpu_column, list(cpu_lookup.keys()), limit=None)
+        matches = CpuMatcher.match_components(
+            dataframe, cpu_column, list(cpu_lookup.keys()), limit=None
+        )
         match_lookup = {match["row_index"]: match for match in matches}
         normalized_lookup = set(cpu_lookup.keys())
 
@@ -171,11 +173,23 @@ class CpuMatcher:
             candidate = None
 
             if override and override.get("cpu_match"):
-                candidate = str(override.get("cpu_match")).strip() or None
+                candidate = (
+                    str(override.get("cpu_match")).strip()
+                    if override.get("cpu_match") is not None
+                    else None
+                )
             elif match_data and match_data.get("status") == "auto":
-                candidate = str(match_data.get("auto_match")).strip() or None
+                candidate = (
+                    str(match_data.get("auto_match")).strip()
+                    if match_data.get("auto_match") is not None
+                    else None
+                )
             else:
-                candidate = str(row.get(cpu_column, "")).strip() or None
+                candidate = (
+                    str(row.get(cpu_column, "")).strip()
+                    if row.get(cpu_column, "") is not None
+                    else None
+                )
 
             if not candidate:
                 continue
@@ -292,10 +306,10 @@ class CpuMatcher:
         """
         if override and override.get("cpu_match"):
             value = override.get("cpu_match")
-            return str(value).strip() or None
+            return str(value).strip() if value is not None else None
         if match_data and match_data.get("status") == "auto":
             value = match_data.get("auto_match")
-            return str(value).strip() or None
+            return str(value).strip() if value is not None else None
         return None
 
 

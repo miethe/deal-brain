@@ -28,7 +28,7 @@ from ..component_catalog import (
 )
 
 if TYPE_CHECKING:
-    from dealbrain_core.enums import StorageMedium
+    pass
 
 logger = get_logger("dealbrain.listings.components")
 
