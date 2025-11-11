@@ -39,7 +39,7 @@ router = APIRouter()
 logger = get_logger("dealbrain.api.listings.crud")
 
 
-@router.get("", response_model=list[ListingRead])
+@router.get("/", response_model=list[ListingRead])
 async def list_listings(
     limit: int = Query(default=50, le=200),
     offset: int = 0,
@@ -159,7 +159,7 @@ async def get_paginated_listings_endpoint(
         )
 
 
-@router.post("", response_model=ListingRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=ListingRead, status_code=status.HTTP_201_CREATED)
 async def create_listing_endpoint(
     payload: ListingCreate,
     session: AsyncSession = Depends(session_dependency),
