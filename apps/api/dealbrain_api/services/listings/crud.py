@@ -1,0 +1,347 @@
+"""CRUD operations for listings.
+
+This module handles basic create, read, update, and delete operations for listings,
+along with payload normalization and validation utilities.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+from urllib.parse import urlparse
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ...models import Listing, Profile
+from ...telemetry import get_logger
+
+logger = get_logger("dealbrain.listings.crud")
+
+# Mutable fields that can be updated via partial_update_listing
+MUTABLE_LISTING_FIELDS: set[str] = {
+    "title",
+    "listing_url",
+    "other_urls",
+    "seller",
+    "price_usd",
+    "price_date",
+    "condition",
+    "status",
+    "cpu_id",
+    "gpu_id",
+    "ports_profile_id",
+    "ram_spec_id",
+    "primary_storage_profile_id",
+    "secondary_storage_profile_id",
+    "device_model",
+    "ram_gb",
+    "ram_notes",
+    "primary_storage_gb",
+    "primary_storage_type",
+    "secondary_storage_gb",
+    "secondary_storage_type",
+    "os_license",
+    "notes",
+    "ruleset_id",
+    # Partial import fields (Phase 1)
+    "quality",
+    "extraction_metadata",
+    "missing_fields",
+    "vendor_item_id",
+    "marketplace",
+    "provenance",
+}
+
+
+def _normalize_listing_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Handle legacy field aliases and normalize payload keys."""
+    if "url" in payload and "listing_url" not in payload:
+        payload["listing_url"] = payload.pop("url")
+    if "listing_url" in payload:
+        payload["listing_url"] = _sanitize_primary_url(payload["listing_url"])
+    if "other_urls" in payload:
+        payload["other_urls"] = _normalize_other_urls(payload["other_urls"])
+    return payload
+
+
+def _sanitize_primary_url(value: Any) -> str | None:
+    """Sanitize and validate primary listing URL."""
+    if value in (None, "", []):
+        return None
+    url_str = str(value).strip()
+    parsed = urlparse(url_str)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("listing_url must use http:// or https:// and include a host")
+    return url_str
+
+
+def _normalize_other_urls(value: Any) -> list[dict[str, str | None]]:
+    """Normalize supplemental URLs to standardized format."""
+    if not value:
+        return []
+    normalized: list[dict[str, str | None]] = []
+    items = value if isinstance(value, (list, tuple)) else [value]
+    seen: set[str] = set()
+    for item in items:
+        if item in (None, "", {}):
+            continue
+        if isinstance(item, str):
+            url = item.strip()
+            label = None
+        elif isinstance(item, dict):
+            url = str(item.get("url") or item.get("href") or "").strip()
+            label_value = item.get("label") or item.get("text")
+            label = str(label_value).strip() if label_value else None
+        else:
+            url = str(item).strip()
+            label = None
+        if not url:
+            continue
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError(
+                "Supplemental link URLs must use http:// or https:// and include a host"
+            )
+        if url in seen:
+            continue
+        seen.add(url)
+        normalized.append({"url": url, "label": label})
+    return normalized
+
+
+async def get_default_profile(session: AsyncSession) -> Profile | None:
+    """Get the default scoring profile.
+
+    Returns:
+        Default profile if exists, otherwise first profile by ID, or None if no profiles exist
+    """
+    result = await session.execute(select(Profile).where(Profile.is_default == True))  # noqa: E712
+    profile = result.scalars().first()
+    if profile:
+        return profile
+    result = await session.execute(select(Profile).order_by(Profile.id))
+    return result.scalars().first()
+
+
+async def create_listing(session: AsyncSession, payload: dict) -> Listing:
+    """Create a new listing.
+
+    Args:
+        session: Database session
+        payload: Dictionary of listing fields
+
+    Returns:
+        Created listing instance
+
+    Note:
+        Does NOT apply metrics - caller should call apply_listing_metrics separately
+    """
+    from .components import _prepare_component_relationships
+
+    # Map "attributes" to "attributes_json" for SQLAlchemy model
+    if "attributes" in payload:
+        payload["attributes_json"] = payload.pop("attributes")
+    payload = _normalize_listing_payload(payload)
+    await _prepare_component_relationships(session, payload)
+    listing = Listing(**payload)
+    session.add(listing)
+    await session.flush()
+    logger.info(
+        "listing.created",
+        listing_id=listing.id,
+        title=listing.title,
+        price=listing.price_usd,
+        ruleset_id=listing.ruleset_id,
+    )
+    return listing
+
+
+async def update_listing(session: AsyncSession, listing: Listing, payload: dict) -> Listing:
+    """Update an existing listing.
+
+    Args:
+        session: Database session
+        listing: Listing instance to update
+        payload: Dictionary of fields to update
+
+    Returns:
+        Updated listing instance
+
+    Note:
+        Does NOT apply metrics - caller should call apply_listing_metrics separately
+    """
+    from .components import _prepare_component_relationships
+
+    payload = _normalize_listing_payload(payload)
+    await _prepare_component_relationships(session, payload, listing=listing)
+    for field, value in payload.items():
+        setattr(listing, field, value)
+    await session.flush()
+    logger.info(
+        "listing.updated",
+        listing_id=listing.id,
+        updated_fields=list(payload.keys()),
+        ruleset_id=listing.ruleset_id,
+    )
+    return listing
+
+
+async def partial_update_listing(
+    session: AsyncSession,
+    listing: Listing,
+    fields: dict[str, Any] | None = None,
+    attributes: dict[str, Any] | None = None,
+    *,
+    run_metrics: bool = True,
+) -> Listing:
+    """Update listing with partial field updates and optional metric recalculation.
+
+    Only updates fields in MUTABLE_LISTING_FIELDS whitelist. Handles attributes_json
+    merging and automatic metrics recalculation.
+
+    Args:
+        session: Database session
+        listing: Listing to update
+        fields: Dictionary of listing fields to update
+        attributes: Dictionary of attributes to merge into attributes_json
+        run_metrics: Whether to recalculate metrics after update
+
+    Returns:
+        Updated listing instance
+    """
+    from .components import _prepare_component_relationships
+    from .valuation import apply_listing_metrics
+
+    fields = fields or {}
+    attributes = attributes or {}
+    fields = _normalize_listing_payload(dict(fields))
+    await _prepare_component_relationships(session, fields, listing=listing)
+
+    for field, value in fields.items():
+        if field in MUTABLE_LISTING_FIELDS:
+            setattr(listing, field, value)
+
+    if attributes:
+        merged = dict(listing.attributes_json or {})
+        for key, value in attributes.items():
+            if value is None:
+                merged.pop(key, None)
+            else:
+                merged[key] = value
+        listing.attributes_json = merged
+
+    logger.info(
+        "listing.partial_update",
+        listing_id=listing.id,
+        updated_fields=list(fields.keys()),
+        attribute_keys=list(attributes.keys()),
+        run_metrics=run_metrics,
+    )
+
+    await session.flush()
+
+    if run_metrics:
+        # Only apply metrics if listing has a price
+        if listing.price_usd is not None:
+            await apply_listing_metrics(session, listing)
+            await session.refresh(listing)
+        else:
+            logger.info(
+                "listing.partial_update.skipped_metrics",
+                listing_id=listing.id,
+                reason="price_is_none",
+            )
+    return listing
+
+
+async def bulk_update_listings(
+    session: AsyncSession,
+    listing_ids: list[int],
+    fields: dict[str, Any] | None = None,
+    attributes: dict[str, Any] | None = None,
+) -> list[Listing]:
+    """Update multiple listings with same field updates.
+
+    Args:
+        session: Database session
+        listing_ids: List of listing IDs to update
+        fields: Dictionary of fields to update
+        attributes: Dictionary of attributes to merge
+
+    Returns:
+        List of updated listings
+    """
+    from .valuation import apply_listing_metrics
+
+    if not listing_ids:
+        return []
+
+    result = await session.execute(select(Listing).where(Listing.id.in_(listing_ids)))
+    listings = result.scalars().unique().all()
+    if not listings:
+        return []
+
+    for listing in listings:
+        await partial_update_listing(
+            session,
+            listing,
+            fields,
+            attributes,
+            run_metrics=False,
+        )
+
+    await session.flush()
+    for listing in listings:
+        # Only apply metrics if listing has a price
+        if listing.price_usd is not None:
+            await apply_listing_metrics(session, listing)
+        else:
+            logger.info(
+                "listing.bulk_update.skipped_metrics",
+                listing_id=listing.id,
+                reason="price_is_none",
+            )
+    await session.flush()
+    for listing in listings:
+        await session.refresh(listing)
+    return listings
+
+
+async def delete_listing(
+    session: AsyncSession,
+    listing_id: int,
+) -> None:
+    """Delete listing and cascade related records.
+
+    Cascades delete to:
+    - ListingComponent records
+    - ListingScoreSnapshot records
+    - RawPayload records
+    - EntityFieldValue records (custom fields) via DB FK cascade
+
+    Args:
+    ----
+        session: Database session
+        listing_id: ID of listing to delete
+
+    Raises:
+    ------
+        ValueError: Listing not found
+    """
+    listing = await session.get(Listing, listing_id)
+    if not listing:
+        raise ValueError(f"Listing {listing_id} not found")
+
+    logger.info(
+        "listing.delete",
+        listing_id=listing_id,
+        title=listing.title,
+    )
+
+    await session.delete(listing)
+    await session.commit()
+
+    logger.info(
+        "listing.deleted",
+        listing_id=listing_id,
+    )
