@@ -225,7 +225,7 @@ class FieldRegistry:
             raise ValueError(f"Unknown entity '{entity}'") from exc
 
     def _listing_core_fields(self) -> list[FieldMeta]:
-        from ..api.listings import CORE_LISTING_FIELDS
+        from ..api.listings.schema import CORE_LISTING_FIELDS
 
         fields: list[FieldMeta] = []
         for field_schema in CORE_LISTING_FIELDS:

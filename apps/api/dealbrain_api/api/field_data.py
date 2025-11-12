@@ -9,11 +9,23 @@ from ..db import session_dependency
 from ..services.field_registry import FieldRegistry
 
 router = APIRouter(prefix="/v1/fields-data", tags=["fields"])
-registry = FieldRegistry()
+
+# Lazy initialization to avoid circular import during module loading
+# The FieldRegistry imports from api.listings.schema, which triggers api.listings.__init__
+_registry: FieldRegistry | None = None
+
+
+def get_registry() -> FieldRegistry:
+    """Get or create the singleton FieldRegistry instance."""
+    global _registry
+    if _registry is None:
+        _registry = FieldRegistry()
+    return _registry
 
 
 @router.get("/entities")
 async def list_entities() -> dict[str, list[dict[str, str]]]:
+    registry = get_registry()
     entities = [
         {
             "entity": meta.entity,
@@ -28,6 +40,7 @@ async def list_entities() -> dict[str, list[dict[str, str]]]:
 
 @router.get("/{entity}/schema")
 async def entity_schema(entity: str, db: AsyncSession = Depends(session_dependency)) -> dict[str, object]:
+    registry = get_registry()
     try:
         return await registry.schema_for(db, entity)
     except ValueError as exc:
@@ -41,6 +54,7 @@ async def list_entity_records(
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(session_dependency),
 ) -> dict[str, object]:
+    registry = get_registry()
     try:
         return await registry.list_records(db, entity=entity, limit=limit, offset=offset)
     except ValueError as exc:
@@ -53,6 +67,7 @@ async def create_entity_record(
     payload: dict,
     db: AsyncSession = Depends(session_dependency),
 ) -> dict[str, object]:
+    registry = get_registry()
     try:
         record = await registry.create_record(db, entity=entity, payload=payload)
     except ValueError as exc:
@@ -67,6 +82,7 @@ async def update_entity_record(
     payload: dict,
     db: AsyncSession = Depends(session_dependency),
 ) -> dict[str, object]:
+    registry = get_registry()
     try:
         return await registry.update_record(db, entity=entity, record_id=record_id, payload=payload)
     except LookupError as exc:
