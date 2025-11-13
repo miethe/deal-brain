@@ -2,14 +2,14 @@
 
 **PRD**: `/mnt/containers/deal-brain/docs/project_plans/PRDs/enhancements/entity-detail-views-v1.md`
 **Implementation Plan**: `/mnt/containers/deal-brain/docs/project_plans/implementation_plans/enhancements/entity-detail-views-v1.md`
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-11-13
 
 ## Phase Overview
 
 | Phase | Title | Status | Effort | Tasks | Complete |
 |-------|-------|--------|--------|-------|----------|
-| 1 | Backend CRUD - UPDATE Endpoints | NOT STARTED | 8 pts | 8 | 0/8 |
-| 2 | Backend CRUD - DELETE Endpoints | NOT STARTED | 8 pts | 8 | 0/8 |
+| 1 | Backend CRUD - UPDATE Endpoints | ✅ COMPLETE | 8 pts | 8 | 8/8 |
+| 2 | Backend CRUD - DELETE Endpoints | ✅ COMPLETE | 8 pts | 8 | 8/8 |
 | 3 | FieldRegistry Expansion | NOT STARTED | 5 pts | 6 | 0/6 |
 | 4 | Frontend Edit UI | NOT STARTED | 8 pts | 8 | 0/8 |
 | 5 | Frontend Delete UI | NOT STARTED | 8 pts | 8 | 0/8 |
@@ -17,268 +17,319 @@
 | 7 | Global Fields Integration | NOT STARTED | 8 pts | 7 | 0/7 |
 | 8 | Testing & Validation | NOT STARTED | 5 pts | 5 | 0/5 |
 | 9 | Documentation & Deployment | NOT STARTED | 3 pts | 4 | 0/4 |
-| **TOTAL** | | | **61 pts** | **60** | **0/60** |
+| **TOTAL** | | | **61 pts** | **60** | **16/60** |
 
 ---
 
 ## Phase 1: Backend CRUD - UPDATE Endpoints
 
-**Status**: NOT STARTED
+**Status**: ✅ COMPLETE
 **Duration**: 3 days | **Effort**: 8 story points
 **Dependencies**: None
 **Assigned**: python-backend-engineer, backend-architect
+**Last Updated**: 2025-11-12
 
 ### Objective
 Add PUT and PATCH endpoints to catalog API for updating all 6 catalog entities.
 
 ### Quality Gates
-- [ ] All UPDATE endpoints return 200 OK with updated entity
-- [ ] Unique constraint violations return 422 Unprocessable Entity
-- [ ] PATCH merges attributes_json correctly (doesn't overwrite)
-- [ ] Integration tests pass with 100% coverage
-- [ ] OpenTelemetry spans created for all UPDATE operations
+- [x] All UPDATE endpoints return 200 OK with updated entity
+- [x] Unique constraint violations return 422 Unprocessable Entity
+- [x] PATCH merges attributes_json correctly (doesn't overwrite)
+- [x] Integration tests pass with 100% coverage
+- [x] OpenTelemetry spans created for all UPDATE operations
 
-### Tasks (0/8 Complete)
+### Tasks (8/8 Complete)
 
 #### UP-001: Add CPU UPDATE endpoints
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
 
 **Description**: Add `PUT /v1/catalog/cpus/{id}` and `PATCH /v1/catalog/cpus/{id}` endpoints to catalog API
 
 **Acceptance Criteria**:
-- [ ] PUT accepts full CPUUpdate schema
-- [ ] PATCH accepts partial CPUUpdate schema
-- [ ] Returns updated CPU DTO
-- [ ] Validates unique constraints
-- [ ] Updates modified_at timestamp
+- [x] PUT accepts full CPUUpdate schema
+- [x] PATCH accepts partial CPUUpdate schema
+- [x] Returns updated CPU DTO
+- [x] Validates unique constraints
+- [x] Updates modified_at timestamp
 
-**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`, `/mnt/containers/deal-brain/apps/api/dealbrain_api/schemas/catalog.py`
+**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`, `/mnt/containers/deal-brain/packages/core/dealbrain_core/schemas/catalog.py`
 
 ---
 
 #### UP-002: Add GPU UPDATE endpoints
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
 
 **Description**: Add `PUT/PATCH /v1/catalog/gpus/{id}` endpoints
 
 **Acceptance Criteria**:
-- [ ] Same as UP-001 for GPU entity
-- [ ] Validates unique GPU name
+- [x] Same as UP-001 for GPU entity
+- [x] Validates unique GPU name
 
-**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`, `/mnt/containers/deal-brain/apps/api/dealbrain_api/schemas/catalog.py`
+**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`, `/mnt/containers/deal-brain/packages/core/dealbrain_core/schemas/catalog.py`
 
 ---
 
 #### UP-003: Add RamSpec UPDATE endpoints
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
 
 **Description**: Add `PUT/PATCH /v1/catalog/ram-specs/{id}` endpoints
 
 **Acceptance Criteria**:
-- [ ] Same as UP-001 for RamSpec
-- [ ] Validates unique constraint on (ddr_generation, speed_mhz, module_count, capacity_per_module_gb)
+- [x] Same as UP-001 for RamSpec
+- [x] Validates unique constraint on (ddr_generation, speed_mhz, module_count, capacity_per_module_gb)
 
-**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`, `/mnt/containers/deal-brain/apps/api/dealbrain_api/schemas/catalog.py`
+**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`, `/mnt/containers/deal-brain/packages/core/dealbrain_core/schemas/catalog.py`
 
 ---
 
 #### UP-004: Add StorageProfile UPDATE endpoints
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
 
 **Description**: Add `PUT/PATCH /v1/catalog/storage-profiles/{id}` endpoints
 
 **Acceptance Criteria**:
-- [ ] Same as UP-001 for StorageProfile
-- [ ] Validates unique constraint on (medium, interface, form_factor, capacity_gb)
+- [x] Same as UP-001 for StorageProfile
+- [x] Validates unique constraint on (medium, interface, form_factor, capacity_gb)
 
-**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`, `/mnt/containers/deal-brain/apps/api/dealbrain_api/schemas/catalog.py`
+**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`, `/mnt/containers/deal-brain/packages/core/dealbrain_core/schemas/catalog.py`
 
 ---
 
 #### UP-005: Add PortsProfile UPDATE endpoints
-**Status**: NOT STARTED | **Estimate**: 1.5 pts | **Assigned**: python-backend-engineer, backend-architect
+**Status**: ✅ COMPLETE | **Estimate**: 1.5 pts | **Assigned**: python-backend-engineer, backend-architect
 
 **Description**: Add `PUT/PATCH /v1/catalog/ports-profiles/{id}` endpoints
 
 **Acceptance Criteria**:
-- [ ] Same as UP-001 for PortsProfile
-- [ ] Updates related Port entities if provided
-- [ ] Maintains referential integrity
+- [x] Same as UP-001 for PortsProfile
+- [x] Updates related Port entities if provided
+- [x] Maintains referential integrity
 
-**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`, `/mnt/containers/deal-brain/apps/api/dealbrain_api/schemas/catalog.py`
+**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`, `/mnt/containers/deal-brain/packages/core/dealbrain_core/schemas/catalog.py`
 
 ---
 
 #### UP-006: Add Profile UPDATE endpoints
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
 
 **Description**: Add `PUT/PATCH /v1/catalog/profiles/{id}` endpoints
 
 **Acceptance Criteria**:
-- [ ] Same as UP-001 for Profile (scoring)
-- [ ] Validates weights_json schema
-- [ ] Prevents removing is_default from only default profile
+- [x] Same as UP-001 for Profile (scoring)
+- [x] Validates weights_json schema
+- [x] Prevents removing is_default from only default profile
 
-**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`, `/mnt/containers/deal-brain/apps/api/dealbrain_api/schemas/catalog.py`
+**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`, `/mnt/containers/deal-brain/packages/core/dealbrain_core/schemas/catalog.py`
 
 ---
 
 #### UP-007: Create Update Pydantic schemas
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
 
 **Description**: Create `CPUUpdate`, `GPUUpdate`, `RamSpecUpdate`, etc. schemas for request validation
 
 **Acceptance Criteria**:
-- [ ] Schemas allow partial updates (all fields optional)
-- [ ] Include validation rules (min/max, regex)
-- [ ] Support attributes_json merging
+- [x] Schemas allow partial updates (all fields optional)
+- [x] Include validation rules (min/max, regex)
+- [x] Support attributes_json merging
 
-**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/schemas/catalog.py`
+**Files**: `/mnt/containers/deal-brain/packages/core/dealbrain_core/schemas/catalog.py`
 
 ---
 
 #### UP-008: Add UPDATE integration tests
-**Status**: NOT STARTED | **Estimate**: 1.5 pts | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1.5 pts | **Assigned**: python-backend-engineer
 
 **Description**: Write integration tests for all UPDATE endpoints
 
 **Acceptance Criteria**:
-- [ ] Test successful full update (PUT)
-- [ ] Test successful partial update (PATCH)
-- [ ] Test unique constraint validation
-- [ ] Test 404 for non-existent entity
-- [ ] Test 422 for invalid input
+- [x] Test successful full update (PUT)
+- [x] Test successful partial update (PATCH)
+- [x] Test unique constraint validation
+- [x] Test 404 for non-existent entity
+- [x] Test 422 for invalid input
 
 **Files**: `/mnt/containers/deal-brain/tests/test_catalog_api.py`
 
 ---
 
+### Phase 1 Completion Summary
+
+**Completed**: 2025-11-12
+**Total Effort**: 8 story points
+**Commit**: 9371bcb
+
+**Deliverables:**
+- 6 Update Pydantic schemas (CpuUpdate, GpuUpdate, RamSpecUpdate, StorageProfileUpdate, PortsProfileUpdate, ProfileUpdate)
+- 12 UPDATE endpoints (PUT and PATCH for each entity)
+- 32 integration tests
+- OpenTelemetry instrumentation
+- Comprehensive validation
+
+**Files Modified:**
+- `/apps/api/dealbrain_api/api/catalog.py` - Added UPDATE endpoints
+- `/packages/core/dealbrain_core/schemas/catalog.py` - Added Update schemas
+- `/packages/core/dealbrain_core/schemas/__init__.py` - Exported Update schemas
+- `/tests/test_catalog_api.py` - Added integration tests
+
+**Next Phase**: Phase 2 (Backend CRUD - DELETE Endpoints)
+
+---
+
 ## Phase 2: Backend CRUD - DELETE Endpoints
 
-**Status**: NOT STARTED
+**Status**: ✅ COMPLETE
 **Duration**: 3 days | **Effort**: 8 story points
 **Dependencies**: Phase 1 (same files being modified)
 **Assigned**: python-backend-engineer, data-layer-expert
+**Last Updated**: 2025-11-12
 
 ### Objective
 Add DELETE endpoints with cascade validation to prevent orphaning listings.
 
 ### Quality Gates
-- [ ] DELETE endpoints return 204 No Content for unused entities
-- [ ] DELETE endpoints return 409 Conflict with usage count for entities in use
-- [ ] Cascade checks complete in < 1s (measured via OpenTelemetry)
-- [ ] Zero listing orphans after delete operations
-- [ ] Integration tests pass with 100% coverage
+- [x] DELETE endpoints return 204 No Content for unused entities
+- [x] DELETE endpoints return 409 Conflict with usage count for entities in use
+- [x] Cascade checks complete in < 1s (measured via OpenTelemetry)
+- [x] Zero listing orphans after delete operations
+- [x] Integration tests pass with 100% coverage
 
-### Tasks (0/8 Complete)
+### Tasks (8/8 Complete)
 
 #### DEL-001: Implement "Used In" count service
-**Status**: NOT STARTED | **Estimate**: 1.5 pts | **Assigned**: data-layer-expert, python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1.5 pts | **Assigned**: data-layer-expert, python-backend-engineer
 
 **Description**: Create service method to count listings using each entity type
 
 **Acceptance Criteria**:
-- [ ] `get_cpu_usage_count(cpu_id)` returns listing count
-- [ ] Similar methods for GPU, RamSpec, StorageProfile, PortsProfile, Profile
-- [ ] Uses COUNT(*) query (not loading full listings)
-- [ ] Query completes in < 500ms
+- [x] `get_cpu_usage_count(cpu_id)` returns listing count
+- [x] Similar methods for GPU, RamSpec, StorageProfile, PortsProfile, Profile
+- [x] Uses COUNT(*) query (not loading full listings)
+- [x] Query completes in < 500ms
 
-**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/services/catalog.py` (or create new file)
+**Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/services/catalog.py`
 
 ---
 
 #### DEL-002: Add CPU DELETE endpoint
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
 
 **Description**: Add `DELETE /v1/catalog/cpus/{id}` with cascade check
 
 **Acceptance Criteria**:
-- [ ] Returns 204 No Content on success
-- [ ] Returns 409 Conflict if CPU in use (includes count in error)
-- [ ] Hard deletes entity from database
-- [ ] Cascade check completes in < 1s
+- [x] Returns 204 No Content on success
+- [x] Returns 409 Conflict if CPU in use (includes count in error)
+- [x] Hard deletes entity from database
+- [x] Cascade check completes in < 1s
 
 **Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`
 
 ---
 
 #### DEL-003: Add GPU DELETE endpoint
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
 
 **Description**: Add `DELETE /v1/catalog/gpus/{id}` with cascade check
 
 **Acceptance Criteria**:
-- [ ] Same as DEL-002 for GPU entity
+- [x] Same as DEL-002 for GPU entity
 
 **Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`
 
 ---
 
 #### DEL-004: Add RamSpec DELETE endpoint
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
 
 **Description**: Add `DELETE /v1/catalog/ram-specs/{id}` with cascade check
 
 **Acceptance Criteria**:
-- [ ] Same as DEL-002 for RamSpec
-- [ ] Checks both primary_ram_spec_id and secondary_ram_spec_id usage
+- [x] Same as DEL-002 for RamSpec
+- [x] Checks both primary_ram_spec_id and secondary_ram_spec_id usage
 
 **Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`
 
 ---
 
 #### DEL-005: Add StorageProfile DELETE endpoint
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
 
 **Description**: Add `DELETE /v1/catalog/storage-profiles/{id}` with cascade check
 
 **Acceptance Criteria**:
-- [ ] Same as DEL-002 for StorageProfile
-- [ ] Checks both primary_storage_profile_id and secondary_storage_profile_id usage
+- [x] Same as DEL-002 for StorageProfile
+- [x] Checks both primary_storage_profile_id and secondary_storage_profile_id usage
 
 **Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`
 
 ---
 
 #### DEL-006: Add PortsProfile DELETE endpoint
-**Status**: NOT STARTED | **Estimate**: 1.5 pts | **Assigned**: python-backend-engineer, data-layer-expert
+**Status**: ✅ COMPLETE | **Estimate**: 1.5 pts | **Assigned**: python-backend-engineer, data-layer-expert
 
 **Description**: Add `DELETE /v1/catalog/ports-profiles/{id}` with cascade check
 
 **Acceptance Criteria**:
-- [ ] Same as DEL-002 for PortsProfile
-- [ ] Cascade deletes related Port entities
+- [x] Same as DEL-002 for PortsProfile
+- [x] Cascade deletes related Port entities
 
 **Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`
 
 ---
 
 #### DEL-007: Add Profile DELETE endpoint
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
 
 **Description**: Add `DELETE /v1/catalog/profiles/{id}` with cascade check
 
 **Acceptance Criteria**:
-- [ ] Same as DEL-002 for Profile (scoring)
-- [ ] Prevents deleting is_default=True profile if only default
+- [x] Same as DEL-002 for Profile (scoring)
+- [x] Prevents deleting is_default=True profile if only default
 
 **Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`
 
 ---
 
 #### DEL-008: Add DELETE integration tests
-**Status**: NOT STARTED | **Estimate**: 2 pts | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 2 pts | **Assigned**: python-backend-engineer
 
 **Description**: Write integration tests for all DELETE endpoints
 
 **Acceptance Criteria**:
-- [ ] Test successful delete of unused entity
-- [ ] Test 409 Conflict when entity in use
-- [ ] Test 404 for non-existent entity
-- [ ] Test cascade delete of related entities (PortsProfile → Ports)
-- [ ] Test error message includes usage count
+- [x] Test successful delete of unused entity
+- [x] Test 409 Conflict when entity in use
+- [x] Test 404 for non-existent entity
+- [x] Test cascade delete of related entities (PortsProfile → Ports)
+- [x] Test error message includes usage count
 
 **Files**: `/mnt/containers/deal-brain/tests/test_catalog_api.py`
+
+---
+
+### Phase 2 Completion Summary
+
+**Completed**: 2025-11-12
+**Total Effort**: 8 story points
+**Commit**: ddd23d0
+
+**Deliverables:**
+- 6 usage count service methods (get_{entity}_usage_count)
+- 6 DELETE endpoints with cascade validation
+- 26 integration tests
+- Cascade validation prevents orphaning listings
+- Special handling for Profile default protection and PortsProfile cascade
+
+**Files Modified:**
+- `/apps/api/dealbrain_api/api/catalog.py` - Added DELETE endpoints
+- `/apps/api/dealbrain_api/services/catalog.py` - NEW: Created usage count service
+- `/tests/test_catalog_api.py` - Added DELETE integration tests
+- `/tests/services/test_catalog.py` - NEW: Service layer tests
+
+**Bug Fixes:**
+- Fixed POST endpoints to properly map attributes → attributes_json for CPU, GPU, PortsProfile
+
+**Next Phase**: Phase 3 (FieldRegistry Expansion)
 
 ---
 
