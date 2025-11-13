@@ -1,10 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ChevronRight, HardDrive, Gauge } from "lucide-react";
+import { ChevronRight, HardDrive, Gauge, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EntityEditModal } from "@/components/entity/entity-edit-modal";
+import { storageProfileEditSchema, type StorageProfileEditFormData } from "@/lib/schemas/entity-schemas";
+import { useUpdateStorageProfile } from "@/hooks/use-entity-mutations";
 
 interface StorageProfile {
   id: number;
@@ -20,6 +25,10 @@ interface StorageProfile {
   model?: string | null;
   generation?: string | null;
   notes?: string | null;
+  label?: string | null;
+  medium?: string | null;
+  performance_tier?: string | null;
+  attributes_json?: Record<string, any>;
 }
 
 interface Listing {
@@ -164,16 +173,24 @@ function ListingCard({ listing }: ListingCardProps) {
 }
 
 export function StorageProfileDetailLayout({ storageProfile, listings }: StorageProfileDetailLayoutProps) {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const updateStorageProfileMutation = useUpdateStorageProfile(storageProfile.id);
+
   const capacityDisplay = storageProfile.capacity_gb >= 1024
     ? `${(storageProfile.capacity_gb / 1024).toFixed(0)}TB`
     : `${storageProfile.capacity_gb}GB`;
 
-  const pageTitle = storageProfile.model
+  const pageTitle = storageProfile.label || (storageProfile.model
     ? `${storageProfile.model} (${capacityDisplay})`
-    : `${capacityDisplay} ${storageProfile.type || "Storage"}`;
+    : `${capacityDisplay} ${storageProfile.type || storageProfile.medium || "Storage"}`);
 
-  const hasSpecs = storageProfile.type || storageProfile.interface || storageProfile.form_factor || storageProfile.manufacturer || storageProfile.generation;
+  const hasSpecs = storageProfile.type || storageProfile.medium || storageProfile.interface || storageProfile.form_factor || storageProfile.manufacturer || storageProfile.generation;
   const hasPerformance = storageProfile.sequential_read_mb_s || storageProfile.sequential_write_mb_s || storageProfile.random_read_iops || storageProfile.random_write_iops;
+
+  const handleEditSubmit = async (data: StorageProfileEditFormData) => {
+    await updateStorageProfileMutation.mutateAsync(data);
+    setIsEditModalOpen(false);
+  };
 
   return (
     <div className="container mx-auto py-8 space-y-6 px-4 sm:px-6 lg:px-8">
@@ -190,23 +207,35 @@ export function StorageProfileDetailLayout({ storageProfile, listings }: Storage
         <span className="text-foreground font-medium">Storage Profile Details</span>
       </nav>
 
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{pageTitle}</h1>
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          {storageProfile.manufacturer && (
-            <p className="text-lg text-muted-foreground">{storageProfile.manufacturer}</p>
-          )}
-          {storageProfile.type && (
-            <Badge variant="default">{storageProfile.type}</Badge>
-          )}
-          {storageProfile.interface && (
-            <Badge variant="secondary">{storageProfile.interface}</Badge>
-          )}
-          {storageProfile.generation && (
-            <Badge variant="outline">{storageProfile.generation}</Badge>
-          )}
+      {/* Header with Edit button */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{pageTitle}</h1>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            {storageProfile.manufacturer && (
+              <p className="text-lg text-muted-foreground">{storageProfile.manufacturer}</p>
+            )}
+            {(storageProfile.type || storageProfile.medium) && (
+              <Badge variant="default">{storageProfile.type || storageProfile.medium}</Badge>
+            )}
+            {storageProfile.interface && (
+              <Badge variant="secondary">{storageProfile.interface}</Badge>
+            )}
+            {storageProfile.generation && (
+              <Badge variant="outline">{storageProfile.generation}</Badge>
+            )}
+          </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsEditModalOpen(true)}
+          aria-label={`Edit ${pageTitle}`}
+          className="flex-shrink-0"
+        >
+          <Pencil className="h-4 w-4 mr-2" />
+          Edit
+        </Button>
       </div>
 
       {/* Specifications Card */}
@@ -221,12 +250,15 @@ export function StorageProfileDetailLayout({ storageProfile, listings }: Storage
           <CardContent>
             <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <SpecField label="Capacity" value={capacityDisplay} />
-              <SpecField label="Type" value={storageProfile.type} />
+              <SpecField label="Type" value={storageProfile.type || storageProfile.medium} />
               <SpecField label="Interface" value={storageProfile.interface} />
               <SpecField label="Form Factor" value={storageProfile.form_factor} />
               <SpecField label="Manufacturer" value={storageProfile.manufacturer} />
               <SpecField label="Model" value={storageProfile.model} />
               <SpecField label="Generation" value={storageProfile.generation} />
+              {storageProfile.performance_tier && (
+                <SpecField label="Performance Tier" value={storageProfile.performance_tier} />
+              )}
             </dl>
             {storageProfile.notes && (
               <div className="mt-6 pt-6 border-t">
@@ -314,6 +346,26 @@ export function StorageProfileDetailLayout({ storageProfile, listings }: Storage
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Modal */}
+      <EntityEditModal
+        entityType="storage-profile"
+        entityId={storageProfile.id}
+        initialValues={{
+          label: storageProfile.label,
+          medium: storageProfile.medium,
+          interface: storageProfile.interface,
+          form_factor: storageProfile.form_factor,
+          capacity_gb: storageProfile.capacity_gb,
+          performance_tier: storageProfile.performance_tier,
+          notes: storageProfile.notes,
+          attributes: storageProfile.attributes_json,
+        }}
+        schema={storageProfileEditSchema}
+        onSubmit={handleEditSubmit}
+        onClose={() => setIsEditModalOpen(false)}
+        isOpen={isEditModalOpen}
+      />
     </div>
   );
 }

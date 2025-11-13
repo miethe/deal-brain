@@ -1,10 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ChevronRight, Cpu, TrendingUp, Zap } from "lucide-react";
+import { ChevronRight, Cpu, TrendingUp, Zap, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EntityEditModal } from "@/components/entity/entity-edit-modal";
+import { cpuEditSchema, type CPUEditFormData } from "@/lib/schemas/entity-schemas";
+import { useUpdateCpu } from "@/hooks/use-entity-mutations";
 
 interface CPU {
   id: number;
@@ -23,6 +28,10 @@ interface CPU {
   igpu_model?: string | null;
   release_year?: number | null;
   notes?: string | null;
+  passmark_slug?: string | null;
+  passmark_category?: string | null;
+  passmark_id?: string | null;
+  attributes_json?: Record<string, any>;
 }
 
 interface Listing {
@@ -163,8 +172,16 @@ function ListingCard({ listing }: ListingCardProps) {
 }
 
 export function CPUDetailLayout({ cpu, listings }: CPUDetailLayoutProps) {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const updateCpuMutation = useUpdateCpu(cpu.id);
+
   const hasSpecs = cpu.cores || cpu.threads || cpu.base_clock_ghz || cpu.boost_clock_ghz || cpu.tdp_watts || cpu.socket || cpu.generation || cpu.igpu_model || cpu.release_year;
   const hasBenchmarks = cpu.cpu_mark || cpu.single_thread_rating || cpu.igpu_mark;
+
+  const handleEditSubmit = async (data: CPUEditFormData) => {
+    await updateCpuMutation.mutateAsync(data);
+    setIsEditModalOpen(false);
+  };
 
   return (
     <div className="container mx-auto py-8 space-y-6 px-4 sm:px-6 lg:px-8">
@@ -181,18 +198,30 @@ export function CPUDetailLayout({ cpu, listings }: CPUDetailLayoutProps) {
         <span className="text-foreground font-medium">CPU Details</span>
       </nav>
 
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{cpu.model}</h1>
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          <p className="text-lg text-muted-foreground">{cpu.manufacturer}</p>
-          {cpu.generation && (
-            <Badge variant="secondary">{cpu.generation}</Badge>
-          )}
-          {cpu.release_year && (
-            <Badge variant="outline">{cpu.release_year}</Badge>
-          )}
+      {/* Header with Edit button */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{cpu.model}</h1>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <p className="text-lg text-muted-foreground">{cpu.manufacturer}</p>
+            {cpu.generation && (
+              <Badge variant="secondary">{cpu.generation}</Badge>
+            )}
+            {cpu.release_year && (
+              <Badge variant="outline">{cpu.release_year}</Badge>
+            )}
+          </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsEditModalOpen(true)}
+          aria-label={`Edit ${cpu.model}`}
+          className="flex-shrink-0"
+        >
+          <Pencil className="h-4 w-4 mr-2" />
+          Edit
+        </Button>
       </div>
 
       {/* Specifications Card */}
@@ -299,6 +328,34 @@ export function CPUDetailLayout({ cpu, listings }: CPUDetailLayoutProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Modal */}
+      <EntityEditModal
+        entityType="cpu"
+        entityId={cpu.id}
+        initialValues={{
+          name: cpu.model,
+          manufacturer: cpu.manufacturer,
+          socket: cpu.socket,
+          cores: cpu.cores,
+          threads: cpu.threads,
+          tdp_w: cpu.tdp_watts,
+          igpu_model: cpu.igpu_model,
+          cpu_mark_multi: cpu.cpu_mark,
+          cpu_mark_single: cpu.single_thread_rating,
+          igpu_mark: cpu.igpu_mark,
+          release_year: cpu.release_year,
+          notes: cpu.notes,
+          passmark_slug: cpu.passmark_slug,
+          passmark_category: cpu.passmark_category,
+          passmark_id: cpu.passmark_id,
+          attributes: cpu.attributes_json,
+        }}
+        schema={cpuEditSchema}
+        onSubmit={handleEditSubmit}
+        onClose={() => setIsEditModalOpen(false)}
+        isOpen={isEditModalOpen}
+      />
     </div>
   );
 }

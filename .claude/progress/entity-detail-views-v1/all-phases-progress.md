@@ -11,13 +11,13 @@
 | 1 | Backend CRUD - UPDATE Endpoints | ✅ COMPLETE | 8 pts | 8 | 8/8 |
 | 2 | Backend CRUD - DELETE Endpoints | ✅ COMPLETE | 8 pts | 8 | 8/8 |
 | 3 | FieldRegistry Expansion | NOT STARTED | 5 pts | 6 | 0/6 |
-| 4 | Frontend Edit UI | NOT STARTED | 8 pts | 8 | 0/8 |
+| 4 | Frontend Edit UI | 🔄 IN PROGRESS | 8 pts | 8 | 2/8 |
 | 5 | Frontend Delete UI | NOT STARTED | 8 pts | 8 | 0/8 |
 | 6 | New Detail Views (PortsProfile, Profile) | NOT STARTED | 8 pts | 6 | 0/6 |
 | 7 | Global Fields Integration | NOT STARTED | 8 pts | 7 | 0/7 |
 | 8 | Testing & Validation | NOT STARTED | 5 pts | 5 | 0/5 |
 | 9 | Documentation & Deployment | NOT STARTED | 3 pts | 4 | 0/4 |
-| **TOTAL** | | | **61 pts** | **60** | **16/60** |
+| **TOTAL** | | | **61 pts** | **60** | **18/60** |
 
 ---
 
@@ -436,7 +436,7 @@ Register GPU, RamSpec, StorageProfile, PortsProfile, Profile in FieldRegistry to
 
 ## Phase 4: Frontend Edit UI
 
-**Status**: NOT STARTED
+**Status**: IN PROGRESS
 **Duration**: 3 days | **Effort**: 8 story points
 **Dependencies**: Phase 1 (UPDATE endpoints), Phase 3 (FieldRegistry for schemas)
 **Assigned**: ui-engineer-enhanced, frontend-developer
@@ -445,44 +445,85 @@ Register GPU, RamSpec, StorageProfile, PortsProfile, Profile in FieldRegistry to
 Add Edit buttons and modals to existing detail views (CPU, GPU, RamSpec, StorageProfile).
 
 ### Quality Gates
-- [ ] Edit modal opens with current entity data pre-filled
-- [ ] Form validation prevents invalid submissions
+- [x] Edit modal opens with current entity data pre-filled
+- [x] Form validation prevents invalid submissions
 - [ ] Successful edit updates UI and shows success toast
 - [ ] Error responses show clear error messages
 - [ ] Component tests verify modal behavior
-- [ ] Accessibility: Modal keyboard navigable, screen reader friendly
+- [x] Accessibility: Modal keyboard navigable, screen reader friendly
 
-### Tasks (0/8 Complete)
+### Tasks (2/8 Complete)
 
 #### EDIT-001: Create EntityEditModal component
-**Status**: NOT STARTED | **Estimate**: 2 pts | **Assigned**: ui-engineer-enhanced
+**Status**: ✅ COMPLETE | **Estimate**: 2 pts | **Assigned**: ui-engineer-enhanced | **Completed**: 2025-11-13
 
 **Description**: Create reusable modal component accepting entity schema and onSubmit callback
 
 **Acceptance Criteria**:
-- [ ] Generic modal accepts: entityType, entityId, initialValues, schema, onSubmit
-- [ ] Uses React Hook Form with Zod validation
-- [ ] Pre-populates form with initialValues
-- [ ] Shows inline validation errors
-- [ ] Disables submit until valid
-- [ ] Calls PATCH endpoint on submit
+- [x] Generic modal accepts: entityType, entityId, initialValues, schema, onSubmit
+- [x] Uses React Hook Form with Zod validation (@hookform/resolvers/zod)
+- [x] Pre-populates form with initialValues
+- [x] Shows inline validation errors
+- [x] Disables submit until valid
+- [x] Calls PATCH endpoint on submit (via onSubmit callback)
+- [x] Keyboard accessible (Tab, Enter, Esc)
+- [x] Screen reader friendly with proper ARIA labels
+- [x] Supports different field types (text, number, textarea, select)
 
-**Files**: `/mnt/containers/deal-brain/apps/web/components/entity/entity-edit-modal.tsx` (NEW)
+**Files Created**:
+- `/apps/web/components/entity/entity-edit-modal.tsx` - Generic modal component with entity-specific form fields
+- `/apps/web/components/entity/index.ts` - Barrel export
+
+**Implementation Notes**:
+- Uses ModalShell for consistent modal appearance
+- Separate form field components for each entity type (CPUFormFields, GPUFormFields, etc.)
+- Controller from react-hook-form for Select components
+- Inline validation with error messages
+- Submit button disabled when form invalid or submitting
+- Prevents closing modal while submitting
 
 ---
 
 #### EDIT-002: Create entity-specific edit forms
-**Status**: NOT STARTED | **Estimate**: 1.5 pts | **Assigned**: ui-engineer-enhanced
+**Status**: ✅ COMPLETE | **Estimate**: 1.5 pts | **Assigned**: ui-engineer-enhanced | **Completed**: 2025-11-13
 
 **Description**: Create form schemas for CPU, GPU, RamSpec, StorageProfile using Zod
 
 **Acceptance Criteria**:
-- [ ] CPUEditSchema, GPUEditSchema, RamSpecEditSchema, StorageProfileEditSchema
-- [ ] Map to backend Update schemas
-- [ ] Include validation rules (required, min/max, regex)
-- [ ] Support attributes_json as dynamic fields
+- [x] CPUEditSchema, GPUEditSchema, RamSpecEditSchema, StorageProfileEditSchema
+- [x] Map to backend Update schemas (all fields optional for PATCH)
+- [x] Include validation rules (required, min/max, regex)
+- [x] Support attributes as dynamic fields (maps to attributes_json in backend)
+- [x] PortsProfileEditSchema, ProfileEditSchema (basic structure)
 
-**Files**: `/mnt/containers/deal-brain/apps/web/lib/schemas/entity-schemas.ts` (NEW)
+**Files Created**:
+- `/apps/web/lib/schemas/entity-schemas.ts` - All entity edit schemas with validation
+
+**Schemas Implemented**:
+1. **cpuEditSchema**: name, manufacturer, socket, cores, threads, tdp_w, igpu_model, cpu_mark_multi, cpu_mark_single, igpu_mark, release_year, notes, passmark fields, attributes
+2. **gpuEditSchema**: name, manufacturer, gpu_mark, metal_score, notes, attributes
+3. **ramSpecEditSchema**: label, ddr_generation (enum), speed_mhz, module_count, capacity_per_module_gb, total_capacity_gb, notes, attributes
+4. **storageProfileEditSchema**: label, medium (enum), interface, form_factor, capacity_gb, performance_tier, notes, attributes
+5. **portsProfileEditSchema**: name, description, attributes (ports handled separately)
+6. **profileEditSchema**: name, description, weights_json, is_default
+
+**Validation Rules**:
+- Cores: 1-256
+- Threads: 1-512
+- TDP: 1-1000W
+- Release Year: 1970-2100
+- Speed MHz: 0-10000
+- Module Count: 1-8
+- Capacity: 1-256GB per module, 1-2048GB total
+- Storage Capacity: 1-100000GB (100TB)
+- All benchmark scores: ≥ 0
+
+**Enums Defined**:
+- ddrGenerationEnum: ddr3, ddr4, ddr5, lpddr4, lpddr4x, lpddr5, lpddr5x, hbm2, hbm3, unknown
+- storageMediumEnum: nvme, sata_ssd, hdd, hybrid, emmc, ufs, unknown
+- storageInterfaceEnum: sata, nvme, pcie, usb, emmc
+- storageFormFactorEnum: m2, 2.5, 3.5, pcie_card, emmc_embedded
+- performanceTierEnum: budget, mainstream, performance, enthusiast
 
 ---
 

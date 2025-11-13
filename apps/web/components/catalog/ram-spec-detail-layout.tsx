@@ -1,10 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ChevronRight, MemoryStick } from "lucide-react";
+import { ChevronRight, MemoryStick, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EntityEditModal } from "@/components/entity/entity-edit-modal";
+import { ramSpecEditSchema, type RamSpecEditFormData } from "@/lib/schemas/entity-schemas";
+import { useUpdateRamSpec } from "@/hooks/use-entity-mutations";
 
 interface RAMSpec {
   id: number;
@@ -18,6 +23,12 @@ interface RAMSpec {
   form_factor?: string | null;
   ecc_support?: boolean | null;
   notes?: string | null;
+  label?: string | null;
+  ddr_generation?: string | null;
+  module_count?: number | null;
+  capacity_per_module_gb?: number | null;
+  total_capacity_gb?: number | null;
+  attributes_json?: Record<string, any>;
 }
 
 interface Listing {
@@ -128,7 +139,15 @@ function ListingCard({ listing }: ListingCardProps) {
 }
 
 export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutProps) {
-  const pageTitle = `${ramSpec.capacity_gb}GB ${ramSpec.type || "RAM"}`;
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const updateRamSpecMutation = useUpdateRamSpec(ramSpec.id);
+
+  const pageTitle = ramSpec.label || `${ramSpec.capacity_gb || ramSpec.total_capacity_gb}GB ${ramSpec.type || ramSpec.ddr_generation || "RAM"}`;
+
+  const handleEditSubmit = async (data: RamSpecEditFormData) => {
+    await updateRamSpecMutation.mutateAsync(data);
+    setIsEditModalOpen(false);
+  };
 
   return (
     <div className="container mx-auto py-8 space-y-6 px-4 sm:px-6 lg:px-8">
@@ -145,23 +164,35 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
         <span className="text-foreground font-medium">RAM Spec Details</span>
       </nav>
 
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{pageTitle}</h1>
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          {ramSpec.manufacturer && (
-            <p className="text-lg text-muted-foreground">{ramSpec.manufacturer}</p>
-          )}
-          {ramSpec.type && (
-            <Badge variant="default">{ramSpec.type}</Badge>
-          )}
-          {ramSpec.configuration && (
-            <Badge variant="secondary">{ramSpec.configuration}</Badge>
-          )}
-          {ramSpec.ecc_support && (
-            <Badge variant="outline">ECC</Badge>
-          )}
+      {/* Header with Edit button */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{pageTitle}</h1>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            {ramSpec.manufacturer && (
+              <p className="text-lg text-muted-foreground">{ramSpec.manufacturer}</p>
+            )}
+            {(ramSpec.type || ramSpec.ddr_generation) && (
+              <Badge variant="default">{ramSpec.type || ramSpec.ddr_generation}</Badge>
+            )}
+            {ramSpec.configuration && (
+              <Badge variant="secondary">{ramSpec.configuration}</Badge>
+            )}
+            {ramSpec.ecc_support && (
+              <Badge variant="outline">ECC</Badge>
+            )}
+          </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsEditModalOpen(true)}
+          aria-label={`Edit ${pageTitle}`}
+          className="flex-shrink-0"
+        >
+          <Pencil className="h-4 w-4 mr-2" />
+          Edit
+        </Button>
       </div>
 
       {/* Specifications Card */}
@@ -174,8 +205,8 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <SpecField label="Capacity" value={`${ramSpec.capacity_gb}GB`} />
-            <SpecField label="Type" value={ramSpec.type} />
+            <SpecField label="Capacity" value={ramSpec.capacity_gb ? `${ramSpec.capacity_gb}GB` : (ramSpec.total_capacity_gb ? `${ramSpec.total_capacity_gb}GB` : null)} />
+            <SpecField label="Type" value={ramSpec.type || ramSpec.ddr_generation} />
             <SpecField
               label="Speed"
               value={ramSpec.speed_mhz ? `${ramSpec.speed_mhz} MHz` : null}
@@ -189,6 +220,12 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
             <SpecField label="Manufacturer" value={ramSpec.manufacturer} />
             <SpecField label="Form Factor" value={ramSpec.form_factor} />
             <SpecField label="ECC Support" value={ramSpec.ecc_support} />
+            {ramSpec.module_count && (
+              <SpecField label="Module Count" value={ramSpec.module_count} />
+            )}
+            {ramSpec.capacity_per_module_gb && (
+              <SpecField label="Capacity per Module" value={`${ramSpec.capacity_per_module_gb}GB`} />
+            )}
           </dl>
           {ramSpec.notes && (
             <div className="mt-6 pt-6 border-t">
@@ -223,6 +260,26 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Modal */}
+      <EntityEditModal
+        entityType="ram-spec"
+        entityId={ramSpec.id}
+        initialValues={{
+          label: ramSpec.label,
+          ddr_generation: ramSpec.ddr_generation,
+          speed_mhz: ramSpec.speed_mhz,
+          module_count: ramSpec.module_count,
+          capacity_per_module_gb: ramSpec.capacity_per_module_gb,
+          total_capacity_gb: ramSpec.total_capacity_gb || ramSpec.capacity_gb,
+          notes: ramSpec.notes,
+          attributes: ramSpec.attributes_json,
+        }}
+        schema={ramSpecEditSchema}
+        onSubmit={handleEditSubmit}
+        onClose={() => setIsEditModalOpen(false)}
+        isOpen={isEditModalOpen}
+      />
     </div>
   );
 }
