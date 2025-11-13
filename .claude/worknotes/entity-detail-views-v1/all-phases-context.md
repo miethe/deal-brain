@@ -1463,3 +1463,62 @@ const handleEditSubmit = async (data) => {
 
 **Recommended Next:** Phase 3 (FieldRegistry) - Independent, enables Phase 7
 
+---
+
+## Phase 7 Status: COMPLETE ✅
+
+### Phase 7: Global Fields Integration - Complete
+
+**Date Completed:** 2025-11-13
+**Commit:** e9546bb
+
+**What Was Done:**
+- Added "View Details" button to GlobalFieldsDataTab actions column
+- Created getEntityDetailRoute helper mapping entities to detail page URLs
+- Verified all 7 entities work correctly in Global Fields workspace
+
+**Key Insight:** GlobalFieldsWorkspace and GlobalFieldsDataTab were already fully generic! They automatically support all entities registered in FieldRegistry. The only missing piece was the "View Details" link.
+
+**Files Modified:**
+- `/apps/web/components/custom-fields/global-fields-data-tab.tsx` (48 insertions, 13 deletions)
+
+**Entity URL Mapping:**
+- listing → /listings/{id}
+- cpu → /catalog/cpus/{id}
+- gpu → /catalog/gpus/{id}
+- ram_spec → /catalog/ram-specs/{id}
+- storage_profile → /catalog/storage-profiles/{id}
+- ports_profile → /catalog/ports-profiles/{id}
+- profile → /catalog/profiles/{id}
+
+**Quality Gates:** All met ✅
+- All 7 entities appear in sidebar
+- Data grids load correctly
+- Create/Edit modals work
+- "View Details" links navigate correctly
+- Pagination, filtering, sorting all working
+
+**Next Steps:**
+- Phase 8: Testing & Validation
+- Phase 9: Documentation & Deployment
+
+---
+
+## Current Status Summary
+
+**Phases Complete:** 7/9 (78%)
+**Story Points Complete:** 45/61 (74%)
+
+**Completed Phases:**
+1. ✅ Backend CRUD - UPDATE Endpoints (8 pts)
+2. ✅ Backend CRUD - DELETE Endpoints (8 pts)
+3. ✅ FieldRegistry Expansion (5 pts)
+4. ✅ Frontend Edit UI (8 pts)
+5. ✅ Frontend Delete UI (8 pts)
+6. ✅ New Detail Views (PortsProfile, Profile) (8 pts)
+7. ✅ Global Fields Integration (8 pts)
+
+**Remaining Phases:**
+8. Testing & Validation (5 pts)
+9. Documentation & Deployment (3 pts)
+
