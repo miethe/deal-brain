@@ -24,13 +24,21 @@ from dealbrain_core.schemas import (
     StorageProfileRead,
     StorageProfileUpdate,
 )
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from opentelemetry import trace
 from sqlalchemy import String, cast, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import session_dependency
 from ..models import Cpu, Gpu, Listing, Port, PortsProfile, Profile, RamSpec, StorageProfile
+from ..services.catalog import (
+    get_cpu_usage_count,
+    get_gpu_usage_count,
+    get_ports_profile_usage_count,
+    get_ram_spec_usage_count,
+    get_scoring_profile_usage_count,
+    get_storage_profile_usage_count,
+)
 from ..services.component_catalog import (
     get_or_create_ram_spec,
     get_or_create_storage_profile,
@@ -63,7 +71,13 @@ async def create_cpu(
     existing = await session.scalar(select(Cpu).where(Cpu.name == payload.name))
     if existing:
         raise HTTPException(status_code=400, detail="CPU already exists")
-    cpu = Cpu(**payload.model_dump(exclude_none=True))
+
+    # Map attributes → attributes_json for model creation
+    data = payload.model_dump(exclude_none=True)
+    if "attributes" in data:
+        data["attributes_json"] = data.pop("attributes")
+
+    cpu = Cpu(**data)
     session.add(cpu)
     await session.flush()
     return CpuRead.model_validate(cpu)
@@ -137,6 +151,37 @@ async def partial_update_cpu(
         return CpuRead.model_validate(cpu)
 
 
+@router.delete("/cpus/{cpu_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_cpu(
+    cpu_id: int,
+    session: AsyncSession = Depends(session_dependency),
+) -> Response:
+    """Delete a CPU from the catalog.
+
+    Prevents deletion if the CPU is currently used in any listings.
+    Returns 409 Conflict if in use, 404 if not found, 204 No Content on success.
+    """
+    with tracer.start_as_current_span("catalog.delete_cpu"):
+        # Get entity
+        cpu = await session.get(Cpu, cpu_id)
+        if not cpu:
+            raise HTTPException(status_code=404, detail=f"CPU with id {cpu_id} not found")
+
+        # Check if in use
+        usage_count = await get_cpu_usage_count(session, cpu_id)
+        if usage_count > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot delete CPU: used in {usage_count} listing(s)"
+            )
+
+        # Delete
+        await session.delete(cpu)
+        await session.commit()
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/gpus", response_model=list[GpuRead])
 async def list_gpus(session: AsyncSession = Depends(session_dependency)) -> Sequence[GpuRead]:
     result = await session.execute(select(Gpu).order_by(Gpu.name))
@@ -159,7 +204,13 @@ async def create_gpu(
     existing = await session.scalar(select(Gpu).where(Gpu.name == payload.name))
     if existing:
         raise HTTPException(status_code=400, detail="GPU already exists")
-    gpu = Gpu(**payload.model_dump(exclude_none=True))
+
+    # Map attributes → attributes_json for model creation
+    data = payload.model_dump(exclude_none=True)
+    if "attributes" in data:
+        data["attributes_json"] = data.pop("attributes")
+
+    gpu = Gpu(**data)
     session.add(gpu)
     await session.flush()
     return GpuRead.model_validate(gpu)
@@ -231,6 +282,37 @@ async def partial_update_gpu(
         return GpuRead.model_validate(gpu)
 
 
+@router.delete("/gpus/{gpu_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_gpu(
+    gpu_id: int,
+    session: AsyncSession = Depends(session_dependency),
+) -> Response:
+    """Delete a GPU from the catalog.
+
+    Prevents deletion if the GPU is currently used in any listings.
+    Returns 409 Conflict if in use, 404 if not found, 204 No Content on success.
+    """
+    with tracer.start_as_current_span("catalog.delete_gpu"):
+        # Get entity
+        gpu = await session.get(Gpu, gpu_id)
+        if not gpu:
+            raise HTTPException(status_code=404, detail=f"GPU with id {gpu_id} not found")
+
+        # Check if in use
+        usage_count = await get_gpu_usage_count(session, gpu_id)
+        if usage_count > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot delete GPU: used in {usage_count} listing(s)"
+            )
+
+        # Delete
+        await session.delete(gpu)
+        await session.commit()
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/profiles", response_model=list[ProfileRead])
 async def list_profiles(
     session: AsyncSession = Depends(session_dependency),
@@ -248,6 +330,8 @@ async def create_profile(
         raise HTTPException(status_code=400, detail="Profile already exists")
     if payload.is_default:
         await session.execute(update(Profile).values(is_default=False))
+
+    # No mapping needed for Profile - it uses weights_json directly in schema
     profile = Profile(**payload.model_dump(exclude_none=True))
     session.add(profile)
     await session.flush()
@@ -359,6 +443,53 @@ async def partial_update_profile(
         return ProfileRead.model_validate(profile)
 
 
+@router.delete("/profiles/{profile_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_profile(
+    profile_id: int,
+    session: AsyncSession = Depends(session_dependency),
+) -> Response:
+    """Delete a scoring profile from the catalog.
+
+    Prevents deletion if:
+    - The profile is currently used in any listings
+    - The profile is marked as default and is the only default profile
+
+    Returns 409 Conflict if in use or only default, 404 if not found, 204 No Content on success.
+    """
+    with tracer.start_as_current_span("catalog.delete_profile"):
+        # Get entity
+        profile = await session.get(Profile, profile_id)
+        if not profile:
+            raise HTTPException(status_code=404, detail=f"Profile with id {profile_id} not found")
+
+        # Check if this is the only default profile
+        if profile.is_default:
+            other_defaults = await session.scalar(
+                select(func.count(Profile.id)).where(
+                    Profile.is_default.is_(True), Profile.id != profile_id
+                )
+            )
+            if other_defaults == 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Cannot delete the only default profile"
+                )
+
+        # Check if in use
+        usage_count = await get_scoring_profile_usage_count(session, profile_id)
+        if usage_count > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot delete Scoring Profile: used in {usage_count} listing(s)"
+            )
+
+        # Delete
+        await session.delete(profile)
+        await session.commit()
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/ports-profiles", response_model=list[PortsProfileRead])
 async def list_ports_profiles(
     session: AsyncSession = Depends(session_dependency),
@@ -378,7 +509,13 @@ async def create_ports_profile(
     existing = await session.scalar(select(PortsProfile).where(PortsProfile.name == payload.name))
     if existing:
         raise HTTPException(status_code=400, detail="Ports profile already exists")
-    profile = PortsProfile(**payload.model_dump(exclude={"ports"}, exclude_none=True))
+
+    # Map attributes → attributes_json for model creation
+    data = payload.model_dump(exclude={"ports"}, exclude_none=True)
+    if "attributes" in data:
+        data["attributes_json"] = data.pop("attributes")
+
+    profile = PortsProfile(**data)
     session.add(profile)
     await session.flush()
     for port in payload.ports or []:
@@ -493,6 +630,41 @@ async def partial_update_ports_profile(
         await session.flush()
         await session.refresh(profile)
         return PortsProfileRead.model_validate(profile)
+
+
+@router.delete("/ports-profiles/{profile_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_ports_profile(
+    profile_id: int,
+    session: AsyncSession = Depends(session_dependency),
+) -> Response:
+    """Delete a ports profile from the catalog.
+
+    Prevents deletion if the ports profile is currently used in any listings.
+    Related Port entities will be cascade deleted automatically by the database.
+
+    Returns 409 Conflict if in use, 404 if not found, 204 No Content on success.
+    """
+    with tracer.start_as_current_span("catalog.delete_ports_profile"):
+        # Get entity
+        profile = await session.get(PortsProfile, profile_id)
+        if not profile:
+            raise HTTPException(
+                status_code=404, detail=f"Ports profile with id {profile_id} not found"
+            )
+
+        # Check if in use
+        usage_count = await get_ports_profile_usage_count(session, profile_id)
+        if usage_count > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot delete Ports Profile: used in {usage_count} listing(s)"
+            )
+
+        # Delete (related Port entities will be cascade deleted by the database)
+        await session.delete(profile)
+        await session.commit()
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/ram-specs", response_model=list[RamSpecRead])
@@ -675,6 +847,40 @@ async def partial_update_ram_spec(
         await session.flush()
         await session.refresh(ram_spec)
         return RamSpecRead.model_validate(ram_spec)
+
+
+@router.delete("/ram-specs/{ram_spec_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_ram_spec(
+    ram_spec_id: int,
+    session: AsyncSession = Depends(session_dependency),
+) -> Response:
+    """Delete a RAM specification from the catalog.
+
+    Prevents deletion if the RAM spec is currently used in any listings.
+
+    Returns 409 Conflict if in use, 404 if not found, 204 No Content on success.
+    """
+    with tracer.start_as_current_span("catalog.delete_ram_spec"):
+        # Get entity
+        ram_spec = await session.get(RamSpec, ram_spec_id)
+        if not ram_spec:
+            raise HTTPException(
+                status_code=404, detail=f"RAM spec with id {ram_spec_id} not found"
+            )
+
+        # Check if in use
+        usage_count = await get_ram_spec_usage_count(session, ram_spec_id)
+        if usage_count > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot delete RAM Spec: used in {usage_count} listing(s)"
+            )
+
+        # Delete
+        await session.delete(ram_spec)
+        await session.commit()
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/storage-profiles", response_model=list[StorageProfileRead])
@@ -878,6 +1084,42 @@ async def partial_update_storage_profile(
         await session.flush()
         await session.refresh(storage_profile)
         return StorageProfileRead.model_validate(storage_profile)
+
+
+@router.delete("/storage-profiles/{storage_profile_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_storage_profile(
+    storage_profile_id: int,
+    session: AsyncSession = Depends(session_dependency),
+) -> Response:
+    """Delete a storage profile from the catalog.
+
+    Prevents deletion if the storage profile is currently used in any listings
+    (as either primary or secondary storage).
+
+    Returns 409 Conflict if in use, 404 if not found, 204 No Content on success.
+    """
+    with tracer.start_as_current_span("catalog.delete_storage_profile"):
+        # Get entity
+        storage_profile = await session.get(StorageProfile, storage_profile_id)
+        if not storage_profile:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Storage profile with id {storage_profile_id} not found"
+            )
+
+        # Check if in use (checks both primary and secondary storage)
+        usage_count = await get_storage_profile_usage_count(session, storage_profile_id)
+        if usage_count > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot delete Storage Profile: used in {usage_count} listing(s)"
+            )
+
+        # Delete
+        await session.delete(storage_profile)
+        await session.commit()
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # "Used In" Endpoints - Return listings that use each entity type

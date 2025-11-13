@@ -844,7 +844,7 @@ class TestStorageProfileUpdate:
         """Should successfully perform full update (PUT) of StorageProfile entity."""
         create_payload = {
             "label": "512GB NVMe SSD",
-            "medium": StorageMedium.SSD.value,
+            "medium": StorageMedium.SATA_SSD.value,
             "interface": "NVMe",
             "form_factor": "M.2",
             "capacity_gb": 512,
@@ -859,7 +859,7 @@ class TestStorageProfileUpdate:
         # Full update
         update_payload = {
             "label": "1TB NVMe SSD",
-            "medium": StorageMedium.SSD.value,
+            "medium": StorageMedium.SATA_SSD.value,
             "interface": "NVMe",
             "form_factor": "M.2",
             "capacity_gb": 1024,  # Changed
@@ -885,7 +885,7 @@ class TestStorageProfileUpdate:
         profile_a = await client.post(
             "/v1/catalog/storage-profiles",
             json={
-                "medium": StorageMedium.SSD.value,
+                "medium": StorageMedium.SATA_SSD.value,
                 "interface": "NVMe",
                 "form_factor": "M.2",
                 "capacity_gb": 512,
@@ -895,7 +895,7 @@ class TestStorageProfileUpdate:
         profile_b = await client.post(
             "/v1/catalog/storage-profiles",
             json={
-                "medium": StorageMedium.SSD.value,
+                "medium": StorageMedium.SATA_SSD.value,
                 "interface": "NVMe",
                 "form_factor": "M.2",
                 "capacity_gb": 1024,
@@ -907,7 +907,7 @@ class TestStorageProfileUpdate:
 
         # Try to change profile B to match profile A
         update_payload = {
-            "medium": StorageMedium.SSD.value,
+            "medium": StorageMedium.SATA_SSD.value,
             "interface": "NVMe",
             "form_factor": "M.2",
             "capacity_gb": 512,  # Same as profile A
@@ -926,7 +926,7 @@ class TestStorageProfileUpdate:
         response = await client.put(
             "/v1/catalog/storage-profiles/99999",
             json={
-                "medium": StorageMedium.SSD.value,
+                "medium": StorageMedium.SATA_SSD.value,
                 "interface": "SATA",
                 "capacity_gb": 256,
             },
@@ -994,6 +994,738 @@ class TestStorageProfilePartialUpdate:
         assert data["capacity_gb"] == 2000  # Unchanged
         assert data["attributes"]["rpm"] == 7200  # Preserved
         assert data["attributes"]["cache_mb"] == 256  # Added
+
+
+# --- CPU DELETE Tests ---
+
+
+class TestCpuDelete:
+    """Tests for DELETE /v1/catalog/cpus/{cpu_id} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_delete_cpu_unused_success(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should successfully delete unused CPU entity."""
+        # Create CPU via POST
+        create_payload = {"name": "Test CPU for Deletion", "manufacturer": "Intel"}
+        create_response = await client.post("/v1/catalog/cpus", json=create_payload)
+        assert create_response.status_code == 201
+        cpu_id = create_response.json()["id"]
+
+        # Delete via DELETE
+        delete_response = await client.delete(f"/v1/catalog/cpus/{cpu_id}")
+
+        # Assert response is 204 No Content
+        assert delete_response.status_code == 204
+
+        # Verify entity no longer exists
+        get_response = await client.get(f"/v1/catalog/cpus/{cpu_id}")
+        assert get_response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_delete_cpu_in_use_conflict(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return 409 Conflict when CPU is used in listings."""
+        # Create CPU
+        cpu_payload = {"name": "CPU In Use", "manufacturer": "Intel"}
+        cpu_response = await client.post("/v1/catalog/cpus", json=cpu_payload)
+        assert cpu_response.status_code == 201
+        cpu_id = cpu_response.json()["id"]
+
+        # Create listing that uses this CPU
+        listing_payload = {
+            "title": "Test Listing",
+            "url": "https://example.com/test-cpu-listing",
+            "price_usd": 500.0,
+            "cpu_id": cpu_id,
+        }
+        listing_response = await client.post("/v1/listings/", json=listing_payload)
+        assert listing_response.status_code == 201
+
+        # Attempt DELETE
+        delete_response = await client.delete(f"/v1/catalog/cpus/{cpu_id}")
+
+        # Assert response is 409 Conflict
+        assert delete_response.status_code == 409
+
+        # Assert error message includes usage count
+        error_detail = delete_response.json()["detail"]
+        assert "used in 1 listing(s)" in error_detail
+
+        # Verify entity still exists
+        get_response = await client.get(f"/v1/catalog/cpus/{cpu_id}")
+        assert get_response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_delete_cpu_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent CPU."""
+        non_existent_id = 99999
+        delete_response = await client.delete(f"/v1/catalog/cpus/{non_existent_id}")
+
+        assert delete_response.status_code == 404
+        error_detail = delete_response.json()["detail"]
+        assert "not found" in error_detail
+
+    @pytest.mark.asyncio
+    async def test_delete_cpu_multiple_listings_usage_count(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should report correct usage count when CPU used in multiple listings."""
+        # Create CPU
+        cpu_payload = {"name": "Popular CPU", "manufacturer": "AMD"}
+        cpu_response = await client.post("/v1/catalog/cpus", json=cpu_payload)
+        cpu_id = cpu_response.json()["id"]
+
+        # Create multiple listings using this CPU
+        for i in range(3):
+            listing_payload = {
+                "title": f"Test Listing {i}",
+                "url": f"https://example.com/listing-{i}",
+                "price_usd": 500.0 + i * 100,
+                "cpu_id": cpu_id,
+            }
+            await client.post("/v1/listings/", json=listing_payload)
+
+        # Attempt DELETE
+        delete_response = await client.delete(f"/v1/catalog/cpus/{cpu_id}")
+
+        # Assert 409 with exact count
+        assert delete_response.status_code == 409
+        error_detail = delete_response.json()["detail"]
+        assert "used in 3 listing(s)" in error_detail
+
+
+# --- GPU DELETE Tests ---
+
+
+class TestGpuDelete:
+    """Tests for DELETE /v1/catalog/gpus/{gpu_id} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_delete_gpu_unused_success(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should successfully delete unused GPU entity."""
+        # Create GPU via POST
+        create_payload = {"name": "Test GPU for Deletion", "manufacturer": "NVIDIA"}
+        create_response = await client.post("/v1/catalog/gpus", json=create_payload)
+        assert create_response.status_code == 201
+        gpu_id = create_response.json()["id"]
+
+        # Delete via DELETE
+        delete_response = await client.delete(f"/v1/catalog/gpus/{gpu_id}")
+
+        # Assert response is 204 No Content
+        assert delete_response.status_code == 204
+
+        # Verify entity no longer exists
+        get_response = await client.get(f"/v1/catalog/gpus/{gpu_id}")
+        assert get_response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_delete_gpu_in_use_conflict(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return 409 Conflict when GPU is used in listings."""
+        # Create GPU
+        gpu_payload = {"name": "GPU In Use", "manufacturer": "AMD"}
+        gpu_response = await client.post("/v1/catalog/gpus", json=gpu_payload)
+        assert gpu_response.status_code == 201
+        gpu_id = gpu_response.json()["id"]
+
+        # Create listing that uses this GPU
+        listing_payload = {
+            "title": "Test GPU Listing",
+            "url": "https://example.com/test-gpu-listing",
+            "price_usd": 800.0,
+            "gpu_id": gpu_id,
+        }
+        listing_response = await client.post("/v1/listings/", json=listing_payload)
+        assert listing_response.status_code == 201
+
+        # Attempt DELETE
+        delete_response = await client.delete(f"/v1/catalog/gpus/{gpu_id}")
+
+        # Assert response is 409 Conflict
+        assert delete_response.status_code == 409
+
+        # Assert error message includes usage count
+        error_detail = delete_response.json()["detail"]
+        assert "used in 1 listing(s)" in error_detail
+
+        # Verify entity still exists
+        get_response = await client.get(f"/v1/catalog/gpus/{gpu_id}")
+        assert get_response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_delete_gpu_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent GPU."""
+        non_existent_id = 99999
+        delete_response = await client.delete(f"/v1/catalog/gpus/{non_existent_id}")
+
+        assert delete_response.status_code == 404
+        error_detail = delete_response.json()["detail"]
+        assert "not found" in error_detail
+
+    @pytest.mark.asyncio
+    async def test_delete_gpu_multiple_listings_usage_count(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should report correct usage count when GPU used in multiple listings."""
+        # Create GPU
+        gpu_payload = {"name": "Popular GPU", "manufacturer": "NVIDIA"}
+        gpu_response = await client.post("/v1/catalog/gpus", json=gpu_payload)
+        gpu_id = gpu_response.json()["id"]
+
+        # Create multiple listings using this GPU
+        for i in range(5):
+            listing_payload = {
+                "title": f"GPU Listing {i}",
+                "url": f"https://example.com/gpu-listing-{i}",
+                "price_usd": 1000.0 + i * 50,
+                "gpu_id": gpu_id,
+            }
+            await client.post("/v1/listings/", json=listing_payload)
+
+        # Attempt DELETE
+        delete_response = await client.delete(f"/v1/catalog/gpus/{gpu_id}")
+
+        # Assert 409 with exact count
+        assert delete_response.status_code == 409
+        error_detail = delete_response.json()["detail"]
+        assert "used in 5 listing(s)" in error_detail
+
+
+# --- Profile DELETE Tests ---
+
+
+class TestProfileDelete:
+    """Tests for DELETE /v1/catalog/profiles/{profile_id} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_delete_profile_unused_success(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should successfully delete unused non-default profile."""
+        # Create profile via POST
+        create_payload = {
+            "name": "Test Profile for Deletion",
+            "weights_json": {"cpu_score": 1.0},
+            "is_default": False,
+        }
+        create_response = await client.post("/v1/catalog/profiles", json=create_payload)
+        assert create_response.status_code == 201
+        profile_id = create_response.json()["id"]
+
+        # Delete via DELETE
+        delete_response = await client.delete(f"/v1/catalog/profiles/{profile_id}")
+
+        # Assert response is 204 No Content
+        assert delete_response.status_code == 204
+
+        # Verify entity no longer exists in list
+        list_response = await client.get("/v1/catalog/profiles")
+        profile_ids = [p["id"] for p in list_response.json()]
+        assert profile_id not in profile_ids
+
+    @pytest.mark.asyncio
+    async def test_delete_profile_in_use_conflict(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return 409 Conflict when Profile is used in listings."""
+        # Create profile
+        profile_payload = {
+            "name": "Profile In Use",
+            "weights_json": {"cpu_score": 1.0},
+            "is_default": False,
+        }
+        profile_response = await client.post("/v1/catalog/profiles", json=profile_payload)
+        assert profile_response.status_code == 201
+        profile_id = profile_response.json()["id"]
+
+        # Create listing that uses this profile
+        listing_payload = {
+            "title": "Test Profile Listing",
+            "url": "https://example.com/test-profile-listing",
+            "price_usd": 600.0,
+            "active_profile_id": profile_id,
+        }
+        listing_response = await client.post("/v1/listings/", json=listing_payload)
+        assert listing_response.status_code == 201
+
+        # Attempt DELETE
+        delete_response = await client.delete(f"/v1/catalog/profiles/{profile_id}")
+
+        # Assert response is 409 Conflict
+        assert delete_response.status_code == 409
+
+        # Assert error message includes usage count
+        error_detail = delete_response.json()["detail"]
+        assert "used in 1 listing(s)" in error_detail
+
+        # Verify entity still exists
+        list_response = await client.get("/v1/catalog/profiles")
+        profile_ids = [p["id"] for p in list_response.json()]
+        assert profile_id in profile_ids
+
+    @pytest.mark.asyncio
+    async def test_delete_profile_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent profile."""
+        non_existent_id = 99999
+        delete_response = await client.delete(f"/v1/catalog/profiles/{non_existent_id}")
+
+        assert delete_response.status_code == 404
+        error_detail = delete_response.json()["detail"]
+        assert "not found" in error_detail
+
+    @pytest.mark.asyncio
+    async def test_delete_profile_only_default_conflict(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should prevent deletion of only default profile."""
+        # Create single default profile
+        profile_payload = {
+            "name": "Only Default Profile",
+            "weights_json": {"cpu_score": 1.0},
+            "is_default": True,
+        }
+        profile_response = await client.post("/v1/catalog/profiles", json=profile_payload)
+        assert profile_response.status_code == 201
+        profile_id = profile_response.json()["id"]
+
+        # Attempt DELETE
+        delete_response = await client.delete(f"/v1/catalog/profiles/{profile_id}")
+
+        # Assert response is 409 Conflict
+        assert delete_response.status_code == 409
+
+        # Assert error message about default profile
+        error_detail = delete_response.json()["detail"]
+        assert "only default profile" in error_detail
+
+        # Verify entity still exists
+        list_response = await client.get("/v1/catalog/profiles")
+        profile_ids = [p["id"] for p in list_response.json()]
+        assert profile_id in profile_ids
+
+    @pytest.mark.asyncio
+    async def test_delete_profile_non_default_with_other_defaults_success(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should allow deletion of non-default profile when other profiles exist."""
+        # Create default profile
+        default_profile = await client.post(
+            "/v1/catalog/profiles",
+            json={"name": "Default Profile", "weights_json": {"cpu_score": 1.0}, "is_default": True},
+        )
+        assert default_profile.status_code == 201
+
+        # Create non-default profile
+        non_default_profile = await client.post(
+            "/v1/catalog/profiles",
+            json={
+                "name": "Non-Default Profile",
+                "weights_json": {"cpu_score": 1.0},
+                "is_default": False,
+            },
+        )
+        assert non_default_profile.status_code == 201
+        non_default_id = non_default_profile.json()["id"]
+
+        # Delete non-default profile should succeed
+        delete_response = await client.delete(f"/v1/catalog/profiles/{non_default_id}")
+        assert delete_response.status_code == 204
+
+    @pytest.mark.asyncio
+    async def test_delete_profile_default_with_other_defaults_success(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should allow deletion of default profile when other default exists."""
+        # Create first default profile
+        profile1 = await client.post(
+            "/v1/catalog/profiles",
+            json={"name": "Profile 1", "weights_json": {"cpu_score": 1.0}, "is_default": True},
+        )
+        profile1_id = profile1.json()["id"]
+
+        # Create second default profile (will unset first one)
+        profile2 = await client.post(
+            "/v1/catalog/profiles",
+            json={"name": "Profile 2", "weights_json": {"cpu_score": 1.0}, "is_default": True},
+        )
+        assert profile2.status_code == 201
+
+        # Delete first profile should succeed (no longer default)
+        delete_response = await client.delete(f"/v1/catalog/profiles/{profile1_id}")
+        assert delete_response.status_code == 204
+
+
+# --- PortsProfile DELETE Tests ---
+
+
+class TestPortsProfileDelete:
+    """Tests for DELETE /v1/catalog/ports-profiles/{profile_id} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_delete_ports_profile_unused_success(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should successfully delete unused PortsProfile entity."""
+        # Create PortsProfile via POST with nested ports
+        create_payload = {
+            "name": "Test Ports Profile for Deletion",
+            "ports": [
+                {"type": "USB-A", "count": 4},
+                {"type": "HDMI", "count": 1},
+            ],
+        }
+        create_response = await client.post("/v1/catalog/ports-profiles", json=create_payload)
+        assert create_response.status_code == 201
+        profile_id = create_response.json()["id"]
+
+        # Delete via DELETE
+        delete_response = await client.delete(f"/v1/catalog/ports-profiles/{profile_id}")
+
+        # Assert response is 204 No Content
+        assert delete_response.status_code == 204
+
+        # Verify entity no longer exists
+        list_response = await client.get("/v1/catalog/ports-profiles")
+        profile_ids = [p["id"] for p in list_response.json()]
+        assert profile_id not in profile_ids
+
+    @pytest.mark.asyncio
+    async def test_delete_ports_profile_cascade_ports(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should cascade delete related Port entities."""
+        # Create PortsProfile with multiple ports
+        create_payload = {
+            "name": "Profile with Many Ports",
+            "ports": [
+                {"type": "USB-A", "count": 6},
+                {"type": "USB-C", "count": 2},
+                {"type": "HDMI", "count": 2},
+                {"type": "DisplayPort", "count": 1},
+            ],
+        }
+        create_response = await client.post("/v1/catalog/ports-profiles", json=create_payload)
+        assert create_response.status_code == 201
+        profile_id = create_response.json()["id"]
+        created_ports = create_response.json()["ports"]
+        assert len(created_ports) == 4
+
+        # Delete PortsProfile
+        delete_response = await client.delete(f"/v1/catalog/ports-profiles/{profile_id}")
+        assert delete_response.status_code == 204
+
+        # Verify Port entities are also deleted (cascade)
+        # We can't query Port entities directly, but we can verify by checking
+        # that the profile is gone and the database enforces cascade delete
+        list_response = await client.get("/v1/catalog/ports-profiles")
+        profile_ids = [p["id"] for p in list_response.json()]
+        assert profile_id not in profile_ids
+
+    @pytest.mark.asyncio
+    async def test_delete_ports_profile_in_use_conflict(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return 409 Conflict when PortsProfile is used in listings."""
+        # Create PortsProfile
+        profile_payload = {
+            "name": "Ports Profile In Use",
+            "ports": [{"type": "USB-A", "count": 4}],
+        }
+        profile_response = await client.post("/v1/catalog/ports-profiles", json=profile_payload)
+        assert profile_response.status_code == 201
+        profile_id = profile_response.json()["id"]
+
+        # Create listing that uses this ports profile
+        listing_payload = {
+            "title": "Test Ports Listing",
+            "url": "https://example.com/test-ports-listing",
+            "price_usd": 700.0,
+            "ports_profile_id": profile_id,
+        }
+        listing_response = await client.post("/v1/listings/", json=listing_payload)
+        assert listing_response.status_code == 201
+
+        # Attempt DELETE
+        delete_response = await client.delete(f"/v1/catalog/ports-profiles/{profile_id}")
+
+        # Assert response is 409 Conflict
+        assert delete_response.status_code == 409
+
+        # Assert error message includes usage count
+        error_detail = delete_response.json()["detail"]
+        assert "used in 1 listing(s)" in error_detail
+
+        # Verify entity still exists
+        list_response = await client.get("/v1/catalog/ports-profiles")
+        profile_ids = [p["id"] for p in list_response.json()]
+        assert profile_id in profile_ids
+
+    @pytest.mark.asyncio
+    async def test_delete_ports_profile_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent ports profile."""
+        non_existent_id = 99999
+        delete_response = await client.delete(f"/v1/catalog/ports-profiles/{non_existent_id}")
+
+        assert delete_response.status_code == 404
+        error_detail = delete_response.json()["detail"]
+        assert "not found" in error_detail
+
+
+# --- RamSpec DELETE Tests ---
+
+
+class TestRamSpecDelete:
+    """Tests for DELETE /v1/catalog/ram-specs/{ram_spec_id} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_delete_ram_spec_unused_success(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should successfully delete unused RamSpec entity."""
+        # Create RamSpec via POST
+        create_payload = {
+            "ddr_generation": RamGeneration.DDR4.value,
+            "speed_mhz": 3200,
+            "total_capacity_gb": 16,
+        }
+        create_response = await client.post("/v1/catalog/ram-specs", json=create_payload)
+        assert create_response.status_code == 201
+        ram_spec_id = create_response.json()["id"]
+
+        # Delete via DELETE
+        delete_response = await client.delete(f"/v1/catalog/ram-specs/{ram_spec_id}")
+
+        # Assert response is 204 No Content
+        assert delete_response.status_code == 204
+
+        # Verify entity no longer exists
+        get_response = await client.get(f"/v1/catalog/ram-specs/{ram_spec_id}")
+        assert get_response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_delete_ram_spec_in_use_conflict(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return 409 Conflict when RamSpec is used in listings."""
+        # Create RamSpec
+        ram_spec_payload = {
+            "ddr_generation": RamGeneration.DDR5.value,
+            "speed_mhz": 5600,
+            "total_capacity_gb": 32,
+        }
+        ram_spec_response = await client.post("/v1/catalog/ram-specs", json=ram_spec_payload)
+        assert ram_spec_response.status_code == 201
+        ram_spec_id = ram_spec_response.json()["id"]
+
+        # Create listing that uses this RAM spec
+        listing_payload = {
+            "title": "Test RAM Listing",
+            "url": "https://example.com/test-ram-listing",
+            "price_usd": 900.0,
+            "ram_spec_id": ram_spec_id,
+        }
+        listing_response = await client.post("/v1/listings/", json=listing_payload)
+        assert listing_response.status_code == 201
+
+        # Attempt DELETE
+        delete_response = await client.delete(f"/v1/catalog/ram-specs/{ram_spec_id}")
+
+        # Assert response is 409 Conflict
+        assert delete_response.status_code == 409
+
+        # Assert error message includes usage count
+        error_detail = delete_response.json()["detail"]
+        assert "used in 1 listing(s)" in error_detail
+
+        # Verify entity still exists
+        get_response = await client.get(f"/v1/catalog/ram-specs/{ram_spec_id}")
+        assert get_response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_delete_ram_spec_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent RAM spec."""
+        non_existent_id = 99999
+        delete_response = await client.delete(f"/v1/catalog/ram-specs/{non_existent_id}")
+
+        assert delete_response.status_code == 404
+        error_detail = delete_response.json()["detail"]
+        assert "not found" in error_detail
+
+
+# --- StorageProfile DELETE Tests ---
+
+
+class TestStorageProfileDelete:
+    """Tests for DELETE /v1/catalog/storage-profiles/{storage_profile_id} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_delete_storage_profile_unused_success(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should successfully delete unused StorageProfile entity."""
+        # Create StorageProfile via POST
+        create_payload = {
+            "medium": StorageMedium.SATA_SSD.value,
+            "interface": "NVMe",
+            "capacity_gb": 512,
+        }
+        create_response = await client.post("/v1/catalog/storage-profiles", json=create_payload)
+        assert create_response.status_code == 201
+        storage_profile_id = create_response.json()["id"]
+
+        # Delete via DELETE
+        delete_response = await client.delete(
+            f"/v1/catalog/storage-profiles/{storage_profile_id}"
+        )
+
+        # Assert response is 204 No Content
+        assert delete_response.status_code == 204
+
+        # Verify entity no longer exists
+        get_response = await client.get(f"/v1/catalog/storage-profiles/{storage_profile_id}")
+        assert get_response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_delete_storage_profile_in_use_primary_conflict(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return 409 Conflict when StorageProfile used as primary storage."""
+        # Create StorageProfile
+        storage_payload = {
+            "medium": StorageMedium.SATA_SSD.value,
+            "interface": "NVMe",
+            "capacity_gb": 1024,
+        }
+        storage_response = await client.post("/v1/catalog/storage-profiles", json=storage_payload)
+        assert storage_response.status_code == 201
+        storage_profile_id = storage_response.json()["id"]
+
+        # Create listing that uses this storage profile as primary
+        listing_payload = {
+            "title": "Test Primary Storage Listing",
+            "url": "https://example.com/test-primary-storage-listing",
+            "price_usd": 1000.0,
+            "primary_storage_profile_id": storage_profile_id,
+        }
+        listing_response = await client.post("/v1/listings/", json=listing_payload)
+        assert listing_response.status_code == 201
+
+        # Attempt DELETE
+        delete_response = await client.delete(
+            f"/v1/catalog/storage-profiles/{storage_profile_id}"
+        )
+
+        # Assert response is 409 Conflict
+        assert delete_response.status_code == 409
+
+        # Assert error message includes usage count
+        error_detail = delete_response.json()["detail"]
+        assert "used in 1 listing(s)" in error_detail
+
+        # Verify entity still exists
+        get_response = await client.get(f"/v1/catalog/storage-profiles/{storage_profile_id}")
+        assert get_response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_delete_storage_profile_in_use_secondary_conflict(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return 409 Conflict when StorageProfile used as secondary storage."""
+        # Create StorageProfile
+        storage_payload = {
+            "medium": StorageMedium.HDD.value,
+            "interface": "SATA",
+            "capacity_gb": 2000,
+        }
+        storage_response = await client.post("/v1/catalog/storage-profiles", json=storage_payload)
+        assert storage_response.status_code == 201
+        storage_profile_id = storage_response.json()["id"]
+
+        # Create listing that uses this storage profile as secondary
+        listing_payload = {
+            "title": "Test Secondary Storage Listing",
+            "url": "https://example.com/test-secondary-storage-listing",
+            "price_usd": 1200.0,
+            "secondary_storage_profile_id": storage_profile_id,
+        }
+        listing_response = await client.post("/v1/listings/", json=listing_payload)
+        assert listing_response.status_code == 201
+
+        # Attempt DELETE
+        delete_response = await client.delete(
+            f"/v1/catalog/storage-profiles/{storage_profile_id}"
+        )
+
+        # Assert response is 409 Conflict
+        assert delete_response.status_code == 409
+
+        # Assert error message includes usage count
+        error_detail = delete_response.json()["detail"]
+        assert "used in 1 listing(s)" in error_detail
+
+        # Verify entity still exists
+        get_response = await client.get(f"/v1/catalog/storage-profiles/{storage_profile_id}")
+        assert get_response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_delete_storage_profile_in_use_both_fields_conflict(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should count usage in both primary and secondary storage fields."""
+        # Create StorageProfile
+        storage_payload = {
+            "medium": StorageMedium.SATA_SSD.value,
+            "interface": "SATA",
+            "capacity_gb": 500,
+        }
+        storage_response = await client.post("/v1/catalog/storage-profiles", json=storage_payload)
+        assert storage_response.status_code == 201
+        storage_profile_id = storage_response.json()["id"]
+
+        # Create listing using as primary storage
+        listing1_payload = {
+            "title": "Primary Storage Listing",
+            "url": "https://example.com/primary-storage-listing",
+            "price_usd": 800.0,
+            "primary_storage_profile_id": storage_profile_id,
+        }
+        await client.post("/v1/listings/", json=listing1_payload)
+
+        # Create listing using as secondary storage
+        listing2_payload = {
+            "title": "Secondary Storage Listing",
+            "url": "https://example.com/secondary-storage-listing",
+            "price_usd": 900.0,
+            "secondary_storage_profile_id": storage_profile_id,
+        }
+        await client.post("/v1/listings/", json=listing2_payload)
+
+        # Attempt DELETE
+        delete_response = await client.delete(
+            f"/v1/catalog/storage-profiles/{storage_profile_id}"
+        )
+
+        # Assert 409 with count from both fields
+        assert delete_response.status_code == 409
+        error_detail = delete_response.json()["detail"]
+        assert "used in 2 listing(s)" in error_detail
+
+    @pytest.mark.asyncio
+    async def test_delete_storage_profile_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent storage profile."""
+        non_existent_id = 99999
+        delete_response = await client.delete(f"/v1/catalog/storage-profiles/{non_existent_id}")
+
+        assert delete_response.status_code == 404
+        error_detail = delete_response.json()["detail"]
+        assert "not found" in error_detail
 
 
 if __name__ == "__main__":
