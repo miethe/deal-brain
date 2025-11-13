@@ -6,19 +6,26 @@ from dealbrain_core.enums import RamGeneration, StorageMedium
 from dealbrain_core.schemas import (
     CpuCreate,
     CpuRead,
+    CpuUpdate,
     GpuCreate,
     GpuRead,
+    GpuUpdate,
     ListingRead,
     PortsProfileCreate,
     PortsProfileRead,
+    PortsProfileUpdate,
     ProfileCreate,
     ProfileRead,
+    ProfileUpdate,
     RamSpecCreate,
     RamSpecRead,
+    RamSpecUpdate,
     StorageProfileCreate,
     StorageProfileRead,
+    StorageProfileUpdate,
 )
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from opentelemetry import trace
 from sqlalchemy import String, cast, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,6 +38,7 @@ from ..services.component_catalog import (
 )
 
 router = APIRouter(prefix="/v1/catalog", tags=["catalog"])
+tracer = trace.get_tracer(__name__)
 
 
 @router.get("/cpus", response_model=list[CpuRead])
@@ -61,6 +69,74 @@ async def create_cpu(
     return CpuRead.model_validate(cpu)
 
 
+@router.put("/cpus/{cpu_id}", response_model=CpuRead)
+async def update_cpu(
+    cpu_id: int, payload: CpuUpdate, session: AsyncSession = Depends(session_dependency)
+) -> CpuRead:
+    """Full update of a CPU entity."""
+    with tracer.start_as_current_span("catalog.update_cpu"):
+        cpu = await session.get(Cpu, cpu_id)
+        if not cpu:
+            raise HTTPException(status_code=404, detail=f"CPU with id {cpu_id} not found")
+
+        update_data = payload.model_dump(exclude_unset=True)
+
+        # Check for unique constraint violation if name is being changed
+        if "name" in update_data and update_data["name"] != cpu.name:
+            existing = await session.scalar(select(Cpu).where(Cpu.name == update_data["name"]))
+            if existing:
+                raise HTTPException(
+                    status_code=422, detail=f"CPU with name '{update_data['name']}' already exists"
+                )
+
+        # Update all provided fields
+        for field, value in update_data.items():
+            if field == "attributes" and value is not None:
+                # Merge attributes for PUT (replace completely)
+                setattr(cpu, "attributes_json", value)
+            else:
+                setattr(cpu, field if not field.endswith("_json") else field, value)
+
+        await session.flush()
+        await session.refresh(cpu)
+        return CpuRead.model_validate(cpu)
+
+
+@router.patch("/cpus/{cpu_id}", response_model=CpuRead)
+async def partial_update_cpu(
+    cpu_id: int, payload: CpuUpdate, session: AsyncSession = Depends(session_dependency)
+) -> CpuRead:
+    """Partial update of a CPU entity. Merges attributes_json."""
+    with tracer.start_as_current_span("catalog.partial_update_cpu"):
+        cpu = await session.get(Cpu, cpu_id)
+        if not cpu:
+            raise HTTPException(status_code=404, detail=f"CPU with id {cpu_id} not found")
+
+        update_data = payload.model_dump(exclude_unset=True)
+
+        # Check for unique constraint violation if name is being changed
+        if "name" in update_data and update_data["name"] != cpu.name:
+            existing = await session.scalar(select(Cpu).where(Cpu.name == update_data["name"]))
+            if existing:
+                raise HTTPException(
+                    status_code=422, detail=f"CPU with name '{update_data['name']}' already exists"
+                )
+
+        # Update all provided fields with special handling for attributes
+        for field, value in update_data.items():
+            if field == "attributes" and value is not None:
+                # Merge attributes for PATCH
+                current_attrs = cpu.attributes_json or {}
+                merged_attrs = {**current_attrs, **value}
+                setattr(cpu, "attributes_json", merged_attrs)
+            else:
+                setattr(cpu, field if not field.endswith("_json") else field, value)
+
+        await session.flush()
+        await session.refresh(cpu)
+        return CpuRead.model_validate(cpu)
+
+
 @router.get("/gpus", response_model=list[GpuRead])
 async def list_gpus(session: AsyncSession = Depends(session_dependency)) -> Sequence[GpuRead]:
     result = await session.execute(select(Gpu).order_by(Gpu.name))
@@ -89,6 +165,72 @@ async def create_gpu(
     return GpuRead.model_validate(gpu)
 
 
+@router.put("/gpus/{gpu_id}", response_model=GpuRead)
+async def update_gpu(
+    gpu_id: int, payload: GpuUpdate, session: AsyncSession = Depends(session_dependency)
+) -> GpuRead:
+    """Full update of a GPU entity."""
+    with tracer.start_as_current_span("catalog.update_gpu"):
+        gpu = await session.get(Gpu, gpu_id)
+        if not gpu:
+            raise HTTPException(status_code=404, detail=f"GPU with id {gpu_id} not found")
+
+        update_data = payload.model_dump(exclude_unset=True)
+
+        # Check for unique constraint violation if name is being changed
+        if "name" in update_data and update_data["name"] != gpu.name:
+            existing = await session.scalar(select(Gpu).where(Gpu.name == update_data["name"]))
+            if existing:
+                raise HTTPException(
+                    status_code=422, detail=f"GPU with name '{update_data['name']}' already exists"
+                )
+
+        # Update all provided fields
+        for field, value in update_data.items():
+            if field == "attributes" and value is not None:
+                setattr(gpu, "attributes_json", value)
+            else:
+                setattr(gpu, field if not field.endswith("_json") else field, value)
+
+        await session.flush()
+        await session.refresh(gpu)
+        return GpuRead.model_validate(gpu)
+
+
+@router.patch("/gpus/{gpu_id}", response_model=GpuRead)
+async def partial_update_gpu(
+    gpu_id: int, payload: GpuUpdate, session: AsyncSession = Depends(session_dependency)
+) -> GpuRead:
+    """Partial update of a GPU entity. Merges attributes_json."""
+    with tracer.start_as_current_span("catalog.partial_update_gpu"):
+        gpu = await session.get(Gpu, gpu_id)
+        if not gpu:
+            raise HTTPException(status_code=404, detail=f"GPU with id {gpu_id} not found")
+
+        update_data = payload.model_dump(exclude_unset=True)
+
+        # Check for unique constraint violation if name is being changed
+        if "name" in update_data and update_data["name"] != gpu.name:
+            existing = await session.scalar(select(Gpu).where(Gpu.name == update_data["name"]))
+            if existing:
+                raise HTTPException(
+                    status_code=422, detail=f"GPU with name '{update_data['name']}' already exists"
+                )
+
+        # Update all provided fields with special handling for attributes
+        for field, value in update_data.items():
+            if field == "attributes" and value is not None:
+                current_attrs = gpu.attributes_json or {}
+                merged_attrs = {**current_attrs, **value}
+                setattr(gpu, "attributes_json", merged_attrs)
+            else:
+                setattr(gpu, field if not field.endswith("_json") else field, value)
+
+        await session.flush()
+        await session.refresh(gpu)
+        return GpuRead.model_validate(gpu)
+
+
 @router.get("/profiles", response_model=list[ProfileRead])
 async def list_profiles(
     session: AsyncSession = Depends(session_dependency),
@@ -110,6 +252,111 @@ async def create_profile(
     session.add(profile)
     await session.flush()
     return ProfileRead.model_validate(profile)
+
+
+@router.put("/profiles/{profile_id}", response_model=ProfileRead)
+async def update_profile(
+    profile_id: int, payload: ProfileUpdate, session: AsyncSession = Depends(session_dependency)
+) -> ProfileRead:
+    """Full update of a Profile entity."""
+    with tracer.start_as_current_span("catalog.update_profile"):
+        profile = await session.get(Profile, profile_id)
+        if not profile:
+            raise HTTPException(status_code=404, detail=f"Profile with id {profile_id} not found")
+
+        update_data = payload.model_dump(exclude_unset=True)
+
+        # Check for unique constraint violation if name is being changed
+        if "name" in update_data and update_data["name"] != profile.name:
+            existing = await session.scalar(
+                select(Profile).where(Profile.name == update_data["name"])
+            )
+            if existing:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Profile with name '{update_data['name']}' already exists",
+                )
+
+        # Prevent removing is_default from the only default profile
+        if "is_default" in update_data and not update_data["is_default"] and profile.is_default:
+            other_defaults = await session.scalar(
+                select(func.count(Profile.id)).where(
+                    Profile.is_default.is_(True), Profile.id != profile_id
+                )
+            )
+            if other_defaults == 0:
+                raise HTTPException(
+                    status_code=422, detail="Cannot unset is_default from the only default profile"
+                )
+
+        # If setting is_default, unset others
+        if update_data.get("is_default"):
+            await session.execute(update(Profile).values(is_default=False))
+
+        # Update all provided fields
+        for field, value in update_data.items():
+            if field == "weights_json" and value is not None:
+                setattr(profile, field, value)
+            else:
+                setattr(profile, field, value)
+
+        await session.flush()
+        await session.refresh(profile)
+        return ProfileRead.model_validate(profile)
+
+
+@router.patch("/profiles/{profile_id}", response_model=ProfileRead)
+async def partial_update_profile(
+    profile_id: int, payload: ProfileUpdate, session: AsyncSession = Depends(session_dependency)
+) -> ProfileRead:
+    """Partial update of a Profile entity. Merges weights_json."""
+    with tracer.start_as_current_span("catalog.partial_update_profile"):
+        profile = await session.get(Profile, profile_id)
+        if not profile:
+            raise HTTPException(status_code=404, detail=f"Profile with id {profile_id} not found")
+
+        update_data = payload.model_dump(exclude_unset=True)
+
+        # Check for unique constraint violation if name is being changed
+        if "name" in update_data and update_data["name"] != profile.name:
+            existing = await session.scalar(
+                select(Profile).where(Profile.name == update_data["name"])
+            )
+            if existing:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Profile with name '{update_data['name']}' already exists",
+                )
+
+        # Prevent removing is_default from the only default profile
+        if "is_default" in update_data and not update_data["is_default"] and profile.is_default:
+            other_defaults = await session.scalar(
+                select(func.count(Profile.id)).where(
+                    Profile.is_default.is_(True), Profile.id != profile_id
+                )
+            )
+            if other_defaults == 0:
+                raise HTTPException(
+                    status_code=422, detail="Cannot unset is_default from the only default profile"
+                )
+
+        # If setting is_default, unset others
+        if update_data.get("is_default"):
+            await session.execute(update(Profile).values(is_default=False))
+
+        # Update all provided fields with special handling for weights_json
+        for field, value in update_data.items():
+            if field == "weights_json" and value is not None:
+                # Merge weights for PATCH
+                current_weights = profile.weights_json or {}
+                merged_weights = {**current_weights, **value}
+                setattr(profile, field, merged_weights)
+            else:
+                setattr(profile, field, value)
+
+        await session.flush()
+        await session.refresh(profile)
+        return ProfileRead.model_validate(profile)
 
 
 @router.get("/ports-profiles", response_model=list[PortsProfileRead])
@@ -139,6 +386,113 @@ async def create_ports_profile(
     await session.flush()
     await session.refresh(profile)
     return PortsProfileRead.model_validate(profile)
+
+
+@router.put("/ports-profiles/{profile_id}", response_model=PortsProfileRead)
+async def update_ports_profile(
+    profile_id: int,
+    payload: PortsProfileUpdate,
+    session: AsyncSession = Depends(session_dependency),
+) -> PortsProfileRead:
+    """Full update of a PortsProfile entity."""
+    with tracer.start_as_current_span("catalog.update_ports_profile"):
+        profile = await session.get(PortsProfile, profile_id)
+        if not profile:
+            raise HTTPException(
+                status_code=404, detail=f"Ports profile with id {profile_id} not found"
+            )
+
+        update_data = payload.model_dump(exclude={"ports"}, exclude_unset=True)
+
+        # Check for unique constraint violation if name is being changed
+        if "name" in update_data and update_data["name"] != profile.name:
+            existing = await session.scalar(
+                select(PortsProfile).where(PortsProfile.name == update_data["name"])
+            )
+            if existing:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Ports profile with name '{update_data['name']}' already exists",
+                )
+
+        # Update profile fields
+        for field, value in update_data.items():
+            if field == "attributes" and value is not None:
+                setattr(profile, "attributes_json", value)
+            else:
+                setattr(profile, field, value)
+
+        # Handle ports update (replace all)
+        if payload.ports is not None:
+            # Delete existing ports
+            await session.execute(
+                select(Port).where(Port.ports_profile_id == profile_id)
+            ).scalars().all()
+            for port in profile.ports:
+                await session.delete(port)
+
+            # Add new ports
+            for port_data in payload.ports:
+                session.add(
+                    Port(**port_data.model_dump(exclude_none=True), ports_profile_id=profile.id)
+                )
+
+        await session.flush()
+        await session.refresh(profile)
+        return PortsProfileRead.model_validate(profile)
+
+
+@router.patch("/ports-profiles/{profile_id}", response_model=PortsProfileRead)
+async def partial_update_ports_profile(
+    profile_id: int,
+    payload: PortsProfileUpdate,
+    session: AsyncSession = Depends(session_dependency),
+) -> PortsProfileRead:
+    """Partial update of a PortsProfile entity. Merges attributes_json."""
+    with tracer.start_as_current_span("catalog.partial_update_ports_profile"):
+        profile = await session.get(PortsProfile, profile_id)
+        if not profile:
+            raise HTTPException(
+                status_code=404, detail=f"Ports profile with id {profile_id} not found"
+            )
+
+        update_data = payload.model_dump(exclude={"ports"}, exclude_unset=True)
+
+        # Check for unique constraint violation if name is being changed
+        if "name" in update_data and update_data["name"] != profile.name:
+            existing = await session.scalar(
+                select(PortsProfile).where(PortsProfile.name == update_data["name"])
+            )
+            if existing:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Ports profile with name '{update_data['name']}' already exists",
+                )
+
+        # Update profile fields with special handling for attributes
+        for field, value in update_data.items():
+            if field == "attributes" and value is not None:
+                current_attrs = profile.attributes_json or {}
+                merged_attrs = {**current_attrs, **value}
+                setattr(profile, "attributes_json", merged_attrs)
+            else:
+                setattr(profile, field, value)
+
+        # Handle ports update (replace all if provided)
+        if payload.ports is not None:
+            # Delete existing ports
+            for port in profile.ports:
+                await session.delete(port)
+
+            # Add new ports
+            for port_data in payload.ports:
+                session.add(
+                    Port(**port_data.model_dump(exclude_none=True), ports_profile_id=profile.id)
+                )
+
+        await session.flush()
+        await session.refresh(profile)
+        return PortsProfileRead.model_validate(profile)
 
 
 @router.get("/ram-specs", response_model=list[RamSpecRead])
@@ -198,6 +552,129 @@ async def create_ram_spec(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return RamSpecRead.model_validate(spec)
+
+
+@router.put("/ram-specs/{ram_spec_id}", response_model=RamSpecRead)
+async def update_ram_spec(
+    ram_spec_id: int, payload: RamSpecUpdate, session: AsyncSession = Depends(session_dependency)
+) -> RamSpecRead:
+    """Full update of a RamSpec entity."""
+    with tracer.start_as_current_span("catalog.update_ram_spec"):
+        ram_spec = await session.get(RamSpec, ram_spec_id)
+        if not ram_spec:
+            raise HTTPException(
+                status_code=404, detail=f"RAM spec with id {ram_spec_id} not found"
+            )
+
+        update_data = payload.model_dump(exclude_unset=True)
+
+        # Check for unique constraint violation
+        # Unique constraint: (ddr_generation, speed_mhz, module_count,
+        # capacity_per_module_gb, total_capacity_gb)
+        constraint_fields = {
+            "ddr_generation": update_data.get("ddr_generation", ram_spec.ddr_generation),
+            "speed_mhz": update_data.get("speed_mhz", ram_spec.speed_mhz),
+            "module_count": update_data.get("module_count", ram_spec.module_count),
+            "capacity_per_module_gb": update_data.get(
+                "capacity_per_module_gb", ram_spec.capacity_per_module_gb
+            ),
+            "total_capacity_gb": update_data.get(
+                "total_capacity_gb", ram_spec.total_capacity_gb
+            ),
+        }
+
+        # Check if any constraint field changed
+        constraint_changed = any(
+            constraint_fields[field] != getattr(ram_spec, field) for field in constraint_fields
+        )
+
+        if constraint_changed:
+            existing = await session.scalar(
+                select(RamSpec).where(
+                    RamSpec.ddr_generation == constraint_fields["ddr_generation"],
+                    RamSpec.speed_mhz == constraint_fields["speed_mhz"],
+                    RamSpec.module_count == constraint_fields["module_count"],
+                    RamSpec.capacity_per_module_gb == constraint_fields["capacity_per_module_gb"],
+                    RamSpec.total_capacity_gb == constraint_fields["total_capacity_gb"],
+                    RamSpec.id != ram_spec_id,
+                )
+            )
+            if existing:
+                raise HTTPException(
+                    status_code=422,
+                    detail="RAM spec with these specifications already exists",
+                )
+
+        # Update all provided fields
+        for field, value in update_data.items():
+            if field == "attributes" and value is not None:
+                setattr(ram_spec, "attributes_json", value)
+            else:
+                setattr(ram_spec, field, value)
+
+        await session.flush()
+        await session.refresh(ram_spec)
+        return RamSpecRead.model_validate(ram_spec)
+
+
+@router.patch("/ram-specs/{ram_spec_id}", response_model=RamSpecRead)
+async def partial_update_ram_spec(
+    ram_spec_id: int, payload: RamSpecUpdate, session: AsyncSession = Depends(session_dependency)
+) -> RamSpecRead:
+    """Partial update of a RamSpec entity. Merges attributes_json."""
+    with tracer.start_as_current_span("catalog.partial_update_ram_spec"):
+        ram_spec = await session.get(RamSpec, ram_spec_id)
+        if not ram_spec:
+            raise HTTPException(
+                status_code=404, detail=f"RAM spec with id {ram_spec_id} not found"
+            )
+
+        update_data = payload.model_dump(exclude_unset=True)
+
+        # Check for unique constraint violation
+        constraint_fields = {
+            "ddr_generation": update_data.get("ddr_generation", ram_spec.ddr_generation),
+            "speed_mhz": update_data.get("speed_mhz", ram_spec.speed_mhz),
+            "module_count": update_data.get("module_count", ram_spec.module_count),
+            "capacity_per_module_gb": update_data.get(
+                "capacity_per_module_gb", ram_spec.capacity_per_module_gb
+            ),
+            "total_capacity_gb": update_data.get("total_capacity_gb", ram_spec.total_capacity_gb),
+        }
+
+        constraint_changed = any(
+            constraint_fields[field] != getattr(ram_spec, field) for field in constraint_fields
+        )
+
+        if constraint_changed:
+            existing = await session.scalar(
+                select(RamSpec).where(
+                    RamSpec.ddr_generation == constraint_fields["ddr_generation"],
+                    RamSpec.speed_mhz == constraint_fields["speed_mhz"],
+                    RamSpec.module_count == constraint_fields["module_count"],
+                    RamSpec.capacity_per_module_gb == constraint_fields["capacity_per_module_gb"],
+                    RamSpec.total_capacity_gb == constraint_fields["total_capacity_gb"],
+                    RamSpec.id != ram_spec_id,
+                )
+            )
+            if existing:
+                raise HTTPException(
+                    status_code=422,
+                    detail="RAM spec with these specifications already exists",
+                )
+
+        # Update all provided fields with special handling for attributes
+        for field, value in update_data.items():
+            if field == "attributes" and value is not None:
+                current_attrs = ram_spec.attributes_json or {}
+                merged_attrs = {**current_attrs, **value}
+                setattr(ram_spec, "attributes_json", merged_attrs)
+            else:
+                setattr(ram_spec, field, value)
+
+        await session.flush()
+        await session.refresh(ram_spec)
+        return RamSpecRead.model_validate(ram_spec)
 
 
 @router.get("/storage-profiles", response_model=list[StorageProfileRead])
@@ -266,6 +743,141 @@ async def create_storage_profile(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return StorageProfileRead.model_validate(profile)
+
+
+@router.put("/storage-profiles/{storage_profile_id}", response_model=StorageProfileRead)
+async def update_storage_profile(
+    storage_profile_id: int,
+    payload: StorageProfileUpdate,
+    session: AsyncSession = Depends(session_dependency),
+) -> StorageProfileRead:
+    """Full update of a StorageProfile entity."""
+    with tracer.start_as_current_span("catalog.update_storage_profile"):
+        storage_profile = await session.get(StorageProfile, storage_profile_id)
+        if not storage_profile:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Storage profile with id {storage_profile_id} not found",
+            )
+
+        update_data = payload.model_dump(exclude_unset=True)
+
+        # Normalize medium if provided
+        if "medium" in update_data and update_data["medium"] is not None:
+            update_data["medium"] = normalize_storage_medium(update_data["medium"])
+
+        # Check for unique constraint violation
+        # Unique constraint: (medium, interface, form_factor, capacity_gb, performance_tier)
+        constraint_fields = {
+            "medium": update_data.get("medium", storage_profile.medium),
+            "interface": update_data.get("interface", storage_profile.interface),
+            "form_factor": update_data.get("form_factor", storage_profile.form_factor),
+            "capacity_gb": update_data.get("capacity_gb", storage_profile.capacity_gb),
+            "performance_tier": update_data.get(
+                "performance_tier", storage_profile.performance_tier
+            ),
+        }
+
+        constraint_changed = any(
+            constraint_fields[field] != getattr(storage_profile, field)
+            for field in constraint_fields
+        )
+
+        if constraint_changed:
+            existing = await session.scalar(
+                select(StorageProfile).where(
+                    StorageProfile.medium == constraint_fields["medium"],
+                    StorageProfile.interface == constraint_fields["interface"],
+                    StorageProfile.form_factor == constraint_fields["form_factor"],
+                    StorageProfile.capacity_gb == constraint_fields["capacity_gb"],
+                    StorageProfile.performance_tier == constraint_fields["performance_tier"],
+                    StorageProfile.id != storage_profile_id,
+                )
+            )
+            if existing:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Storage profile with these specifications already exists",
+                )
+
+        # Update all provided fields
+        for field, value in update_data.items():
+            if field == "attributes" and value is not None:
+                setattr(storage_profile, "attributes_json", value)
+            else:
+                setattr(storage_profile, field, value)
+
+        await session.flush()
+        await session.refresh(storage_profile)
+        return StorageProfileRead.model_validate(storage_profile)
+
+
+@router.patch("/storage-profiles/{storage_profile_id}", response_model=StorageProfileRead)
+async def partial_update_storage_profile(
+    storage_profile_id: int,
+    payload: StorageProfileUpdate,
+    session: AsyncSession = Depends(session_dependency),
+) -> StorageProfileRead:
+    """Partial update of a StorageProfile entity. Merges attributes_json."""
+    with tracer.start_as_current_span("catalog.partial_update_storage_profile"):
+        storage_profile = await session.get(StorageProfile, storage_profile_id)
+        if not storage_profile:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Storage profile with id {storage_profile_id} not found",
+            )
+
+        update_data = payload.model_dump(exclude_unset=True)
+
+        # Normalize medium if provided
+        if "medium" in update_data and update_data["medium"] is not None:
+            update_data["medium"] = normalize_storage_medium(update_data["medium"])
+
+        # Check for unique constraint violation
+        constraint_fields = {
+            "medium": update_data.get("medium", storage_profile.medium),
+            "interface": update_data.get("interface", storage_profile.interface),
+            "form_factor": update_data.get("form_factor", storage_profile.form_factor),
+            "capacity_gb": update_data.get("capacity_gb", storage_profile.capacity_gb),
+            "performance_tier": update_data.get(
+                "performance_tier", storage_profile.performance_tier
+            ),
+        }
+
+        constraint_changed = any(
+            constraint_fields[field] != getattr(storage_profile, field)
+            for field in constraint_fields
+        )
+
+        if constraint_changed:
+            existing = await session.scalar(
+                select(StorageProfile).where(
+                    StorageProfile.medium == constraint_fields["medium"],
+                    StorageProfile.interface == constraint_fields["interface"],
+                    StorageProfile.form_factor == constraint_fields["form_factor"],
+                    StorageProfile.capacity_gb == constraint_fields["capacity_gb"],
+                    StorageProfile.performance_tier == constraint_fields["performance_tier"],
+                    StorageProfile.id != storage_profile_id,
+                )
+            )
+            if existing:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Storage profile with these specifications already exists",
+                )
+
+        # Update all provided fields with special handling for attributes
+        for field, value in update_data.items():
+            if field == "attributes" and value is not None:
+                current_attrs = storage_profile.attributes_json or {}
+                merged_attrs = {**current_attrs, **value}
+                setattr(storage_profile, "attributes_json", merged_attrs)
+            else:
+                setattr(storage_profile, field, value)
+
+        await session.flush()
+        await session.refresh(storage_profile)
+        return StorageProfileRead.model_validate(storage_profile)
 
 
 # "Used In" Endpoints - Return listings that use each entity type
