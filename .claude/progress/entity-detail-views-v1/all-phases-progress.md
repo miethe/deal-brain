@@ -10,7 +10,7 @@
 |-------|-------|--------|--------|-------|----------|
 | 1 | Backend CRUD - UPDATE Endpoints | ✅ COMPLETE | 8 pts | 8 | 8/8 |
 | 2 | Backend CRUD - DELETE Endpoints | ✅ COMPLETE | 8 pts | 8 | 8/8 |
-| 3 | FieldRegistry Expansion | NOT STARTED | 5 pts | 6 | 0/6 |
+| 3 | FieldRegistry Expansion | ✅ COMPLETE | 5 pts | 6 | 6/6 |
 | 4 | Frontend Edit UI | ✅ COMPLETE | 8 pts | 8 | 8/8 |
 | 5 | Frontend Delete UI | ✅ COMPLETE | 8 pts | 8 | 8/8 |
 | 6 | New Detail Views (PortsProfile, Profile) | ✅ COMPLETE | 8 pts | 6 | 6/6 |
@@ -335,7 +335,7 @@ Add DELETE endpoints with cascade validation to prevent orphaning listings.
 
 ## Phase 3: FieldRegistry Expansion
 
-**Status**: NOT STARTED
+**Status**: ✅ COMPLETE
 **Duration**: 2 days | **Effort**: 5 story points
 **Dependencies**: None (parallel with Phases 1-2)
 **Assigned**: python-backend-engineer, backend-architect
@@ -344,93 +344,110 @@ Add DELETE endpoints with cascade validation to prevent orphaning listings.
 Register GPU, RamSpec, StorageProfile, PortsProfile, Profile in FieldRegistry to enable unified management.
 
 ### Quality Gates
-- [ ] All 7 entities returned by GET /v1/fields-data/entities
-- [ ] Schema endpoints return correct core + custom fields for each entity
-- [ ] Create/update operations work via fields-data API for new entities
-- [ ] Unit tests verify registration metadata correctness
+- [x] All 7 entities returned by GET /v1/fields-data/entities
+- [x] Schema endpoints return correct core + custom fields for each entity
+- [x] Create/update operations work via fields-data API for new entities
+- [x] Unit tests verify registration metadata correctness
 
-### Tasks (0/6 Complete)
+### Tasks (6/6 Complete)
 
 #### REG-001: Register GPU in FieldRegistry
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer | **Commit**: 6ed5155
 
 **Description**: Add GPU entity registration to FieldRegistry with core fields mapping
 
 **Acceptance Criteria**:
-- [ ] `FieldRegistry.register("gpu", Gpu)` called on init
-- [ ] Core fields mapped: name, manufacturer, gpu_mark, metal_score, notes
-- [ ] attributes_json mapped for custom fields
-- [ ] GET /v1/fields-data/gpu/schema returns complete schema
+- [x] `FieldRegistry.register("gpu", Gpu)` called on init
+- [x] Core fields mapped: name, manufacturer, gpu_mark, metal_score, notes
+- [x] attributes_json mapped for custom fields
+- [x] GET /v1/fields-data/gpu/schema returns complete schema
 
 **Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/services/field_registry.py`
 
 ---
 
 #### REG-002: Register RamSpec in FieldRegistry
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer | **Commit**: 6ed5155
 
 **Description**: Add RamSpec entity registration with core fields mapping
 
 **Acceptance Criteria**:
-- [ ] Similar to REG-001
-- [ ] Core fields: label, ddr_generation, speed_mhz, module_count, capacity_per_module_gb, total_capacity_gb, notes
+- [x] Similar to REG-001
+- [x] Core fields: label, ddr_generation, speed_mhz, module_count, capacity_per_module_gb, total_capacity_gb, notes
 
 **Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/services/field_registry.py`
 
 ---
 
 #### REG-003: Register StorageProfile in FieldRegistry
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer | **Commit**: 6ed5155
 
 **Description**: Add StorageProfile entity registration with core fields mapping
 
 **Acceptance Criteria**:
-- [ ] Similar to REG-001
-- [ ] Core fields: label, medium, interface, form_factor, capacity_gb, performance_tier, notes
+- [x] Similar to REG-001
+- [x] Core fields: label, medium, interface, form_factor, capacity_gb, performance_tier, notes
 
 **Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/services/field_registry.py`
 
 ---
 
 #### REG-004: Register PortsProfile in FieldRegistry
-**Status**: NOT STARTED | **Estimate**: 1.5 pts | **Assigned**: python-backend-engineer, backend-architect
+**Status**: ✅ COMPLETE | **Estimate**: 1.5 pts | **Assigned**: python-backend-engineer, backend-architect | **Commit**: 6ed5155
 
 **Description**: Add PortsProfile entity registration with core fields mapping
 
 **Acceptance Criteria**:
-- [ ] Similar to REG-001
-- [ ] Core fields: name, description
-- [ ] Handle nested Port entities (related objects)
-- [ ] Support creating/updating ports with profile
+- [x] Similar to REG-001
+- [x] Core fields: name, description
+- [x] Handle nested Port entities (related objects)
+- [x] Support creating/updating ports with profile
 
 **Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/services/field_registry.py`
 
 ---
 
 #### REG-005: Register Profile in FieldRegistry
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: python-backend-engineer | **Commit**: 6ed5155
 
 **Description**: Add Profile (scoring) entity registration with core fields mapping
 
 **Acceptance Criteria**:
-- [ ] Similar to REG-001
-- [ ] Core fields: name, description, is_default, weights_json, rule_group_weights
-- [ ] Validate weights_json schema on create/update
+- [x] Similar to REG-001
+- [x] Core fields: name, description, is_default, weights_json, rule_group_weights
+- [x] Validate weights_json schema on create/update
 
 **Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/services/field_registry.py`
 
 ---
 
 #### REG-006: Update GET /v1/fields-data/entities
-**Status**: NOT STARTED | **Estimate**: 0.5 pts | **Assigned**: python-backend-engineer
+**Status**: ✅ COMPLETE | **Estimate**: 0.5 pts | **Assigned**: python-backend-engineer | **Commit**: 6ed5155
 
 **Description**: Ensure new entities appear in entities list endpoint
 
 **Acceptance Criteria**:
-- [ ] GET /v1/fields-data/entities returns all 7 entities
-- [ ] Response includes: id, name, label, field count
+- [x] GET /v1/fields-data/entities returns all 7 entities
+- [x] Response includes: id, name, label, field count
 
 **Files**: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/field_data.py`
+
+### Phase 3 Completion Summary
+
+**Completed**: 2025-11-13
+**Total Effort**: 5 story points
+**Commit**: 6ed5155
+
+**Deliverables:**
+- FieldRegistry registered 7 entities (listing, cpu, gpu, ram_spec, storage_profile, ports_profile, profile)
+- Schema endpoints provide core + custom fields per entity
+- CRUD create/update via `/v1/fields-data` for new entities
+- Attributes merging on update (null removes keys)
+
+**Files Modified:**
+- `/apps/api/dealbrain_api/services/field_registry.py`
+- `/apps/api/dealbrain_api/api/field_data.py`
+- `/docs/project_plans/entity-details/progress/phase-3-progress.md`
 
 ---
 
