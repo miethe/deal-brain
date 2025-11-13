@@ -2,6 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 
 import { apiFetch, cn } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -53,6 +55,27 @@ interface RecordsListResponse {
 
 interface GlobalFieldsDataTabProps {
   entity: string;
+}
+
+// Utility function to get the detail page URL for an entity
+function getEntityDetailUrl(entity: string, id: number): string {
+  const urlMap: Record<string, (id: number) => string> = {
+    listing: (id) => `/listings/${id}`,
+    cpu: (id) => `/catalog/cpus/${id}`,
+    gpu: (id) => `/catalog/gpus/${id}`,
+    ram_spec: (id) => `/catalog/ram-specs/${id}`,
+    storage_profile: (id) => `/catalog/storage-profiles/${id}`,
+    ports_profile: (id) => `/catalog/ports-profiles/${id}`,
+    profile: (id) => `/catalog/profiles/${id}`,
+  };
+
+  const urlBuilder = urlMap[entity];
+  if (!urlBuilder) {
+    console.warn(`No detail URL mapping found for entity: ${entity}`);
+    return "#";
+  }
+
+  return urlBuilder(id);
 }
 
 function deriveFilterType(field: FieldDefinition): ColumnMetaConfig["filterType"] {
@@ -187,24 +210,36 @@ export function GlobalFieldsDataTab({ entity }: GlobalFieldsDataTabProps) {
 
     const actionColumn: ColumnDef<RecordResponse> = {
       id: "actions",
-      header: "",
+      header: "Actions",
+      size: 200,
+      enableResizing: false,
+      enableSorting: false,
+      enableColumnFilter: false,
       cell: ({ row }) => (
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            setActiveRecord(row.original);
-            setMode("edit");
-            setModalOpen(true);
-          }}
-        >
-          Edit
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setActiveRecord(row.original);
+              setMode("edit");
+              setModalOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button size="sm" variant="ghost" asChild>
+            <Link href={getEntityDetailUrl(entity, row.original.id)}>
+              <ExternalLink className="mr-1 h-3 w-3" />
+              View Details
+            </Link>
+          </Button>
+        </div>
       ),
     };
 
     return [...base, ...dataColumns, actionColumn];
-  }, [schema]);
+  }, [schema, entity]);
 
   const handleCreate = () => {
     setActiveRecord(null);
