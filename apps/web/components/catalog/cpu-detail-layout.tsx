@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ChevronRight, Cpu, TrendingUp, Zap, Pencil } from "lucide-react";
+import { ChevronRight, Cpu, TrendingUp, Zap, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EntityEditModal } from "@/components/entity/entity-edit-modal";
+import { EntityDeleteDialog } from "@/components/entity/entity-delete-dialog";
 import { cpuEditSchema, type CPUEditFormData } from "@/lib/schemas/entity-schemas";
-import { useUpdateCpu } from "@/hooks/use-entity-mutations";
+import { useUpdateCpu, useDeleteCpu } from "@/hooks/use-entity-mutations";
 
 interface CPU {
   id: number;
@@ -172,15 +174,29 @@ function ListingCard({ listing }: ListingCardProps) {
 }
 
 export function CPUDetailLayout({ cpu, listings }: CPUDetailLayoutProps) {
+  const router = useRouter();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
   const updateCpuMutation = useUpdateCpu(cpu.id);
+  const deleteCpuMutation = useDeleteCpu(cpu.id, {
+    onSuccess: () => {
+      router.push("/catalog/cpus");
+    },
+  });
 
   const hasSpecs = cpu.cores || cpu.threads || cpu.base_clock_ghz || cpu.boost_clock_ghz || cpu.tdp_watts || cpu.socket || cpu.generation || cpu.igpu_model || cpu.release_year;
   const hasBenchmarks = cpu.cpu_mark || cpu.single_thread_rating || cpu.igpu_mark;
+  const usedInCount = listings.length;
 
   const handleEditSubmit = async (data: CPUEditFormData) => {
     await updateCpuMutation.mutateAsync(data);
     setIsEditModalOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    await deleteCpuMutation.mutateAsync();
+    setShowDeleteDialog(false);
   };
 
   return (
@@ -198,7 +214,7 @@ export function CPUDetailLayout({ cpu, listings }: CPUDetailLayoutProps) {
         <span className="text-foreground font-medium">CPU Details</span>
       </nav>
 
-      {/* Header with Edit button */}
+      {/* Header with Edit and Delete buttons */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{cpu.model}</h1>
@@ -210,18 +226,35 @@ export function CPUDetailLayout({ cpu, listings }: CPUDetailLayoutProps) {
             {cpu.release_year && (
               <Badge variant="outline">{cpu.release_year}</Badge>
             )}
+            {usedInCount > 0 && (
+              <Badge variant="outline" className="cursor-default">
+                Used in {usedInCount} listing{usedInCount === 1 ? "" : "s"}
+              </Badge>
+            )}
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsEditModalOpen(true)}
-          aria-label={`Edit ${cpu.model}`}
-          className="flex-shrink-0"
-        >
-          <Pencil className="h-4 w-4 mr-2" />
-          Edit
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditModalOpen(true)}
+            aria-label={`Edit ${cpu.model}`}
+            className="flex-shrink-0"
+          >
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setShowDeleteDialog(true)}
+            aria-label={`Delete ${cpu.model}`}
+            className="flex-shrink-0"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+        </div>
       </div>
 
       {/* Specifications Card */}
@@ -305,7 +338,7 @@ export function CPUDetailLayout({ cpu, listings }: CPUDetailLayoutProps) {
       )}
 
       {/* Used In Listings Card */}
-      <Card>
+      <Card id="used-in-listings">
         <CardHeader>
           <CardTitle>
             Used In Listings {listings.length > 0 && `(${listings.length})`}
@@ -355,6 +388,17 @@ export function CPUDetailLayout({ cpu, listings }: CPUDetailLayoutProps) {
         onSubmit={handleEditSubmit}
         onClose={() => setIsEditModalOpen(false)}
         isOpen={isEditModalOpen}
+      />
+
+      {/* Delete Dialog */}
+      <EntityDeleteDialog
+        entityType="cpu"
+        entityId={cpu.id}
+        entityName={cpu.model}
+        usedInCount={usedInCount}
+        isOpen={showDeleteDialog}
+        onCancel={() => setShowDeleteDialog(false)}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );

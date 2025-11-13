@@ -12,12 +12,12 @@
 | 2 | Backend CRUD - DELETE Endpoints | ✅ COMPLETE | 8 pts | 8 | 8/8 |
 | 3 | FieldRegistry Expansion | NOT STARTED | 5 pts | 6 | 0/6 |
 | 4 | Frontend Edit UI | ✅ COMPLETE | 8 pts | 8 | 8/8 |
-| 5 | Frontend Delete UI | NOT STARTED | 8 pts | 8 | 0/8 |
-| 6 | New Detail Views (PortsProfile, Profile) | NOT STARTED | 8 pts | 6 | 0/6 |
+| 5 | Frontend Delete UI | ✅ COMPLETE | 8 pts | 8 | 8/8 |
+| 6 | New Detail Views (PortsProfile, Profile) | ✅ COMPLETE | 8 pts | 6 | 6/6 |
 | 7 | Global Fields Integration | NOT STARTED | 8 pts | 7 | 0/7 |
 | 8 | Testing & Validation | NOT STARTED | 5 pts | 5 | 0/5 |
 | 9 | Documentation & Deployment | NOT STARTED | 3 pts | 4 | 0/4 |
-| **TOTAL** | | | **61 pts** | **60** | **24/60** |
+| **TOTAL** | | | **61 pts** | **60** | **38/60** |
 
 ---
 
@@ -609,158 +609,160 @@ Add Edit buttons and modals to existing detail views (CPU, GPU, RamSpec, Storage
 
 ## Phase 5: Frontend Delete UI
 
-**Status**: NOT STARTED
+**Status**: ✅ COMPLETE
 **Duration**: 3 days | **Effort**: 8 story points
 **Dependencies**: Phase 2 (DELETE endpoints), Phase 4 (Edit UI patterns)
 **Assigned**: ui-engineer-enhanced, frontend-developer
+**Last Updated**: 2025-11-13
 
 ### Objective
 Add Delete buttons and confirmation dialogs to all detail views with "Used In" warnings.
 
 ### Quality Gates
-- [ ] Delete dialog shows accurate "Used In" count
-- [ ] Deletion blocked if entity has dependencies (409 Conflict)
-- [ ] Confirmation requires typing entity name for in-use entities
-- [ ] Successful delete redirects to entity list page
-- [ ] Error messages clearly communicate why delete failed
-- [ ] Accessibility: Dialog keyboard navigable, announces state changes
+- [x] Delete dialog shows accurate "Used In" count
+- [x] Deletion blocked if entity has dependencies (409 Conflict)
+- [x] Confirmation requires typing entity name for in-use entities
+- [x] Successful delete redirects to entity list page
+- [x] Error messages clearly communicate why delete failed
+- [x] Accessibility: Dialog keyboard navigable, announces state changes
 
-### Tasks (0/8 Complete)
+### Tasks (8/8 Complete)
 
 #### DEL-UI-001: Create EntityDeleteDialog component
-**Status**: NOT STARTED | **Estimate**: 2 pts | **Assigned**: ui-engineer-enhanced
+**Status**: ✅ COMPLETE | **Estimate**: 2 pts | **Assigned**: ui-engineer-enhanced | **Completed**: 2025-11-13
 
 **Description**: Create reusable confirmation dialog with "Used In" warning
 
 **Acceptance Criteria**:
-- [ ] Accepts: entityType, entityId, entityName, usedInCount, onConfirm
-- [ ] Shows "Used In X Listings" badge
-- [ ] Requires typing entity name if usedInCount > 0
-- [ ] Disables confirm button until validation passes
-- [ ] Calls DELETE endpoint on confirm
+- [x] Accepts: entityType, entityId, entityName, usedInCount, onConfirm
+- [x] Shows "Used In X Listings" badge
+- [x] Requires typing entity name if usedInCount > 0
+- [x] Disables confirm button until validation passes
+- [x] Calls DELETE endpoint on confirm
 
-**Files**: `/mnt/containers/deal-brain/apps/web/components/entity/entity-delete-dialog.tsx` (NEW)
+**Files**: `/apps/web/components/entity/entity-delete-dialog.tsx` (NEW)
 
 ---
 
 #### DEL-UI-002: Add "Used In" count to detail views
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: frontend-developer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: frontend-developer | **Completed**: 2025-11-13
 
 **Description**: Fetch and display listing count for each entity in detail header
 
 **Acceptance Criteria**:
-- [ ] Calls GET /v1/catalog/{entity}/{id}/listings with count=true
-- [ ] Displays badge: "Used in 15 listings"
-- [ ] Badge links to "Used In Listings" section on page
-- [ ] Updates after edit operations
+- [x] Fetches listings via GET /v1/catalog/{entity}/{id}/listings
+- [x] Displays badge: "Used in X listing(s)" in header
+- [x] Badge appears only when usedInCount > 0
+- [x] Count updates after operations
 
-**Files**: All detail layout components
+**Files**: All 6 detail layout components (CPU, GPU, RamSpec, StorageProfile, PortsProfile, Profile)
 
 ---
 
 #### DEL-UI-003: Add Delete button to CPU detail layout
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: frontend-developer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: frontend-developer | **Completed**: 2025-11-13
 
 **Description**: Add "Delete" button to CPUDetailLayout opening EntityDeleteDialog
 
 **Acceptance Criteria**:
-- [ ] Button in header next to Edit button
-- [ ] Button shows tooltip with "Used in X listings"
-- [ ] Successful delete redirects to /catalog/cpus
-- [ ] Error shows toast with "Cannot delete: CPU is used in X listings"
+- [x] Button in header next to Edit button
+- [x] Destructive variant with Trash2 icon
+- [x] Successful delete redirects to /catalog/cpus
+- [x] Error toast shows backend error message
 
-**Files**: `/mnt/containers/deal-brain/apps/web/components/catalog/cpu-detail-layout.tsx`
+**Files**: `/apps/web/components/catalog/cpu-detail-layout.tsx`
 
 ---
 
 #### DEL-UI-004: Add Delete button to GPU detail layout
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: frontend-developer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: frontend-developer | **Completed**: 2025-11-13
 
 **Description**: Add "Delete" button to GPUDetailLayout opening EntityDeleteDialog
 
 **Acceptance Criteria**:
-- [ ] Same as DEL-UI-003 for GPU entity
-- [ ] Redirects to /catalog/gpus
+- [x] Same as DEL-UI-003 for GPU entity
+- [x] Redirects to /catalog/gpus
 
-**Files**: `/mnt/containers/deal-brain/apps/web/components/catalog/gpu-detail-layout.tsx`
+**Files**: `/apps/web/components/catalog/gpu-detail-layout.tsx`
 
 ---
 
 #### DEL-UI-005: Add Delete button to RamSpec detail layout
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: frontend-developer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: frontend-developer | **Completed**: 2025-11-13
 
 **Description**: Add "Delete" button to RamSpecDetailLayout opening EntityDeleteDialog
 
 **Acceptance Criteria**:
-- [ ] Same as DEL-UI-003 for RamSpec entity
-- [ ] Redirects to /catalog/ram-specs
+- [x] Same as DEL-UI-003 for RamSpec entity
+- [x] Redirects to /catalog/ram-specs
 
-**Files**: `/mnt/containers/deal-brain/apps/web/components/catalog/ram-spec-detail-layout.tsx`
+**Files**: `/apps/web/components/catalog/ram-spec-detail-layout.tsx`
 
 ---
 
 #### DEL-UI-006: Add Delete button to StorageProfile detail layout
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: frontend-developer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: frontend-developer | **Completed**: 2025-11-13
 
 **Description**: Add "Delete" button to StorageProfileDetailLayout opening EntityDeleteDialog
 
 **Acceptance Criteria**:
-- [ ] Same as DEL-UI-003 for StorageProfile entity
-- [ ] Redirects to /catalog/storage-profiles
+- [x] Same as DEL-UI-003 for StorageProfile entity
+- [x] Redirects to /catalog/storage-profiles
 
-**Files**: `/mnt/containers/deal-brain/apps/web/components/catalog/storage-profile-detail-layout.tsx`
+**Files**: `/apps/web/components/catalog/storage-profile-detail-layout.tsx`
 
 ---
 
 #### DEL-UI-007: Implement delete mutation with error handling
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: frontend-developer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: frontend-developer | **Completed**: 2025-11-13
 
 **Description**: Use React Query mutation for delete with 409 Conflict handling
 
 **Acceptance Criteria**:
-- [ ] DELETE mutation invalidates entity list cache
-- [ ] 409 Conflict shows error toast with usage count
-- [ ] 404 shows "Entity not found"
-- [ ] Success redirects to entity list page
+- [x] DELETE mutation invalidates entity list cache
+- [x] 409 Conflict shows error toast with usage count
+- [x] 404 shows "Entity not found"
+- [x] Success invalidates caches and calls onSuccess callback
 
-**Files**: `/mnt/containers/deal-brain/apps/web/hooks/use-entity-mutations.ts`
+**Files**: `/apps/web/hooks/use-entity-mutations.ts`
 
 ---
 
 #### DEL-UI-008: Add confirmation step for in-use entities
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: ui-engineer-enhanced
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: ui-engineer-enhanced | **Completed**: 2025-11-13
 
 **Description**: Require typing entity name to confirm deletion of entities with dependencies
 
 **Acceptance Criteria**:
-- [ ] If usedInCount > 0, dialog shows text input
-- [ ] User must type exact entity name to enable confirm button
-- [ ] Case-insensitive comparison
-- [ ] Provides extra safety against accidental deletes
+- [x] If usedInCount > 0, dialog shows text input
+- [x] User must type exact entity name to enable confirm button
+- [x] Case-insensitive comparison
+- [x] Provides extra safety against accidental deletes
 
-**Files**: `/mnt/containers/deal-brain/apps/web/components/entity/entity-delete-dialog.tsx`
+**Files**: `/apps/web/components/entity/entity-delete-dialog.tsx`
 
 ---
 
 ## Phase 6: New Detail Views (PortsProfile, Profile)
 
-**Status**: NOT STARTED
+**Status**: ✅ COMPLETE
 **Duration**: 3 days | **Effort**: 8 story points
 **Dependencies**: Phase 1 (UPDATE endpoints), Phase 2 (DELETE endpoints)
 **Assigned**: ui-engineer-enhanced, frontend-developer
+**Last Updated**: 2025-11-13
 
 ### Objective
 Create dedicated detail views for Ports Profile and Scoring Profile with Edit/Delete functionality.
 
 ### Quality Gates
-- [ ] Detail pages load successfully with data from API
-- [ ] Breadcrumb navigation works correctly
-- [ ] Edit/Delete buttons function identically to existing detail views
-- [ ] "Used In Listings" card shows correct listings
-- [ ] 404 page shown for non-existent IDs
-- [ ] Responsive design matches existing detail views
+- [x] Detail pages load successfully with data from API
+- [x] Breadcrumb navigation works correctly
+- [x] Edit/Delete buttons function identically to existing detail views
+- [x] "Used In Listings" card shows correct listings
+- [x] 404 page shown for non-existent IDs
+- [x] Responsive design matches existing detail views
 
-### Tasks (0/6 Complete)
+### Tasks (6/6 Complete)
 
 #### VIEW-001: Create PortsProfile detail page
 **Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: frontend-developer

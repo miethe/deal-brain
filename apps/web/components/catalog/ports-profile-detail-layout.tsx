@@ -6,29 +6,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ChevronRight, Gauge, TrendingUp, Pencil, Trash2 } from "lucide-react";
+import { ChevronRight, Pencil, Plug, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EntityEditModal } from "@/components/entity/entity-edit-modal";
 import { EntityDeleteDialog } from "@/components/entity/entity-delete-dialog";
-import { gpuEditSchema, type GPUEditFormData } from "@/lib/schemas/entity-schemas";
-import { useUpdateGpu, useDeleteGpu } from "@/hooks/use-entity-mutations";
+import { portsProfileEditSchema, type PortsProfileEditFormData } from "@/lib/schemas/entity-schemas";
+import { useUpdatePortsProfile, useDeletePortsProfile } from "@/hooks/use-entity-mutations";
 
-interface GPU {
+interface Port {
   id: number;
-  model: string;
-  manufacturer?: string | null;
-  gpu_type?: "integrated" | "discrete" | null;
-  vram_capacity_gb?: number | null;
-  vram_type?: string | null;
-  architecture?: string | null;
-  generation?: string | null;
-  benchmark_score?: number | null;
-  gpu_mark?: number | null;
-  three_d_mark?: number | null;
-  release_year?: number | null;
-  tdp_watts?: number | null;
-  notes?: string | null;
-  attributes_json?: Record<string, any>;
+  type: string;
+  count: number;
+  spec_notes?: string | null;
+}
+
+interface PortsProfile {
+  id: number;
+  name: string;
+  description?: string | null;
+  attributes?: Record<string, any>;
+  ports: Port[];
 }
 
 interface Listing {
@@ -47,8 +44,8 @@ interface Listing {
   primary_storage_type?: string | null;
 }
 
-interface GPUDetailLayoutProps {
-  gpu: GPU;
+interface PortsProfileDetailLayoutProps {
+  profile: PortsProfile;
   listings: Listing[];
 }
 
@@ -67,38 +64,6 @@ function SpecField({ label, value, className }: SpecFieldProps) {
     <div className={cn("space-y-1", className)}>
       <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="text-base font-semibold">{value}</dd>
-    </div>
-  );
-}
-
-interface MetricCardProps {
-  label: string;
-  value: number | null | undefined;
-  icon: React.ReactNode;
-  description?: string;
-}
-
-function MetricCard({ label, value, icon, description }: MetricCardProps) {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  const formattedValue = value.toLocaleString();
-
-  return (
-    <div className="rounded-lg border bg-card p-6 transition-colors hover:bg-accent">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="rounded-full bg-primary/10 p-2 text-primary">
-          {icon}
-        </div>
-        <div className="flex-1">
-          <div className="text-sm text-muted-foreground">{label}</div>
-          <div className="text-2xl font-bold">{formattedValue}</div>
-        </div>
-      </div>
-      {description && (
-        <p className="text-xs text-muted-foreground mt-2">{description}</p>
-      )}
     </div>
   );
 }
@@ -168,41 +133,27 @@ function ListingCard({ listing }: ListingCardProps) {
   );
 }
 
-export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
+export function PortsProfileDetailLayout({ profile, listings }: PortsProfileDetailLayoutProps) {
   const router = useRouter();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const updateGpuMutation = useUpdateGpu(gpu.id);
-  const deleteGpuMutation = useDeleteGpu(gpu.id, {
+  const updatePortsProfileMutation = useUpdatePortsProfile(profile.id);
+  const deletePortsProfileMutation = useDeletePortsProfile(profile.id, {
     onSuccess: () => {
-      router.push("/catalog/gpus");
+      router.push("/catalog/ports-profiles");
     },
   });
 
-  const hasSpecs = gpu.manufacturer || gpu.gpu_type || gpu.vram_capacity_gb || gpu.architecture || gpu.generation || gpu.tdp_watts || gpu.release_year;
-  const hasBenchmarks = gpu.benchmark_score || gpu.gpu_mark || gpu.three_d_mark;
   const usedInCount = listings.length;
 
-  const getGPUTypeBadgeVariant = () => {
-    if (gpu.gpu_type === "integrated") return "secondary";
-    if (gpu.gpu_type === "discrete") return "default";
-    return "outline";
-  };
-
-  const formatVRAM = () => {
-    if (!gpu.vram_capacity_gb) return null;
-    const vramText = `${gpu.vram_capacity_gb}GB`;
-    return gpu.vram_type ? `${vramText} ${gpu.vram_type}` : vramText;
-  };
-
-  const handleEditSubmit = async (data: GPUEditFormData) => {
-    await updateGpuMutation.mutateAsync(data);
+  const handleEditSubmit = async (data: PortsProfileEditFormData) => {
+    await updatePortsProfileMutation.mutateAsync(data);
     setIsEditModalOpen(false);
   };
 
   const handleDeleteConfirm = async () => {
-    await deleteGpuMutation.mutateAsync();
+    await deletePortsProfileMutation.mutateAsync();
     setShowDeleteDialog(false);
   };
 
@@ -218,41 +169,30 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
           Catalog
         </Link>
         <ChevronRight className="h-4 w-4" />
-        <span className="text-foreground font-medium">GPU Details</span>
+        <span className="text-foreground font-medium">Ports Profile Details</span>
       </nav>
 
       {/* Header with Edit and Delete buttons */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{gpu.model}</h1>
-          <div className="flex flex-wrap items-center gap-2 mt-2">
-            {gpu.manufacturer && (
-              <p className="text-lg text-muted-foreground">{gpu.manufacturer}</p>
-            )}
-            {gpu.gpu_type && (
-              <Badge variant={getGPUTypeBadgeVariant()}>
-                {gpu.gpu_type === "integrated" ? "Integrated" : "Discrete"}
-              </Badge>
-            )}
-            {gpu.generation && (
-              <Badge variant="secondary">{gpu.generation}</Badge>
-            )}
-            {gpu.release_year && (
-              <Badge variant="outline">{gpu.release_year}</Badge>
-            )}
-            {usedInCount > 0 && (
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{profile.name}</h1>
+          {profile.description && (
+            <p className="text-lg text-muted-foreground mt-2">{profile.description}</p>
+          )}
+          {usedInCount > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mt-2">
               <Badge variant="outline" className="cursor-default">
                 Used in {usedInCount} listing{usedInCount === 1 ? "" : "s"}
               </Badge>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsEditModalOpen(true)}
-            aria-label={`Edit ${gpu.model}`}
+            aria-label={`Edit ${profile.name}`}
             className="flex-shrink-0"
           >
             <Pencil className="h-4 w-4 mr-2" />
@@ -262,7 +202,7 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
             variant="destructive"
             size="sm"
             onClick={() => setShowDeleteDialog(true)}
-            aria-label={`Delete ${gpu.model}`}
+            aria-label={`Delete ${profile.name}`}
             className="flex-shrink-0"
           >
             <Trash2 className="h-4 w-4 mr-2" />
@@ -272,79 +212,80 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
       </div>
 
       {/* Specifications Card */}
-      {hasSpecs && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Gauge className="h-5 w-5" />
-              Specifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <SpecField label="Manufacturer" value={gpu.manufacturer} />
-              <SpecField label="GPU Type" value={gpu.gpu_type ? (gpu.gpu_type === "integrated" ? "Integrated" : "Discrete") : null} />
-              <SpecField label="VRAM" value={formatVRAM()} />
-              <SpecField label="Architecture" value={gpu.architecture} />
-              <SpecField label="Generation" value={gpu.generation} />
-              <SpecField
-                label="TDP"
-                value={gpu.tdp_watts ? `${gpu.tdp_watts}W` : null}
-              />
-              <SpecField label="Release Year" value={gpu.release_year} />
-            </dl>
-            {gpu.notes && (
-              <div className="mt-6 pt-6 border-t">
-                <dt className="text-sm text-muted-foreground mb-2">Notes</dt>
-                <dd className="text-sm">{gpu.notes}</dd>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Plug className="h-5 w-5" />
+            Specifications
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid grid-cols-1 gap-6">
+            <SpecField label="Name" value={profile.name} />
+            <SpecField label="Description" value={profile.description} />
+          </dl>
+          {profile.attributes && Object.keys(profile.attributes).length > 0 && (
+            <div className="mt-6 pt-6 border-t">
+              <dt className="text-sm text-muted-foreground mb-4">Custom Attributes</dt>
+              <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.entries(profile.attributes).map(([key, value]) => (
+                  <div key={key} className="space-y-1">
+                    <dt className="text-xs text-muted-foreground">{key}</dt>
+                    <dd className="text-sm font-medium">{String(value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Benchmark Scores Card */}
-      {hasBenchmarks && (
+      {/* Ports Card */}
+      {profile.ports && profile.ports.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Benchmark Scores
+              <Plug className="h-5 w-5" />
+              Ports ({profile.ports.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {gpu.gpu_mark && (
-                <MetricCard
-                  label="GPU Mark"
-                  value={gpu.gpu_mark}
-                  icon={<Gauge className="h-4 w-4" />}
-                  description="Overall GPU performance score"
-                />
-              )}
-              {gpu.three_d_mark && (
-                <MetricCard
-                  label="3D Mark"
-                  value={gpu.three_d_mark}
-                  icon={<TrendingUp className="h-4 w-4" />}
-                  description="3D graphics performance score"
-                />
-              )}
-              {gpu.benchmark_score && (
-                <MetricCard
-                  label="Benchmark Score"
-                  value={gpu.benchmark_score}
-                  icon={<Gauge className="h-4 w-4" />}
-                  description="General benchmark performance"
-                />
-              )}
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
+                      Type
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
+                      Count
+                    </th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
+                      Specifications
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {profile.ports.map((port) => (
+                    <tr key={port.id} className="border-b last:border-0 hover:bg-accent transition-colors">
+                      <td className="py-3 px-4 font-medium">{port.type}</td>
+                      <td className="py-3 px-4">
+                        <Badge variant="secondary">{port.count}</Badge>
+                      </td>
+                      <td className="py-3 px-4 text-muted-foreground">
+                        {port.spec_notes || "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
       )}
 
       {/* Used In Listings Card */}
-      <Card id="used-in-listings">
+      <Card>
         <CardHeader>
           <CardTitle>
             Used In Listings {listings.length > 0 && `(${listings.length})`}
@@ -353,9 +294,9 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
         <CardContent>
           {listings.length === 0 ? (
             <div className="text-center py-12">
-              <Gauge className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <Plug className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
               <p className="text-muted-foreground">
-                No listings currently use this GPU.
+                No listings currently use this ports profile.
               </p>
             </div>
           ) : (
@@ -370,17 +311,14 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
 
       {/* Edit Modal */}
       <EntityEditModal
-        entityType="gpu"
-        entityId={gpu.id}
+        entityType="ports-profile"
+        entityId={profile.id}
         initialValues={{
-          name: gpu.model,
-          manufacturer: gpu.manufacturer,
-          gpu_mark: gpu.gpu_mark,
-          metal_score: gpu.three_d_mark,
-          notes: gpu.notes,
-          attributes: gpu.attributes_json,
+          name: profile.name,
+          description: profile.description,
+          attributes: profile.attributes,
         }}
-        schema={gpuEditSchema}
+        schema={portsProfileEditSchema}
         onSubmit={handleEditSubmit}
         onClose={() => setIsEditModalOpen(false)}
         isOpen={isEditModalOpen}
@@ -388,9 +326,9 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
 
       {/* Delete Dialog */}
       <EntityDeleteDialog
-        entityType="gpu"
-        entityId={gpu.id}
-        entityName={gpu.model}
+        entityType="ports-profile"
+        entityId={profile.id}
+        entityName={profile.name}
         usedInCount={usedInCount}
         isOpen={showDeleteDialog}
         onCancel={() => setShowDeleteDialog(false)}

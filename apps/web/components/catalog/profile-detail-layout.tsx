@@ -6,31 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ChevronRight, MemoryStick, Pencil, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ChevronRight, Target, BarChart3, Star, Pencil, Trash2 } from "lucide-react";
 import { EntityEditModal } from "@/components/entity/entity-edit-modal";
 import { EntityDeleteDialog } from "@/components/entity/entity-delete-dialog";
-import { ramSpecEditSchema, type RamSpecEditFormData } from "@/lib/schemas/entity-schemas";
-import { useUpdateRamSpec, useDeleteRamSpec } from "@/hooks/use-entity-mutations";
+import { profileEditSchema, type ProfileEditFormData } from "@/lib/schemas/entity-schemas";
+import { useUpdateProfile, useDeleteProfile } from "@/hooks/use-entity-mutations";
 
-interface RAMSpec {
+interface Profile {
   id: number;
-  capacity_gb: number;
-  type?: string | null;
-  speed_mhz?: number | null;
-  latency?: string | null;
-  voltage?: number | null;
-  configuration?: string | null;
-  manufacturer?: string | null;
-  form_factor?: string | null;
-  ecc_support?: boolean | null;
-  notes?: string | null;
-  label?: string | null;
-  ddr_generation?: string | null;
-  module_count?: number | null;
-  capacity_per_module_gb?: number | null;
-  total_capacity_gb?: number | null;
-  attributes_json?: Record<string, any>;
+  name: string;
+  description?: string | null;
+  weights_json: Record<string, number>;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Listing {
@@ -49,30 +38,48 @@ interface Listing {
   primary_storage_type?: string | null;
 }
 
-interface RAMSpecDetailLayoutProps {
-  ramSpec: RAMSpec;
+interface ProfileDetailLayoutProps {
+  profile: Profile;
   listings: Listing[];
 }
 
-interface SpecFieldProps {
-  label: string;
-  value: string | number | boolean | null | undefined;
-  className?: string;
+interface WeightRowProps {
+  metric: string;
+  weight: number;
 }
 
-function SpecField({ label, value, className }: SpecFieldProps) {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  const displayValue = typeof value === "boolean" ? (value ? "Yes" : "No") : value;
+function WeightRow({ metric, weight }: WeightRowProps) {
+  const percentage = (weight * 100).toFixed(0);
 
   return (
-    <div className={cn("space-y-1", className)}>
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="text-base font-semibold">{displayValue}</dd>
+    <div className="flex items-center justify-between py-3 border-b last:border-0">
+      <div className="flex-1">
+        <span className="font-medium">{formatMetricName(metric)}</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="w-48">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all"
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
+            <span className="text-sm text-muted-foreground w-12 text-right">{percentage}%</span>
+          </div>
+        </div>
+        <span className="text-sm font-semibold w-16 text-right">{weight.toFixed(2)}</span>
+      </div>
     </div>
   );
+}
+
+function formatMetricName(metric: string): string {
+  // Convert snake_case to Title Case
+  return metric
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 interface ListingCardProps {
@@ -140,28 +147,29 @@ function ListingCard({ listing }: ListingCardProps) {
   );
 }
 
-export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutProps) {
+export function ProfileDetailLayout({ profile, listings }: ProfileDetailLayoutProps) {
   const router = useRouter();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const updateRamSpecMutation = useUpdateRamSpec(ramSpec.id);
-  const deleteRamSpecMutation = useDeleteRamSpec(ramSpec.id, {
+  const updateProfileMutation = useUpdateProfile(profile.id);
+  const deleteProfileMutation = useDeleteProfile(profile.id, {
     onSuccess: () => {
-      router.push("/catalog/ram-specs");
+      router.push("/catalog/profiles");
     },
   });
 
-  const pageTitle = ramSpec.label || `${ramSpec.capacity_gb || ramSpec.total_capacity_gb}GB ${ramSpec.type || ramSpec.ddr_generation || "RAM"}`;
+  const hasWeights = Object.keys(profile.weights_json).length > 0;
+  const totalWeight = Object.values(profile.weights_json).reduce((sum, weight) => sum + weight, 0);
   const usedInCount = listings.length;
 
-  const handleEditSubmit = async (data: RamSpecEditFormData) => {
-    await updateRamSpecMutation.mutateAsync(data);
+  const handleEditSubmit = async (data: ProfileEditFormData) => {
+    await updateProfileMutation.mutateAsync(data);
     setIsEditModalOpen(false);
   };
 
   const handleDeleteConfirm = async () => {
-    await deleteRamSpecMutation.mutateAsync();
+    await deleteProfileMutation.mutateAsync();
     setShowDeleteDialog(false);
   };
 
@@ -177,25 +185,22 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
           Catalog
         </Link>
         <ChevronRight className="h-4 w-4" />
-        <span className="text-foreground font-medium">RAM Spec Details</span>
+        <span className="text-foreground font-medium">Scoring Profile</span>
       </nav>
 
       {/* Header with Edit and Delete buttons */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{pageTitle}</h1>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{profile.name}</h1>
+          {profile.description && (
+            <p className="text-lg text-muted-foreground mt-2">{profile.description}</p>
+          )}
           <div className="flex flex-wrap items-center gap-2 mt-2">
-            {ramSpec.manufacturer && (
-              <p className="text-lg text-muted-foreground">{ramSpec.manufacturer}</p>
-            )}
-            {(ramSpec.type || ramSpec.ddr_generation) && (
-              <Badge variant="default">{ramSpec.type || ramSpec.ddr_generation}</Badge>
-            )}
-            {ramSpec.configuration && (
-              <Badge variant="secondary">{ramSpec.configuration}</Badge>
-            )}
-            {ramSpec.ecc_support && (
-              <Badge variant="outline">ECC</Badge>
+            {profile.is_default && (
+              <Badge variant="default" className="gap-1">
+                <Star className="h-3 w-3 fill-current" />
+                Default Profile
+              </Badge>
             )}
             {usedInCount > 0 && (
               <Badge variant="outline" className="cursor-default">
@@ -209,7 +214,7 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
             variant="outline"
             size="sm"
             onClick={() => setIsEditModalOpen(true)}
-            aria-label={`Edit ${pageTitle}`}
+            aria-label={`Edit ${profile.name}`}
             className="flex-shrink-0"
           >
             <Pencil className="h-4 w-4 mr-2" />
@@ -219,7 +224,7 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
             variant="destructive"
             size="sm"
             onClick={() => setShowDeleteDialog(true)}
-            aria-label={`Delete ${pageTitle}`}
+            aria-label={`Delete ${profile.name}`}
             className="flex-shrink-0"
           >
             <Trash2 className="h-4 w-4 mr-2" />
@@ -228,49 +233,77 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
         </div>
       </div>
 
-      {/* Specifications Card */}
+      {/* Profile Details Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MemoryStick className="h-5 w-5" />
-            Specifications
+            <Target className="h-5 w-5" />
+            Profile Details
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <SpecField label="Capacity" value={ramSpec.capacity_gb ? `${ramSpec.capacity_gb}GB` : (ramSpec.total_capacity_gb ? `${ramSpec.total_capacity_gb}GB` : null)} />
-            <SpecField label="Type" value={ramSpec.type || ramSpec.ddr_generation} />
-            <SpecField
-              label="Speed"
-              value={ramSpec.speed_mhz ? `${ramSpec.speed_mhz} MHz` : null}
-            />
-            <SpecField label="Latency" value={ramSpec.latency} />
-            <SpecField
-              label="Voltage"
-              value={ramSpec.voltage ? `${ramSpec.voltage}V` : null}
-            />
-            <SpecField label="Configuration" value={ramSpec.configuration} />
-            <SpecField label="Manufacturer" value={ramSpec.manufacturer} />
-            <SpecField label="Form Factor" value={ramSpec.form_factor} />
-            <SpecField label="ECC Support" value={ramSpec.ecc_support} />
-            {ramSpec.module_count && (
-              <SpecField label="Module Count" value={ramSpec.module_count} />
-            )}
-            {ramSpec.capacity_per_module_gb && (
-              <SpecField label="Capacity per Module" value={`${ramSpec.capacity_per_module_gb}GB`} />
-            )}
-          </dl>
-          {ramSpec.notes && (
-            <div className="mt-6 pt-6 border-t">
-              <dt className="text-sm text-muted-foreground mb-2">Notes</dt>
-              <dd className="text-sm">{ramSpec.notes}</dd>
+          <dl className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-1">
+              <dt className="text-sm text-muted-foreground">Name</dt>
+              <dd className="text-base font-semibold">{profile.name}</dd>
             </div>
-          )}
+            {profile.description && (
+              <div className="space-y-1 md:col-span-2">
+                <dt className="text-sm text-muted-foreground">Description</dt>
+                <dd className="text-base">{profile.description}</dd>
+              </div>
+            )}
+            <div className="space-y-1">
+              <dt className="text-sm text-muted-foreground">Status</dt>
+              <dd className="text-base">
+                {profile.is_default ? (
+                  <Badge variant="default" className="gap-1">
+                    <Star className="h-3 w-3 fill-current" />
+                    Default Profile
+                  </Badge>
+                ) : (
+                  <Badge variant="outline">Custom Profile</Badge>
+                )}
+              </dd>
+            </div>
+            <div className="space-y-1">
+              <dt className="text-sm text-muted-foreground">Total Weight</dt>
+              <dd className="text-base font-semibold">{totalWeight.toFixed(2)}</dd>
+            </div>
+          </dl>
         </CardContent>
       </Card>
 
+      {/* Scoring Weights Card */}
+      {hasWeights && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Scoring Weights
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              {Object.entries(profile.weights_json)
+                .sort(([, a], [, b]) => b - a)
+                .map(([metric, weight]) => (
+                  <WeightRow key={metric} metric={metric} weight={weight} />
+                ))}
+            </div>
+            {totalWeight !== 1.0 && (
+              <div className="mt-4 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  Note: Total weight is {totalWeight.toFixed(2)}. Typically weights should sum to 1.0 for normalized scoring.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Used In Listings Card */}
-      <Card id="used-in-listings">
+      <Card>
         <CardHeader>
           <CardTitle>
             Used In Listings {listings.length > 0 && `(${listings.length})`}
@@ -279,9 +312,9 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
         <CardContent>
           {listings.length === 0 ? (
             <div className="text-center py-12">
-              <MemoryStick className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
               <p className="text-muted-foreground">
-                No listings currently use this RAM specification.
+                No listings currently use this scoring profile.
               </p>
             </div>
           ) : (
@@ -296,19 +329,15 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
 
       {/* Edit Modal */}
       <EntityEditModal
-        entityType="ram-spec"
-        entityId={ramSpec.id}
+        entityType="profile"
+        entityId={profile.id}
         initialValues={{
-          label: ramSpec.label,
-          ddr_generation: ramSpec.ddr_generation,
-          speed_mhz: ramSpec.speed_mhz,
-          module_count: ramSpec.module_count,
-          capacity_per_module_gb: ramSpec.capacity_per_module_gb,
-          total_capacity_gb: ramSpec.total_capacity_gb || ramSpec.capacity_gb,
-          notes: ramSpec.notes,
-          attributes: ramSpec.attributes_json,
+          name: profile.name,
+          description: profile.description,
+          is_default: profile.is_default,
+          weights_json: profile.weights_json,
         }}
-        schema={ramSpecEditSchema}
+        schema={profileEditSchema}
         onSubmit={handleEditSubmit}
         onClose={() => setIsEditModalOpen(false)}
         isOpen={isEditModalOpen}
@@ -316,9 +345,9 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
 
       {/* Delete Dialog */}
       <EntityDeleteDialog
-        entityType="ram-spec"
-        entityId={ramSpec.id}
-        entityName={pageTitle}
+        entityType="profile"
+        entityId={profile.id}
+        entityName={profile.name}
         usedInCount={usedInCount}
         isOpen={showDeleteDialog}
         onCancel={() => setShowDeleteDialog(false)}

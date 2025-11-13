@@ -3,8 +3,8 @@
 **Purpose**: Cross-agent shared memory for entity-detail-views-v1 implementation
 **Audience**: AI development agents (python-backend-engineer, ui-engineer-enhanced, frontend-developer, backend-architect, data-layer-expert)
 **Last Updated**: 2025-11-13
-**Current State**: Phases 1-2-4 complete ✅ Ready for Phase 3 or Phase 5
-**Last Commit**: 52b8ab6 (Phase 4 Frontend Edit UI)
+**Current State**: Phases 1-2-4-5-6 complete ✅ Ready for Phase 3 or Phase 7
+**Last Commit**: 209050b (Phases 5-6: Delete UI + New Detail Views)
 
 ## Quick Reference
 
@@ -1330,4 +1330,136 @@ const handleEditSubmit = async (data) => {
 - Enable unified management via fields-data API
 
 ---
+
+
+---
+
+## Phase 5-6 Completion (2025-11-13)
+
+**Commit**: 209050b
+**Phases**: Phase 5 (Frontend Delete UI), Phase 6 (New Detail Views)
+**Total Effort**: 16 story points
+
+### Phase 5: Frontend Delete UI - Complete ✅
+
+**Key Components:**
+- `/apps/web/components/entity/entity-delete-dialog.tsx` - Reusable confirmation dialog
+  - Shows "Used In X Listings" badge
+  - Requires typing entity name for in-use entities (case-insensitive)
+  - Keyboard accessible, WCAG AA compliant
+
+- `/apps/web/hooks/use-entity-mutations.ts` - Delete mutations added:
+  - useDeleteCpu, useDeleteGpu, useDeleteRamSpec, useDeleteStorageProfile
+  - useDeletePortsProfile, useDeleteProfile
+  - 409 Conflict handling with usage count in error message
+  - Cache invalidation (list + detail)
+  - Optional onSuccess callback for redirects
+
+**Files Modified:**
+- All 6 detail layouts now have Delete buttons:
+  - cpu-detail-layout.tsx, gpu-detail-layout.tsx
+  - ram-spec-detail-layout.tsx, storage-profile-detail-layout.tsx
+  - ports-profile-detail-layout.tsx (from Phase 6)
+  - profile-detail-layout.tsx (from Phase 6)
+- "Used In X listing(s)" badges in headers
+- Redirects to list pages after deletion
+
+### Phase 6: New Detail Views - Complete ✅
+
+**Backend Endpoints Added:**
+- GET /v1/catalog/ports-profiles/{id}
+- GET /v1/catalog/ports-profiles/{id}/listings
+- GET /v1/catalog/profiles/{id}
+- GET /v1/catalog/profiles/{id}/listings
+
+**New Detail Pages Created:**
+1. **PortsProfile Detail View:**
+   - `/apps/web/app/catalog/ports-profiles/[id]/page.tsx`
+   - `/apps/web/components/catalog/ports-profile-detail-layout.tsx`
+   - Specifications card, Ports table, Used In Listings
+   - Edit modal with name, description
+   - Delete button with "Used In" validation
+
+2. **Profile (Scoring) Detail View:**
+   - `/apps/web/app/catalog/profiles/[id]/page.tsx`
+   - `/apps/web/components/catalog/profile-detail-layout.tsx`
+   - Profile details with is_default badge (star icon)
+   - Scoring weights visualization (progress bars, sorted)
+   - Used In Listings card
+   - Edit modal with name, description, is_default checkbox
+   - Delete button with "Used In" validation
+
+**Form Fields Added:**
+- PortsProfileFormFields in EntityEditModal
+- ProfileFormFields in EntityEditModal with Checkbox for is_default
+
+### Implementation Patterns Established
+
+**Delete Flow:**
+1. User clicks Delete button in detail layout
+2. "Used In" count fetched from listings endpoint
+3. EntityDeleteDialog opens
+4. If in-use: requires typing entity name
+5. On confirm: delete mutation called
+6. On success: redirect to list page
+7. On 409 error: show "Cannot delete: used in X listings"
+
+**Detail View Pattern:**
+- Server component (page.tsx) for initial data fetch
+- Client component (*-detail-layout.tsx) for interactivity
+- Breadcrumb: Listings → Catalog → {Entity} Details
+- Header: Title, description, Edit button, Delete button
+- Cards: Specifications, specialized data, Used In Listings
+- Responsive design, WCAG AA accessibility
+- Optimistic updates via React Query
+
+### Key Learnings
+
+**"Used In" Implementation:**
+- Fetch listings in detail layout component (client-side)
+- Display count badge only when > 0
+- Pass count to EntityDeleteDialog
+- Backend already has usage count logic (Phase 2)
+
+**Dialog vs Modal Naming:**
+- EntityEditModal - For editing (modal with form)
+- EntityDeleteDialog - For deletion (alert dialog with confirmation)
+- Both use Radix UI primitives (Dialog vs AlertDialog)
+
+**Nested Port/Weight Editing:**
+- Deferred to future phase as specified
+- Read-only display in detail layouts
+- Basic name/description editing only
+- Allows completion without complex nested forms
+
+### Files Summary
+
+**Created (5 files):**
+- apps/web/components/entity/entity-delete-dialog.tsx
+- apps/web/app/catalog/ports-profiles/[id]/page.tsx
+- apps/web/components/catalog/ports-profile-detail-layout.tsx
+- apps/web/app/catalog/profiles/[id]/page.tsx
+- apps/web/components/catalog/profile-detail-layout.tsx
+
+**Modified (8 files):**
+- apps/api/dealbrain_api/api/catalog.py (+ 4 endpoints)
+- apps/web/hooks/use-entity-mutations.ts (+ 6 delete, + 2 update)
+- apps/web/components/entity/entity-edit-modal.tsx (+ 2 form field components)
+- apps/web/components/catalog/cpu-detail-layout.tsx (+ Delete button)
+- apps/web/components/catalog/gpu-detail-layout.tsx (+ Delete button)
+- apps/web/components/catalog/ram-spec-detail-layout.tsx (+ Delete button)
+- apps/web/components/catalog/storage-profile-detail-layout.tsx (+ Delete button)
+- apps/web/tsconfig.tsbuildinfo (auto-generated)
+
+**Total Impact:** ~1,728 insertions
+
+### Next Steps
+
+**Remaining Phases:**
+- Phase 3: FieldRegistry Expansion (5 pts) - Can run now
+- Phase 7: Global Fields Integration (8 pts) - Depends on Phase 3
+- Phase 8: Testing & Validation (5 pts) - After Phase 7
+- Phase 9: Documentation & Deployment (3 pts) - Final phase
+
+**Recommended Next:** Phase 3 (FieldRegistry) - Independent, enables Phase 7
 

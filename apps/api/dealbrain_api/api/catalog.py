@@ -321,6 +321,42 @@ async def list_profiles(
     return [ProfileRead.model_validate(row) for row in result.scalars().all()]
 
 
+@router.get("/profiles/{profile_id}", response_model=ProfileRead)
+async def get_profile(profile_id: int, session: AsyncSession = Depends(session_dependency)) -> ProfileRead:
+    """Get a single scoring profile by ID."""
+    profile = await session.get(Profile, profile_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"Profile with id {profile_id} not found")
+    return ProfileRead.model_validate(profile)
+
+
+@router.get("/profiles/{profile_id}/listings", response_model=list[ListingRead])
+async def get_profile_listings(
+    profile_id: int,
+    limit: int = Query(
+        default=50, ge=1, le=100, description="Maximum number of listings to return"
+    ),
+    offset: int = Query(default=0, ge=0, description="Number of listings to skip"),
+    session: AsyncSession = Depends(session_dependency),
+) -> Sequence[ListingRead]:
+    """Get all listings that use this scoring profile."""
+    # Verify Profile exists
+    profile = await session.get(Profile, profile_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"Profile with id {profile_id} not found")
+
+    # Query listings
+    result = await session.execute(
+        select(Listing)
+        .where(Listing.active_profile_id == profile_id)
+        .limit(limit)
+        .offset(offset)
+        .order_by(Listing.updated_at.desc())
+    )
+    listings = result.scalars().all()
+    return [ListingRead.model_validate(listing) for listing in listings]
+
+
 @router.post("/profiles", response_model=ProfileRead, status_code=status.HTTP_201_CREATED)
 async def create_profile(
     payload: ProfileCreate, session: AsyncSession = Depends(session_dependency)
@@ -497,6 +533,45 @@ async def list_ports_profiles(
     result = await session.execute(select(PortsProfile).order_by(PortsProfile.name))
     profiles = result.scalars().unique().all()
     return [PortsProfileRead.model_validate(profile) for profile in profiles]
+
+
+@router.get("/ports-profiles/{profile_id}", response_model=PortsProfileRead)
+async def get_ports_profile(
+    profile_id: int,
+    session: AsyncSession = Depends(session_dependency),
+) -> PortsProfileRead:
+    """Get a single PortsProfile by ID."""
+    profile = await session.get(PortsProfile, profile_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"Ports profile with id {profile_id} not found")
+    return PortsProfileRead.model_validate(profile)
+
+
+@router.get("/ports-profiles/{profile_id}/listings", response_model=list[ListingRead])
+async def get_ports_profile_listings(
+    profile_id: int,
+    limit: int = Query(
+        default=50, ge=1, le=100, description="Maximum number of listings to return"
+    ),
+    offset: int = Query(default=0, ge=0, description="Number of listings to skip"),
+    session: AsyncSession = Depends(session_dependency),
+) -> Sequence[ListingRead]:
+    """Get all listings that use this PortsProfile."""
+    # Verify PortsProfile exists
+    profile = await session.get(PortsProfile, profile_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"Ports profile with id {profile_id} not found")
+
+    # Get listings that use this ports profile
+    result = await session.execute(
+        select(Listing)
+        .where(Listing.ports_profile_id == profile_id)
+        .order_by(Listing.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    listings = result.scalars().all()
+    return [ListingRead.model_validate(listing) for listing in listings]
 
 
 @router.post(
