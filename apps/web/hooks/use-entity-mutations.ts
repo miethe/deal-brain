@@ -90,9 +90,6 @@ export function useDeleteCpu(cpuId: number, options?: { onSuccess?: () => void }
       if (err instanceof ApiError) {
         if (err.status === 404) {
           errorMessage = "CPU not found";
-        } else if (err.status === 409) {
-          // Extract usage count from error message like "Cannot delete CPU: used in 5 listing(s)"
-          errorMessage = err.message;
         } else {
           errorMessage = err.message;
         }
@@ -191,8 +188,6 @@ export function useDeleteGpu(gpuId: number, options?: { onSuccess?: () => void }
       if (err instanceof ApiError) {
         if (err.status === 404) {
           errorMessage = "GPU not found";
-        } else if (err.status === 409) {
-          errorMessage = err.message;
         } else {
           errorMessage = err.message;
         }
@@ -289,8 +284,6 @@ export function useDeleteRamSpec(ramSpecId: number, options?: { onSuccess?: () =
       if (err instanceof ApiError) {
         if (err.status === 404) {
           errorMessage = "RAM Specification not found";
-        } else if (err.status === 409) {
-          errorMessage = err.message;
         } else {
           errorMessage = err.message;
         }
@@ -387,8 +380,6 @@ export function useDeleteStorageProfile(storageProfileId: number, options?: { on
       if (err instanceof ApiError) {
         if (err.status === 404) {
           errorMessage = "Storage Profile not found";
-        } else if (err.status === 409) {
-          errorMessage = err.message;
         } else {
           errorMessage = err.message;
         }
@@ -485,8 +476,6 @@ export function useDeletePortsProfile(portsProfileId: number, options?: { onSucc
       if (err instanceof ApiError) {
         if (err.status === 404) {
           errorMessage = "Ports Profile not found";
-        } else if (err.status === 409) {
-          errorMessage = err.message;
         } else {
           errorMessage = err.message;
         }
@@ -583,8 +572,6 @@ export function useDeleteProfile(profileId: number, options?: { onSuccess?: () =
       if (err instanceof ApiError) {
         if (err.status === 404) {
           errorMessage = "Profile not found";
-        } else if (err.status === 409) {
-          errorMessage = err.message;
         } else {
           errorMessage = err.message;
         }

@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ChevronRight, Target, BarChart3, Star, Pencil } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ChevronRight, Target, BarChart3, Star, Pencil, Trash2 } from "lucide-react";
 import { EntityEditModal } from "@/components/entity/entity-edit-modal";
+import { EntityDeleteDialog } from "@/components/entity/entity-delete-dialog";
 import { profileEditSchema, type ProfileEditFormData } from "@/lib/schemas/entity-schemas";
-import { useUpdateProfile } from "@/hooks/use-entity-mutations";
+import { useUpdateProfile, useDeleteProfile } from "@/hooks/use-entity-mutations";
 
 interface Profile {
   id: number;
@@ -147,15 +148,29 @@ function ListingCard({ listing }: ListingCardProps) {
 }
 
 export function ProfileDetailLayout({ profile, listings }: ProfileDetailLayoutProps) {
+  const router = useRouter();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
   const updateProfileMutation = useUpdateProfile(profile.id);
+  const deleteProfileMutation = useDeleteProfile(profile.id, {
+    onSuccess: () => {
+      router.push("/catalog/profiles");
+    },
+  });
 
   const hasWeights = Object.keys(profile.weights_json).length > 0;
   const totalWeight = Object.values(profile.weights_json).reduce((sum, weight) => sum + weight, 0);
+  const usedInCount = listings.length;
 
   const handleEditSubmit = async (data: ProfileEditFormData) => {
     await updateProfileMutation.mutateAsync(data);
     setIsEditModalOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    await deleteProfileMutation.mutateAsync();
+    setShowDeleteDialog(false);
   };
 
   return (
@@ -173,32 +188,49 @@ export function ProfileDetailLayout({ profile, listings }: ProfileDetailLayoutPr
         <span className="text-foreground font-medium">Scoring Profile</span>
       </nav>
 
-      {/* Header with Edit button */}
+      {/* Header with Edit and Delete buttons */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{profile.name}</h1>
+          {profile.description && (
+            <p className="text-lg text-muted-foreground mt-2">{profile.description}</p>
+          )}
           <div className="flex flex-wrap items-center gap-2 mt-2">
-            {profile.description && (
-              <p className="text-lg text-muted-foreground">{profile.description}</p>
-            )}
             {profile.is_default && (
               <Badge variant="default" className="gap-1">
                 <Star className="h-3 w-3 fill-current" />
                 Default Profile
               </Badge>
             )}
+            {usedInCount > 0 && (
+              <Badge variant="outline" className="cursor-default">
+                Used in {usedInCount} listing{usedInCount === 1 ? "" : "s"}
+              </Badge>
+            )}
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsEditModalOpen(true)}
-          aria-label={`Edit ${profile.name}`}
-          className="flex-shrink-0"
-        >
-          <Pencil className="h-4 w-4 mr-2" />
-          Edit
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditModalOpen(true)}
+            aria-label={`Edit ${profile.name}`}
+            className="flex-shrink-0"
+          >
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setShowDeleteDialog(true)}
+            aria-label={`Delete ${profile.name}`}
+            className="flex-shrink-0"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+        </div>
       </div>
 
       {/* Profile Details Card */}
@@ -309,6 +341,17 @@ export function ProfileDetailLayout({ profile, listings }: ProfileDetailLayoutPr
         onSubmit={handleEditSubmit}
         onClose={() => setIsEditModalOpen(false)}
         isOpen={isEditModalOpen}
+      />
+
+      {/* Delete Dialog */}
+      <EntityDeleteDialog
+        entityType="profile"
+        entityId={profile.id}
+        entityName={profile.name}
+        usedInCount={usedInCount}
+        isOpen={showDeleteDialog}
+        onCancel={() => setShowDeleteDialog(false)}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );
