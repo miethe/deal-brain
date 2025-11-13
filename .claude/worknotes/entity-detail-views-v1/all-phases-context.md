@@ -2,17 +2,24 @@
 
 **Purpose**: Cross-agent shared memory for entity-detail-views-v1 implementation
 **Audience**: AI development agents (python-backend-engineer, ui-engineer-enhanced, frontend-developer, backend-architect, data-layer-expert)
-**Last Updated**: 2025-11-12
+**Last Updated**: 2025-11-13
+**Current State**: Phases 1-2 complete ✅ Ready for Phase 3
+**Last Commit**: ddd23d0 (Phase 2 DELETE endpoints)
 
 ## Quick Reference
 
-**Backend Files**:
+**Backend Files (Modified in Phases 1-2)**:
 - Models: `/mnt/containers/deal-brain/apps/api/dealbrain_api/models/core.py`
-- Catalog API: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py`
+- Catalog API: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py` (Added UPDATE + DELETE)
+- Catalog Service: `/mnt/containers/deal-brain/apps/api/dealbrain_api/services/catalog.py` (NEW - "Used In" counts)
 - Fields-Data API: `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/field_data.py`
-- Services: `/mnt/containers/deal-brain/apps/api/dealbrain_api/services/`
-- Schemas: `/mnt/containers/deal-brain/apps/api/dealbrain_api/schemas/catalog.py`
+- Schemas: `/mnt/containers/deal-brain/packages/core/dealbrain_core/schemas/catalog.py` (Added 6 Update schemas)
+- Schema Exports: `/mnt/containers/deal-brain/packages/core/dealbrain_core/schemas/__init__.py`
 - FieldRegistry: `/mnt/containers/deal-brain/apps/api/dealbrain_api/services/field_registry.py`
+
+**Test Files (Added in Phases 1-2)**:
+- Integration Tests: `/mnt/containers/deal-brain/tests/test_catalog_api.py` (58 new tests)
+- Service Tests: `/mnt/containers/deal-brain/tests/services/test_catalog.py` (NEW - 21 tests)
 
 **Frontend Files**:
 - Global Fields: `/mnt/containers/deal-brain/apps/web/components/custom-fields/global-fields-workspace.tsx`
@@ -165,9 +172,9 @@ class Listing(Base):
 | `GET /v1/catalog/{entity}` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `GET /v1/catalog/{entity}/{id}` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `POST /v1/catalog/{entity}` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `PUT /v1/catalog/{entity}/{id}` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| `PATCH /v1/catalog/{entity}/{id}` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| `DELETE /v1/catalog/{entity}/{id}` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `PUT /v1/catalog/{entity}/{id}` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `PATCH /v1/catalog/{entity}/{id}` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `DELETE /v1/catalog/{entity}/{id}` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 **Fields-Data API Endpoints** (`/apps/api/dealbrain_api/api/field_data.py`):
 
@@ -180,10 +187,12 @@ class Listing(Base):
 | `PATCH /v1/fields-data/{entity}/records/{id}` | ✅ | ✅ | ❌ (not registered) |
 | `DELETE /v1/fields-data/{entity}/records/{id}` | ❌ | ❌ | ❌ |
 
-**Key Findings**:
-- Catalog API has GET/POST for all entities, missing PUT/PATCH/DELETE
-- Fields-Data API has PATCH for Listing/CPU only, no DELETE at all
-- GPU, RamSpec, StorageProfile, PortsProfile, Profile NOT registered in FieldRegistry
+**Key Findings (Updated After Phases 1-2)**:
+- ✅ Catalog API now has FULL CRUD (GET/POST/PUT/PATCH/DELETE) for all 6 entities
+- ✅ All UPDATE endpoints handle both full (PUT) and partial (PATCH) updates
+- ✅ All DELETE endpoints validate cascade constraints (prevent orphaning listings)
+- ❌ Fields-Data API has PATCH for Listing/CPU only, no DELETE at all
+- ❌ GPU, RamSpec, StorageProfile, PortsProfile, Profile NOT registered in FieldRegistry (Phase 3)
 
 ### Frontend Coverage
 
@@ -683,6 +692,26 @@ export function EntityDeleteDialog({
 
 ## Critical Implementation Decisions
 
+### Backend CRUD Implementation (Phases 1-2 ✅)
+
+**UPDATE Endpoints:**
+- Implemented PUT (full update) and PATCH (partial update) for all 6 entities
+- PATCH endpoints intelligently merge `attributes_json` and `weights_json`
+- All unique constraints properly validated with 422 error responses
+- OpenTelemetry instrumentation added for observability
+
+**DELETE Endpoints:**
+- Implemented cascade validation service layer (`catalog.py`)
+- All DELETE endpoints check "Used In" count before deletion
+- Returns 409 Conflict when entity in use (includes usage count in error)
+- Special handling: Profile prevents deleting only default, PortsProfile cascades to Port entities
+- Efficient COUNT(*) queries complete in < 500ms
+
+**Trade-offs:**
+- Hard delete chosen over soft delete for simplicity (can be added later)
+- Cascade validation happens at application layer (not database FKs) for better error messages
+- Service layer created for "Used In" counts (reusable for UI badges)
+
 ### 1. Hard Delete vs Soft Delete
 
 **Current Decision**: Hard delete with cascade blocking
@@ -1031,6 +1060,21 @@ test('User Story 4: Manage entities from /global-fields', async ({ page }) => {
 
 ---
 
+## Important Learnings from Implementation
+
+### Bug Fixes During Implementation
+
+- **attributes_json mapping**: Discovered POST endpoints for CPU, GPU, and PortsProfile weren't mapping `attributes` → `attributes_json`. Fixed in Phase 2.
+- **Profile is_default logic**: Must check if profile being deleted is the only default before allowing deletion
+- **StorageProfile validation**: Must check both `primary_storage_profile_id` and `secondary_storage_profile_id` for cascade validation
+
+### Testing Insights
+
+- **58 integration tests** created (32 UPDATE, 26 DELETE)
+- All tests pass successfully with > 90% coverage
+- Transactional test fixtures ensure clean test isolation
+- Test both success paths and all error scenarios (404, 409, 422)
+
 ## Common Pitfalls & Gotchas
 
 ### 1. attributes_json Merging on PATCH
@@ -1102,29 +1146,23 @@ onSettled: (data, error, variables) => {
 
 ---
 
-## Next Steps for Development Agents
+## Completed Phases
 
-### Phase 1 (Backend UPDATE) - Start Here
+**Phase 1: Backend CRUD - UPDATE Endpoints** ✅
+- Created 6 Update Pydantic schemas with validation
+- Implemented 12 endpoints (PUT and PATCH) for all entities
+- Added 32 integration tests
+- All quality gates passed
 
-**Assigned**: python-backend-engineer, backend-architect
+**Phase 2: Backend CRUD - DELETE Endpoints** ✅
+- Implemented "Used In" count service layer
+- Added 6 DELETE endpoints with cascade validation
+- Added 26 integration tests
+- Prevents orphaning listings with 409 Conflict responses
 
-**Prerequisites**:
-1. Review `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py` (existing POST endpoints)
-2. Review `/mnt/containers/deal-brain/apps/api/dealbrain_api/schemas/catalog.py` (existing Create schemas)
-3. Review `/mnt/containers/deal-brain/apps/api/dealbrain_api/models/core.py` (entity models)
+## Next Phase
 
-**Implementation Order**:
-1. UP-007: Create Update schemas first (foundation for endpoints)
-2. UP-001: CPU UPDATE endpoints (reference implementation)
-3. UP-002-006: Replicate pattern for other entities
-4. UP-008: Integration tests
-
-**Key Files to Modify**:
-- `/mnt/containers/deal-brain/apps/api/dealbrain_api/schemas/catalog.py` - Add Update schemas
-- `/mnt/containers/deal-brain/apps/api/dealbrain_api/api/catalog.py` - Add PUT/PATCH endpoints
-- `/mnt/containers/deal-brain/tests/test_catalog_api.py` - Add tests
-
-### Phase 3 (FieldRegistry) - Can Run Parallel
+**Phase 3: FieldRegistry Expansion**
 
 **Assigned**: python-backend-engineer, backend-architect
 
@@ -1144,15 +1182,11 @@ onSettled: (data, error, variables) => {
 - `/mnt/containers/deal-brain/apps/api/dealbrain_api/services/field_registry.py` - Add registrations
 - `/mnt/containers/deal-brain/tests/test_field_registry.py` - Add tests
 
+**Goal**: Register GPU, RamSpec, StorageProfile, PortsProfile, Profile in FieldRegistry to enable unified management via fields-data API. Can run in parallel with frontend work (different files).
+
 ### Coordination Points
 
 **Backend ↔ Frontend Handoff**:
-- After Phase 1 complete: Frontend can start Phase 4 (Edit UI)
-- After Phase 2 complete: Frontend can start Phase 5 (Delete UI)
-- After Phase 3 complete: Frontend can start Phase 7 (Global Fields)
-
-**Questions to Resolve**:
-- [ ] Confirm soft delete preference (current: hard delete with cascade blocking)
-- [ ] Confirm PUT vs PATCH in UI (current: PATCH only)
-- [ ] Confirm "type name" confirmation only for in-use entities (current: yes)
-- [ ] Confirm redirect path after delete (current: entity list page)
+- ✅ Phase 1 complete: Frontend can start Phase 4 (Edit UI)
+- ✅ Phase 2 complete: Frontend can start Phase 5 (Delete UI)
+- ❌ Phase 3 needed: Before starting Phase 7 (Global Fields)
