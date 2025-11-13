@@ -11,13 +11,13 @@
 | 1 | Backend CRUD - UPDATE Endpoints | ✅ COMPLETE | 8 pts | 8 | 8/8 |
 | 2 | Backend CRUD - DELETE Endpoints | ✅ COMPLETE | 8 pts | 8 | 8/8 |
 | 3 | FieldRegistry Expansion | NOT STARTED | 5 pts | 6 | 0/6 |
-| 4 | Frontend Edit UI | NOT STARTED | 8 pts | 8 | 0/8 |
+| 4 | Frontend Edit UI | ✅ COMPLETE | 8 pts | 8 | 8/8 |
 | 5 | Frontend Delete UI | NOT STARTED | 8 pts | 8 | 0/8 |
 | 6 | New Detail Views (PortsProfile, Profile) | NOT STARTED | 8 pts | 6 | 0/6 |
 | 7 | Global Fields Integration | NOT STARTED | 8 pts | 7 | 0/7 |
 | 8 | Testing & Validation | NOT STARTED | 5 pts | 5 | 0/5 |
 | 9 | Documentation & Deployment | NOT STARTED | 3 pts | 4 | 0/4 |
-| **TOTAL** | | | **61 pts** | **60** | **16/60** |
+| **TOTAL** | | | **61 pts** | **60** | **24/60** |
 
 ---
 
@@ -436,132 +436,174 @@ Register GPU, RamSpec, StorageProfile, PortsProfile, Profile in FieldRegistry to
 
 ## Phase 4: Frontend Edit UI
 
-**Status**: NOT STARTED
+**Status**: ✅ COMPLETE
 **Duration**: 3 days | **Effort**: 8 story points
 **Dependencies**: Phase 1 (UPDATE endpoints), Phase 3 (FieldRegistry for schemas)
 **Assigned**: ui-engineer-enhanced, frontend-developer
+**Last Updated**: 2025-11-13
 
 ### Objective
 Add Edit buttons and modals to existing detail views (CPU, GPU, RamSpec, StorageProfile).
 
 ### Quality Gates
-- [ ] Edit modal opens with current entity data pre-filled
-- [ ] Form validation prevents invalid submissions
-- [ ] Successful edit updates UI and shows success toast
-- [ ] Error responses show clear error messages
-- [ ] Component tests verify modal behavior
-- [ ] Accessibility: Modal keyboard navigable, screen reader friendly
+- [x] Edit modal opens with current entity data pre-filled
+- [x] Form validation prevents invalid submissions
+- [x] Successful edit updates UI and shows success toast
+- [x] Error responses show clear error messages
+- [ ] Component tests verify modal behavior (deferred to Phase 8)
+- [x] Accessibility: Modal keyboard navigable, screen reader friendly
 
-### Tasks (0/8 Complete)
+### Tasks (8/8 Complete)
 
 #### EDIT-001: Create EntityEditModal component
-**Status**: NOT STARTED | **Estimate**: 2 pts | **Assigned**: ui-engineer-enhanced
+**Status**: ✅ COMPLETE | **Estimate**: 2 pts | **Assigned**: ui-engineer-enhanced | **Completed**: 2025-11-13
 
 **Description**: Create reusable modal component accepting entity schema and onSubmit callback
 
 **Acceptance Criteria**:
-- [ ] Generic modal accepts: entityType, entityId, initialValues, schema, onSubmit
-- [ ] Uses React Hook Form with Zod validation
-- [ ] Pre-populates form with initialValues
-- [ ] Shows inline validation errors
-- [ ] Disables submit until valid
-- [ ] Calls PATCH endpoint on submit
+- [x] Generic modal accepts: entityType, entityId, initialValues, schema, onSubmit
+- [x] Uses React Hook Form with Zod validation (@hookform/resolvers/zod)
+- [x] Pre-populates form with initialValues
+- [x] Shows inline validation errors
+- [x] Disables submit until valid
+- [x] Calls PATCH endpoint on submit (via onSubmit callback)
+- [x] Keyboard accessible (Tab, Enter, Esc)
+- [x] Screen reader friendly with proper ARIA labels
+- [x] Supports different field types (text, number, textarea, select)
 
-**Files**: `/mnt/containers/deal-brain/apps/web/components/entity/entity-edit-modal.tsx` (NEW)
+**Files Created**:
+- `/apps/web/components/entity/entity-edit-modal.tsx` - Generic modal component with entity-specific form fields
+- `/apps/web/components/entity/index.ts` - Barrel export
+
+**Implementation Notes**:
+- Uses ModalShell for consistent modal appearance
+- Separate form field components for each entity type (CPUFormFields, GPUFormFields, etc.)
+- Controller from react-hook-form for Select components
+- Inline validation with error messages
+- Submit button disabled when form invalid or submitting
+- Prevents closing modal while submitting
 
 ---
 
 #### EDIT-002: Create entity-specific edit forms
-**Status**: NOT STARTED | **Estimate**: 1.5 pts | **Assigned**: ui-engineer-enhanced
+**Status**: ✅ COMPLETE | **Estimate**: 1.5 pts | **Assigned**: ui-engineer-enhanced | **Completed**: 2025-11-13
 
 **Description**: Create form schemas for CPU, GPU, RamSpec, StorageProfile using Zod
 
 **Acceptance Criteria**:
-- [ ] CPUEditSchema, GPUEditSchema, RamSpecEditSchema, StorageProfileEditSchema
-- [ ] Map to backend Update schemas
-- [ ] Include validation rules (required, min/max, regex)
-- [ ] Support attributes_json as dynamic fields
+- [x] CPUEditSchema, GPUEditSchema, RamSpecEditSchema, StorageProfileEditSchema
+- [x] Map to backend Update schemas (all fields optional for PATCH)
+- [x] Include validation rules (required, min/max, regex)
+- [x] Support attributes as dynamic fields (maps to attributes_json in backend)
+- [x] PortsProfileEditSchema, ProfileEditSchema (basic structure)
 
-**Files**: `/mnt/containers/deal-brain/apps/web/lib/schemas/entity-schemas.ts` (NEW)
+**Files Created**:
+- `/apps/web/lib/schemas/entity-schemas.ts` - All entity edit schemas with validation
+
+**Schemas Implemented**:
+1. **cpuEditSchema**: name, manufacturer, socket, cores, threads, tdp_w, igpu_model, cpu_mark_multi, cpu_mark_single, igpu_mark, release_year, notes, passmark fields, attributes
+2. **gpuEditSchema**: name, manufacturer, gpu_mark, metal_score, notes, attributes
+3. **ramSpecEditSchema**: label, ddr_generation (enum), speed_mhz, module_count, capacity_per_module_gb, total_capacity_gb, notes, attributes
+4. **storageProfileEditSchema**: label, medium (enum), interface, form_factor, capacity_gb, performance_tier, notes, attributes
+5. **portsProfileEditSchema**: name, description, attributes (ports handled separately)
+6. **profileEditSchema**: name, description, weights_json, is_default
+
+**Validation Rules**:
+- Cores: 1-256
+- Threads: 1-512
+- TDP: 1-1000W
+- Release Year: 1970-2100
+- Speed MHz: 0-10000
+- Module Count: 1-8
+- Capacity: 1-256GB per module, 1-2048GB total
+- Storage Capacity: 1-100000GB (100TB)
+- All benchmark scores: ≥ 0
+
+**Enums Defined**:
+- ddrGenerationEnum: ddr3, ddr4, ddr5, lpddr4, lpddr4x, lpddr5, lpddr5x, hbm2, hbm3, unknown
+- storageMediumEnum: nvme, sata_ssd, hdd, hybrid, emmc, ufs, unknown
+- storageInterfaceEnum: sata, nvme, pcie, usb, emmc
+- storageFormFactorEnum: m2, 2.5, 3.5, pcie_card, emmc_embedded
+- performanceTierEnum: budget, mainstream, performance, enthusiast
 
 ---
 
 #### EDIT-003: Add Edit button to CPU detail layout
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: frontend-developer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: frontend-developer | **Completed**: 2025-11-13
 
 **Description**: Add "Edit" button to CPUDetailLayout opening EntityEditModal
 
 **Acceptance Criteria**:
-- [ ] Button in header next to breadcrumb
-- [ ] Clicking opens modal pre-filled with current CPU data
-- [ ] Successful edit shows success toast and refetches CPU detail
-- [ ] Error shows error toast with message
+- [x] Button in header next to breadcrumb
+- [x] Clicking opens modal pre-filled with current CPU data
+- [x] Successful edit shows success toast and refetches CPU detail
+- [x] Error shows error toast with message
 
-**Files**: `/mnt/containers/deal-brain/apps/web/components/catalog/cpu-detail-layout.tsx`
+**Files Modified**: `/apps/web/components/catalog/cpu-detail-layout.tsx`
 
 ---
 
 #### EDIT-004: Add Edit button to GPU detail layout
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: frontend-developer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: frontend-developer | **Completed**: 2025-11-13
 
 **Description**: Add "Edit" button to GPUDetailLayout opening EntityEditModal
 
 **Acceptance Criteria**:
-- [ ] Same as EDIT-003 for GPU entity
+- [x] Same as EDIT-003 for GPU entity
 
-**Files**: `/mnt/containers/deal-brain/apps/web/components/catalog/gpu-detail-layout.tsx`
+**Files Modified**: `/apps/web/components/catalog/gpu-detail-layout.tsx`
 
 ---
 
 #### EDIT-005: Add Edit button to RamSpec detail layout
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: frontend-developer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: frontend-developer | **Completed**: 2025-11-13
 
 **Description**: Add "Edit" button to RamSpecDetailLayout opening EntityEditModal
 
 **Acceptance Criteria**:
-- [ ] Same as EDIT-003 for RamSpec entity
+- [x] Same as EDIT-003 for RamSpec entity
 
-**Files**: `/mnt/containers/deal-brain/apps/web/components/catalog/ram-spec-detail-layout.tsx`
+**Files Modified**: `/apps/web/components/catalog/ram-spec-detail-layout.tsx`
 
 ---
 
 #### EDIT-006: Add Edit button to StorageProfile detail layout
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: frontend-developer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: frontend-developer | **Completed**: 2025-11-13
 
 **Description**: Add "Edit" button to StorageProfileDetailLayout opening EntityEditModal
 
 **Acceptance Criteria**:
-- [ ] Same as EDIT-003 for StorageProfile entity
+- [x] Same as EDIT-003 for StorageProfile entity
 
-**Files**: `/mnt/containers/deal-brain/apps/web/components/catalog/storage-profile-detail-layout.tsx`
+**Files Modified**: `/apps/web/components/catalog/storage-profile-detail-layout.tsx`
 
 ---
 
 #### EDIT-007: Implement optimistic updates
-**Status**: NOT STARTED | **Estimate**: 1 pt | **Assigned**: frontend-developer
+**Status**: ✅ COMPLETE | **Estimate**: 1 pt | **Assigned**: frontend-developer | **Completed**: 2025-11-13
 
 **Description**: Use React Query's optimistic update pattern for instant UI feedback
 
 **Acceptance Criteria**:
-- [ ] UI updates immediately on submit
-- [ ] Rolls back on error
-- [ ] Refetches data to sync with server
+- [x] UI updates immediately on submit
+- [x] Rolls back on error
+- [x] Refetches data to sync with server
 
-**Files**: `/mnt/containers/deal-brain/apps/web/hooks/use-entity-mutations.ts` (NEW)
+**Files Created**: `/apps/web/hooks/use-entity-mutations.ts` - React Query mutation hooks with optimistic updates
 
 ---
 
 #### EDIT-008: Add success/error toast notifications
-**Status**: NOT STARTED | **Estimate**: 0.5 pts | **Assigned**: frontend-developer
+**Status**: ✅ COMPLETE | **Estimate**: 0.5 pts | **Assigned**: frontend-developer | **Completed**: 2025-11-13
 
 **Description**: Use toast library for user feedback on edit operations
 
 **Acceptance Criteria**:
-- [ ] Success toast: "CPU updated successfully"
-- [ ] Error toast: Shows backend error message
-- [ ] Toast auto-dismisses after 5s
+- [x] Success toast: "{Entity} updated successfully"
+- [x] Error toast: Shows backend error message
+- [x] Toast auto-dismisses after 5s
 
-**Files**: `/mnt/containers/deal-brain/apps/web/hooks/use-entity-mutations.ts`
+**Files**: Integrated into `/apps/web/hooks/use-entity-mutations.ts` using shadcn/ui useToast
 
 ---
 
@@ -1125,3 +1167,50 @@ Document new features and deploy with feature flags.
 - Confirm soft delete vs hard delete preference (currently defaulting to hard delete)
 - Confirm PUT vs PATCH preference for UI (currently using PATCH)
 - Confirm "type entity name" confirmation only for in-use entities (currently yes)
+
+### Phase 4 Completion Summary
+
+**Completed**: 2025-11-13
+**Total Effort**: 8 story points
+**Commits**: 52b8ab6
+
+**Deliverables:**
+- EntityEditModal: Reusable modal component with React Hook Form + Zod validation
+- 6 Zod schemas: cpuEditSchema, gpuEditSchema, ramSpecEditSchema, storageProfileEditSchema, portsProfileEditSchema, profileEditSchema
+- Edit buttons integrated into 4 detail layouts (CPU, GPU, RamSpec, StorageProfile)
+- React Query mutation hooks with optimistic updates
+- Toast notifications for success/error feedback
+- Keyboard accessible and screen reader friendly
+
+**Files Created:**
+- `/apps/web/components/entity/entity-edit-modal.tsx` - Generic edit modal (578 lines)
+- `/apps/web/components/entity/entity-edit-modal-example.tsx` - Usage example (122 lines)
+- `/apps/web/components/entity/index.ts` - Barrel export
+- `/apps/web/lib/schemas/entity-schemas.ts` - All entity edit schemas (256 lines)
+- `/apps/web/hooks/use-entity-mutations.ts` - React Query mutations (238 lines)
+
+**Files Modified:**
+- `/apps/web/components/catalog/cpu-detail-layout.tsx` - Added Edit button and modal
+- `/apps/web/components/catalog/gpu-detail-layout.tsx` - Added Edit button and modal
+- `/apps/web/components/catalog/ram-spec-detail-layout.tsx` - Added Edit button and modal
+- `/apps/web/components/catalog/storage-profile-detail-layout.tsx` - Added Edit button and modal
+
+**Key Features:**
+- Optimistic updates: UI responds immediately, rolls back on error
+- Form validation: Inline error messages, disabled submit until valid
+- Toast notifications: Success (default), Error (destructive)
+- Accessibility: WCAG AA compliant, keyboard navigation, ARIA labels
+- Type safety: Full TypeScript typing throughout
+
+**Quality Gates Met:**
+- ✅ Edit modal opens with current entity data pre-filled
+- ✅ Form validation prevents invalid submissions
+- ✅ Successful edit updates UI and shows success toast
+- ✅ Error responses show clear error messages
+- ⏸️ Component tests deferred to Phase 8
+- ✅ Accessibility: Modal keyboard navigable, screen reader friendly
+
+**Next Phase**: Phase 5 (Frontend Delete UI) - Add Delete buttons and confirmation dialogs
+
+---
+

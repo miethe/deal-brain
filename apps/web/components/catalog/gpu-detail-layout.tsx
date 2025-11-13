@@ -1,10 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ChevronRight, Gauge, TrendingUp } from "lucide-react";
+import { ChevronRight, Gauge, TrendingUp, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EntityEditModal } from "@/components/entity/entity-edit-modal";
+import { gpuEditSchema, type GPUEditFormData } from "@/lib/schemas/entity-schemas";
+import { useUpdateGpu } from "@/hooks/use-entity-mutations";
 
 interface GPU {
   id: number;
@@ -21,6 +26,7 @@ interface GPU {
   release_year?: number | null;
   tdp_watts?: number | null;
   notes?: string | null;
+  attributes_json?: Record<string, any>;
 }
 
 interface Listing {
@@ -161,6 +167,9 @@ function ListingCard({ listing }: ListingCardProps) {
 }
 
 export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const updateGpuMutation = useUpdateGpu(gpu.id);
+
   const hasSpecs = gpu.manufacturer || gpu.gpu_type || gpu.vram_capacity_gb || gpu.architecture || gpu.generation || gpu.tdp_watts || gpu.release_year;
   const hasBenchmarks = gpu.benchmark_score || gpu.gpu_mark || gpu.three_d_mark;
 
@@ -174,6 +183,11 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
     if (!gpu.vram_capacity_gb) return null;
     const vramText = `${gpu.vram_capacity_gb}GB`;
     return gpu.vram_type ? `${vramText} ${gpu.vram_type}` : vramText;
+  };
+
+  const handleEditSubmit = async (data: GPUEditFormData) => {
+    await updateGpuMutation.mutateAsync(data);
+    setIsEditModalOpen(false);
   };
 
   return (
@@ -191,25 +205,37 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
         <span className="text-foreground font-medium">GPU Details</span>
       </nav>
 
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{gpu.model}</h1>
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          {gpu.manufacturer && (
-            <p className="text-lg text-muted-foreground">{gpu.manufacturer}</p>
-          )}
-          {gpu.gpu_type && (
-            <Badge variant={getGPUTypeBadgeVariant()}>
-              {gpu.gpu_type === "integrated" ? "Integrated" : "Discrete"}
-            </Badge>
-          )}
-          {gpu.generation && (
-            <Badge variant="secondary">{gpu.generation}</Badge>
-          )}
-          {gpu.release_year && (
-            <Badge variant="outline">{gpu.release_year}</Badge>
-          )}
+      {/* Header with Edit button */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{gpu.model}</h1>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            {gpu.manufacturer && (
+              <p className="text-lg text-muted-foreground">{gpu.manufacturer}</p>
+            )}
+            {gpu.gpu_type && (
+              <Badge variant={getGPUTypeBadgeVariant()}>
+                {gpu.gpu_type === "integrated" ? "Integrated" : "Discrete"}
+              </Badge>
+            )}
+            {gpu.generation && (
+              <Badge variant="secondary">{gpu.generation}</Badge>
+            )}
+            {gpu.release_year && (
+              <Badge variant="outline">{gpu.release_year}</Badge>
+            )}
+          </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsEditModalOpen(true)}
+          aria-label={`Edit ${gpu.model}`}
+          className="flex-shrink-0"
+        >
+          <Pencil className="h-4 w-4 mr-2" />
+          Edit
+        </Button>
       </div>
 
       {/* Specifications Card */}
@@ -308,6 +334,24 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Modal */}
+      <EntityEditModal
+        entityType="gpu"
+        entityId={gpu.id}
+        initialValues={{
+          name: gpu.model,
+          manufacturer: gpu.manufacturer,
+          gpu_mark: gpu.gpu_mark,
+          metal_score: gpu.three_d_mark,
+          notes: gpu.notes,
+          attributes: gpu.attributes_json,
+        }}
+        schema={gpuEditSchema}
+        onSubmit={handleEditSubmit}
+        onClose={() => setIsEditModalOpen(false)}
+        isOpen={isEditModalOpen}
+      />
     </div>
   );
 }
