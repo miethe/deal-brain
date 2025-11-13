@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -531,6 +532,98 @@ function StorageProfileFormFields({ register, errors, control }: Omit<EntityForm
   );
 }
 
+function PortsProfileFormFields({ register, errors }: Omit<EntityFormFieldsProps, 'entityType' | 'control'>) {
+  return (
+    <div className="space-y-4">
+      <FormField label="Name" htmlFor="name" required error={errors.name}>
+        <Input
+          id="name"
+          {...register("name")}
+          placeholder="e.g., Standard Desktop Ports"
+          aria-invalid={!!errors.name}
+          className={cn(errors.name && "border-destructive")}
+        />
+      </FormField>
+
+      <FormField label="Description" htmlFor="description" error={errors.description}>
+        <Textarea
+          id="description"
+          {...register("description")}
+          placeholder="Description of this ports profile..."
+          rows={3}
+          aria-invalid={!!errors.description}
+          className={cn(errors.description && "border-destructive")}
+        />
+      </FormField>
+
+      <div className="rounded-lg border bg-muted/50 p-4">
+        <p className="text-sm text-muted-foreground">
+          Note: Individual port entries are managed separately in the detail view. This form only updates the profile name and description.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ProfileFormFields({ register, errors, control }: Omit<EntityFormFieldsProps, 'entityType'>) {
+  return (
+    <div className="space-y-4">
+      <FormField label="Name" htmlFor="name" required error={errors.name}>
+        <Input
+          id="name"
+          {...register("name")}
+          placeholder="e.g., Performance Profile"
+          aria-invalid={!!errors.name}
+          className={cn(errors.name && "border-destructive")}
+        />
+      </FormField>
+
+      <FormField label="Description" htmlFor="description" error={errors.description}>
+        <Textarea
+          id="description"
+          {...register("description")}
+          placeholder="Describe this scoring profile..."
+          rows={3}
+          aria-invalid={!!errors.description}
+          className={cn(errors.description && "border-destructive")}
+        />
+      </FormField>
+
+      <div className="space-y-2">
+        <Controller
+          name="is_default"
+          control={control}
+          render={({ field }) => (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="is_default"
+                checked={field.value || false}
+                onCheckedChange={field.onChange}
+              />
+              <label
+                htmlFor="is_default"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              >
+                Set as default profile
+              </label>
+            </div>
+          )}
+        />
+        <p className="text-xs text-muted-foreground ml-6">
+          Default profiles are automatically applied to new listings
+        </p>
+      </div>
+
+      <div className="rounded-lg border bg-muted/50 p-4">
+        <p className="text-sm text-muted-foreground">
+          <strong>Note:</strong> Scoring weights configuration is managed separately.
+          Use this form to update the profile name, description, and default status only.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function EntityFormFields(props: EntityFormFieldsProps) {
   switch (props.entityType) {
     case "cpu":
@@ -542,9 +635,9 @@ function EntityFormFields(props: EntityFormFieldsProps) {
     case "storage-profile":
       return <StorageProfileFormFields {...props} />;
     case "ports-profile":
+      return <PortsProfileFormFields {...props} />;
     case "profile":
-      // TODO: Implement in future phases
-      return <div>Form not yet implemented for {props.entityType}</div>;
+      return <ProfileFormFields {...props} />;
     default:
       return <div>Unknown entity type</div>;
   }

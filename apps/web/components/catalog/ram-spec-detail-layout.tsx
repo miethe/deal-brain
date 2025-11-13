@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ChevronRight, MemoryStick, Pencil } from "lucide-react";
+import { ChevronRight, MemoryStick, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EntityEditModal } from "@/components/entity/entity-edit-modal";
+import { EntityDeleteDialog } from "@/components/entity/entity-delete-dialog";
 import { ramSpecEditSchema, type RamSpecEditFormData } from "@/lib/schemas/entity-schemas";
-import { useUpdateRamSpec } from "@/hooks/use-entity-mutations";
+import { useUpdateRamSpec, useDeleteRamSpec } from "@/hooks/use-entity-mutations";
 
 interface RAMSpec {
   id: number;
@@ -139,14 +141,28 @@ function ListingCard({ listing }: ListingCardProps) {
 }
 
 export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutProps) {
+  const router = useRouter();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
   const updateRamSpecMutation = useUpdateRamSpec(ramSpec.id);
+  const deleteRamSpecMutation = useDeleteRamSpec(ramSpec.id, {
+    onSuccess: () => {
+      router.push("/catalog/ram-specs");
+    },
+  });
 
   const pageTitle = ramSpec.label || `${ramSpec.capacity_gb || ramSpec.total_capacity_gb}GB ${ramSpec.type || ramSpec.ddr_generation || "RAM"}`;
+  const usedInCount = listings.length;
 
   const handleEditSubmit = async (data: RamSpecEditFormData) => {
     await updateRamSpecMutation.mutateAsync(data);
     setIsEditModalOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    await deleteRamSpecMutation.mutateAsync();
+    setShowDeleteDialog(false);
   };
 
   return (
@@ -164,7 +180,7 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
         <span className="text-foreground font-medium">RAM Spec Details</span>
       </nav>
 
-      {/* Header with Edit button */}
+      {/* Header with Edit and Delete buttons */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{pageTitle}</h1>
@@ -181,18 +197,35 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
             {ramSpec.ecc_support && (
               <Badge variant="outline">ECC</Badge>
             )}
+            {usedInCount > 0 && (
+              <Badge variant="outline" className="cursor-default">
+                Used in {usedInCount} listing{usedInCount === 1 ? "" : "s"}
+              </Badge>
+            )}
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsEditModalOpen(true)}
-          aria-label={`Edit ${pageTitle}`}
-          className="flex-shrink-0"
-        >
-          <Pencil className="h-4 w-4 mr-2" />
-          Edit
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditModalOpen(true)}
+            aria-label={`Edit ${pageTitle}`}
+            className="flex-shrink-0"
+          >
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setShowDeleteDialog(true)}
+            aria-label={`Delete ${pageTitle}`}
+            className="flex-shrink-0"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+        </div>
       </div>
 
       {/* Specifications Card */}
@@ -237,7 +270,7 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
       </Card>
 
       {/* Used In Listings Card */}
-      <Card>
+      <Card id="used-in-listings">
         <CardHeader>
           <CardTitle>
             Used In Listings {listings.length > 0 && `(${listings.length})`}
@@ -279,6 +312,17 @@ export function RAMSpecDetailLayout({ ramSpec, listings }: RAMSpecDetailLayoutPr
         onSubmit={handleEditSubmit}
         onClose={() => setIsEditModalOpen(false)}
         isOpen={isEditModalOpen}
+      />
+
+      {/* Delete Dialog */}
+      <EntityDeleteDialog
+        entityType="ram-spec"
+        entityId={ramSpec.id}
+        entityName={pageTitle}
+        usedInCount={usedInCount}
+        isOpen={showDeleteDialog}
+        onCancel={() => setShowDeleteDialog(false)}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );

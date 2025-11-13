@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ChevronRight, Gauge, TrendingUp, Pencil } from "lucide-react";
+import { ChevronRight, Gauge, TrendingUp, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EntityEditModal } from "@/components/entity/entity-edit-modal";
+import { EntityDeleteDialog } from "@/components/entity/entity-delete-dialog";
 import { gpuEditSchema, type GPUEditFormData } from "@/lib/schemas/entity-schemas";
-import { useUpdateGpu } from "@/hooks/use-entity-mutations";
+import { useUpdateGpu, useDeleteGpu } from "@/hooks/use-entity-mutations";
 
 interface GPU {
   id: number;
@@ -167,11 +169,20 @@ function ListingCard({ listing }: ListingCardProps) {
 }
 
 export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
+  const router = useRouter();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
   const updateGpuMutation = useUpdateGpu(gpu.id);
+  const deleteGpuMutation = useDeleteGpu(gpu.id, {
+    onSuccess: () => {
+      router.push("/catalog/gpus");
+    },
+  });
 
   const hasSpecs = gpu.manufacturer || gpu.gpu_type || gpu.vram_capacity_gb || gpu.architecture || gpu.generation || gpu.tdp_watts || gpu.release_year;
   const hasBenchmarks = gpu.benchmark_score || gpu.gpu_mark || gpu.three_d_mark;
+  const usedInCount = listings.length;
 
   const getGPUTypeBadgeVariant = () => {
     if (gpu.gpu_type === "integrated") return "secondary";
@@ -190,6 +201,11 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
     setIsEditModalOpen(false);
   };
 
+  const handleDeleteConfirm = async () => {
+    await deleteGpuMutation.mutateAsync();
+    setShowDeleteDialog(false);
+  };
+
   return (
     <div className="container mx-auto py-8 space-y-6 px-4 sm:px-6 lg:px-8">
       {/* Breadcrumb */}
@@ -205,7 +221,7 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
         <span className="text-foreground font-medium">GPU Details</span>
       </nav>
 
-      {/* Header with Edit button */}
+      {/* Header with Edit and Delete buttons */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{gpu.model}</h1>
@@ -224,18 +240,35 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
             {gpu.release_year && (
               <Badge variant="outline">{gpu.release_year}</Badge>
             )}
+            {usedInCount > 0 && (
+              <Badge variant="outline" className="cursor-default">
+                Used in {usedInCount} listing{usedInCount === 1 ? "" : "s"}
+              </Badge>
+            )}
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsEditModalOpen(true)}
-          aria-label={`Edit ${gpu.model}`}
-          className="flex-shrink-0"
-        >
-          <Pencil className="h-4 w-4 mr-2" />
-          Edit
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditModalOpen(true)}
+            aria-label={`Edit ${gpu.model}`}
+            className="flex-shrink-0"
+          >
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setShowDeleteDialog(true)}
+            aria-label={`Delete ${gpu.model}`}
+            className="flex-shrink-0"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+        </div>
       </div>
 
       {/* Specifications Card */}
@@ -311,7 +344,7 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
       )}
 
       {/* Used In Listings Card */}
-      <Card>
+      <Card id="used-in-listings">
         <CardHeader>
           <CardTitle>
             Used In Listings {listings.length > 0 && `(${listings.length})`}
@@ -351,6 +384,17 @@ export function GPUDetailLayout({ gpu, listings }: GPUDetailLayoutProps) {
         onSubmit={handleEditSubmit}
         onClose={() => setIsEditModalOpen(false)}
         isOpen={isEditModalOpen}
+      />
+
+      {/* Delete Dialog */}
+      <EntityDeleteDialog
+        entityType="gpu"
+        entityId={gpu.id}
+        entityName={gpu.model}
+        usedInCount={usedInCount}
+        isOpen={showDeleteDialog}
+        onCancel={() => setShowDeleteDialog(false)}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );

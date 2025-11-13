@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ChevronRight, HardDrive, Gauge, Pencil } from "lucide-react";
+import { ChevronRight, HardDrive, Gauge, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EntityEditModal } from "@/components/entity/entity-edit-modal";
+import { EntityDeleteDialog } from "@/components/entity/entity-delete-dialog";
 import { storageProfileEditSchema, type StorageProfileEditFormData } from "@/lib/schemas/entity-schemas";
-import { useUpdateStorageProfile } from "@/hooks/use-entity-mutations";
+import { useUpdateStorageProfile, useDeleteStorageProfile } from "@/hooks/use-entity-mutations";
 
 interface StorageProfile {
   id: number;
@@ -173,8 +175,16 @@ function ListingCard({ listing }: ListingCardProps) {
 }
 
 export function StorageProfileDetailLayout({ storageProfile, listings }: StorageProfileDetailLayoutProps) {
+  const router = useRouter();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
   const updateStorageProfileMutation = useUpdateStorageProfile(storageProfile.id);
+  const deleteStorageProfileMutation = useDeleteStorageProfile(storageProfile.id, {
+    onSuccess: () => {
+      router.push("/catalog/storage-profiles");
+    },
+  });
 
   const capacityDisplay = storageProfile.capacity_gb >= 1024
     ? `${(storageProfile.capacity_gb / 1024).toFixed(0)}TB`
@@ -186,10 +196,16 @@ export function StorageProfileDetailLayout({ storageProfile, listings }: Storage
 
   const hasSpecs = storageProfile.type || storageProfile.medium || storageProfile.interface || storageProfile.form_factor || storageProfile.manufacturer || storageProfile.generation;
   const hasPerformance = storageProfile.sequential_read_mb_s || storageProfile.sequential_write_mb_s || storageProfile.random_read_iops || storageProfile.random_write_iops;
+  const usedInCount = listings.length;
 
   const handleEditSubmit = async (data: StorageProfileEditFormData) => {
     await updateStorageProfileMutation.mutateAsync(data);
     setIsEditModalOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    await deleteStorageProfileMutation.mutateAsync();
+    setShowDeleteDialog(false);
   };
 
   return (
@@ -207,7 +223,7 @@ export function StorageProfileDetailLayout({ storageProfile, listings }: Storage
         <span className="text-foreground font-medium">Storage Profile Details</span>
       </nav>
 
-      {/* Header with Edit button */}
+      {/* Header with Edit and Delete buttons */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{pageTitle}</h1>
@@ -224,18 +240,35 @@ export function StorageProfileDetailLayout({ storageProfile, listings }: Storage
             {storageProfile.generation && (
               <Badge variant="outline">{storageProfile.generation}</Badge>
             )}
+            {usedInCount > 0 && (
+              <Badge variant="outline" className="cursor-default">
+                Used in {usedInCount} listing{usedInCount === 1 ? "" : "s"}
+              </Badge>
+            )}
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsEditModalOpen(true)}
-          aria-label={`Edit ${pageTitle}`}
-          className="flex-shrink-0"
-        >
-          <Pencil className="h-4 w-4 mr-2" />
-          Edit
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditModalOpen(true)}
+            aria-label={`Edit ${pageTitle}`}
+            className="flex-shrink-0"
+          >
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setShowDeleteDialog(true)}
+            aria-label={`Delete ${pageTitle}`}
+            className="flex-shrink-0"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+        </div>
       </div>
 
       {/* Specifications Card */}
@@ -323,7 +356,7 @@ export function StorageProfileDetailLayout({ storageProfile, listings }: Storage
       )}
 
       {/* Used In Listings Card */}
-      <Card>
+      <Card id="used-in-listings">
         <CardHeader>
           <CardTitle>
             Used In Listings {listings.length > 0 && `(${listings.length})`}
@@ -365,6 +398,17 @@ export function StorageProfileDetailLayout({ storageProfile, listings }: Storage
         onSubmit={handleEditSubmit}
         onClose={() => setIsEditModalOpen(false)}
         isOpen={isEditModalOpen}
+      />
+
+      {/* Delete Dialog */}
+      <EntityDeleteDialog
+        entityType="storage-profile"
+        entityId={storageProfile.id}
+        entityName={pageTitle}
+        usedInCount={usedInCount}
+        isOpen={showDeleteDialog}
+        onCancel={() => setShowDeleteDialog(false)}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );
