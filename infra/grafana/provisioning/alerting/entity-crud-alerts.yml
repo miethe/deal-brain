@@ -1,0 +1,131 @@
+apiVersion: 1
+
+groups:
+  - name: entity_crud_alerts
+    folder: Entity CRUD
+    interval: 1m
+    rules:
+      - uid: high_error_rate
+        title: High Error Rate
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: |
+                sum(rate(http_requests_total{path=~"/api/v1/catalog/.*", status=~"5.."}[5m]))
+                /
+                sum(rate(http_requests_total{path=~"/api/v1/catalog/.*"}[5m]))
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.05
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  type: query
+        noDataState: NoData
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "High error rate in entity CRUD operations"
+          description: "Error rate is above 5% threshold"
+        labels:
+          severity: critical
+
+      - uid: slow_delete_operations
+        title: Slow DELETE Operations
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: |
+                histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{path=~"/api/v1/catalog/.*", method="DELETE"}[5m])) by (le))
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              conditions:
+                - evaluator:
+                    params:
+                      - 2
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  type: query
+        noDataState: NoData
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "DELETE operations are slow"
+          description: "P95 DELETE latency exceeds 2s threshold"
+        labels:
+          severity: warning
+
+      - uid: slow_update_operations
+        title: Slow UPDATE Operations
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: |
+                histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{path=~"/api/v1/catalog/.*", method=~"PUT|PATCH"}[5m])) by (le))
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              conditions:
+                - evaluator:
+                    params:
+                      - 0.5
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  type: query
+        noDataState: NoData
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "UPDATE operations are slow"
+          description: "P95 UPDATE latency exceeds 500ms threshold"
+        labels:
+          severity: warning

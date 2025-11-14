@@ -637,9 +637,6 @@ async def update_ports_profile(
         # Handle ports update (replace all)
         if payload.ports is not None:
             # Delete existing ports
-            await session.execute(
-                select(Port).where(Port.ports_profile_id == profile_id)
-            ).scalars().all()
             for port in profile.ports:
                 await session.delete(port)
 
