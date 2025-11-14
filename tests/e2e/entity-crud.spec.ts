@@ -11,6 +11,12 @@ import { test, expect, type Page } from '@playwright/test';
  */
 
 // ============================================================================
+// Configuration
+// ============================================================================
+
+const API_URL = process.env.API_URL || 'http://localhost:8000';
+
+// ============================================================================
 // Test Data Setup Helpers
 // ============================================================================
 
@@ -27,7 +33,7 @@ interface TestCPU {
  * Creates a test CPU via API for testing
  */
 async function createTestCPU(page: Page, cpuData: Partial<TestCPU>): Promise<TestCPU> {
-  const response = await page.request.post('http://localhost:8000/api/catalog/cpus', {
+  const response = await page.request.post(`${API_URL}/api/catalog/cpus`, {
     data: {
       model: cpuData.model || 'Test CPU',
       manufacturer: cpuData.manufacturer || 'Test Manufacturer',
@@ -48,7 +54,7 @@ async function createTestCPU(page: Page, cpuData: Partial<TestCPU>): Promise<Tes
  * Creates a test listing that uses a specific CPU
  */
 async function createTestListing(page: Page, cpuId: number): Promise<number> {
-  const response = await page.request.post('http://localhost:8000/api/listings', {
+  const response = await page.request.post(`${API_URL}/api/listings`, {
     data: {
       title: `Test Listing for CPU ${cpuId}`,
       price_usd: 599.99,
@@ -72,21 +78,21 @@ async function createTestListing(page: Page, cpuId: number): Promise<number> {
  * Deletes a test CPU via API
  */
 async function deleteTestCPU(page: Page, cpuId: number): Promise<void> {
-  await page.request.delete(`http://localhost:8000/api/catalog/cpus/${cpuId}`);
+  await page.request.delete(`${API_URL}/api/catalog/cpus/${cpuId}`);
 }
 
 /**
  * Deletes a test listing via API
  */
 async function deleteTestListing(page: Page, listingId: number): Promise<void> {
-  await page.request.delete(`http://localhost:8000/api/listings/${listingId}`);
+  await page.request.delete(`${API_URL}/api/listings/${listingId}`);
 }
 
 /**
  * Gets CPU details via API
  */
 async function getCPU(page: Page, cpuId: number): Promise<TestCPU> {
-  const response = await page.request.get(`http://localhost:8000/api/catalog/cpus/${cpuId}`);
+  const response = await page.request.get(`${API_URL}/api/catalog/cpus/${cpuId}`);
 
   if (!response.ok()) {
     throw new Error(`Failed to get CPU: ${response.status()}`);
@@ -257,7 +263,7 @@ test.describe('US-2: Delete Unused Entity', () => {
     await expect(page.locator('text=deleted').or(page.locator('text=CPU deleted successfully'))).toBeVisible({ timeout: 5000 });
 
     // Verify CPU is no longer accessible via API
-    const response = await page.request.get(`http://localhost:8000/api/catalog/cpus/${testCpu.id}`);
+    const response = await page.request.get(`${API_URL}/api/catalog/cpus/${testCpu.id}`);
     expect(response.status()).toBe(404);
   });
 
@@ -462,7 +468,7 @@ test.describe('US-4: Manage Entities from Global Fields', () => {
     await expect(page.locator('text=Test CPU from Global Fields')).toBeVisible({ timeout: 5000 });
 
     // Clean up: find and delete the created CPU
-    const response = await page.request.get('http://localhost:8000/api/catalog/cpus');
+    const response = await page.request.get(`${API_URL}/api/catalog/cpus`);
     const cpus = await response.json();
     const createdCpu = cpus.find((cpu: TestCPU) => cpu.model === 'Test CPU from Global Fields');
     if (createdCpu) {
