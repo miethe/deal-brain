@@ -63,7 +63,7 @@ export function ModalContent({
         <DialogTitle className="text-xl font-semibold tracking-tight">{title}</DialogTitle>
         {description && <DialogDescription className="mt-1.5">{description}</DialogDescription>}
       </DialogHeader>
-      <div className="max-h-[70vh] overflow-y-auto pr-1">{children}</div>
+      <div className="max-h-[70vh] overflow-y-auto px-1">{children}</div>
       {footer && (
         <DialogFooter className="mt-2 flex justify-between gap-3 border-t pt-4">
           {footer}
