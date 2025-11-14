@@ -27,7 +27,7 @@ class CpuBase(DealBrainModel):
     passmark_slug: str | None = None
     passmark_category: str | None = None
     passmark_id: str | None = None
-    attributes: dict[str, Any] = Field(default_factory=dict, validation_alias="attributes_json")
+    attributes: dict[str, Any] = Field(default_factory=dict, alias="attributes_json")
 
 
 class CpuCreate(CpuBase):
@@ -67,7 +67,7 @@ class GpuBase(DealBrainModel):
     gpu_mark: int | None = None
     metal_score: int | None = None
     notes: str | None = None
-    attributes: dict[str, Any] = Field(default_factory=dict, validation_alias="attributes_json")
+    attributes: dict[str, Any] = Field(default_factory=dict, alias="attributes_json")
 
 
 class GpuCreate(GpuBase):
@@ -143,7 +143,7 @@ class ProfileRead(ProfileBase):
 class PortsProfileBase(DealBrainModel):
     name: str
     description: str | None = None
-    attributes: dict[str, Any] = Field(default_factory=dict, validation_alias="attributes_json")
+    attributes: dict[str, Any] = Field(default_factory=dict, alias="attributes_json")
 
 
 class PortsProfileCreate(PortsProfileBase):
@@ -173,7 +173,7 @@ class RamSpecBase(DealBrainModel):
     module_count: int | None = None
     capacity_per_module_gb: int | None = None
     total_capacity_gb: int | None = None
-    attributes: dict[str, Any] = Field(default_factory=dict, validation_alias="attributes_json")
+    attributes: dict[str, Any] = Field(default_factory=dict, alias="attributes_json")
     notes: str | None = None
 
 
@@ -207,7 +207,7 @@ class StorageProfileBase(DealBrainModel):
     form_factor: str | None = None
     capacity_gb: int | None = None
     performance_tier: str | None = None
-    attributes: dict[str, Any] = Field(default_factory=dict, validation_alias="attributes_json")
+    attributes: dict[str, Any] = Field(default_factory=dict, alias="attributes_json")
     notes: str | None = None
 
 
