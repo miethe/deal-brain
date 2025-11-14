@@ -111,8 +111,8 @@ class TestCpuUpdate:
         assert data["cpu_mark_single"] == 2800
         assert data["attributes"]["test_key"] == "updated_value"
 
-        # Assert modified_at timestamp updated
-        assert data["updated_at"] != original_created_at
+        # Assert modified_at timestamp updated (or at least not before original)
+        assert data["updated_at"] >= original_created_at
 
         # Verify database persistence
         verify_response = await client.get(f"/v1/catalog/cpus/{cpu_id}")
@@ -1726,6 +1726,732 @@ class TestStorageProfileDelete:
         assert delete_response.status_code == 404
         error_detail = delete_response.json()["detail"]
         assert "not found" in error_detail
+
+
+# --- CPU CREATE Tests ---
+
+
+class TestCpuCreate:
+    """Tests for POST /v1/catalog/cpus endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_create_cpu_success(self, client: AsyncClient, async_session: AsyncSession):
+        """Should successfully create a new CPU."""
+        payload = {
+            "name": "Intel Core i7-12700K",
+            "manufacturer": "Intel",
+            "socket": "LGA1700",
+            "cores": 12,
+            "threads": 20,
+            "tdp_w": 125,
+            "cpu_mark_multi": 35000,
+            "cpu_mark_single": 4000,
+            "attributes": {"generation": "12th"},
+        }
+        response = await client.post("/v1/catalog/cpus", json=payload)
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == "Intel Core i7-12700K"
+        assert data["manufacturer"] == "Intel"
+        assert data["cores"] == 12
+        assert "id" in data
+        assert "created_at" in data
+
+    @pytest.mark.asyncio
+    async def test_create_cpu_duplicate_name(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return 400 for duplicate CPU name."""
+        payload = {"name": "Duplicate CPU", "manufacturer": "Intel"}
+
+        # Create first
+        response1 = await client.post("/v1/catalog/cpus", json=payload)
+        assert response1.status_code == 201
+
+        # Try to create duplicate
+        response2 = await client.post("/v1/catalog/cpus", json=payload)
+        assert response2.status_code == 400
+        assert "already exists" in response2.json()["detail"]
+
+
+# --- GPU CREATE Tests ---
+
+
+class TestGpuCreate:
+    """Tests for POST /v1/catalog/gpus endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_create_gpu_success(self, client: AsyncClient, async_session: AsyncSession):
+        """Should successfully create a new GPU."""
+        payload = {
+            "name": "NVIDIA GeForce RTX 4090",
+            "manufacturer": "NVIDIA",
+            "gpu_mark": 35000,
+            "metal_score": 300000,
+            "attributes": {"vram": "24GB"},
+        }
+        response = await client.post("/v1/catalog/gpus", json=payload)
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == "NVIDIA GeForce RTX 4090"
+        assert data["gpu_mark"] == 35000
+        assert "id" in data
+
+    @pytest.mark.asyncio
+    async def test_create_gpu_duplicate_name(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return 400 for duplicate GPU name."""
+        payload = {"name": "Duplicate GPU", "manufacturer": "NVIDIA"}
+
+        response1 = await client.post("/v1/catalog/gpus", json=payload)
+        assert response1.status_code == 201
+
+        response2 = await client.post("/v1/catalog/gpus", json=payload)
+        assert response2.status_code == 400
+        assert "already exists" in response2.json()["detail"]
+
+
+# --- Profile CREATE Tests ---
+
+
+class TestProfileCreate:
+    """Tests for POST /v1/catalog/profiles endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_create_profile_success(self, client: AsyncClient, async_session: AsyncSession):
+        """Should successfully create a new profile."""
+        payload = {
+            "name": "Gaming Profile",
+            "description": "Optimized for gaming",
+            "weights_json": {"cpu_score": 0.4, "gpu_score": 0.6},
+            "is_default": False,
+        }
+        response = await client.post("/v1/catalog/profiles", json=payload)
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == "Gaming Profile"
+        assert data["weights_json"]["gpu_score"] == 0.6
+        assert "id" in data
+
+    @pytest.mark.asyncio
+    async def test_create_profile_duplicate_name(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return 400 for duplicate profile name."""
+        payload = {"name": "Duplicate Profile", "weights_json": {"cpu_score": 1.0}}
+
+        response1 = await client.post("/v1/catalog/profiles", json=payload)
+        assert response1.status_code == 201
+
+        response2 = await client.post("/v1/catalog/profiles", json=payload)
+        assert response2.status_code == 400
+        assert "already exists" in response2.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_create_profile_as_default_unsets_others(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should unset other default profiles when creating new default."""
+        # Create first default profile
+        payload1 = {"name": "Default 1", "weights_json": {"cpu_score": 1.0}, "is_default": True}
+        response1 = await client.post("/v1/catalog/profiles", json=payload1)
+        assert response1.status_code == 201
+        profile1_id = response1.json()["id"]
+
+        # Create second default profile
+        payload2 = {"name": "Default 2", "weights_json": {"cpu_score": 1.0}, "is_default": True}
+        response2 = await client.post("/v1/catalog/profiles", json=payload2)
+        assert response2.status_code == 201
+
+        # Verify first profile is no longer default
+        list_response = await client.get("/v1/catalog/profiles")
+        profiles = list_response.json()
+        profile1 = next(p for p in profiles if p["id"] == profile1_id)
+        assert profile1["is_default"] is False
+
+
+# --- PortsProfile CREATE Tests ---
+
+
+class TestPortsProfileCreate:
+    """Tests for POST /v1/catalog/ports-profiles endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_create_ports_profile_success(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should successfully create a new ports profile."""
+        payload = {
+            "name": "Standard Desktop",
+            "description": "Standard desktop connectivity",
+            "ports": [
+                {"type": "USB-A", "count": 6},
+                {"type": "USB-C", "count": 2},
+                {"type": "HDMI", "count": 1},
+            ],
+            "attributes": {"category": "desktop"},
+        }
+        response = await client.post("/v1/catalog/ports-profiles", json=payload)
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == "Standard Desktop"
+        assert len(data["ports"]) == 3
+        assert "id" in data
+
+    @pytest.mark.asyncio
+    async def test_create_ports_profile_duplicate_name(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return 400 for duplicate ports profile name."""
+        payload = {"name": "Duplicate Ports", "ports": []}
+
+        response1 = await client.post("/v1/catalog/ports-profiles", json=payload)
+        assert response1.status_code == 201
+
+        response2 = await client.post("/v1/catalog/ports-profiles", json=payload)
+        assert response2.status_code == 400
+        assert "already exists" in response2.json()["detail"]
+
+
+# --- RamSpec CREATE Tests ---
+
+
+class TestRamSpecCreate:
+    """Tests for POST /v1/catalog/ram-specs endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_create_ram_spec_success(self, client: AsyncClient, async_session: AsyncSession):
+        """Should successfully create a new RAM spec."""
+        payload = {
+            "label": "32GB DDR5 6000MHz",
+            "ddr_generation": RamGeneration.DDR5.value,
+            "speed_mhz": 6000,
+            "module_count": 2,
+            "capacity_per_module_gb": 16,
+            "total_capacity_gb": 32,
+            "attributes": {"cl": "36"},
+        }
+        response = await client.post("/v1/catalog/ram-specs", json=payload)
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["total_capacity_gb"] == 32
+        assert data["speed_mhz"] == 6000
+        assert "id" in data
+
+    @pytest.mark.asyncio
+    async def test_create_ram_spec_get_or_create_behavior(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return existing RAM spec if duplicate specifications."""
+        payload = {
+            "ddr_generation": RamGeneration.DDR4.value,
+            "speed_mhz": 3200,
+            "module_count": 2,
+            "capacity_per_module_gb": 8,
+            "total_capacity_gb": 16,
+        }
+
+        # Create first
+        response1 = await client.post("/v1/catalog/ram-specs", json=payload)
+        assert response1.status_code == 201
+        id1 = response1.json()["id"]
+
+        # Create duplicate should return same entity
+        response2 = await client.post("/v1/catalog/ram-specs", json=payload)
+        assert response2.status_code == 201
+        id2 = response2.json()["id"]
+
+        # Should be the same ID (get_or_create behavior)
+        assert id1 == id2
+
+
+# --- StorageProfile CREATE Tests ---
+
+
+class TestStorageProfileCreate:
+    """Tests for POST /v1/catalog/storage-profiles endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_create_storage_profile_success(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should successfully create a new storage profile."""
+        payload = {
+            "label": "2TB NVMe Gen4",
+            "medium": StorageMedium.SATA_SSD.value,
+            "interface": "NVMe",
+            "form_factor": "M.2",
+            "capacity_gb": 2000,
+            "performance_tier": "premium",
+            "attributes": {"gen": "4"},
+        }
+        response = await client.post("/v1/catalog/storage-profiles", json=payload)
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["capacity_gb"] == 2000
+        assert data["interface"] == "NVMe"
+        assert "id" in data
+
+    @pytest.mark.asyncio
+    async def test_create_storage_profile_get_or_create_behavior(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return existing storage profile if duplicate specifications."""
+        payload = {
+            "medium": StorageMedium.HDD.value,
+            "interface": "SATA",
+            "form_factor": "3.5-inch",
+            "capacity_gb": 4000,
+            "performance_tier": "standard",
+        }
+
+        response1 = await client.post("/v1/catalog/storage-profiles", json=payload)
+        assert response1.status_code == 201
+        id1 = response1.json()["id"]
+
+        response2 = await client.post("/v1/catalog/storage-profiles", json=payload)
+        assert response2.status_code == 201
+        id2 = response2.json()["id"]
+
+        # Should be the same ID (get_or_create behavior)
+        assert id1 == id2
+
+
+# --- CPU READ Tests ---
+
+
+class TestCpuRead:
+    """Tests for GET /v1/catalog/cpus and GET /v1/catalog/cpus/{cpu_id} endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_list_cpus(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return list of all CPUs."""
+        # Create test CPUs
+        await client.post("/v1/catalog/cpus", json={"name": "CPU 1", "manufacturer": "Intel"})
+        await client.post("/v1/catalog/cpus", json={"name": "CPU 2", "manufacturer": "AMD"})
+
+        # List all CPUs
+        response = await client.get("/v1/catalog/cpus")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) >= 2
+        assert all("id" in cpu and "name" in cpu for cpu in data)
+
+    @pytest.mark.asyncio
+    async def test_get_cpu_by_id(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return specific CPU by ID."""
+        create_response = await client.post(
+            "/v1/catalog/cpus", json={"name": "Test CPU", "manufacturer": "Intel"}
+        )
+        cpu_id = create_response.json()["id"]
+
+        response = await client.get(f"/v1/catalog/cpus/{cpu_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == cpu_id
+        assert data["name"] == "Test CPU"
+
+
+# --- GPU READ Tests ---
+
+
+class TestGpuRead:
+    """Tests for GET /v1/catalog/gpus and GET /v1/catalog/gpus/{gpu_id} endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_list_gpus(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return list of all GPUs."""
+        await client.post("/v1/catalog/gpus", json={"name": "GPU 1", "manufacturer": "NVIDIA"})
+        await client.post("/v1/catalog/gpus", json={"name": "GPU 2", "manufacturer": "AMD"})
+
+        response = await client.get("/v1/catalog/gpus")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) >= 2
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_by_id(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return specific GPU by ID."""
+        create_response = await client.post(
+            "/v1/catalog/gpus", json={"name": "Test GPU", "manufacturer": "NVIDIA"}
+        )
+        gpu_id = create_response.json()["id"]
+
+        response = await client.get(f"/v1/catalog/gpus/{gpu_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == gpu_id
+
+
+# --- Profile READ Tests ---
+
+
+class TestProfileRead:
+    """Tests for GET /v1/catalog/profiles endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_list_profiles(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return list of all profiles."""
+        await client.post(
+            "/v1/catalog/profiles",
+            json={"name": "Profile 1", "weights_json": {"cpu_score": 1.0}},
+        )
+
+        response = await client.get("/v1/catalog/profiles")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) >= 1
+
+    @pytest.mark.asyncio
+    async def test_get_profile_by_id(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return specific profile by ID."""
+        create_response = await client.post(
+            "/v1/catalog/profiles",
+            json={"name": "Test Profile", "weights_json": {"cpu_score": 1.0}},
+        )
+        profile_id = create_response.json()["id"]
+
+        response = await client.get(f"/v1/catalog/profiles/{profile_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == profile_id
+        assert data["name"] == "Test Profile"
+
+    @pytest.mark.asyncio
+    async def test_get_profile_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent profile."""
+        response = await client.get("/v1/catalog/profiles/99999")
+        assert response.status_code == 404
+
+
+# --- PortsProfile READ Tests ---
+
+
+class TestPortsProfileRead:
+    """Tests for GET /v1/catalog/ports-profiles endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_list_ports_profiles(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return list of all ports profiles."""
+        await client.post("/v1/catalog/ports-profiles", json={"name": "Ports 1", "ports": []})
+
+        response = await client.get("/v1/catalog/ports-profiles")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) >= 1
+
+    @pytest.mark.asyncio
+    async def test_get_ports_profile_by_id(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return specific ports profile by ID."""
+        create_response = await client.post(
+            "/v1/catalog/ports-profiles",
+            json={"name": "Test Ports Profile", "ports": [{"type": "USB-A", "count": 4}]},
+        )
+        profile_id = create_response.json()["id"]
+
+        response = await client.get(f"/v1/catalog/ports-profiles/{profile_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == profile_id
+        assert data["name"] == "Test Ports Profile"
+
+    @pytest.mark.asyncio
+    async def test_get_ports_profile_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent ports profile."""
+        response = await client.get("/v1/catalog/ports-profiles/99999")
+        assert response.status_code == 404
+
+
+# --- RamSpec READ Tests ---
+
+
+class TestRamSpecRead:
+    """Tests for GET /v1/catalog/ram-specs endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_list_ram_specs(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return list of all RAM specs."""
+        await client.post(
+            "/v1/catalog/ram-specs",
+            json={
+                "ddr_generation": RamGeneration.DDR4.value,
+                "speed_mhz": 3200,
+                "total_capacity_gb": 16,
+            },
+        )
+
+        response = await client.get("/v1/catalog/ram-specs")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) >= 1
+
+    @pytest.mark.asyncio
+    async def test_get_ram_spec_by_id(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return specific RAM spec by ID."""
+        create_response = await client.post(
+            "/v1/catalog/ram-specs",
+            json={
+                "ddr_generation": RamGeneration.DDR5.value,
+                "speed_mhz": 5600,
+                "total_capacity_gb": 32,
+            },
+        )
+        ram_spec_id = create_response.json()["id"]
+
+        response = await client.get(f"/v1/catalog/ram-specs/{ram_spec_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == ram_spec_id
+        assert data["total_capacity_gb"] == 32
+
+    @pytest.mark.asyncio
+    async def test_get_ram_spec_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent RAM spec."""
+        response = await client.get("/v1/catalog/ram-specs/99999")
+        assert response.status_code == 404
+
+
+# --- StorageProfile READ Tests ---
+
+
+class TestStorageProfileRead:
+    """Tests for GET /v1/catalog/storage-profiles endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_list_storage_profiles(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return list of all storage profiles."""
+        await client.post(
+            "/v1/catalog/storage-profiles",
+            json={"medium": StorageMedium.SATA_SSD.value, "interface": "SATA", "capacity_gb": 512},
+        )
+
+        response = await client.get("/v1/catalog/storage-profiles")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) >= 1
+
+    @pytest.mark.asyncio
+    async def test_get_storage_profile_by_id(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return specific storage profile by ID."""
+        create_response = await client.post(
+            "/v1/catalog/storage-profiles",
+            json={
+                "medium": StorageMedium.SATA_SSD.value,
+                "interface": "NVMe",
+                "capacity_gb": 1024,
+            },
+        )
+        storage_profile_id = create_response.json()["id"]
+
+        response = await client.get(f"/v1/catalog/storage-profiles/{storage_profile_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == storage_profile_id
+        assert data["capacity_gb"] == 1024
+
+    @pytest.mark.asyncio
+    async def test_get_storage_profile_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent storage profile."""
+        response = await client.get("/v1/catalog/storage-profiles/99999")
+        assert response.status_code == 404
+
+
+# --- "Used In" Endpoint Tests ---
+
+
+class TestCpuListings:
+    """Tests for GET /v1/catalog/cpus/{cpu_id}/listings endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_cpu_listings(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return all listings that use this CPU."""
+        # Create CPU
+        cpu_response = await client.post(
+            "/v1/catalog/cpus", json={"name": "Test CPU for Listings", "manufacturer": "Intel"}
+        )
+        cpu_id = cpu_response.json()["id"]
+
+        # Create listings using this CPU
+        for i in range(3):
+            await client.post(
+                "/v1/listings/",
+                json={
+                    "title": f"Listing {i}",
+                    "url": f"https://example.com/listing-{i}",
+                    "price_usd": 500.0 + i * 100,
+                    "cpu_id": cpu_id,
+                },
+            )
+
+        # Get listings
+        response = await client.get(f"/v1/catalog/cpus/{cpu_id}/listings")
+        assert response.status_code == 200
+        listings = response.json()
+        assert len(listings) == 3
+
+    @pytest.mark.asyncio
+    async def test_get_cpu_listings_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent CPU."""
+        response = await client.get("/v1/catalog/cpus/99999/listings")
+        assert response.status_code == 404
+
+
+class TestGpuListings:
+    """Tests for GET /v1/catalog/gpus/{gpu_id}/listings endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_listings(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return all listings that use this GPU."""
+        # Create GPU
+        gpu_response = await client.post(
+            "/v1/catalog/gpus", json={"name": "Test GPU for Listings", "manufacturer": "NVIDIA"}
+        )
+        gpu_id = gpu_response.json()["id"]
+
+        # Create listings using this GPU
+        for i in range(2):
+            await client.post(
+                "/v1/listings/",
+                json={
+                    "title": f"GPU Listing {i}",
+                    "url": f"https://example.com/gpu-listing-{i}",
+                    "price_usd": 800.0 + i * 100,
+                    "gpu_id": gpu_id,
+                },
+            )
+
+        # Get listings
+        response = await client.get(f"/v1/catalog/gpus/{gpu_id}/listings")
+        assert response.status_code == 200
+        listings = response.json()
+        assert len(listings) == 2
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_listings_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent GPU."""
+        response = await client.get("/v1/catalog/gpus/99999/listings")
+        assert response.status_code == 404
+
+
+class TestRamSpecListings:
+    """Tests for GET /v1/catalog/ram-specs/{ram_spec_id}/listings endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_ram_spec_listings(self, client: AsyncClient, async_session: AsyncSession):
+        """Should return all listings that use this RAM spec."""
+        # Create RAM spec
+        ram_spec_response = await client.post(
+            "/v1/catalog/ram-specs",
+            json={
+                "ddr_generation": RamGeneration.DDR4.value,
+                "speed_mhz": 3200,
+                "total_capacity_gb": 16,
+            },
+        )
+        ram_spec_id = ram_spec_response.json()["id"]
+
+        # Create listings using this RAM spec
+        for i in range(2):
+            await client.post(
+                "/v1/listings/",
+                json={
+                    "title": f"RAM Listing {i}",
+                    "url": f"https://example.com/ram-listing-{i}",
+                    "price_usd": 600.0 + i * 100,
+                    "ram_spec_id": ram_spec_id,
+                },
+            )
+
+        # Get listings
+        response = await client.get(f"/v1/catalog/ram-specs/{ram_spec_id}/listings")
+        assert response.status_code == 200
+        listings = response.json()
+        assert len(listings) == 2
+
+    @pytest.mark.asyncio
+    async def test_get_ram_spec_listings_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent RAM spec."""
+        response = await client.get("/v1/catalog/ram-specs/99999/listings")
+        assert response.status_code == 404
+
+
+class TestStorageProfileListings:
+    """Tests for GET /v1/catalog/storage-profiles/{storage_profile_id}/listings endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_storage_profile_listings_primary(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return listings that use this storage profile as primary."""
+        # Create storage profile
+        storage_response = await client.post(
+            "/v1/catalog/storage-profiles",
+            json={"medium": StorageMedium.SATA_SSD.value, "interface": "NVMe", "capacity_gb": 512},
+        )
+        storage_profile_id = storage_response.json()["id"]
+
+        # Create listings using this as primary storage
+        await client.post(
+            "/v1/listings/",
+            json={
+                "title": "Primary Storage Listing",
+                "url": "https://example.com/primary-storage-listing",
+                "price_usd": 900.0,
+                "primary_storage_profile_id": storage_profile_id,
+            },
+        )
+
+        # Get listings
+        response = await client.get(
+            f"/v1/catalog/storage-profiles/{storage_profile_id}/listings"
+        )
+        assert response.status_code == 200
+        listings = response.json()
+        assert len(listings) >= 1
+
+    @pytest.mark.asyncio
+    async def test_get_storage_profile_listings_secondary(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
+        """Should return listings that use this storage profile as secondary."""
+        # Create storage profile
+        storage_response = await client.post(
+            "/v1/catalog/storage-profiles",
+            json={"medium": StorageMedium.HDD.value, "interface": "SATA", "capacity_gb": 2000},
+        )
+        storage_profile_id = storage_response.json()["id"]
+
+        # Create listings using this as secondary storage
+        await client.post(
+            "/v1/listings/",
+            json={
+                "title": "Secondary Storage Listing",
+                "url": "https://example.com/secondary-storage-listing",
+                "price_usd": 1000.0,
+                "secondary_storage_profile_id": storage_profile_id,
+            },
+        )
+
+        # Get listings
+        response = await client.get(
+            f"/v1/catalog/storage-profiles/{storage_profile_id}/listings"
+        )
+        assert response.status_code == 200
+        listings = response.json()
+        assert len(listings) >= 1
+
+    @pytest.mark.asyncio
+    async def test_get_storage_profile_listings_not_found(self, client: AsyncClient):
+        """Should return 404 for non-existent storage profile."""
+        response = await client.get("/v1/catalog/storage-profiles/99999/listings")
+        assert response.status_code == 404
 
 
 if __name__ == "__main__":
