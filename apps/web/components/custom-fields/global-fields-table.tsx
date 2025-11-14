@@ -27,6 +27,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { DropdownOptionsBuilder } from "./dropdown-options-builder";
 import { DefaultValueInput } from "../global-fields/default-value-input";
 
+interface EntityRecord {
+  entity: string;
+  label: string;
+  primary_key: string;
+  supports_custom_fields: boolean;
+}
+
 interface FieldValidation {
   pattern?: string;
   min?: number;
@@ -204,6 +211,12 @@ export function GlobalFieldsTable({ entity, hideEntityPicker = false }: GlobalFi
   const fieldsKey = ["fields", "definitions"] as const;
   const usageKey = ["fields", "usage"] as const;
 
+  // Fetch entity list dynamically from API
+  const { data: entitiesResponse } = useQuery<{ entities: EntityRecord[] }>({
+    queryKey: ["fields-data", "entities"],
+    queryFn: () => apiFetch<{ entities: EntityRecord[] }>("/v1/fields-data/entities"),
+  });
+
   const {
     data: fieldResponse,
     isLoading,
@@ -224,6 +237,22 @@ export function GlobalFieldsTable({ entity, hideEntityPicker = false }: GlobalFi
     queryFn: () => apiFetch<EntitySchemaResponse>(`/v1/fields-data/${entity ?? entityFilter}/schema`),
     enabled: Boolean(entity ?? (entityFilter !== "all" && entityFilter !== "")),
   });
+
+  // Create dynamic entity labels map from API response
+  const entityLabelsMap = useMemo(() => {
+    const map: Record<string, string> = { ...ENTITY_LABELS };
+    if (entitiesResponse?.entities) {
+      entitiesResponse.entities.forEach((ent) => {
+        map[ent.entity] = ent.label;
+      });
+    }
+    return map;
+  }, [entitiesResponse]);
+
+  // Create dynamic entity options from API response
+  const entityOptions = useMemo(() => {
+    return entitiesResponse?.entities.map((ent) => ent.entity) ?? Object.keys(ENTITY_LABELS);
+  }, [entitiesResponse]);
 
   const usageMap: FieldUsageMap = useMemo(() => {
     if (!usageResponse) return {};
@@ -298,7 +327,7 @@ export function GlobalFieldsTable({ entity, hideEntityPicker = false }: GlobalFi
       {
         accessorKey: "entity",
         header: "Entity",
-        cell: ({ row }) => <Badge className="bg-muted text-xs font-medium text-foreground">{ENTITY_LABELS[row.original.entity] ?? row.original.entity}</Badge>
+        cell: ({ row }) => <Badge className="bg-muted text-xs font-medium text-foreground">{entityLabelsMap[row.original.entity] ?? row.original.entity}</Badge>
       },
       {
         accessorKey: "label",
@@ -380,7 +409,7 @@ export function GlobalFieldsTable({ entity, hideEntityPicker = false }: GlobalFi
         )
       }
     ];
-  }, [usageMap]);
+  }, [usageMap, entityLabelsMap]);
 
   const table = useReactTable({
     data: filteredRows,
@@ -494,6 +523,8 @@ export function GlobalFieldsTable({ entity, hideEntityPicker = false }: GlobalFi
           totalCount={rows.length}
           filteredCount={filteredRows.length}
           showEntityFilter={!hideEntityPicker}
+          entityOptions={entityOptions}
+          entityLabelsMap={entityLabelsMap}
         />
       </CardHeader>
       <CardContent className="space-y-4">
@@ -551,6 +582,8 @@ export function GlobalFieldsTable({ entity, hideEntityPicker = false }: GlobalFi
         mode={wizardState?.mode ?? "create"}
         field={wizardState?.field}
         lockedEntity={hideEntityPicker ? entity ?? null : null}
+        entityOptions={entityOptions}
+        entityLabelsMap={entityLabelsMap}
         onOpenChange={(open) => {
           if (!open) {
             setWizardState(null);
@@ -583,6 +616,7 @@ export function GlobalFieldsTable({ entity, hideEntityPicker = false }: GlobalFi
         onForceChange={setForceDelete}
         error={deleteError}
         isSubmitting={deleteMutation.isPending}
+        entityLabelsMap={entityLabelsMap}
         onCancel={() => {
           setDeleteField(null);
           setDeleteError(null);
@@ -637,7 +671,9 @@ function FilterBar({
   onSearchTermChange,
   totalCount,
   filteredCount,
-  showEntityFilter
+  showEntityFilter,
+  entityOptions,
+  entityLabelsMap
 }: {
   entityFilter: string;
   onEntityFilterChange: (value: string) => void;
@@ -648,6 +684,8 @@ function FilterBar({
   totalCount: number;
   filteredCount: number;
   showEntityFilter: boolean;
+  entityOptions: string[];
+  entityLabelsMap: Record<string, string>;
 }) {
   const toggleStatus = (status: FieldStatus) => {
     const next = new Set(statusFilter);
@@ -673,9 +711,9 @@ function FilterBar({
             onChange={(event) => onEntityFilterChange(event.target.value)}
           >
             <option value="all">All</option>
-            {ENTITY_OPTIONS.map((entity) => (
+            {entityOptions.map((entity) => (
               <option key={entity} value={entity}>
-                {ENTITY_LABELS[entity] ?? entity}
+                {entityLabelsMap[entity] ?? entity}
               </option>
             ))}
           </select>
@@ -756,13 +794,15 @@ interface WizardProps {
   mode: WizardMode;
   field?: FieldRow;
   lockedEntity?: string | null;
+  entityOptions: string[];
+  entityLabelsMap: Record<string, string>;
   onOpenChange: (open: boolean) => void;
   onSubmit: (payload: FieldCreatePayload | FieldUpdatePayload, options: { force: boolean }) => Promise<void>;
   isSubmitting: boolean;
   error: string | null;
 }
 
-function FieldWizard({ title, open, mode, field, lockedEntity, onOpenChange, onSubmit, isSubmitting, error }: WizardProps) {
+function FieldWizard({ title, open, mode, field, lockedEntity, entityOptions, entityLabelsMap, onOpenChange, onSubmit, isSubmitting, error }: WizardProps) {
   const [step, setStep] = useState(0);
   const [values, setValues] = useState<FieldFormValues>({ ...DEFAULT_FORM });
   const [forceUpdate, setForceUpdate] = useState(false);
@@ -824,9 +864,9 @@ function FieldWizard({ title, open, mode, field, lockedEntity, onOpenChange, onS
     >
       <div className="space-y-4">
         <StepIndicator currentStep={step} />
-        {step === 0 && <WizardBasics values={values} onChange={setValues} isEdit={isEdit} lockedEntity={lockedEntity ?? null} isLocked={field?.is_locked} />}
+        {step === 0 && <WizardBasics values={values} onChange={setValues} isEdit={isEdit} lockedEntity={lockedEntity ?? null} isLocked={field?.is_locked} entityOptions={entityOptions} entityLabelsMap={entityLabelsMap} />}
         {step === 1 && <WizardValidation values={values} onChange={setValues} />}
-        {step === 2 && <WizardReview values={values} />}
+        {step === 2 && <WizardReview values={values} entityLabelsMap={entityLabelsMap} />}
         {error && <ErrorBanner error={new Error(error)} />}
         {isEdit && !field?.is_locked && (
           <label className="flex items-center gap-2 text-sm">
@@ -848,13 +888,17 @@ function WizardBasics({
   onChange,
   isEdit,
   lockedEntity,
-  isLocked
+  isLocked,
+  entityOptions,
+  entityLabelsMap
 }: {
   values: FieldFormValues;
   onChange: (value: FieldFormValues) => void;
   isEdit: boolean;
   lockedEntity: string | null;
   isLocked?: boolean;
+  entityOptions: string[];
+  entityLabelsMap: Record<string, string>;
 }) {
   return (
     <div className="grid gap-4">
@@ -866,9 +910,9 @@ function WizardBasics({
           disabled={isEdit || Boolean(lockedEntity) || isLocked}
           onChange={(event) => onChange({ ...values, entity: event.target.value })}
         >
-          {ENTITY_OPTIONS.map((entity) => (
+          {entityOptions.map((entity) => (
             <option key={entity} value={entity}>
-              {ENTITY_LABELS[entity] ?? entity}
+              {entityLabelsMap[entity] ?? entity}
             </option>
           ))}
         </select>
@@ -910,7 +954,7 @@ function WizardBasics({
         <select
           className="h-9 rounded-md border border-input bg-background px-2 text-sm"
           value={values.data_type}
-          disabled={isEdit || isLocked}
+          disabled={isLocked}
           onChange={(event) => onChange({ ...values, data_type: event.target.value })}
         >
           {TYPE_OPTIONS.map((type) => (
@@ -919,10 +963,10 @@ function WizardBasics({
             </option>
           ))}
         </select>
-        {(isEdit || isLocked) && (
+        {isLocked && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Lock className="h-3 w-3" />
-            Type cannot be changed to maintain data integrity
+            Type cannot be changed for system fields
           </div>
         )}
         {values.data_type === "enum" && (
@@ -1077,7 +1121,7 @@ function WizardValidation({ values, onChange }: { values: FieldFormValues; onCha
   );
 }
 
-function WizardReview({ values }: { values: FieldFormValues }) {
+function WizardReview({ values, entityLabelsMap }: { values: FieldFormValues; entityLabelsMap: Record<string, string> }) {
   const payload = toPayload(values, false);
   return (
     <div className="grid gap-4">
@@ -1085,7 +1129,7 @@ function WizardReview({ values }: { values: FieldFormValues }) {
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
           <div>
             <dt className="text-xs uppercase text-muted-foreground">Entity</dt>
-            <dd>{ENTITY_LABELS[payload.entity] ?? payload.entity}</dd>
+            <dd>{entityLabelsMap[payload.entity] ?? payload.entity}</dd>
           </div>
           <div>
             <dt className="text-xs uppercase text-muted-foreground">Key</dt>
@@ -1281,11 +1325,12 @@ interface DeleteDialogProps {
   onForceChange: (value: boolean) => void;
   error: string | null;
   isSubmitting: boolean;
+  entityLabelsMap: Record<string, string>;
   onCancel: () => void;
   onConfirm: (options: { force: boolean; hardDelete: boolean }) => Promise<void>;
 }
 
-function DeleteDialog({ field, usage, force, onForceChange, error, isSubmitting, onCancel, onConfirm }: DeleteDialogProps) {
+function DeleteDialog({ field, usage, force, onForceChange, error, isSubmitting, entityLabelsMap, onCancel, onConfirm }: DeleteDialogProps) {
   const [hardDelete, setHardDelete] = useState(false);
 
   useEffect(() => {
@@ -1313,7 +1358,7 @@ function DeleteDialog({ field, usage, force, onForceChange, error, isSubmitting,
                 <ul className="mt-1 space-y-1">
                   {Object.entries(usage.counts).map(([entity, count]) => (
                     <li key={entity}>
-                      {ENTITY_LABELS[entity] ?? entity}: {count}
+                      {entityLabelsMap[entity] ?? entity}: {count}
                     </li>
                   ))}
                 </ul>
