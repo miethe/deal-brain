@@ -54,6 +54,12 @@ Welcome to the Deal Brain documentation hub. This is your master index for all p
 - See [Observability & Logging](observability/logging-design.md)
 - Check [Infrastructure Documentation](reports/codebase_analysis/08-devops-infrastructure.md)
 
+### I'm having issues or need to debug
+
+- **Troubleshooting Guide**: See [Comprehensive Troubleshooting Guide](troubleshooting.md) for Docker, local dev, database, API, performance, and code issues
+- **Diagnostics**: Use [Quick Diagnostic Commands](troubleshooting.md#quick-diagnostic-commands) to quickly identify problems
+- **Common Mistakes**: Check [Common Code Mistakes](troubleshooting.md#common-code-mistakes) for frequent errors
+
 ---
 
 ## Documentation Directory
@@ -143,6 +149,7 @@ Welcome to the Deal Brain documentation hub. This is your master index for all p
 
 | Document | Purpose | Status |
 |----------|---------|--------|
+| [Troubleshooting Guide](troubleshooting.md) | Common issues, diagnostics, and solutions | ✅ Complete |
 | [Observability & Logging](observability/logging-design.md) | Logging strategy, Prometheus instrumentation | ✅ Complete |
 
 ### Architecture Decision Records (ADRs)
@@ -390,7 +397,6 @@ See [CLAUDE.md](/mnt/containers/deal-brain/CLAUDE.md) for complete command refer
 
 - [ ] Expand backend API endpoint reference (detailed request/response examples)
 - [ ] Add more integration examples (marketplace-specific workflows)
-- [ ] Create troubleshooting guide (common issues and solutions)
 - [ ] Add migration guides (upgrading, schema changes)
 - [ ] Expand testing section (test patterns, coverage reports)
 - [ ] Add performance profiling guide
