@@ -64,26 +64,9 @@ export function SaveBuildModal({
 
     setIsSaving(true);
     try {
-      const components: SaveBuildRequest["components"] = {
-        cpu_id: state.components.cpu_id!,
-      };
-
-      if (state.components.gpu_id) {
-        components.gpu_id = state.components.gpu_id;
-      }
-      if (state.components.ram_spec_id) {
-        components.ram_spec_id = state.components.ram_spec_id;
-      }
-      if (state.components.storage_spec_id) {
-        components.storage_spec_id = state.components.storage_spec_id;
-      }
-      if (state.components.psu_spec_id) {
-        components.psu_spec_id = state.components.psu_spec_id;
-      }
-      if (state.components.case_spec_id) {
-        components.case_spec_id = state.components.case_spec_id;
-      }
-
+      const components: SaveBuildRequest["components"] = Object.fromEntries(
+        Object.entries(state.components).filter(([_, v]) => v != null)
+      ) as SaveBuildRequest["components"];
       const buildData: SaveBuildRequest = {
         name: name.trim(),
         components,
