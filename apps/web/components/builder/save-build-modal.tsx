@@ -36,7 +36,7 @@ export function SaveBuildModal({
   const { state } = useBuilder();
   const { toast } = useToast();
   const [name, setName] = useState("");
-  const [isPublic, setIsPublic] = useState(false);
+  const [visibility, setVisibility] = useState<"private" | "public">("private");
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -69,17 +69,30 @@ export function SaveBuildModal({
 
     setIsSaving(true);
     try {
-      // Filter out null components
-      const components = Object.fromEntries(
-        Object.entries(state.components).filter(([_, v]) => v !== null)
-      ) as any;
+      const components: SaveBuildRequest["components"] = {
+        cpu_id: state.components.cpu_id!,
+      };
+
+      if (state.components.gpu_id) {
+        components.gpu_id = state.components.gpu_id;
+      }
+      if (state.components.ram_spec_id) {
+        components.ram_spec_id = state.components.ram_spec_id;
+      }
+      if (state.components.storage_spec_id) {
+        components.storage_spec_id = state.components.storage_spec_id;
+      }
+      if (state.components.psu_spec_id) {
+        components.psu_spec_id = state.components.psu_spec_id;
+      }
+      if (state.components.case_spec_id) {
+        components.case_spec_id = state.components.case_spec_id;
+      }
 
       const buildData: SaveBuildRequest = {
         name: name.trim(),
+        visibility,
         components,
-        valuation: state.valuation,
-        metrics: state.metrics,
-        is_public: isPublic,
       };
 
       await saveBuild(buildData);
@@ -94,7 +107,7 @@ export function SaveBuildModal({
 
       // Reset form
       setName("");
-      setIsPublic(false);
+      setVisibility("private");
     } catch (error) {
       toast({
         title: "Save failed",
@@ -128,8 +141,8 @@ export function SaveBuildModal({
           <div className="space-y-2">
             <Label htmlFor="visibility">Visibility</Label>
             <Select
-              value={isPublic ? "public" : "private"}
-              onValueChange={(value) => setIsPublic(value === "public")}
+              value={visibility}
+              onValueChange={(value) => setVisibility(value as "private" | "public")}
             >
               <SelectTrigger id="visibility">
                 <SelectValue />

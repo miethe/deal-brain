@@ -18,9 +18,15 @@ export default async function SharedBuildPage({
     notFound();
   }
 
-  const valuation = build.build_snapshot.valuation;
-  const metrics = build.build_snapshot.metrics;
-  const delta = valuation?.delta_percentage || 0;
+  const valuation = build.pricing_snapshot;
+  const metrics = build.metrics_snapshot;
+  const delta = valuation?.delta_percentage ?? 0;
+  const basePrice = valuation?.base_price
+    ? Number.parseFloat(valuation.base_price)
+    : null;
+  const adjustedPrice = valuation?.adjusted_price
+    ? Number.parseFloat(valuation.adjusted_price)
+    : null;
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
@@ -30,14 +36,14 @@ export default async function SharedBuildPage({
           {build.name || "Shared PC Build"}
         </h1>
         <div className="flex gap-2 mt-3 flex-wrap">
-          {build.is_public && (
+          {build.visibility === "public" && (
             <Badge variant="secondary">Public Build</Badge>
           )}
         </div>
       </div>
 
       {/* Valuation */}
-      {valuation && (
+      {valuation && basePrice !== null && adjustedPrice !== null && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Valuation</CardTitle>
@@ -46,13 +52,13 @@ export default async function SharedBuildPage({
             <div className="flex justify-between">
               <span className="text-muted-foreground">Base Price</span>
               <span className="font-semibold">
-                ${parseFloat(valuation.base_price.toString()).toFixed(2)}
+                ${basePrice.toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between text-lg">
               <span>Adjusted Value</span>
               <span className="font-bold">
-                ${parseFloat(valuation.adjusted_price.toString()).toFixed(2)}
+                ${adjustedPrice.toFixed(2)}
               </span>
             </div>
             <div
@@ -95,7 +101,7 @@ export default async function SharedBuildPage({
               <div className="flex justify-between">
                 <span className="text-muted-foreground">$/CPU Mark (Multi)</span>
                 <span className="font-semibold">
-                  ${parseFloat(metrics.dollar_per_cpu_mark_multi.toString()).toFixed(4)}
+                  ${Number.parseFloat(metrics.dollar_per_cpu_mark_multi).toFixed(4)}
                 </span>
               </div>
             )}
@@ -103,11 +109,11 @@ export default async function SharedBuildPage({
               <div className="flex justify-between">
                 <span className="text-muted-foreground">$/CPU Mark (Single)</span>
                 <span className="font-semibold">
-                  ${parseFloat(metrics.dollar_per_cpu_mark_single.toString()).toFixed(4)}
+                  ${Number.parseFloat(metrics.dollar_per_cpu_mark_single).toFixed(4)}
                 </span>
               </div>
             )}
-            {metrics.composite_score && (
+            {metrics.composite_score !== null && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Composite Score</span>
                 <span className="font-semibold text-blue-600">

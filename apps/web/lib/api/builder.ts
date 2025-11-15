@@ -1,5 +1,7 @@
 import { apiFetch } from "../utils";
 
+export type BuildVisibility = "private" | "public" | "unlisted";
+
 /**
  * Component identifiers for build configuration
  */
@@ -13,19 +15,25 @@ export interface BuildComponents {
 }
 
 /**
- * Valuation breakdown structure from backend
+ * Valuation response from backend
  */
 export interface ValuationBreakdown {
   base_price: number;
   adjusted_price: number;
   delta_amount: number;
   delta_percentage: number;
-  rules_applied: Array<{
-    rule_id: number;
+  rules_applied?: Array<{
+    rule_id?: number;
     rule_name: string;
     adjustment: number;
-    component_type: string;
+    component_type?: string;
+    adjustment_amount?: number;
   }>;
+  breakdown?: {
+    components?: Array<Record<string, unknown>>;
+    adjustments?: Array<Record<string, unknown>>;
+    [key: string]: unknown;
+  };
 }
 
 /**
@@ -35,6 +43,26 @@ export interface BuildMetrics {
   dollar_per_cpu_mark_multi: number | null;
   dollar_per_cpu_mark_single: number | null;
   composite_score: number | null;
+  cpu_mark_multi?: number | null;
+  cpu_mark_single?: number | null;
+}
+
+export interface PricingSnapshot {
+  base_price: string;
+  adjusted_price: string;
+  delta_amount: string;
+  delta_percentage: number;
+  breakdown: Record<string, unknown>;
+  calculated_at?: string;
+}
+
+export interface MetricsSnapshot {
+  dollar_per_cpu_mark_multi: string | null;
+  dollar_per_cpu_mark_single: string | null;
+  composite_score: number | null;
+  cpu_mark_multi?: number | null;
+  cpu_mark_single?: number | null;
+  calculated_at?: string;
 }
 
 /**
@@ -50,15 +78,21 @@ export interface CalculateBuildResponse {
  */
 export interface SavedBuild {
   id: number;
-  user_id: string | null;
-  name: string | null;
-  build_snapshot: {
-    components: BuildComponents;
-    valuation: ValuationBreakdown;
-    metrics: BuildMetrics;
-  };
+  user_id: number | null;
+  name: string;
+  description: string | null;
+  tags: string[] | null;
+  visibility: BuildVisibility;
   share_token: string | null;
-  is_public: boolean;
+  cpu_id: number | null;
+  gpu_id: number | null;
+  ram_spec_id: number | null;
+  storage_spec_id: number | null;
+  psu_spec_id: number | null;
+  case_spec_id: number | null;
+  pricing_snapshot: PricingSnapshot | null;
+  metrics_snapshot: MetricsSnapshot | null;
+  valuation_breakdown: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,18 +101,19 @@ export interface SavedBuild {
  * Request payload for saving a build
  */
 export interface SaveBuildRequest {
-  name?: string | null;
+  name: string;
+  description?: string | null;
+  tags?: string[] | null;
+  visibility?: BuildVisibility;
   components: BuildComponents;
-  valuation: ValuationBreakdown;
-  metrics: BuildMetrics;
-  is_public?: boolean;
 }
 
 /**
  * Paginated response for listing builds
  */
 export interface ListBuildsResponse {
-  items: SavedBuild[];
+  builds?: SavedBuild[];
+  items?: SavedBuild[];
   total: number;
   limit: number;
   offset: number;

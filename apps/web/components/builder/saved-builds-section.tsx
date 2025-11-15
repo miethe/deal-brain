@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getUserBuilds, deleteBuild, type SavedBuild } from "@/lib/api/builder";
+import {
+  getUserBuilds,
+  deleteBuild,
+  type SavedBuild,
+} from "@/lib/api/builder";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +13,7 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Share2, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ShareModal } from "./share-modal";
-import { useBuilder } from "./builder-provider";
+import { useBuilder, type BuildComponents as BuilderComponents } from "./builder-provider";
 
 export function SavedBuildsSection() {
   const [builds, setBuilds] = useState<SavedBuild[]>([]);
@@ -26,7 +30,8 @@ export function SavedBuildsSection() {
     try {
       setLoading(true);
       const response = await getUserBuilds(10, 0);
-      setBuilds(response.items || []);
+      const responseBuilds = response.builds ?? response.items ?? [];
+      setBuilds(responseBuilds);
     } catch (error) {
       toast({
         title: "Failed to load builds",
@@ -44,13 +49,22 @@ export function SavedBuildsSection() {
 
   const handleLoad = (build: SavedBuild) => {
     // Load build components into builder
-    const components = build.build_snapshot.components;
+    const components: BuilderComponents = {
+      cpu_id: build.cpu_id ?? null,
+      gpu_id: build.gpu_id ?? null,
+      ram_spec_id: build.ram_spec_id ?? null,
+      storage_spec_id: build.storage_spec_id ?? null,
+      psu_spec_id: build.psu_spec_id ?? null,
+      case_spec_id: build.case_spec_id ?? null,
+    };
 
-    Object.entries(components).forEach(([type, id]) => {
+    (Object.entries(components) as Array<
+      [keyof BuilderComponents, number | null]
+    >).forEach(([type, id]) => {
       if (id) {
         dispatch({
           type: "SELECT_COMPONENT",
-          payload: { componentType: type as any, id },
+          payload: { componentType: type, id },
         });
       }
     });
@@ -121,9 +135,15 @@ export function SavedBuildsSection() {
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {builds.map((build) => {
-          const valuation = build.build_snapshot.valuation;
-          const metrics = build.build_snapshot.metrics;
-          const delta = valuation?.delta_percentage || 0;
+          const valuation = build.pricing_snapshot;
+          const metrics = build.metrics_snapshot;
+          const delta = valuation?.delta_percentage ?? 0;
+          const basePrice = valuation?.base_price
+            ? Number.parseFloat(valuation.base_price)
+            : null;
+          const adjustedPrice = valuation?.adjusted_price
+            ? Number.parseFloat(valuation.adjusted_price)
+            : null;
 
           return (
             <Card key={build.id} className="relative">
@@ -134,7 +154,7 @@ export function SavedBuildsSection() {
                       {build.name || "Unnamed Build"}
                     </CardTitle>
                     <div className="flex gap-1 mt-2 flex-wrap">
-                      {build.is_public && (
+                      {build.visibility === "public" && (
                         <Badge variant="secondary" className="text-xs">
                           Public
                         </Badge>
@@ -145,17 +165,15 @@ export function SavedBuildsSection() {
               </CardHeader>
 
               <CardContent className="space-y-4">
-                {valuation && (
+                {valuation && basePrice !== null && adjustedPrice !== null && (
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Base Price</span>
-                      <span>${parseFloat(valuation.base_price.toString()).toFixed(2)}</span>
+                      <span>${basePrice.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-sm font-semibold">
                       <span>Adjusted Value</span>
-                      <span>
-                        ${parseFloat(valuation.adjusted_price.toString()).toFixed(2)}
-                      </span>
+                      <span>${adjustedPrice.toFixed(2)}</span>
                     </div>
                     <div
                       className={`text-center p-2 rounded ${
@@ -189,11 +207,11 @@ export function SavedBuildsSection() {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">$/CPU Mark</span>
                         <span>
-                          ${parseFloat(metrics.dollar_per_cpu_mark_multi.toString()).toFixed(4)}
+                          ${Number.parseFloat(metrics.dollar_per_cpu_mark_multi).toFixed(4)}
                         </span>
                       </div>
                     )}
-                    {metrics.composite_score && (
+                    {metrics.composite_score !== null && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Score</span>
                         <span className="text-blue-600 font-medium">

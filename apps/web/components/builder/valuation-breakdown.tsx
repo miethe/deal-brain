@@ -21,7 +21,11 @@ export function ValuationBreakdown({ breakdown }: ValuationBreakdownProps) {
 
   if (!breakdown) return null;
 
-  const hasRules = breakdown.rules_applied && breakdown.rules_applied.length > 0;
+  const adjustments =
+    breakdown.rules_applied ??
+    (breakdown.breakdown?.adjustments as Array<Record<string, unknown>> | undefined) ??
+    [];
+  const hasAdjustments = adjustments.length > 0;
 
   return (
     <Card>
@@ -59,30 +63,49 @@ export function ValuationBreakdown({ breakdown }: ValuationBreakdownProps) {
           </div>
 
           {/* Applied Rules */}
-          {hasRules && (
+          {hasAdjustments && (
             <div className="border-t pt-4">
               <h4 className="text-xs font-semibold text-muted-foreground mb-2">
                 Valuation Adjustments
               </h4>
               <div className="space-y-2">
-                {breakdown.rules_applied.map((rule, index) => (
-                  <div key={index} className="flex justify-between text-sm">
-                    <div className="flex-1">
-                      <span className="text-muted-foreground">{rule.rule_name}</span>
-                      <span className="text-xs text-muted-foreground/70 ml-1">
-                        ({rule.component_type})
+                {adjustments.map((rule, index) => {
+                  const adjustmentValue = "adjustment" in rule
+                    ? Number(rule.adjustment ?? 0)
+                    : "adjustment_amount" in rule
+                    ? Number(rule.adjustment_amount ?? 0)
+                    : 0;
+
+                  const ruleName =
+                    "rule_name" in rule
+                      ? String(rule.rule_name)
+                      : "Adjustment";
+
+                  const componentLabel =
+                    "component_type" in rule && rule.component_type
+                      ? String(rule.component_type)
+                      : null;
+
+                  return (
+                    <div key={index} className="flex justify-between text-sm">
+                      <div className="flex-1">
+                        <span className="text-muted-foreground">{ruleName}</span>
+                        {componentLabel ? (
+                          <span className="text-xs text-muted-foreground/70 ml-1">
+                            ({componentLabel})
+                          </span>
+                        ) : null}
+                      </div>
+                      <span
+                        className={`font-semibold tabular-nums ml-2 ${
+                          adjustmentValue < 0 ? "text-red-600" : "text-green-600"
+                        }`}
+                      >
+                        {adjustmentValue > 0 ? "+" : ""}${Math.abs(adjustmentValue).toFixed(2)}
                       </span>
                     </div>
-                    <span
-                      className={`font-semibold tabular-nums ml-2 ${
-                        rule.adjustment < 0 ? "text-red-600" : "text-green-600"
-                      }`}
-                    >
-                      {rule.adjustment > 0 ? "+" : ""}$
-                      {Math.abs(rule.adjustment).toFixed(2)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
