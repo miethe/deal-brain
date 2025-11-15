@@ -1,8 +1,9 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { Plus, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 /**
  * Represents a selected component with minimal display info
@@ -22,6 +23,7 @@ export interface ComponentCardProps {
   onRemove: () => void;
   required?: boolean;
   disabled?: boolean;
+  error?: string;
 }
 
 /**
@@ -35,6 +37,7 @@ export function ComponentCard({
   onRemove,
   required = false,
   disabled = false,
+  error,
 }: ComponentCardProps) {
   return (
     <Card className="relative">
@@ -47,7 +50,12 @@ export function ComponentCard({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {selectedComponent ? (
+        {error ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : selectedComponent ? (
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">{selectedComponent.name}</p>

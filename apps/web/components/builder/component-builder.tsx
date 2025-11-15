@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ComponentCard, SelectedComponent } from "./component-card";
 import {
   ComponentSelectorModal,
   ComponentItem,
 } from "./component-selector-modal";
 import { useBuilder } from "./builder-provider";
+import {
+  useCatalogCPUs,
+  useCatalogGPUs,
+  useCatalogRAMSpecs,
+  useCatalogStorageProfiles,
+} from "@/hooks/use-catalog";
 
 /**
  * Component type identifiers
@@ -15,9 +21,7 @@ type ComponentType =
   | "cpu_id"
   | "gpu_id"
   | "ram_spec_id"
-  | "storage_spec_id"
-  | "psu_spec_id"
-  | "case_spec_id";
+  | "storage_spec_id";
 
 /**
  * Component metadata for display
@@ -31,6 +35,7 @@ interface ComponentMetadata {
 
 /**
  * Configuration for all component types
+ * Note: PSU and Case removed as those catalogs don't exist yet in the backend
  */
 const COMPONENT_TYPES: ComponentMetadata[] = [
   { key: "cpu_id", title: "CPU", displayName: "CPU", required: true },
@@ -47,8 +52,6 @@ const COMPONENT_TYPES: ComponentMetadata[] = [
     displayName: "Storage",
     required: false,
   },
-  { key: "psu_spec_id", title: "PSU", displayName: "Power Supply", required: false },
-  { key: "case_spec_id", title: "Case", displayName: "Case", required: false },
 ];
 
 /**
@@ -59,96 +62,120 @@ export function ComponentBuilder() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<ComponentMetadata | null>(null);
 
-  // Mock component data - will be replaced with API calls in Phase 6
-  const mockComponents: Record<string, ComponentItem[]> = {
-    cpu_id: [
-      {
-        id: 1,
-        name: "Intel Core i5-12400",
-        manufacturer: "Intel",
-        specs: "6 cores, 12 threads, 2.5 GHz base",
-        price: 150,
-      },
-      {
-        id: 2,
-        name: "AMD Ryzen 5 5600X",
-        manufacturer: "AMD",
-        specs: "6 cores, 12 threads, 3.7 GHz base",
-        price: 180,
-      },
-    ],
-    gpu_id: [
-      {
-        id: 1,
-        name: "NVIDIA RTX 3060",
-        manufacturer: "NVIDIA",
-        specs: "12GB GDDR6",
-        price: 350,
-      },
-      {
-        id: 2,
-        name: "AMD RX 6600",
-        manufacturer: "AMD",
-        specs: "8GB GDDR6",
-        price: 280,
-      },
-    ],
-    ram_spec_id: [
-      {
-        id: 1,
-        name: "16GB DDR4-3200",
-        specs: "2x8GB, CL16",
-        price: 60,
-      },
-      {
-        id: 2,
-        name: "32GB DDR4-3600",
-        specs: "2x16GB, CL18",
-        price: 110,
-      },
-    ],
-    storage_spec_id: [
-      {
-        id: 1,
-        name: "1TB NVMe SSD",
-        specs: "PCIe 3.0, 3500MB/s read",
-        price: 80,
-      },
-      {
-        id: 2,
-        name: "2TB NVMe SSD",
-        specs: "PCIe 4.0, 7000MB/s read",
-        price: 160,
-      },
-    ],
-    psu_spec_id: [
-      {
-        id: 1,
-        name: "650W 80+ Gold",
-        specs: "Modular, 90% efficiency",
-        price: 90,
-      },
-      {
-        id: 2,
-        name: "750W 80+ Platinum",
-        specs: "Fully modular, 92% efficiency",
-        price: 130,
-      },
-    ],
-    case_spec_id: [
-      {
-        id: 1,
-        name: "Mid Tower ATX",
-        specs: "Tempered glass, 3 fans included",
-        price: 70,
-      },
-      {
-        id: 2,
-        name: "Compact Mini-ITX",
-        specs: "Small form factor, mesh front",
-        price: 100,
-      },
-    ],
+  // Fetch catalog data from API
+  const { data: cpus, isLoading: cpusLoading, error: cpusError } = useCatalogCPUs();
+  const { data: gpus, isLoading: gpusLoading, error: gpusError } = useCatalogGPUs();
+  const { data: ramSpecs, isLoading: ramLoading, error: ramError } = useCatalogRAMSpecs();
+  const { data: storageProfiles, isLoading: storageLoading, error: storageError } = useCatalogStorageProfiles();
+
+  /**
+   * Transform catalog data to ComponentItem format
+   */
+  const componentCatalog: Record<string, ComponentItem[]> = useMemo(() => {
+    const catalog: Record<string, ComponentItem[]> = {
+      cpu_id: [],
+      gpu_id: [],
+      ram_spec_id: [],
+      storage_spec_id: [],
+    };
+
+    // Map CPUs
+    if (cpus) {
+      catalog.cpu_id = cpus.map((cpu) => ({
+        id: cpu.id,
+        name: cpu.name,
+        manufacturer: cpu.manufacturer,
+        specs: [
+          cpu.cores ? `${cpu.cores} cores` : null,
+          cpu.threads ? `${cpu.threads} threads` : null,
+          cpu.cpu_mark_multi ? `Multi: ${cpu.cpu_mark_multi.toLocaleString()}` : null,
+          cpu.cpu_mark_single ? `Single: ${cpu.cpu_mark_single.toLocaleString()}` : null,
+        ]
+          .filter(Boolean)
+          .join(', '),
+        price: undefined, // Price not available in catalog
+      }));
+    }
+
+    // Map GPUs
+    if (gpus) {
+      catalog.gpu_id = gpus.map((gpu) => ({
+        id: gpu.id,
+        name: gpu.name,
+        manufacturer: gpu.manufacturer,
+        specs: gpu.gpu_mark ? `GPU Mark: ${gpu.gpu_mark.toLocaleString()}` : undefined,
+        price: undefined, // Price not available in catalog
+      }));
+    }
+
+    // Map RAM Specs
+    if (ramSpecs) {
+      catalog.ram_spec_id = ramSpecs.map((ram) => ({
+        id: ram.id,
+        name: ram.label || `${ram.total_capacity_gb || '?'}GB ${ram.ddr_generation}${ram.speed_mhz ? `-${ram.speed_mhz}` : ''}`,
+        specs: [
+          ram.module_count && ram.capacity_per_module_gb ? `${ram.module_count}x${ram.capacity_per_module_gb}GB` : null,
+          ram.speed_mhz ? `${ram.speed_mhz}MHz` : null,
+        ]
+          .filter(Boolean)
+          .join(', '),
+        price: undefined, // Price not available in catalog
+      }));
+    }
+
+    // Map Storage Profiles
+    if (storageProfiles) {
+      catalog.storage_spec_id = storageProfiles.map((storage) => ({
+        id: storage.id,
+        name: storage.label || `${storage.capacity_gb || '?'}GB ${storage.medium}`,
+        specs: [
+          storage.interface,
+          storage.form_factor,
+          storage.performance_tier,
+        ]
+          .filter(Boolean)
+          .join(', '),
+        price: undefined, // Price not available in catalog
+      }));
+    }
+
+    return catalog;
+  }, [cpus, gpus, ramSpecs, storageProfiles]);
+
+  /**
+   * Get loading state for a component type
+   */
+  const isComponentLoading = (componentType: ComponentType): boolean => {
+    switch (componentType) {
+      case 'cpu_id':
+        return cpusLoading;
+      case 'gpu_id':
+        return gpusLoading;
+      case 'ram_spec_id':
+        return ramLoading;
+      case 'storage_spec_id':
+        return storageLoading;
+      default:
+        return false;
+    }
+  };
+
+  /**
+   * Get error state for a component type
+   */
+  const getComponentError = (componentType: ComponentType): Error | null => {
+    switch (componentType) {
+      case 'cpu_id':
+        return cpusError;
+      case 'gpu_id':
+        return gpusError;
+      case 'ram_spec_id':
+        return ramError;
+      case 'storage_spec_id':
+        return storageError;
+      default:
+        return null;
+    }
   };
 
   /**
@@ -193,8 +220,8 @@ export function ComponentBuilder() {
     const componentId = state.components[componentType];
     if (!componentId) return null;
 
-    // Find component in mock data
-    const componentList = mockComponents[componentType] || [];
+    // Find component in catalog data
+    const componentList = componentCatalog[componentType] || [];
     const component = componentList.find((c) => c.id === componentId);
 
     if (!component) return null;
@@ -209,18 +236,23 @@ export function ComponentBuilder() {
 
   return (
     <div className="space-y-4">
-      {COMPONENT_TYPES.map((metadata) => (
-        <ComponentCard
-          key={metadata.key}
-          title={metadata.title}
-          componentType={metadata.displayName}
-          selectedComponent={getSelectedComponent(metadata.key)}
-          onSelect={() => openModal(metadata)}
-          onRemove={() => handleRemove(metadata.key)}
-          required={metadata.required}
-          disabled={state.isCalculating}
-        />
-      ))}
+      {COMPONENT_TYPES.map((metadata) => {
+        const error = getComponentError(metadata.key);
+
+        return (
+          <ComponentCard
+            key={metadata.key}
+            title={metadata.title}
+            componentType={metadata.displayName}
+            selectedComponent={getSelectedComponent(metadata.key)}
+            onSelect={() => openModal(metadata)}
+            onRemove={() => handleRemove(metadata.key)}
+            required={metadata.required}
+            disabled={state.isCalculating}
+            error={error ? `Failed to load ${metadata.displayName} catalog: ${error.message}` : undefined}
+          />
+        );
+      })}
 
       {selectedType && (
         <ComponentSelectorModal
@@ -228,9 +260,9 @@ export function ComponentBuilder() {
           onOpenChange={setModalOpen}
           title={`Select ${selectedType.title}`}
           componentType={selectedType.displayName}
-          components={mockComponents[selectedType.key] || []}
+          components={componentCatalog[selectedType.key] || []}
           onSelect={handleSelect}
-          isLoading={false}
+          isLoading={isComponentLoading(selectedType.key)}
         />
       )}
     </div>

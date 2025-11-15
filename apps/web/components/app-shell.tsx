@@ -28,6 +28,7 @@ type NavItem = NavLink | NavDropdown;
 const NAV_ITEMS: NavItem[] = [
   { type: "link", href: "/", label: "Dashboard" },
   { type: "link", href: "/listings", label: "Listings" },
+  { type: "link", href: "/builder", label: "Builder" },
   {
     type: "dropdown",
     label: "Catalogs",
