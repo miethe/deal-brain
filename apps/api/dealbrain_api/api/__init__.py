@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from . import (
     admin,
     baseline,
+    builder,
     catalog,
     cpus,
     custom_fields,
@@ -26,6 +27,7 @@ from . import (
 router = APIRouter()
 router.include_router(admin.router)
 router.include_router(baseline.router)
+router.include_router(builder.router)
 router.include_router(catalog.router)
 router.include_router(cpus.router)
 router.include_router(listings.router)

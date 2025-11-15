@@ -18,6 +18,7 @@ Deprecated: Import directly from dealbrain_api.models instead of models.core
 
 # Re-export all models for backward compatibility
 from .base import TimestampMixin
+from .builds import SavedBuild
 from .catalog import Cpu, Gpu, RamSpec, StorageProfile
 from .imports import ImportJob, ImportSession, ImportSessionAudit, TaskRun
 from .listings import Listing, ListingComponent, ListingScoreSnapshot, Profile
@@ -76,4 +77,6 @@ __all__ = [
     # Metrics
     "IngestionMetric",
     "RawPayload",
+    # Builds
+    "SavedBuild",
 ]

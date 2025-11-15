@@ -52,6 +52,9 @@ from .settings import (
 # Metrics models
 from .metrics import IngestionMetric, RawPayload
 
+# Build models
+from .builds import SavedBuild
+
 # Legacy models (kept in separate files)
 from .baseline_audit import BaselineAuditLog
 
@@ -92,6 +95,8 @@ __all__ = [
     # Metrics
     "IngestionMetric",
     "RawPayload",
+    # Builds
+    "SavedBuild",
     # Legacy
     "BaselineAuditLog",
 ]
