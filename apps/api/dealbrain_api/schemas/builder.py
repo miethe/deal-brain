@@ -151,7 +151,7 @@ class ValuationResponse(BaseModel):
 
     class Config:
         json_encoders = {
-            Decimal: lambda v: float(v)
+            Decimal: float
         }
         json_schema_extra = {
             "example": {
@@ -365,7 +365,7 @@ class ListingComparisonResponse(BaseModel):
 
     class Config:
         json_encoders = {
-            Decimal: lambda v: float(v)
+            Decimal: float
         }
 
 

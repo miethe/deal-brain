@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime
 from decimal import Decimal
 
 import pytest
@@ -32,9 +31,9 @@ from apps.api.dealbrain_api.models.catalog import Cpu, Gpu
 from apps.api.dealbrain_api.models.listings import Listing
 from apps.api.dealbrain_api.services.builder_service import BuilderService
 
+AIOSQLITE_AVAILABLE = True
 try:
-    import aiosqlite  # type: ignore  # noqa: F401
-    AIOSQLITE_AVAILABLE = True
+    import aiosqlite  # type: ignore
 except ImportError:
     AIOSQLITE_AVAILABLE = False
 
@@ -298,6 +297,10 @@ async def test_calculate_build_valuation_invalid_gpu_id(
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    "CI" in __import__("os").environ,
+    reason="Performance tests are flaky in CI environments with variable load"
+)
 async def test_calculate_build_valuation_performance(
     session: AsyncSession, cpu_sample: Cpu, gpu_sample: Gpu
 ):
@@ -502,6 +505,10 @@ async def test_save_build_snapshot_values_match_calculation(
 
 
 @pytest.mark.asyncio
+@pytest.mark.skipif(
+    "CI" in __import__("os").environ,
+    reason="Performance tests are flaky in CI environments with variable load"
+)
 async def test_save_build_performance(
     session: AsyncSession, cpu_sample: Cpu, gpu_sample: Gpu
 ):

@@ -12,7 +12,6 @@ Provides endpoints for:
 
 from __future__ import annotations
 
-import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -38,6 +37,18 @@ from ..telemetry import get_logger
 logger = get_logger("dealbrain.api.builder")
 
 router = APIRouter(prefix="/v1/builder", tags=["builder"])
+
+
+def normalize_user_id(user_id: Optional[int]) -> int:
+    """Normalize user_id: None -> 0 for consistency across operations.
+    
+    Args:
+        user_id: Optional user ID from auth middleware
+        
+    Returns:
+        0 if user_id is None, otherwise the original user_id
+    """
+    return user_id if user_id is not None else 0
 
 
 @router.post(
@@ -207,8 +218,7 @@ async def save_build(
         HTTPException(500): Save failed
     """
     try:
-        # Normalize user_id: None -> 0 for consistency with update/delete operations
-        normalized_user_id = user_id if user_id is not None else 0
+        normalized_user_id = normalize_user_id(user_id)
 
         logger.info(
             "save_build.start",
@@ -321,7 +331,7 @@ async def list_builds(
         service = BuilderService(session)
 
         # Get builds for user (returns empty list if user_id is None)
-        builds = await service.get_user_builds(user_id or 0, limit, offset)
+        builds = await service.get_user_builds(normalize_user_id(user_id), limit, offset)
 
         # Convert to response models
         build_responses = [SavedBuildResponse.model_validate(build) for build in builds]
@@ -495,7 +505,7 @@ async def update_build(
             build = await service.repository.update(
                 build_id,
                 request.model_dump(exclude_unset=True),
-                user_id or 0
+                normalize_user_id(user_id)
             )
         except ValueError as e:
             # Access denied or not found
@@ -578,7 +588,7 @@ async def delete_build(
 
         # Soft delete (repository handles access control)
         try:
-            await service.repository.soft_delete(build_id, user_id or 0)
+            await service.repository.soft_delete(build_id, normalize_user_id(user_id))
         except ValueError as e:
             logger.warning("delete_build.access_denied", build_id=build_id, error=str(e))
             raise HTTPException(

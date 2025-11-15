@@ -87,7 +87,7 @@ export function ShareModal({ open, onOpenChange, build }: ShareModalProps) {
           {!build.is_public && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
               <p className="text-sm text-yellow-800">
-                <strong>Note:</strong> This build is private. Change visibility to &ldquo;Public&rdquo; to
+                <strong>Note:</strong> This build is private. Change visibility to "Public" to
                 share it.
               </p>
             </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { calculateBuild } from "@/lib/api/builder";
+import { calculateBuild, type BuildComponents } from "@/lib/api/builder";
 import { useBuilder } from "@/components/builder/builder-provider";
 
 /**
@@ -36,7 +36,7 @@ export function useBuilderCalculations() {
       }
 
       // Filter out null values and build API payload
-      const components: any = {
+      const components: BuildComponents = {
         cpu_id: debouncedComponents.cpu_id,
       };
 

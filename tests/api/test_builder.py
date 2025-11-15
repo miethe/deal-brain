@@ -22,7 +22,6 @@ Validates:
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from decimal import Decimal
 
 import pytest
@@ -39,9 +38,9 @@ from dealbrain_api.models.catalog import Cpu, Gpu
 from dealbrain_api.models.listings import Listing
 from dealbrain_core.enums import ListingStatus
 
+AIOSQLITE_AVAILABLE = True
 try:
-    import aiosqlite  # type: ignore  # noqa: F401
-    AIOSQLITE_AVAILABLE = True
+    import aiosqlite  # type: ignore
 except ImportError:
     AIOSQLITE_AVAILABLE = False
 

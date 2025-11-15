@@ -5,8 +5,6 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-import pytest
-
 
 def test_saved_build_model_can_be_imported():
     """Verify SavedBuild model can be imported."""
