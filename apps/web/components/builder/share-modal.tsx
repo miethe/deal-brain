@@ -84,7 +84,7 @@ export function ShareModal({ open, onOpenChange, build }: ShareModalProps) {
             </div>
           )}
 
-          {!build.is_public && (
+          {build.visibility === "private" && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
               <p className="text-sm text-yellow-800">
                 <strong>Note:</strong> This build is private. Change visibility to "Public" to

@@ -46,19 +46,51 @@ export interface CalculateBuildResponse {
 }
 
 /**
+ * Pricing snapshot stored with saved builds
+ */
+export interface PricingSnapshot {
+  base_price: string;
+  adjusted_price: string;
+  delta_amount: string;
+  delta_percentage: number;
+  breakdown?: Record<string, unknown>;
+  calculated_at?: string;
+}
+
+/**
+ * Metrics snapshot stored with saved builds
+ */
+export interface MetricsSnapshot {
+  dollar_per_cpu_mark_multi: string | null;
+  dollar_per_cpu_mark_single: string | null;
+  composite_score: number | null;
+  cpu_mark_multi?: number | null;
+  cpu_mark_single?: number | null;
+  calculated_at?: string;
+}
+
+export type BuildVisibility = "private" | "public" | "unlisted";
+
+/**
  * Saved build structure
  */
 export interface SavedBuild {
   id: number;
-  user_id: string | null;
-  name: string | null;
-  build_snapshot: {
-    components: BuildComponents;
-    valuation: ValuationBreakdown;
-    metrics: BuildMetrics;
-  };
+  user_id: number | null;
+  name: string;
+  description: string | null;
+  tags: string[] | null;
+  visibility: BuildVisibility;
   share_token: string | null;
-  is_public: boolean;
+  cpu_id: number | null;
+  gpu_id: number | null;
+  ram_spec_id: number | null;
+  storage_spec_id: number | null;
+  psu_spec_id: number | null;
+  case_spec_id: number | null;
+  pricing_snapshot: PricingSnapshot | null;
+  metrics_snapshot: MetricsSnapshot | null;
+  valuation_breakdown: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,18 +99,18 @@ export interface SavedBuild {
  * Request payload for saving a build
  */
 export interface SaveBuildRequest {
-  name?: string | null;
+  name: string;
+  description?: string | null;
+  tags?: string[] | null;
+  visibility?: BuildVisibility;
   components: BuildComponents;
-  valuation: ValuationBreakdown;
-  metrics: BuildMetrics;
-  is_public?: boolean;
 }
 
 /**
  * Paginated response for listing builds
  */
 export interface ListBuildsResponse {
-  items: SavedBuild[];
+  builds: SavedBuild[];
   total: number;
   limit: number;
   offset: number;

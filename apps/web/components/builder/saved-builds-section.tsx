@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getUserBuilds, deleteBuild, type SavedBuild } from "@/lib/api/builder";
+import {
+  getUserBuilds,
+  deleteBuild,
+  type SavedBuild,
+} from "@/lib/api/builder";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +13,7 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Share2, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ShareModal } from "./share-modal";
-import { useBuilder } from "./builder-provider";
+import { useBuilder, type BuildComponents as BuilderStateComponents } from "./builder-provider";
 
 export function SavedBuildsSection() {
   const [builds, setBuilds] = useState<SavedBuild[]>([]);
@@ -26,7 +30,7 @@ export function SavedBuildsSection() {
     try {
       setLoading(true);
       const response = await getUserBuilds(10, 0);
-      setBuilds(response.items || []);
+      setBuilds(response.builds || []);
     } catch (error) {
       toast({
         title: "Failed to load builds",
@@ -44,13 +48,20 @@ export function SavedBuildsSection() {
 
   const handleLoad = (build: SavedBuild) => {
     // Load build components into builder
-    const components = build.build_snapshot.components;
+    const componentEntries: Array<[keyof BuilderStateComponents, number | null]> = [
+      ["cpu_id", build.cpu_id],
+      ["gpu_id", build.gpu_id],
+      ["ram_spec_id", build.ram_spec_id],
+      ["storage_spec_id", build.storage_spec_id],
+      ["psu_spec_id", build.psu_spec_id],
+      ["case_spec_id", build.case_spec_id],
+    ];
 
-    Object.entries(components).forEach(([type, id]) => {
+    componentEntries.forEach(([type, id]) => {
       if (id) {
         dispatch({
           type: "SELECT_COMPONENT",
-          payload: { componentType: type as any, id },
+          payload: { componentType: type, id },
         });
       }
     });
@@ -121,9 +132,24 @@ export function SavedBuildsSection() {
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {builds.map((build) => {
-          const valuation = build.build_snapshot.valuation;
-          const metrics = build.build_snapshot.metrics;
-          const delta = valuation?.delta_percentage || 0;
+          const valuationSnapshot = build.pricing_snapshot;
+          const metricsSnapshot = build.metrics_snapshot;
+
+          const basePrice =
+            valuationSnapshot?.base_price != null
+              ? parseFloat(valuationSnapshot.base_price)
+              : null;
+          const adjustedPrice =
+            valuationSnapshot?.adjusted_price != null
+              ? parseFloat(valuationSnapshot.adjusted_price)
+              : null;
+          const delta = valuationSnapshot?.delta_percentage ?? 0;
+
+          const dollarPerCpuMark =
+            metricsSnapshot?.dollar_per_cpu_mark_multi != null
+              ? parseFloat(metricsSnapshot.dollar_per_cpu_mark_multi)
+              : null;
+          const compositeScore = metricsSnapshot?.composite_score ?? null;
 
           return (
             <Card key={build.id} className="relative">
@@ -134,9 +160,14 @@ export function SavedBuildsSection() {
                       {build.name || "Unnamed Build"}
                     </CardTitle>
                     <div className="flex gap-1 mt-2 flex-wrap">
-                      {build.is_public && (
+                      {build.visibility === "public" && (
                         <Badge variant="secondary" className="text-xs">
                           Public
+                        </Badge>
+                      )}
+                      {build.visibility === "unlisted" && (
+                        <Badge variant="outline" className="text-xs">
+                          Unlisted
                         </Badge>
                       )}
                     </div>
@@ -145,16 +176,18 @@ export function SavedBuildsSection() {
               </CardHeader>
 
               <CardContent className="space-y-4">
-                {valuation && (
+                {valuationSnapshot && (
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Base Price</span>
-                      <span>${parseFloat(valuation.base_price.toString()).toFixed(2)}</span>
+                      <span>
+                        {basePrice != null ? `$${basePrice.toFixed(2)}` : "—"}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm font-semibold">
                       <span>Adjusted Value</span>
                       <span>
-                        ${parseFloat(valuation.adjusted_price.toString()).toFixed(2)}
+                        {adjustedPrice != null ? `$${adjustedPrice.toFixed(2)}` : "—"}
                       </span>
                     </div>
                     <div
@@ -183,21 +216,19 @@ export function SavedBuildsSection() {
                   </div>
                 )}
 
-                {metrics && (
+                {metricsSnapshot && (
                   <div className="space-y-1 text-sm">
-                    {metrics.dollar_per_cpu_mark_multi && (
+                    {dollarPerCpuMark !== null && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">$/CPU Mark</span>
-                        <span>
-                          ${parseFloat(metrics.dollar_per_cpu_mark_multi.toString()).toFixed(4)}
-                        </span>
+                        <span>${dollarPerCpuMark.toFixed(4)}</span>
                       </div>
                     )}
-                    {metrics.composite_score && (
+                    {compositeScore && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Score</span>
                         <span className="text-blue-600 font-medium">
-                          {metrics.composite_score}/100
+                          {compositeScore}/100
                         </span>
                       </div>
                     )}

@@ -123,7 +123,7 @@ class BuilderRepository:
             return None
 
         # Apply access control for private builds
-        if build.visibility == "private" and user_id is not None and build.user_id != user_id:
+        if build.visibility == "private" and (user_id is None or build.user_id != user_id):
             return None  # Access denied
 
         return build
