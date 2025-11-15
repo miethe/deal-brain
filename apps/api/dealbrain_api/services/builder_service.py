@@ -16,7 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from dealbrain_core.scoring import dollar_per_metric
-from dealbrain_core.valuation import ComponentValuationInput, compute_adjusted_price
 
 from ..models.builds import SavedBuild
 from ..models.catalog import Cpu, Gpu
@@ -25,6 +24,10 @@ from ..repositories.builder_repository import BuilderRepository
 from ..telemetry import get_logger
 
 logger = get_logger("dealbrain.builder.service")
+
+# Price estimation constants per benchmark point
+CPU_PRICE_PER_MARK = Decimal("0.10")
+GPU_PRICE_PER_MARK = Decimal("0.15")
 
 
 class BuilderService:
@@ -109,8 +112,8 @@ class BuilderService:
         # CPU price estimation (from PassMark data if available)
         cpu_price = Decimal("0.00")
         if cpu.cpu_mark_multi and cpu.cpu_mark_multi > 0:
-            # Rough estimation: $0.10 per PassMark point
-            cpu_price = Decimal(str(cpu.cpu_mark_multi * 0.10))
+            # Rough estimation using CPU_PRICE_PER_MARK per PassMark point
+            cpu_price = Decimal(str(cpu.cpu_mark_multi)) * CPU_PRICE_PER_MARK
         component_breakdown.append({
             "type": "CPU",
             "name": cpu.name,
@@ -122,8 +125,8 @@ class BuilderService:
         if gpu:
             gpu_price = Decimal("0.00")
             if gpu.gpu_mark and gpu.gpu_mark > 0:
-                # Rough estimation: $0.15 per GPU Mark point
-                gpu_price = Decimal(str(gpu.gpu_mark * 0.15))
+                # Rough estimation using GPU_PRICE_PER_MARK per GPU Mark point
+                gpu_price = Decimal(str(gpu.gpu_mark)) * GPU_PRICE_PER_MARK
             component_breakdown.append({
                 "type": "GPU",
                 "name": gpu.name,

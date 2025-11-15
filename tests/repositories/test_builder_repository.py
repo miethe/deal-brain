@@ -28,9 +28,9 @@ from apps.api.dealbrain_api.models.builds import SavedBuild
 from apps.api.dealbrain_api.models.catalog import Cpu, Gpu
 from apps.api.dealbrain_api.repositories.builder_repository import BuilderRepository
 
+AIOSQLITE_AVAILABLE = True
 try:
-    import aiosqlite  # type: ignore  # noqa: F401
-    AIOSQLITE_AVAILABLE = True
+    import aiosqlite  # type: ignore
 except ImportError:
     AIOSQLITE_AVAILABLE = False
 

@@ -5,6 +5,7 @@ import { getUserBuilds, deleteBuild, type SavedBuild } from "@/lib/api/builder";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Share2, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ShareModal } from "./share-modal";
@@ -15,6 +16,9 @@ export function SavedBuildsSection() {
   const [loading, setLoading] = useState(true);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedBuild, setSelectedBuild] = useState<SavedBuild | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [buildToDelete, setBuildToDelete] = useState<SavedBuild | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { dispatch } = useBuilder();
   const { toast } = useToast();
 
@@ -53,7 +57,7 @@ export function SavedBuildsSection() {
 
     toast({
       title: "Build loaded",
-      description: `"${build.build_name || 'Unnamed Build'}" loaded into builder`,
+      description: `"${build.name || 'Unnamed Build'}" loaded into builder`,
     });
 
     // Scroll to top
@@ -65,17 +69,23 @@ export function SavedBuildsSection() {
     setShareModalOpen(true);
   };
 
-  const handleDelete = async (build: SavedBuild) => {
-    if (!confirm(`Are you sure you want to delete "${build.build_name || 'this build'}"?`)) {
-      return;
-    }
+  const handleDeleteClick = (build: SavedBuild) => {
+    setBuildToDelete(build);
+    setDeleteConfirmOpen(true);
+  };
 
+  const handleDeleteConfirm = async () => {
+    if (!buildToDelete) return;
+
+    setIsDeleting(true);
     try {
-      await deleteBuild(build.id);
+      await deleteBuild(buildToDelete.id);
       toast({
         title: "Build deleted",
         description: "Build has been removed",
       });
+      setDeleteConfirmOpen(false);
+      setBuildToDelete(null);
       loadBuilds();
     } catch (error) {
       toast({
@@ -83,6 +93,8 @@ export function SavedBuildsSection() {
         description: "Could not delete build",
         variant: "destructive",
       });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -119,7 +131,7 @@ export function SavedBuildsSection() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <CardTitle className="text-lg">
-                      {build.build_name || "Unnamed Build"}
+                      {build.name || "Unnamed Build"}
                     </CardTitle>
                     <div className="flex gap-1 mt-2 flex-wrap">
                       {build.is_public && (
@@ -211,7 +223,7 @@ export function SavedBuildsSection() {
                     <Share2 className="h-4 w-4 mr-1" />
                     Share
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(build)}>
+                  <Button variant="destructive" size="sm" onClick={() => handleDeleteClick(build)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -232,6 +244,18 @@ export function SavedBuildsSection() {
           build={selectedBuild}
         />
       )}
+
+      <ConfirmationDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete Build?"
+        description={`Are you sure you want to delete "${buildToDelete?.name || 'this build'}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={handleDeleteConfirm}
+        isLoading={isDeleting}
+      />
     </>
   );
 }

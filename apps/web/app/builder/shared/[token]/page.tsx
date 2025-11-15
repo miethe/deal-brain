@@ -27,7 +27,7 @@ export default async function SharedBuildPage({
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">
-          {build.build_name || "Shared PC Build"}
+          {build.name || "Shared PC Build"}
         </h1>
         <div className="flex gap-2 mt-3 flex-wrap">
           {build.is_public && (

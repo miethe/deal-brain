@@ -6,7 +6,7 @@ Implements query optimization with eager loading and access control for private 
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import and_, select
@@ -230,8 +230,7 @@ class BuilderRepository:
         if build.user_id != user_id:
             raise ValueError(f"Access denied to build {build_id}")
 
-        # Define allowed update fields (exclude protected fields)
-        protected_fields = {"id", "user_id", "share_token", "created_at", "deleted_at"}
+        # Define allowed update fields
         allowed_fields = {
             "name", "description", "tags", "visibility",
             "cpu_id", "gpu_id", "ram_spec_id", "storage_spec_id",
@@ -245,7 +244,7 @@ class BuilderRepository:
                 setattr(build, key, value)
 
         # Update timestamp
-        build.updated_at = datetime.utcnow()
+        build.updated_at = datetime.now(timezone.utc)
 
         # Flush changes to database
         await self.session.flush()

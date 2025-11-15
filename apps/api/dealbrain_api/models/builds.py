@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, Text
@@ -102,7 +102,7 @@ class SavedBuild(Base, TimestampMixin):
 
         Maintains audit trail and allows for potential recovery.
         """
-        self.deleted_at = datetime.utcnow()
+        self.deleted_at = datetime.now(timezone.utc)
 
     @property
     def is_deleted(self) -> bool:

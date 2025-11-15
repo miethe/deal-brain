@@ -51,7 +51,7 @@ export interface CalculateBuildResponse {
 export interface SavedBuild {
   id: number;
   user_id: string | null;
-  build_name: string | null;
+  name: string | null;
   build_snapshot: {
     components: BuildComponents;
     valuation: ValuationBreakdown;
@@ -67,7 +67,7 @@ export interface SavedBuild {
  * Request payload for saving a build
  */
 export interface SaveBuildRequest {
-  build_name?: string | null;
+  name?: string | null;
   components: BuildComponents;
   valuation: ValuationBreakdown;
   metrics: BuildMetrics;

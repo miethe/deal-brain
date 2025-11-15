@@ -11,7 +11,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -76,7 +75,7 @@ export function SaveBuildModal({
       ) as any;
 
       const buildData: SaveBuildRequest = {
-        build_name: name.trim(),
+        name: name.trim(),
         components,
         valuation: state.valuation,
         metrics: state.metrics,
