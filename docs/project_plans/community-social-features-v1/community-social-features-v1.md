@@ -8,9 +8,9 @@ updated: 2025-11-14
 category: "product-planning"
 status: draft
 related:
-  - /docs/project_plans/PRDs/features/collections-user-organization-v1.md
-  - /docs/project_plans/PRDs/features/sharing-social-surfaces-v1.md
-  - /docs/project_plans/requests/needs-designed/collections-community/feature-request-collections-more.md
+  - ./PRDs/features/collections-user-organization-v1.md
+  - ./PRDs/features/sharing-social-surfaces-v1.md
+  - ./PRDs/requests/needs-designed/collections-community/feature-request-collections-more.md
 ---
 
 # Product Requirements Document: Community & Social Features (Phase 3)

@@ -8,7 +8,7 @@ updated: 2025-11-14
 category: "product-planning"
 status: draft
 related:
-  - /docs/project_plans/PRDs/features/collections-sharing-foundation-v1.md
+  - ../PRDs/collections-sharing-foundation-v1.md
   - /CLAUDE.md
 ---
 

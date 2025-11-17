@@ -8,8 +8,8 @@ updated: 2025-11-14
 category: "product-planning"
 status: draft
 related:
-  - /home/user/deal-brain/docs/project_plans/implementation_plans/features/community-social-features-v1.md
-  - /home/user/deal-brain/docs/project_plans/PRDs/community-social-features-v1.md
+  - community-social-features-v1.md
+  - ../community-social-features-v1.md
 ---
 
 # Phase 3.1-3.2: Foundation & Reputation Implementation
@@ -1228,4 +1228,4 @@ class CuratorListResponse(BaseModel):
 **Total Phase 3.1-3.2 Effort**: 45 story points (approximately 2-3 weeks development + testing)
 **Expected Completion**: End of Week 7
 
-For Phase 3.3-3.4 details, see: `/docs/project_plans/implementation_plans/features/community-social-features-phase-3.3-3.4.md`
+For Phase 3.3-3.4 details, see: `community-social-features-phase-3.3-3.4.md`

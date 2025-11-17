@@ -8,7 +8,7 @@ updated: 2025-11-14
 category: "product-planning"
 status: published
 related:
-  - /docs/project_plans/PRDs/features/collections-enhancement-export-v1.md
+  - ../PRDs/collections-enhancement-export-v1.md
 ---
 
 # Implementation Plan: Collections Enhancement & Export – Phase 2

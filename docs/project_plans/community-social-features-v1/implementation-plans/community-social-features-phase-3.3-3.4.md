@@ -8,8 +8,8 @@ updated: 2025-11-14
 category: "product-planning"
 status: draft
 related:
-  - /home/user/deal-brain/docs/project_plans/implementation_plans/features/community-social-features-v1.md
-  - /home/user/deal-brain/docs/project_plans/PRDs/community-social-features-v1.md
+  - community-social-features-v1.md
+  - ../community-social-features-v1.md
 ---
 
 # Phase 3.3-3.4: Collaboration & Hardening Implementation
@@ -1558,4 +1558,4 @@ FEATURE_MODERATION = True  # Always on (internal)
 
 **Expected Launch**: End of Week 12 (Mid-Q1 2026)
 
-For master implementation plan and orchestration strategy, see: `/docs/project_plans/implementation_plans/features/community-social-features-v1.md`
+For master implementation plan and orchestration strategy, see: `community-social-features-v1.md`

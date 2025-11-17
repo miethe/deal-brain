@@ -8,15 +8,15 @@ updated: 2025-11-14
 category: "product-planning"
 status: draft
 related:
-  - /home/user/deal-brain/docs/project_plans/PRDs/community-social-features-v1.md
-  - /home/user/deal-brain/docs/project_plans/implementation_plans/features/community-social-features-phase-3.1-3.2.md
-  - /home/user/deal-brain/docs/project_plans/implementation_plans/features/community-social-features-phase-3.3-3.4.md
+  - ../PRDs/community-social-features-v1.md
+  - ../implementation_plans/community-social-features-phase-3.1-3.2.md
+  - ../implementation_plans/community-social-features-phase-3.3-3.4.md
 ---
 
 # Community & Social Features (Phase 3) - Implementation Plan
 
 **Feature**: Deal Brain Phase 3: Community & Social Layer
-**PRD Reference**: `/docs/project_plans/PRDs/community-social-features-v1.md`
+**PRD Reference**: `../PRDs/community-social-features-v1.md`
 **Total Effort**: 85-95 story points (~4 sprints, 12 weeks)
 **Target Completion**: Q1 2026
 **Track**: Full Track (Large/XL project)
