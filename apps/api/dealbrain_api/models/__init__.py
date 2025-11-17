@@ -58,6 +58,9 @@ from .builds import SavedBuild
 # Legacy models (kept in separate files)
 from .baseline_audit import BaselineAuditLog
 
+# Sharing models
+from .sharing import Collection, CollectionItem, ListingShare, User, UserShare
+
 __all__ = [
     # Base
     "TimestampMixin",
@@ -99,4 +102,10 @@ __all__ = [
     "SavedBuild",
     # Legacy
     "BaselineAuditLog",
+    # Sharing
+    "User",
+    "ListingShare",
+    "UserShare",
+    "Collection",
+    "CollectionItem",
 ]
