@@ -12,6 +12,7 @@ New structure:
 - imports.py: Import job and session tracking models
 - settings.py: Application settings and custom field definitions
 - metrics.py: Ingestion metrics and raw payload storage
+- sharing.py: User, collections, and sharing models
 
 Deprecated: Import directly from dealbrain_api.models instead of models.core
 """
@@ -39,6 +40,7 @@ from .settings import (
     CustomFieldAuditLog,
     CustomFieldDefinition,
 )
+from .sharing import Collection, CollectionItem, ListingShare, User, UserShare
 
 __all__ = [
     # Base
@@ -79,4 +81,10 @@ __all__ = [
     "RawPayload",
     # Builds
     "SavedBuild",
+    # Sharing
+    "User",
+    "ListingShare",
+    "UserShare",
+    "Collection",
+    "CollectionItem",
 ]

@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from .catalog import Cpu, Gpu, RamSpec, StorageProfile
     from .ports import PortsProfile
     from .rules import ValuationRuleset
+    from .sharing import CollectionItem, ListingShare, UserShare
 
 
 class Profile(Base, TimestampMixin):
@@ -134,6 +135,20 @@ class Listing(Base, TimestampMixin):
         back_populates="listings_secondary",
         lazy="joined",
         foreign_keys=[secondary_storage_profile_id],
+    )
+
+    # Collections & Sharing relationships
+    shares: Mapped[list[ListingShare]] = relationship(
+        back_populates="listing",
+        lazy="selectin"
+    )
+    user_shares: Mapped[list[UserShare]] = relationship(
+        back_populates="listing",
+        lazy="selectin"
+    )
+    collection_items: Mapped[list[CollectionItem]] = relationship(
+        back_populates="listing",
+        lazy="selectin"
     )
 
     @property
