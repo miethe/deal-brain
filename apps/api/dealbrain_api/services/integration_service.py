@@ -14,7 +14,7 @@ from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models.sharing import Collection, CollectionItem, ListingShare, UserShare
+from ..models.sharing import Collection, CollectionItem
 from .collections_service import CollectionsService
 from .sharing_service import SharingService
 

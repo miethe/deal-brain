@@ -13,7 +13,7 @@ from typing import Optional
 
 from sqlalchemy import and_, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload
 
 from ..models.sharing import ListingShare, UserShare
 
@@ -244,6 +244,30 @@ class ShareRepository:
                 joinedload(UserShare.listing)
             )
             .where(UserShare.share_token == token)
+        )
+
+        result = await self.session.execute(stmt)
+        return result.unique().scalar_one_or_none()
+
+    async def get_user_share_by_id(self, share_id: int) -> Optional[UserShare]:
+        """Get user share by ID.
+
+        Retrieves share with eager loading of sender, recipient, and listing.
+
+        Args:
+            share_id: UserShare ID to look up
+
+        Returns:
+            UserShare instance if found, None otherwise
+        """
+        stmt = (
+            select(UserShare)
+            .options(
+                joinedload(UserShare.sender),
+                joinedload(UserShare.recipient),
+                joinedload(UserShare.listing)
+            )
+            .where(UserShare.id == share_id)
         )
 
         result = await self.session.execute(stmt)

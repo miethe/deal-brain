@@ -207,6 +207,7 @@ class CollectionsService:
         # 3. Update via repository
         updated = await self.collection_repo.update_collection(
             collection_id=collection_id,
+            user_id=user_id,
             name=name,
             description=description,
             visibility=visibility
@@ -248,7 +249,7 @@ class CollectionsService:
             return False
 
         # 2. Delete via repository
-        deleted = await self.collection_repo.delete_collection(collection_id)
+        deleted = await self.collection_repo.delete_collection(collection_id, user_id)
 
         await self.session.commit()
 
@@ -574,7 +575,7 @@ class CollectionsService:
         # 2. Get items via repository
         items = await self.collection_repo.get_collection_items(
             collection_id=collection_id,
-            load_listing=True
+            load_listings=True
         )
 
         # 3. Apply status filter if provided

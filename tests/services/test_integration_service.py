@@ -16,7 +16,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from dealbrain_api.models.listings import Listing
-from dealbrain_api.models.sharing import Collection, CollectionItem, User
+from dealbrain_api.models.sharing import CollectionItem, User
 from dealbrain_api.services.integration_service import IntegrationService
 from dealbrain_api.services.sharing_service import SharingService
 
@@ -35,7 +35,7 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest_asyncio.fixture
-async def session():
+async def db_session():
     """Create async in-memory SQLite session for testing."""
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
     from dealbrain_api.db import Base
@@ -61,7 +61,7 @@ async def sample_user(db_session: AsyncSession):
         email="test@example.com",
         display_name="Test User"
     )
-    session.add(user)
+    db_session.add(user)
     await db_session.flush()
     return user
 
@@ -74,7 +74,7 @@ async def recipient_user(db_session: AsyncSession):
         email="recipient@example.com",
         display_name="Recipient User"
     )
-    session.add(user)
+    db_session.add(user)
     await db_session.flush()
     return user
 
@@ -91,7 +91,7 @@ async def sample_listing(db_session: AsyncSession):
         gpu_id=None,
         form_factor="tower"
     )
-    session.add(listing)
+    db_session.add(listing)
     await db_session.flush()
     return listing
 
@@ -108,7 +108,7 @@ async def another_listing(db_session: AsyncSession):
         gpu_id=None,
         form_factor="sff"
     )
-    session.add(listing)
+    db_session.add(listing)
     await db_session.flush()
     return listing
 
@@ -116,13 +116,13 @@ async def another_listing(db_session: AsyncSession):
 @pytest.fixture
 def service(db_session: AsyncSession):
     """Create IntegrationService instance."""
-    return IntegrationService(session)
+    return IntegrationService(db_session)
 
 
 @pytest.fixture
 def sharing_service(db_session: AsyncSession):
     """Create SharingService instance for setup."""
-    return SharingService(session)
+    return SharingService(db_session)
 
 
 # ==================== Import Shared Deal Tests ====================
@@ -200,7 +200,7 @@ class TestImportSharedDeal:
         """Test importing to specific collection."""
         # Create collection
         from dealbrain_api.services.collections_service import CollectionsService
-        collections_service = CollectionsService(session)
+        collections_service = CollectionsService(db_session)
         collection = await collections_service.create_collection(
             user_id=sample_user.id,
             name="Test Collection"
@@ -329,7 +329,7 @@ class TestCheckDuplicateInCollection:
     ):
         """Test checking duplicate when item doesn't exist."""
         from dealbrain_api.services.collections_service import CollectionsService
-        collections_service = CollectionsService(session)
+        collections_service = CollectionsService(db_session)
         collection = await collections_service.create_collection(
             user_id=sample_user.id,
             name="Test"
@@ -352,7 +352,7 @@ class TestCheckDuplicateInCollection:
     ):
         """Test checking duplicate when item exists."""
         from dealbrain_api.services.collections_service import CollectionsService
-        collections_service = CollectionsService(session)
+        collections_service = CollectionsService(db_session)
         collection = await collections_service.create_collection(
             user_id=sample_user.id,
             name="Test"
@@ -482,7 +482,7 @@ class TestBulkImportShares:
     ):
         """Test bulk import to specific collection."""
         from dealbrain_api.services.collections_service import CollectionsService
-        collections_service = CollectionsService(session)
+        collections_service = CollectionsService(db_session)
         collection = await collections_service.create_collection(
             user_id=sample_user.id,
             name="Bulk Import Collection"

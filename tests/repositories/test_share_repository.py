@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from apps.api.dealbrain_api.db import Base
 from apps.api.dealbrain_api.models.listings import Listing
-from apps.api.dealbrain_api.models.sharing import ListingShare, User, UserShare
+from apps.api.dealbrain_api.models.sharing import User, UserShare
 from apps.api.dealbrain_api.repositories.share_repository import ShareRepository
 
 AIOSQLITE_AVAILABLE = True

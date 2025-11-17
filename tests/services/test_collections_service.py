@@ -33,7 +33,7 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest_asyncio.fixture
-async def session():
+async def db_session():
     """Create async in-memory SQLite session for testing."""
     from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
     from dealbrain_api.db import Base
@@ -59,7 +59,7 @@ async def sample_user(db_session: AsyncSession):
         email="test@example.com",
         display_name="Test User"
     )
-    session.add(user)
+    db_session.add(user)
     await db_session.flush()
     return user
 
@@ -72,7 +72,7 @@ async def other_user(db_session: AsyncSession):
         email="other@example.com",
         display_name="Other User"
     )
-    session.add(user)
+    db_session.add(user)
     await db_session.flush()
     return user
 
@@ -89,7 +89,7 @@ async def sample_listing(db_session: AsyncSession):
         gpu_id=None,
         form_factor="tower"
     )
-    session.add(listing)
+    db_session.add(listing)
     await db_session.flush()
     return listing
 
@@ -106,7 +106,7 @@ async def another_listing(db_session: AsyncSession):
         gpu_id=None,
         form_factor="sff"
     )
-    session.add(listing)
+    db_session.add(listing)
     await db_session.flush()
     return listing
 
@@ -114,7 +114,7 @@ async def another_listing(db_session: AsyncSession):
 @pytest.fixture
 def service(db_session: AsyncSession):
     """Create CollectionsService instance."""
-    return CollectionsService(session)
+    return CollectionsService(db_session)
 
 
 # ==================== Collection CRUD Tests ====================

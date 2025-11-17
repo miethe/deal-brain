@@ -10,7 +10,6 @@ This module provides the service layer for deal sharing features including:
 from __future__ import annotations
 
 import logging
-import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -250,16 +249,13 @@ class SharingService:
                 f"User {sender_id} has exceeded share rate limit (10/hour)"
             )
 
-        # 5. Calculate expiry
-        expires_at = datetime.now(timezone.utc) + timedelta(days=ttl_days)
-
-        # 6. Create share via repository
+        # 5. Create share via repository (repository calculates expiry)
         share = await self.share_repo.create_user_share(
             sender_id=sender_id,
             recipient_id=recipient_id,
             listing_id=listing_id,
             message=message,
-            expires_at=expires_at
+            expires_in_days=ttl_days
         )
 
         await self.session.commit()
