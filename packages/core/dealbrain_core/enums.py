@@ -98,6 +98,21 @@ class SourceDataType(str, Enum):
     HTML = "html"
 
 
+class CollectionVisibility(str, Enum):
+    """Collection visibility options."""
+    PRIVATE = "private"
+    UNLISTED = "unlisted"
+    PUBLIC = "public"
+
+
+class CollectionItemStatus(str, Enum):
+    """Collection item status options."""
+    UNDECIDED = "undecided"
+    SHORTLISTED = "shortlisted"
+    REJECTED = "rejected"
+    BOUGHT = "bought"
+
+
 __all__ = [
     "Condition",
     "RamGeneration",
@@ -109,4 +124,6 @@ __all__ = [
     "Marketplace",
     "SourceType",
     "SourceDataType",
+    "CollectionVisibility",
+    "CollectionItemStatus",
 ]
