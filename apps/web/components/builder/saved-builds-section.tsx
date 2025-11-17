@@ -58,7 +58,7 @@ export function SavedBuildsSection() {
     ];
 
     componentEntries.forEach(([type, id]) => {
-      if (id) {
+      if (id !== null) {
         dispatch({
           type: "SELECT_COMPONENT",
           payload: { componentType: type, id },
