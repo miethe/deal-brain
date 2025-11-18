@@ -7,6 +7,7 @@ from . import (
     baseline,
     builder,
     catalog,
+    collections,
     cpus,
     custom_fields,
     dashboard,
@@ -21,7 +22,9 @@ from . import (
     rankings,
     rules,
     settings,
+    shares,
     telemetry,
+    user_shares,
 )
 
 router = APIRouter()
@@ -29,6 +32,7 @@ router.include_router(admin.router)
 router.include_router(baseline.router)
 router.include_router(builder.router)
 router.include_router(catalog.router)
+router.include_router(collections.router)
 router.include_router(cpus.router)
 router.include_router(listings.router)
 router.include_router(rankings.router)
@@ -43,6 +47,8 @@ router.include_router(metrics.router)
 router.include_router(rules.router)
 router.include_router(entities.router)
 router.include_router(settings.router)
+router.include_router(shares.router)
+router.include_router(user_shares.router)
 router.include_router(telemetry.router)
 
 __all__ = ["router"]
