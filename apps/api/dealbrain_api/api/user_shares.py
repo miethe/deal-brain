@@ -14,7 +14,6 @@ from typing import Annotated, Optional
 
 from dealbrain_core.schemas.sharing import (
     CollectionItemRead,
-    UserShareCreate,
     UserShareRead,
 )
 from fastapi import APIRouter, Depends, HTTPException, Query, status

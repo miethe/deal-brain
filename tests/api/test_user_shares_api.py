@@ -20,8 +20,8 @@ Covers:
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from unittest.mock import patch
 
+import importlib.util
 import pytest
 import pytest_asyncio
 from dealbrain_api.db import Base
@@ -31,14 +31,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-# Try to import aiosqlite
-AIOSQLITE_AVAILABLE = False
-try:
-    import aiosqlite  # noqa: F401
-
-    AIOSQLITE_AVAILABLE = True
-except ImportError:
-    pass
+# Check if aiosqlite is available (required for sqlite+aiosqlite engine)
+AIOSQLITE_AVAILABLE = importlib.util.find_spec("aiosqlite") is not None
 
 
 # ==================== Fixtures ====================
@@ -427,7 +421,8 @@ def test_list_user_shares_empty(app, client, recipient_user):
     assert len(data) == 0
 
 
-def test_list_user_shares_pagination(app, client, sender_user, recipient_user, test_listing, db_session):
+@pytest.mark.asyncio
+async def test_list_user_shares_pagination(app, client, sender_user, recipient_user, test_listing, db_session):
     """Test GET /user-shares - Pagination works correctly."""
     from dealbrain_api.api.user_shares import get_current_user
 
@@ -441,7 +436,7 @@ def test_list_user_shares_pagination(app, client, sender_user, recipient_user, t
             expires_at=datetime.utcnow() + timedelta(days=30)
         )
         db_session.add(share)
-    db_session.commit()
+    await db_session.commit()
 
     app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
 
@@ -507,7 +502,8 @@ def test_list_user_shares_excludes_expired(app, client, recipient_user, active_u
     assert expired_share.id not in share_ids
 
 
-def test_list_user_shares_ordered_by_date(app, client, sender_user, recipient_user, test_listing, db_session):
+@pytest.mark.asyncio
+async def test_list_user_shares_ordered_by_date(app, client, sender_user, recipient_user, test_listing, db_session):
     """Test GET /user-shares - Shares ordered by shared_at DESC (newest first)."""
     from dealbrain_api.api.user_shares import get_current_user
 
@@ -537,7 +533,7 @@ def test_list_user_shares_ordered_by_date(app, client, sender_user, recipient_us
         expires_at=datetime.utcnow() + timedelta(days=30)
     )
     db_session.add_all([share1, share2, share3])
-    db_session.commit()
+    await db_session.commit()
 
     app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
 
@@ -666,7 +662,8 @@ def test_import_user_share_default_collection(app, client, active_user_share, re
     assert data["listing_id"] == active_user_share.listing_id
 
 
-def test_import_user_share_duplicate(app, client, active_user_share, recipient_user, custom_collection, db_session):
+@pytest.mark.asyncio
+async def test_import_user_share_duplicate(app, client, active_user_share, recipient_user, custom_collection, db_session):
     """Test POST /user-shares/{token}/import - Returns 409 if already in collection."""
     from dealbrain_api.api.user_shares import get_current_user
 
@@ -679,7 +676,7 @@ def test_import_user_share_duplicate(app, client, active_user_share, recipient_u
         status="undecided"
     )
     db_session.add(item)
-    db_session.commit()
+    await db_session.commit()
 
     payload = {"collection_id": custom_collection.id}
 
