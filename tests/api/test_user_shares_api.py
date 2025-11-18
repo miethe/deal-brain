@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+import importlib.util
 import pytest
 import pytest_asyncio
 from dealbrain_api.db import Base
@@ -30,15 +31,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-# Try to import aiosqlite
-AIOSQLITE_AVAILABLE = False
-try:
-    import aiosqlite  # noqa: F401
-
-    AIOSQLITE_AVAILABLE = True
-except ImportError:
-    # aiosqlite is not installed; tests will be skipped if unavailable
-    pass
+# Check if aiosqlite is available (required for sqlite+aiosqlite engine)
+AIOSQLITE_AVAILABLE = importlib.util.find_spec("aiosqlite") is not None
 
 
 # ==================== Fixtures ====================

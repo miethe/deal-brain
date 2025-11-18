@@ -1002,11 +1002,11 @@ async def export_collection(
 
                 # Write header
                 writer.writerow([
-                    "name",
-                    "price",
+                    "title",
+                    "price_usd",
                     "cpu",
                     "gpu",
-                    "cpu_mark_ratio",
+                    "dollar_per_cpu_mark",
                     "score",
                     "status",
                     "notes"
@@ -1016,12 +1016,20 @@ async def export_collection(
                 for item in items:
                     listing = item.listing if hasattr(item, 'listing') else None
                     writer.writerow([
-                        listing.name if listing else "",
-                        listing.price if listing else "",
-                        listing.cpu.model if listing and listing.cpu else "",
-                        listing.gpu.model if listing and listing.gpu else "",
-                        f"{listing.cpu_mark_ratio:.2f}" if listing and listing.cpu_mark_ratio else "",
-                        f"{listing.overall_score:.2f}" if listing and listing.overall_score else "",
+                        listing.title if listing else "",
+                        f"{listing.price_usd:.2f}" if listing and listing.price_usd is not None else "",
+                        listing.cpu.name if listing and listing.cpu else "",
+                        listing.gpu.name if listing and listing.gpu else "",
+                        (
+                            f"{listing.dollar_per_cpu_mark:.2f}"
+                            if listing and listing.dollar_per_cpu_mark is not None
+                            else ""
+                        ),
+                        (
+                            f"{listing.score_composite:.2f}"
+                            if listing and listing.score_composite is not None
+                            else ""
+                        ),
                         item.status,
                         item.notes or ""
                     ])
@@ -1062,14 +1070,31 @@ async def export_collection(
                             "position": item.position,
                             "added_at": item.added_at.isoformat(),
                             "updated_at": item.updated_at.isoformat(),
-                            "listing": {
-                                "name": item.listing.name if hasattr(item, 'listing') and item.listing else None,
-                                "price": float(item.listing.price) if hasattr(item, 'listing') and item.listing else None,
-                                "cpu": item.listing.cpu.model if hasattr(item, 'listing') and item.listing and item.listing.cpu else None,
-                                "gpu": item.listing.gpu.model if hasattr(item, 'listing') and item.listing and item.listing.gpu else None,
-                                "cpu_mark_ratio": float(item.listing.cpu_mark_ratio) if hasattr(item, 'listing') and item.listing and item.listing.cpu_mark_ratio else None,
-                                "score": float(item.listing.overall_score) if hasattr(item, 'listing') and item.listing and item.listing.overall_score else None
-                            } if hasattr(item, 'listing') else None
+                            "listing": (
+                                {
+                                    "id": item.listing.id,
+                                    "title": item.listing.title,
+                                    "price_usd": (
+                                        float(item.listing.price_usd)
+                                        if item.listing.price_usd is not None
+                                        else None
+                                    ),
+                                    "cpu": item.listing.cpu.name if item.listing.cpu else None,
+                                    "gpu": item.listing.gpu.name if item.listing.gpu else None,
+                                    "dollar_per_cpu_mark": (
+                                        float(item.listing.dollar_per_cpu_mark)
+                                        if item.listing.dollar_per_cpu_mark is not None
+                                        else None
+                                    ),
+                                    "score_composite": (
+                                        float(item.listing.score_composite)
+                                        if item.listing.score_composite is not None
+                                        else None
+                                    )
+                                }
+                                if hasattr(item, 'listing') and item.listing
+                                else None
+                            )
                         }
                         for item in items
                     ]
