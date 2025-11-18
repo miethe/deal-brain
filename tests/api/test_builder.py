@@ -21,15 +21,12 @@ Validates:
 
 from __future__ import annotations
 
-import json
 from decimal import Decimal
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy import Text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.types import TypeDecorator
 
 from dealbrain_api.app import create_app
 from dealbrain_api.db import Base
@@ -45,40 +42,6 @@ except ImportError:
     AIOSQLITE_AVAILABLE = False
 
 
-class JSONEncodedList(TypeDecorator):
-    """Represents a list as JSON-encoded string for SQLite compatibility."""
-
-    impl = Text
-    cache_ok = True
-
-    def process_bind_param(self, value, dialect):
-        if value is not None:
-            value = json.dumps(value)
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value is not None:
-            value = json.loads(value)
-        return value
-
-
-class JSONEncodedDict(TypeDecorator):
-    """Represents a dict as JSON-encoded string for SQLite compatibility."""
-
-    impl = Text
-    cache_ok = True
-
-    def process_bind_param(self, value, dialect):
-        if value is not None:
-            value = json.dumps(value)
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value is not None:
-            value = json.loads(value)
-        return value
-
-
 # --- Fixtures ---
 
 
@@ -87,20 +50,6 @@ async def db_session():
     """Create async database session for tests using in-memory SQLite."""
     if not AIOSQLITE_AVAILABLE:
         pytest.skip("aiosqlite is not installed; skipping API integration tests")
-
-    # Patch SavedBuild PostgreSQL-specific columns for SQLite compatibility
-    original_types = {}
-    patches = {
-        "tags": JSONEncodedList(),
-        "pricing_snapshot": JSONEncodedDict(),
-        "metrics_snapshot": JSONEncodedDict(),
-        "valuation_breakdown": JSONEncodedDict()
-    }
-
-    for col_name, new_type in patches.items():
-        column = SavedBuild.__table__.c[col_name]
-        original_types[col_name] = column.type
-        column.type = new_type
 
     # Use in-memory SQLite for tests to avoid polluting dev database
     engine = create_async_engine(
@@ -121,9 +70,7 @@ async def db_session():
 
         await engine.dispose()
     finally:
-        # Restore original types
-        for col_name, original_type in original_types.items():
-            SavedBuild.__table__.c[col_name].type = original_type
+        pass
 
 
 @pytest_asyncio.fixture(scope="function")

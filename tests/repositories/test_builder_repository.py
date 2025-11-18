@@ -13,15 +13,12 @@ Target: >90% code coverage
 
 from __future__ import annotations
 
-import json
 import uuid
 from datetime import datetime
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import Text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.types import TypeDecorator
 
 from apps.api.dealbrain_api.db import Base
 from apps.api.dealbrain_api.models.builds import SavedBuild
@@ -33,40 +30,6 @@ try:
     import aiosqlite  # type: ignore
 except ImportError:
     AIOSQLITE_AVAILABLE = False
-
-
-class JSONEncodedList(TypeDecorator):
-    """Represents a list as JSON-encoded string for SQLite compatibility."""
-
-    impl = Text
-    cache_ok = True
-
-    def process_bind_param(self, value, dialect):
-        if value is not None:
-            value = json.dumps(value)
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value is not None:
-            value = json.loads(value)
-        return value
-
-
-class JSONEncodedDict(TypeDecorator):
-    """Represents a dict as JSON-encoded string for SQLite compatibility."""
-
-    impl = Text
-    cache_ok = True
-
-    def process_bind_param(self, value, dialect):
-        if value is not None:
-            value = json.dumps(value)
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value is not None:
-            value = json.loads(value)
-        return value
 
 
 @pytest.fixture
@@ -81,20 +44,6 @@ async def session():
     if not AIOSQLITE_AVAILABLE:
         pytest.skip("aiosqlite is not installed; skipping async integration test")
 
-    # Patch SavedBuild PostgreSQL-specific columns for SQLite compatibility
-    original_types = {}
-    patches = {
-        "tags": JSONEncodedList(),
-        "pricing_snapshot": JSONEncodedDict(),
-        "metrics_snapshot": JSONEncodedDict(),
-        "valuation_breakdown": JSONEncodedDict()
-    }
-
-    for col_name, new_type in patches.items():
-        column = SavedBuild.__table__.c[col_name]
-        original_types[col_name] = column.type
-        column.type = new_type
-
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async_session = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -107,9 +56,6 @@ async def session():
             yield session
             await session.rollback()
     finally:
-        # Restore original types
-        for col_name, original_type in original_types.items():
-            SavedBuild.__table__.c[col_name].type = original_type
         await engine.dispose()
 
 

@@ -7,11 +7,10 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..db import Base
-from .base import TimestampMixin
+from .base import JSONBType, StringArray, TimestampMixin
 
 if TYPE_CHECKING:
     from .catalog import Cpu, Gpu
@@ -42,7 +41,7 @@ class SavedBuild(Base, TimestampMixin):
     # Build Metadata
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    tags: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    tags: Mapped[list[str] | None] = mapped_column(StringArray, nullable=True)
 
     # Visibility & Sharing
     visibility: Mapped[str] = mapped_column(
@@ -75,17 +74,17 @@ class SavedBuild(Base, TimestampMixin):
 
     # Snapshot Fields (JSONB for efficient storage and queryability)
     pricing_snapshot: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB,
+        JSONBType,
         nullable=True,
         comment="Stores {base_price, adjusted_price, delta_amount, delta_percentage}"
     )
     metrics_snapshot: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB,
+        JSONBType,
         nullable=True,
         comment="Stores {dollar_per_cpu_mark_multi, dollar_per_cpu_mark_single, composite_score}"
     )
     valuation_breakdown: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONB,
+        JSONBType,
         nullable=True,
         comment="Detailed breakdown of applied valuation rules"
     )

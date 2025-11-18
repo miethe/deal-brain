@@ -81,9 +81,9 @@ async def other_user(db_session: AsyncSession):
 async def sample_listing(db_session: AsyncSession):
     """Create sample listing."""
     listing = Listing(
-        name="Test PC",
-        url="https://example.com/test",
-        price=500.0,
+        title="Test PC",
+        listing_url="https://example.com/test",
+        price_usd=500.0,
         condition="new",
         cpu_id=None,
         gpu_id=None,
@@ -98,9 +98,9 @@ async def sample_listing(db_session: AsyncSession):
 async def another_listing(db_session: AsyncSession):
     """Create another listing for multi-item tests."""
     listing = Listing(
-        name="Another PC",
-        url="https://example.com/another",
-        price=600.0,
+        title="Another PC",
+        listing_url="https://example.com/another",
+        price_usd=600.0,
         condition="used",
         cpu_id=None,
         gpu_id=None,
@@ -568,7 +568,7 @@ class TestAddItemToCollection:
             name="Test"
         )
 
-        with pytest.raises(ValueError, match="not found"):
+        with pytest.raises(PermissionError, match="does not own collection"):
             await service.add_item_to_collection(
                 collection_id=collection.id,
                 listing_id=sample_listing.id,
