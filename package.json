@@ -9,9 +9,17 @@
     "web": "pnpm --filter web dev",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:share": "playwright test tests/e2e/share-public-page.spec.ts tests/e2e/user-to-user-share.spec.ts",
+    "test:e2e:collections": "playwright test tests/e2e/collections-workflow.spec.ts",
+    "test:e2e:mobile": "playwright test tests/e2e/mobile-flows.spec.ts",
+    "test:e2e:critical": "playwright test tests/e2e/share-public-page.spec.ts tests/e2e/user-to-user-share.spec.ts tests/e2e/collections-workflow.spec.ts tests/e2e/mobile-flows.spec.ts",
+    "test:e2e:a11y": "playwright test tests/e2e/accessibility-audit.spec.ts",
+    "test:e2e:a11y:ui": "playwright test tests/e2e/accessibility-audit.spec.ts --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
     "@playwright/test": "^1.40.0"
   }
 }

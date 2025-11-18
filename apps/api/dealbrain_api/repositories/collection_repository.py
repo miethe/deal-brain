@@ -9,8 +9,6 @@ This module provides the data access layer for deal collections including:
 
 from __future__ import annotations
 
-from typing import Optional
-
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
@@ -45,7 +43,7 @@ class CollectionRepository:
         self,
         user_id: int,
         name: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         visibility: str = "private"
     ) -> Collection:
         """Create a new collection.
@@ -79,15 +77,15 @@ class CollectionRepository:
     async def get_collection_by_id(
         self,
         collection_id: int,
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
         load_items: bool = False
-    ) -> Optional[Collection]:
+    ) -> Collection | None:
         """Get collection by ID with optional ownership check and item loading.
 
         Args:
             collection_id: Collection ID to retrieve
             user_id: Optional user ID for ownership validation
-            load_items: If True, eager load collection items and listings
+            load_items: If True, eager load collection items and listings with all relationships
 
         Returns:
             Collection instance if found and accessible, None otherwise
@@ -96,9 +94,21 @@ class CollectionRepository:
         options = [joinedload(Collection.user)]
 
         if load_items:
-            options.append(
-                selectinload(Collection.items).joinedload(CollectionItem.listing)
-            )
+            # Eager load collection items with all listing relationships to prevent N+1 queries
+            items_loader = selectinload(Collection.items)
+            listing_loader = items_loader.joinedload(CollectionItem.listing)
+
+            # Load all Listing relationships in one go
+            listing_loader.joinedload("cpu")
+            listing_loader.joinedload("gpu")
+            listing_loader.joinedload("ports_profile")
+            listing_loader.joinedload("active_profile")
+            listing_loader.joinedload("ruleset")
+            listing_loader.joinedload("ram_spec")
+            listing_loader.joinedload("primary_storage_profile")
+            listing_loader.joinedload("secondary_storage_profile")
+
+            options.append(items_loader)
 
         stmt = (
             select(Collection)
@@ -122,10 +132,10 @@ class CollectionRepository:
         self,
         collection_id: int,
         user_id: int,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        visibility: Optional[str] = None
-    ) -> Optional[Collection]:
+        name: str | None = None,
+        description: str | None = None,
+        visibility: str | None = None
+    ) -> Collection | None:
         """Update collection metadata.
 
         Validates ownership before allowing updates. Only the collection owner can update.
@@ -203,7 +213,7 @@ class CollectionRepository:
             user_id: Owner user ID
             limit: Maximum number of collections to return
             offset: Number of collections to skip for pagination
-            load_items: If True, eager load collection items
+            load_items: If True, eager load collection items with all relationships
 
         Returns:
             List of Collection instances ordered by created_at (newest first)
@@ -212,9 +222,21 @@ class CollectionRepository:
         options = []
 
         if load_items:
-            options.append(
-                selectinload(Collection.items).joinedload(CollectionItem.listing)
-            )
+            # Eager load collection items with all listing relationships to prevent N+1 queries
+            items_loader = selectinload(Collection.items)
+            listing_loader = items_loader.joinedload(CollectionItem.listing)
+
+            # Load all Listing relationships in one go
+            listing_loader.joinedload("cpu")
+            listing_loader.joinedload("gpu")
+            listing_loader.joinedload("ports_profile")
+            listing_loader.joinedload("active_profile")
+            listing_loader.joinedload("ruleset")
+            listing_loader.joinedload("ram_spec")
+            listing_loader.joinedload("primary_storage_profile")
+            listing_loader.joinedload("secondary_storage_profile")
+
+            options.append(items_loader)
 
         stmt = (
             select(Collection)
@@ -235,8 +257,8 @@ class CollectionRepository:
         collection_id: int,
         listing_id: int,
         status: str = "undecided",
-        notes: Optional[str] = None,
-        position: Optional[int] = None
+        notes: str | None = None,
+        position: int | None = None
     ) -> CollectionItem:
         """Add item to collection with deduplication.
 
@@ -287,10 +309,10 @@ class CollectionRepository:
     async def update_item(
         self,
         item_id: int,
-        status: Optional[str] = None,
-        notes: Optional[str] = None,
-        position: Optional[int] = None
-    ) -> Optional[CollectionItem]:
+        status: str | None = None,
+        notes: str | None = None,
+        position: int | None = None
+    ) -> CollectionItem | None:
         """Update collection item.
 
         Args:
@@ -349,13 +371,17 @@ class CollectionRepository:
     async def get_collection_items(
         self,
         collection_id: int,
-        load_listings: bool = True
+        load_listings: bool = True,
+        limit: int | None = None,
+        offset: int = 0
     ) -> list[CollectionItem]:
-        """Get all items in collection with optional listing data.
+        """Get items in collection with optional listing data and pagination.
 
         Args:
             collection_id: Collection ID to get items from
-            load_listings: If True, eager load listing data
+            load_listings: If True, eager load listing data with all relationships
+            limit: Optional maximum number of items to return (None = unlimited)
+            offset: Number of items to skip for pagination
 
         Returns:
             List of CollectionItem instances ordered by position
@@ -364,7 +390,20 @@ class CollectionRepository:
         options = []
 
         if load_listings:
-            options.append(joinedload(CollectionItem.listing))
+            # Eager load listing with all relationships to prevent N+1 queries
+            listing_loader = joinedload(CollectionItem.listing)
+
+            # Load all Listing relationships in one go
+            listing_loader.joinedload("cpu")
+            listing_loader.joinedload("gpu")
+            listing_loader.joinedload("ports_profile")
+            listing_loader.joinedload("active_profile")
+            listing_loader.joinedload("ruleset")
+            listing_loader.joinedload("ram_spec")
+            listing_loader.joinedload("primary_storage_profile")
+            listing_loader.joinedload("secondary_storage_profile")
+
+            options.append(listing_loader)
 
         stmt = (
             select(CollectionItem)
@@ -373,8 +412,30 @@ class CollectionRepository:
             .order_by(CollectionItem.position.asc().nullsfirst())
         )
 
+        # Add pagination if limit is provided
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        if offset > 0:
+            stmt = stmt.offset(offset)
+
         result = await self.session.execute(stmt)
         return list(result.unique().scalars().all())
+
+    async def get_collection_items_count(self, collection_id: int) -> int:
+        """Get total count of items in a collection.
+
+        Args:
+            collection_id: Collection ID to count items from
+
+        Returns:
+            Total number of items in collection
+        """
+        stmt = select(func.count(CollectionItem.id)).where(
+            CollectionItem.collection_id == collection_id
+        )
+
+        result = await self.session.execute(stmt)
+        return result.scalar_one()
 
     async def check_item_exists(
         self,

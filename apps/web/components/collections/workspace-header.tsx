@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Settings, Grid3x3, List } from "lucide-react";
+import { Download, Settings, Grid3x3, List, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -39,8 +39,11 @@ export function WorkspaceHeader({
   const [isEditingName, setIsEditingName] = useState(false);
   const [name, setName] = useState(collection.name);
 
+  const [isExporting, setIsExporting] = useState(false);
+
   const handleExport = async (format: "csv" | "json") => {
     try {
+      setIsExporting(true);
       const response = await fetch(
         `${API_URL}/v1/collections/${collection.id}/export?format=${format}`
       );
@@ -51,7 +54,9 @@ export function WorkspaceHeader({
 
       // Get the filename from Content-Disposition header or create one
       const contentDisposition = response.headers.get("Content-Disposition");
-      let filename = `collection-${collection.id}.${format}`;
+      const collectionName = collection.name.replace(/[^a-zA-Z0-9-_]/g, "-");
+      const date = new Date().toISOString().split("T")[0];
+      let filename = `collection-${collectionName}-${date}.${format}`;
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
         if (filenameMatch) {
@@ -80,6 +85,8 @@ export function WorkspaceHeader({
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -95,7 +102,7 @@ export function WorkspaceHeader({
   return (
     <div className="space-y-4">
       {/* Title and Actions Row */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex-1 min-w-0">
           {isEditingName ? (
             <div className="flex items-center gap-2">
@@ -117,7 +124,7 @@ export function WorkspaceHeader({
             </div>
           ) : (
             <h1
-              className="text-3xl font-bold cursor-pointer hover:text-muted-foreground transition-colors"
+              className="text-2xl sm:text-3xl font-bold cursor-pointer hover:text-muted-foreground transition-colors"
               onClick={() => setIsEditingName(true)}
               title="Click to edit"
             >
@@ -134,27 +141,36 @@ export function WorkspaceHeader({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {/* Export Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isExporting}
+                className="min-h-[44px]"
+              >
+                {isExporting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
                 Export
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleExport("csv")}>
+              <DropdownMenuItem onClick={() => handleExport("csv")} disabled={isExporting}>
                 Export as CSV
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport("json")}>
+              <DropdownMenuItem onClick={() => handleExport("json")} disabled={isExporting}>
                 Export as JSON
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           {/* Edit/Settings Button */}
-          <Button variant="outline" size="sm" disabled>
+          <Button variant="outline" size="sm" disabled className="min-h-[44px]">
             <Settings className="h-4 w-4 mr-2" />
             Edit
           </Button>
@@ -162,32 +178,32 @@ export function WorkspaceHeader({
       </div>
 
       {/* View Controls */}
-      <div className="flex items-center justify-between gap-4 border-t pt-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 border-t pt-4">
         <div className="text-sm text-muted-foreground">
           Showing {collection.items.length} of {collection.item_count} items
         </div>
 
         {/* View Toggle */}
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">View:</span>
+          <span className="text-sm text-muted-foreground hidden sm:inline">View:</span>
           <div className="flex border rounded-md">
             <Button
               variant={viewMode === "table" ? "default" : "ghost"}
               size="sm"
               onClick={() => onViewModeChange("table")}
-              className="rounded-r-none"
+              className="rounded-r-none min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0"
             >
-              <List className="h-4 w-4 mr-1" />
-              Table
+              <List className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Table</span>
             </Button>
             <Button
               variant={viewMode === "cards" ? "default" : "ghost"}
               size="sm"
               onClick={() => onViewModeChange("cards")}
-              className="rounded-l-none border-l"
+              className="rounded-l-none border-l min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0"
             >
-              <Grid3x3 className="h-4 w-4 mr-1" />
-              Cards
+              <Grid3x3 className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Cards</span>
             </Button>
           </div>
         </div>

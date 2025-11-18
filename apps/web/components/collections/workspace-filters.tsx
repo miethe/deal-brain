@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -13,6 +13,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useDebouncedCallback } from "use-debounce";
 import type { CollectionItem } from "@/types/collections";
 
@@ -45,6 +50,14 @@ export function WorkspaceFiltersComponent({
   filters,
   onFiltersChange,
 }: WorkspaceFiltersProps) {
+  // Collapsible state for mobile - open by default on desktop, closed on mobile
+  const [isOpen, setIsOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 768; // md breakpoint
+    }
+    return true; // Default to open for SSR
+  });
+
   // Local state for price range slider (instant UI feedback)
   const [localPriceRange, setLocalPriceRange] = useState<[number, number]>(filters.priceRange);
 
@@ -112,23 +125,43 @@ export function WorkspaceFiltersComponent({
     filters.formFactor.length > 0;
 
   return (
-    <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
-      <div className="flex items-center justify-between">
-        <h3 className="font-medium text-sm">Filters & Sort</h3>
-        {hasActiveFilters && (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="border rounded-lg bg-muted/30">
+      {/* Header - always visible */}
+      <div className="p-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h3 className="font-medium text-sm">Filters & Sort</h3>
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearFilters}
+              className="h-auto py-1 px-2 text-xs"
+            >
+              <X className="h-3 w-3 mr-1" />
+              Clear
+            </Button>
+          )}
+        </div>
+        <CollapsibleTrigger asChild>
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleClearFilters}
-            className="h-auto py-1 px-2 text-xs"
+            className="md:hidden min-w-[44px] min-h-[44px]"
+            aria-label="Toggle filters"
           >
-            <X className="h-3 w-3 mr-1" />
-            Clear
+            {isOpen ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
           </Button>
-        )}
+        </CollapsibleTrigger>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Filters - collapsible on mobile, always visible on desktop */}
+      <CollapsibleContent className="md:block">
+        <div className="px-4 pb-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Price Range */}
         <div className="space-y-2">
           <Label className="text-xs">
@@ -244,6 +277,8 @@ export function WorkspaceFiltersComponent({
           </div>
         </div>
       </div>
-    </div>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

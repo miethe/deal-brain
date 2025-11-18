@@ -9,7 +9,7 @@ import {
   useReactTable,
   flexRender,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, ChevronsUpDown, Expand, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown, Expand, Trash2, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -128,15 +128,31 @@ export function WorkspaceTable({
         header: "Name",
         cell: ({ row }) => {
           const listing = row.original.listing;
+          const item = row.original;
+          const isShared = item.share_id && item.shared_by_name;
+
           return (
             <div className="space-y-1">
-              <div className="font-medium">{listing.title}</div>
+              <div className="flex items-center gap-2">
+                <div className="font-medium">{listing.title}</div>
+                {isShared && (
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Share2 className="h-3 w-3" />
+                    Shared
+                  </Badge>
+                )}
+              </div>
               <div className="text-xs text-muted-foreground">
                 {listing.cpu_name && <span>{listing.cpu_name}</span>}
                 {listing.gpu_name && (
                   <span className="ml-2">• {listing.gpu_name}</span>
                 )}
               </div>
+              {isShared && item.shared_by_name && (
+                <div className="text-xs text-muted-foreground italic">
+                  Shared by {item.shared_by_name}
+                </div>
+              )}
             </div>
           );
         },

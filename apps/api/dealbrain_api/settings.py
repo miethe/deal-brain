@@ -100,6 +100,55 @@ class IngestionSettings(BaseModel):
     )
 
 
+class EmailSettings(BaseModel):
+    """Configuration for email notifications."""
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable email notifications. If false, emails won't be sent.",
+    )
+    smtp_host: str = Field(
+        default="localhost",
+        description="SMTP server hostname",
+    )
+    smtp_port: int = Field(
+        default=587,
+        ge=1,
+        le=65535,
+        description="SMTP server port (587 for TLS, 465 for SSL, 25 for unencrypted)",
+    )
+    smtp_user: str | None = Field(
+        default=None,
+        description="SMTP username for authentication",
+    )
+    smtp_password: str | None = Field(
+        default=None,
+        description="SMTP password for authentication",
+    )
+    smtp_tls: bool = Field(
+        default=True,
+        description="Use TLS for SMTP connection",
+    )
+    smtp_ssl: bool = Field(
+        default=False,
+        description="Use SSL for SMTP connection (mutually exclusive with TLS)",
+    )
+    from_email: str = Field(
+        default="noreply@dealbrain.local",
+        description="From email address for notifications",
+    )
+    from_name: str = Field(
+        default="Deal Brain",
+        description="From name for email notifications",
+    )
+    timeout_seconds: int = Field(
+        default=10,
+        ge=1,
+        le=60,
+        description="SMTP connection timeout in seconds",
+    )
+
+
 class TelemetrySettings(BaseModel):
     """Configuration for application telemetry."""
 
@@ -166,6 +215,12 @@ class Settings(BaseSettings):
         description="Telemetry/logging configuration.",
     )
 
+    # Email settings
+    email: EmailSettings = Field(
+        default_factory=EmailSettings,
+        description="Email notification configuration",
+    )
+
     # URL Ingestion settings
     ingestion: IngestionSettings = Field(
         default_factory=IngestionSettings,
@@ -198,6 +253,7 @@ def get_settings() -> Settings:
 
 __all__ = [
     "AdapterConfig",
+    "EmailSettings",
     "IngestionSettings",
     "TelemetrySettings",
     "Settings",

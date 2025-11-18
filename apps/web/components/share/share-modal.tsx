@@ -40,18 +40,18 @@ export function ShareModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Share Listing</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg sm:text-xl">Share Listing</DialogTitle>
+          <DialogDescription className="text-sm">
             Share &quot;{listingName}&quot; via public link or send to a specific user.
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "link" | "user")}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="link">Copy Link</TabsTrigger>
-            <TabsTrigger value="user">Share with User</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 h-auto">
+            <TabsTrigger value="link" className="min-h-[44px]">Copy Link</TabsTrigger>
+            <TabsTrigger value="user" className="min-h-[44px]">Share with User</TabsTrigger>
           </TabsList>
 
           <TabsContent value="link" className="mt-4">
@@ -164,7 +164,7 @@ function CopyLinkTab({ listingId }: { listingId: number }) {
             onClick={handleCopy}
             variant="outline"
             size="icon"
-            className="shrink-0"
+            className="shrink-0 min-w-[44px] min-h-[44px]"
             aria-label="Copy to clipboard"
           >
             {copied ? (
@@ -341,7 +341,8 @@ function ShareWithUserTab({
       <Button
         onClick={handleSend}
         disabled={!canSend}
-        className="w-full"
+        className="w-full min-h-[44px]"
+        size="lg"
       >
         {shareWithUser.isPending ? (
           <>

@@ -34,6 +34,7 @@ def ping() -> str:
 # Note: imports must be after celery_app definition to avoid circular imports
 from .tasks import cpu_metrics as _cpu_metrics_tasks  # noqa: E402, F401
 from .tasks import ingestion as _ingestion_tasks  # noqa: E402, F401
+from .tasks import notifications as _notification_tasks  # noqa: E402, F401
 from .tasks import valuation as _valuation_tasks  # noqa: E402, F401
 
 # Configure periodic tasks (Celery Beat)

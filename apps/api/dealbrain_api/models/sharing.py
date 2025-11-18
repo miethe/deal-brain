@@ -6,6 +6,7 @@ This module contains models for:
 - UserShare: User-to-user deal sharing (FR-A3)
 - Collection: User-defined collections of deals (FR-B1)
 - CollectionItem: Individual items within collections (FR-B2)
+- Notification: In-app notifications for users (FR-A4)
 """
 
 from __future__ import annotations
@@ -327,3 +328,61 @@ class CollectionItem(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<CollectionItem(id={self.id}, collection_id={self.collection_id}, listing_id={self.listing_id}, status='{self.status}')>"
+
+
+class Notification(Base, TimestampMixin):
+    """In-app notification for users (FR-A4).
+
+    Provides real-time and persistent notifications for user actions such as:
+    - Share received: When another user shares a deal with you
+    - Share imported: When someone imports a deal you shared
+    - Collection updates: When collection items are added/removed
+    - System notifications: General system alerts
+
+    Notifications are marked as read/unread and can be filtered by type.
+    """
+    __tablename__ = "notification"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    read_at: Mapped[Optional[datetime]] = mapped_column(nullable=True, index=True)
+
+    # Optional link to related share (for share notifications)
+    share_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("user_share.id", ondelete="CASCADE"),
+        nullable=True
+    )
+
+    # Relationships
+    user: Mapped[User] = relationship(lazy="joined")
+    share: Mapped[Optional[UserShare]] = relationship(lazy="joined")
+
+    def is_read(self) -> bool:
+        """Check if notification has been read.
+
+        Returns:
+            True if notification has been read, False otherwise
+        """
+        return self.read_at is not None
+
+    async def mark_as_read(self, session) -> None:
+        """Mark notification as read with current timestamp.
+
+        Args:
+            session: SQLAlchemy async session
+        """
+        if self.read_at is None:
+            self.read_at = datetime.utcnow()
+            session.add(self)
+            await session.flush()
+
+    def __repr__(self) -> str:
+        status = "read" if self.is_read() else "unread"
+        return f"<Notification(id={self.id}, user_id={self.user_id}, type='{self.type}', status={status})>"

@@ -1,0 +1,37 @@
+DEAL BRAIN - New Deal Shared with You
+========================================
+
+{{ sender_name }} shared a deal with you!
+
+{{ sender_name }} thought you might be interested in this deal.
+
+{% if message %}
+Message from {{ sender_name }}:
+"{{ message }}"
+
+{% endif %}
+---
+
+DEAL DETAILS
+{{ listing_name }}
+
+{% if listing_manufacturer %}Manufacturer: {{ listing_manufacturer }}
+{% endif %}{% if listing_cpu %}CPU: {{ listing_cpu }}
+{% endif %}{% if listing_ram %}RAM: {{ listing_ram }}
+{% endif %}{% if listing_storage %}Storage: {{ listing_storage }}
+{% endif %}
+Price: ${{ listing_price }}{% if listing_score %}
+Score: {{ listing_score }}/10{% endif %}
+
+---
+
+VIEW DEAL DETAILS:
+{{ share_url }}
+
+Click the link above to view the full deal breakdown, valuation details, and performance metrics.
+
+---
+
+This email was sent because {{ sender_name }} shared a deal with you on Deal Brain.
+
+Deal Brain - Your AI-powered PC deal assistant

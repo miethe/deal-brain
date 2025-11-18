@@ -26,6 +26,10 @@ export interface CollectionItem {
   position?: number | null;
   added_at: string;
   listing: ListingRecord;
+  // Shared metadata (populated when item was added via share link)
+  share_id?: number | null;
+  shared_by_name?: string | null;
+  shared_at?: string | null;
 }
 
 export interface CollectionWithItems extends Collection {

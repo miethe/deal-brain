@@ -1,6 +1,6 @@
 "use client";
 
-import { Expand, Trash2 } from "lucide-react";
+import { Expand, Trash2, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -73,6 +73,7 @@ export function WorkspaceCards({
         {items.map((item) => {
           const listing = item.listing;
           const statusConfig = STATUS_COLORS[item.status];
+          const isShared = item.share_id && item.shared_by_name;
 
           return (
             <Card key={item.id} className="flex flex-col">
@@ -101,9 +102,22 @@ export function WorkspaceCards({
                     <h3 className="font-semibold text-base line-clamp-2 mb-2">
                       {listing.title}
                     </h3>
-                    <Badge variant={statusConfig.variant} className="text-xs">
-                      {statusConfig.label}
-                    </Badge>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant={statusConfig.variant} className="text-xs">
+                        {statusConfig.label}
+                      </Badge>
+                      {isShared && (
+                        <Badge variant="outline" className="text-xs gap-1">
+                          <Share2 className="h-3 w-3" />
+                          Shared
+                        </Badge>
+                      )}
+                    </div>
+                    {isShared && item.shared_by_name && (
+                      <div className="text-xs text-muted-foreground italic mt-2">
+                        Shared by {item.shared_by_name}
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardHeader>

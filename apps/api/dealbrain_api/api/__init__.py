@@ -19,6 +19,7 @@ from . import (
     ingestion,
     listings,
     metrics,
+    notifications,
     rankings,
     rules,
     settings,
@@ -44,6 +45,7 @@ router.include_router(fields.router)
 router.include_router(custom_fields.router)
 router.include_router(field_data.router)
 router.include_router(metrics.router)
+router.include_router(notifications.router)
 router.include_router(rules.router)
 router.include_router(entities.router)
 router.include_router(settings.router)

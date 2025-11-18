@@ -42,6 +42,7 @@ import { RamSpecSelector } from "../forms/ram-spec-selector";
 import { StorageProfileSelector } from "../forms/storage-profile-selector";
 import { getStorageMediumLabel } from "../../lib/component-catalog";
 import { measureInteraction, measureInteractionAsync, logRenderPerformance } from "../../lib/performance";
+import { ShareButton } from "../share/share-button";
 
 // ListingRow is just an alias for ListingRecord - all fields come from the API
 export type ListingRow = ListingRecord;
@@ -743,6 +744,27 @@ export function ListingsTable() {
         },
         filterFn: numericFilterFn,
         size: 140,
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1">
+            <ShareButton
+              listingId={row.original.id}
+              listingName={row.original.title || "Untitled"}
+              variant="ghost"
+              size="sm"
+            />
+          </div>
+        ),
+        enableSorting: false,
+        enableColumnFilter: false,
+        enableResizing: false,
+        size: 80,
+        meta: {
+          tooltip: "Share this listing",
+        },
       },
     ];
 
