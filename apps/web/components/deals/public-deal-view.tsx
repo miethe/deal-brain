@@ -31,7 +31,8 @@ interface PublicDealViewProps {
 export function PublicDealView({ share, listing }: PublicDealViewProps) {
   const router = useRouter();
   const [breakdownModalOpen, setBreakdownModalOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // TODO: Replace with actual auth check
+  // TODO: Replace with actual auth check when implementing Phase 5
+  const isAuthenticated = false;
 
   const formatCurrency = (value: number | null | undefined) =>
     value == null

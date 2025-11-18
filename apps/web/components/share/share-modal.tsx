@@ -83,7 +83,9 @@ function CopyLinkTab({ listingId }: { listingId: number }) {
     if (!shareListing.data && !shareListing.isPending) {
       shareListing.mutate({ listing_id: listingId });
     }
-  }, [listingId, shareListing]);
+    // Only depend on listingId - shareListing.data and isPending are checked in the condition
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listingId]);
 
   // Auto-focus input when link is generated
   React.useEffect(() => {

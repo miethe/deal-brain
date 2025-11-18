@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -12,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useDebouncedCallback } from "use-debounce";
 import type { CollectionItem } from "@/types/collections";
 
 export interface WorkspaceFilters {
@@ -43,10 +45,23 @@ export function WorkspaceFiltersComponent({
   filters,
   onFiltersChange,
 }: WorkspaceFiltersProps) {
+  // Local state for price range slider (instant UI feedback)
+  const [localPriceRange, setLocalPriceRange] = useState<[number, number]>(filters.priceRange);
+
   // Calculate min/max prices from items
   const prices = items.map((item) => item.listing.price_usd);
   const minPrice = Math.min(...prices, 0);
   const maxPrice = Math.max(...prices, 1000);
+
+  // Debounced filter update for price slider (300ms)
+  const debouncedPriceChange = useDebouncedCallback((value: [number, number]) => {
+    onFiltersChange({ ...filters, priceRange: value });
+  }, 300);
+
+  // Sync local state when filters prop changes from outside
+  useEffect(() => {
+    setLocalPriceRange(filters.priceRange);
+  }, [filters.priceRange]);
 
   // Get unique CPU families
   const cpuFamilies = Array.from(
@@ -59,7 +74,7 @@ export function WorkspaceFiltersComponent({
           const match = cpuName.match(/^(Intel|AMD)\s+(\w+)/i);
           return match ? `${match[1]} ${match[2]}` : null;
         })
-        .filter(Boolean)
+        .filter((x): x is string => x !== null)
     )
   ).sort();
 
@@ -68,18 +83,26 @@ export function WorkspaceFiltersComponent({
     new Set(
       items
         .map((item) => item.listing.form_factor)
-        .filter(Boolean)
+        .filter((x): x is string => x !== null && x !== undefined)
     )
   ).sort();
 
   const handleClearFilters = () => {
+    const resetRange: [number, number] = [minPrice, maxPrice];
+    setLocalPriceRange(resetRange);
     onFiltersChange({
-      priceRange: [minPrice, maxPrice],
+      priceRange: resetRange,
       cpuFamily: [],
       formFactor: [],
       sortBy: "added_date",
       sortOrder: "desc",
     });
+  };
+
+  const handlePriceChange = (value: number[]) => {
+    const newRange = value as [number, number];
+    setLocalPriceRange(newRange);
+    debouncedPriceChange(newRange);
   };
 
   const hasActiveFilters =
@@ -109,16 +132,14 @@ export function WorkspaceFiltersComponent({
         {/* Price Range */}
         <div className="space-y-2">
           <Label className="text-xs">
-            Price: ${filters.priceRange[0]} - ${filters.priceRange[1]}
+            Price: ${localPriceRange[0]} - ${localPriceRange[1]}
           </Label>
           <Slider
             min={minPrice}
             max={maxPrice}
             step={10}
-            value={filters.priceRange}
-            onValueChange={(value) =>
-              onFiltersChange({ ...filters, priceRange: value as [number, number] })
-            }
+            value={localPriceRange}
+            onValueChange={handlePriceChange}
             className="w-full"
           />
         </div>

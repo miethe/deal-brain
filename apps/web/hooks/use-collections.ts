@@ -85,7 +85,6 @@ export function useCreateCollection(options?: UseCreateCollectionOptions) {
     mutationFn: async (data: CreateCollectionPayload) => {
       return apiFetch<Collection>("/v1/collections", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
     },
@@ -141,7 +140,6 @@ export function useUpdateCollectionItem(
         `/v1/collections/${collectionId}/items/${itemId}`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         }
       );

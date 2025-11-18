@@ -69,20 +69,21 @@ export function ItemDetailsPanel({
   }, [item]);
 
   // Debounced auto-save for notes (500ms)
-  const debouncedSaveNotes = useDebouncedCallback((value: string) => {
-    if (!item) return;
-
+  // Pass itemId as parameter to avoid stale closure
+  const debouncedSaveNotes = useDebouncedCallback((itemId: number, value: string) => {
     setIsSaving(true);
     updateItemMutation.mutate({
-      itemId: item.id,
+      itemId,
       data: { notes: value },
     });
   }, 500);
 
   const handleNotesChange = (value: string) => {
+    if (!item) return;
+    
     setNotes(value);
     setIsSaving(true);
-    debouncedSaveNotes(value);
+    debouncedSaveNotes(item.id, value);
   };
 
   const handleStatusChange = (status: CollectionItemStatus) => {
