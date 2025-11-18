@@ -427,7 +427,8 @@ def test_list_user_shares_empty(app, client, recipient_user):
     assert len(data) == 0
 
 
-def test_list_user_shares_pagination(app, client, sender_user, recipient_user, test_listing, db_session):
+@pytest.mark.asyncio
+async def test_list_user_shares_pagination(app, client, sender_user, recipient_user, test_listing, db_session):
     """Test GET /user-shares - Pagination works correctly."""
     from dealbrain_api.api.user_shares import get_current_user
 
@@ -507,7 +508,8 @@ def test_list_user_shares_excludes_expired(app, client, recipient_user, active_u
     assert expired_share.id not in share_ids
 
 
-def test_list_user_shares_ordered_by_date(app, client, sender_user, recipient_user, test_listing, db_session):
+@pytest.mark.asyncio
+async def test_list_user_shares_ordered_by_date(app, client, sender_user, recipient_user, test_listing, db_session):
     """Test GET /user-shares - Shares ordered by shared_at DESC (newest first)."""
     from dealbrain_api.api.user_shares import get_current_user
 
@@ -666,7 +668,8 @@ def test_import_user_share_default_collection(app, client, active_user_share, re
     assert data["listing_id"] == active_user_share.listing_id
 
 
-def test_import_user_share_duplicate(app, client, active_user_share, recipient_user, custom_collection, db_session):
+@pytest.mark.asyncio
+async def test_import_user_share_duplicate(app, client, active_user_share, recipient_user, custom_collection, db_session):
     """Test POST /user-shares/{token}/import - Returns 409 if already in collection."""
     from dealbrain_api.api.user_shares import get_current_user
 
