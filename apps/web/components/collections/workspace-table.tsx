@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   type ColumnDef,
   type SortingState,
@@ -62,18 +62,21 @@ export function WorkspaceTable({
 
   const removeItemMutation = useRemoveCollectionItem({ collectionId });
 
-  const handleRemoveItem = async (itemId: number, listingTitle: string) => {
-    const confirmed = await confirm({
-      title: "Remove item?",
-      description: `Remove "${listingTitle}" from this collection?`,
-      confirmText: "Remove",
-      variant: "destructive",
-    });
+  const handleRemoveItem = useCallback(
+    async (itemId: number, listingTitle: string) => {
+      const confirmed = await confirm({
+        title: "Remove item?",
+        description: `Remove "${listingTitle}" from this collection?`,
+        confirmText: "Remove",
+        variant: "destructive",
+      });
 
-    if (confirmed) {
-      removeItemMutation.mutate(itemId);
-    }
-  };
+      if (confirmed) {
+        removeItemMutation.mutate(itemId);
+      }
+    },
+    [confirm, removeItemMutation]
+  );
 
   const columns = useMemo<ColumnDef<CollectionItem>[]>(
     () => [

@@ -42,7 +42,6 @@ export function useAddToCollection(options: UseAddToCollectionOptions) {
         `/v1/collections/${collectionId}/items`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
         }
       );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -43,15 +43,34 @@ export default function CollectionWorkspacePage() {
     error,
   } = useCollection(collectionId);
 
+  // Calculate initial price range from collection data
+  const initialPriceRange = useMemo((): [number, number] => {
+    if (!collection || collection.items.length === 0) {
+      return [0, 10000];
+    }
+    const prices = collection.items.map((item) => item.listing.price_usd);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    return [minPrice, maxPrice];
+  }, [collection]);
+
   // Filters state
   const initialFilters: WorkspaceFilters = {
-    priceRange: [0, 10000],
+    priceRange: initialPriceRange,
     cpuFamily: [],
     formFactor: [],
     sortBy: "added_date",
     sortOrder: "desc",
   };
   const [filters, setFilters] = useState<WorkspaceFilters>(initialFilters);
+
+  // Update price range when collection data changes
+  useEffect(() => {
+    setFilters((prev) => ({
+      ...prev,
+      priceRange: initialPriceRange,
+    }));
+  }, [initialPriceRange]);
 
   // Apply filters and sorting
   const filteredItems = useMemo(() => {

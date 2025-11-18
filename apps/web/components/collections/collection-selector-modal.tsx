@@ -48,6 +48,9 @@ export function CollectionSelectorModal({
     isLoading: isLoadingCollections,
   } = useCollections({ limit: 5 });
 
+  // Track if we're currently adding to collection to prevent double-adds
+  const [isAdding, setIsAdding] = useState(false);
+
   // Create collection mutation
   const createMutation = useCreateCollection({
     onSuccess: (newCollection) => {
@@ -70,19 +73,20 @@ export function CollectionSelectorModal({
         handleClose();
         onSuccess?.(selectedCollectionId!);
       }, 500);
+      setIsAdding(false);
     },
   });
 
   // When collection is selected (either existing or newly created), add the listing
   useEffect(() => {
-    if (selectedCollectionId && !addMutation.isPending) {
+    if (selectedCollectionId && !isAdding && !addMutation.isPending) {
+      setIsAdding(true);
       addMutation.mutate({
         listing_id: listingId,
         status: "undecided",
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCollectionId, listingId]);
+  }, [selectedCollectionId, listingId, isAdding, addMutation]);
 
   // Reset state when modal closes
   const handleClose = () => {
@@ -155,7 +159,6 @@ export function CollectionSelectorModal({
   }, [viewMode, isOpen]);
 
   const collections = collectionsData?.collections || [];
-  const isAdding = addMutation.isPending;
   const isCreating = createMutation.isPending;
 
   return (
