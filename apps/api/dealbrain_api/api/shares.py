@@ -12,13 +12,12 @@ import logging
 from typing import Any
 
 from dealbrain_core.schemas.sharing import PublicListingShareRead
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import session_dependency
 from ..services.sharing_service import SharingService
-from ..settings import get_settings
 
 router = APIRouter(prefix="/v1/deals", tags=["shares"])
 tracer = trace.get_tracer(__name__)

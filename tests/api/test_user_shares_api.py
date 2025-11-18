@@ -20,7 +20,6 @@ Covers:
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
@@ -38,6 +37,7 @@ try:
 
     AIOSQLITE_AVAILABLE = True
 except ImportError:
+    # aiosqlite is not installed; tests will be skipped if unavailable
     pass
 
 
@@ -441,7 +441,7 @@ def test_list_user_shares_pagination(app, client, sender_user, recipient_user, t
             expires_at=datetime.utcnow() + timedelta(days=30)
         )
         db_session.add(share)
-    db_session.commit()
+    await db_session.commit()
 
     app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
 
@@ -537,7 +537,7 @@ def test_list_user_shares_ordered_by_date(app, client, sender_user, recipient_us
         expires_at=datetime.utcnow() + timedelta(days=30)
     )
     db_session.add_all([share1, share2, share3])
-    db_session.commit()
+    await db_session.commit()
 
     app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
 
@@ -679,7 +679,7 @@ def test_import_user_share_duplicate(app, client, active_user_share, recipient_u
         status="undecided"
     )
     db_session.add(item)
-    db_session.commit()
+    await db_session.commit()
 
     payload = {"collection_id": custom_collection.id}
 

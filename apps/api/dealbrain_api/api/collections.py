@@ -18,7 +18,7 @@ import csv
 import io
 import json
 import logging
-from typing import Annotated, Optional
+from typing import Annotated
 
 from dealbrain_core.schemas.sharing import (
     CollectionCreate,
@@ -30,7 +30,7 @@ from dealbrain_core.schemas.sharing import (
 )
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from opentelemetry import trace
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import session_dependency

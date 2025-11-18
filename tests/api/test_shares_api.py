@@ -33,6 +33,7 @@ try:
 
     AIOSQLITE_AVAILABLE = True
 except ImportError:
+    # aiosqlite is not installed; tests requiring it will be skipped
     pass
 
 
