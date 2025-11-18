@@ -908,3 +908,31 @@ The fix addresses the **selector issue** with test fixture HTML, but **cannot so
 - Amazon marks bot with `"isRobot":true` in embedded JSON state
 
 **Commit**: [Pending - changes made in this session]
+
+---
+
+## 2025-11-18: Collections/Sharing Schema Issues
+
+**Problem**: API failing with `listing_share` table not found and `collection_item.created_at` column missing.
+
+**Root Cause**:
+1. Migration branch divergence - database at 0027, needed 0028 with collections/sharing tables
+2. CollectionItem model inherited TimestampMixin (provides created_at) but migration only created added_at
+3. SavedBuild model used PostgreSQL ARRAY/JSONB types incompatible with SQLite tests
+
+**Solution**:
+1. Created merge migration (6d065f2ece00) to resolve branching
+2. Created fix migration (5dc4b78ba7c1) to add missing created_at column
+3. Implemented database-agnostic TypeDecorators (StringArray, JSONBType) in models/base.py
+4. Fixed test fixtures (Listing field names: name→title, url→listing_url, price→price_usd)
+
+**Files Modified**:
+- `apps/api/alembic/versions/6d065f2ece00_merge_*.py` (merge migration)
+- `apps/api/alembic/versions/5dc4b78ba7c1_fix_collection_item_timestamps.py` (fix migration)
+- `apps/api/dealbrain_api/models/base.py` (added StringArray, JSONBType)
+- `apps/api/dealbrain_api/models/builds.py` (updated to use new types)
+- `tests/services/test_collections_service.py` (fixed fixtures)
+- Removed manual type patches from 3 test files
+
+**Commit**: beba6c7
+
