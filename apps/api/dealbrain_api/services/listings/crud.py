@@ -17,6 +17,23 @@ from ...telemetry import get_logger
 
 logger = get_logger("dealbrain.listings.crud")
 
+# Fields that should trigger card cache invalidation when updated
+CACHE_INVALIDATION_FIELDS: set[str] = {
+    "price_usd",
+    "adjusted_price_usd",
+    "cpu_id",
+    "gpu_id",
+    "ram_gb",
+    "primary_storage_gb",
+    "primary_storage_type",
+    "secondary_storage_gb",
+    "secondary_storage_type",
+    "title",
+    "manufacturer",
+    "series",
+    "score_composite",
+}
+
 # Mutable fields that can be updated via partial_update_listing
 MUTABLE_LISTING_FIELDS: set[str] = {
     "title",
@@ -183,6 +200,10 @@ async def update_listing(session: AsyncSession, listing: Listing, payload: dict)
         updated_fields=list(payload.keys()),
         ruleset_id=listing.ruleset_id,
     )
+
+    # Invalidate card image cache if price or components changed
+    await _invalidate_card_cache_if_needed(session, listing, payload)
+
     return listing
 
 
@@ -239,6 +260,9 @@ async def partial_update_listing(
     )
 
     await session.flush()
+
+    # Invalidate card image cache if price or components changed
+    await _invalidate_card_cache_if_needed(session, listing, fields)
 
     if run_metrics:
         # Only apply metrics if listing has a price
@@ -345,3 +369,51 @@ async def delete_listing(
         "listing.deleted",
         listing_id=listing_id,
     )
+
+
+async def _invalidate_card_cache_if_needed(
+    session: AsyncSession,
+    listing: Listing,
+    updated_fields: dict[str, Any],
+) -> None:
+    """Invalidate card image cache if relevant fields changed.
+
+    Checks if any fields that affect card rendering were updated,
+    and if so, invalidates all cached card images for the listing.
+
+    Args:
+        session: Database session
+        listing: Listing instance
+        updated_fields: Dictionary of updated fields
+    """
+    # Check if any cache-invalidation fields were updated
+    should_invalidate = any(
+        field in CACHE_INVALIDATION_FIELDS
+        for field in updated_fields.keys()
+    )
+
+    if not should_invalidate:
+        return
+
+    # Import here to avoid circular dependency
+    try:
+        from ..image_generation import ImageGenerationService
+
+        # Create service and invalidate cache
+        image_service = ImageGenerationService(session)
+        deleted_count = await image_service.invalidate_cache(listing.id)
+
+        if deleted_count > 0:
+            logger.info(
+                "listing.card_cache_invalidated",
+                listing_id=listing.id,
+                deleted_count=deleted_count,
+                updated_fields=list(updated_fields.keys()),
+            )
+    except Exception as e:
+        # Don't fail the update if cache invalidation fails
+        logger.warning(
+            "listing.card_cache_invalidation_failed",
+            listing_id=listing.id,
+            error=str(e),
+        )

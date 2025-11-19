@@ -256,11 +256,16 @@ class Collection(Base, TimestampMixin):
     via link), or public.
     """
     __tablename__ = "collection"
+    __table_args__ = (
+        # Composite index for user's collections filtered by visibility
+        {"comment": "User collections with visibility-based filtering and discovery"},
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(
         ForeignKey("user.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
+        index=True
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -269,6 +274,11 @@ class Collection(Base, TimestampMixin):
     # Relationships
     user: Mapped[User] = relationship(back_populates="collections", lazy="joined")
     items: Mapped[list[CollectionItem]] = relationship(
+        back_populates="collection",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    share_tokens: Mapped[list["CollectionShareToken"]] = relationship(
         back_populates="collection",
         cascade="all, delete-orphan",
         lazy="selectin"
@@ -328,6 +338,74 @@ class CollectionItem(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<CollectionItem(id={self.id}, collection_id={self.collection_id}, listing_id={self.listing_id}, status='{self.status}')>"
+
+
+class CollectionShareToken(Base, TimestampMixin):
+    """Shareable token for collection access (Phase 2a).
+
+    Allows collections to be shared via unique URLs with view tracking and
+    optional expiry. Supports visibility modes:
+    - unlisted: Shareable via token but not publicly discoverable
+    - public: Both token-shareable and publicly discoverable
+
+    The expires_at field provides soft-delete functionality - expired tokens
+    can be filtered out without hard deletion.
+    """
+    __tablename__ = "collection_share_token"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    collection_id: Mapped[int] = mapped_column(
+        ForeignKey("collection.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    token: Mapped[str] = mapped_column(
+        Text,
+        unique=True,
+        nullable=False,
+        index=True
+    )
+    view_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(nullable=True, index=True)
+
+    # Relationships
+    collection: Mapped[Collection] = relationship(back_populates="share_tokens", lazy="joined")
+
+    @classmethod
+    def generate_token(cls) -> str:
+        """Generate secure 64-character share token.
+
+        Uses secrets.token_urlsafe for cryptographically secure token generation.
+        Tokens are URL-safe and suitable for use in shareable links.
+
+        Returns:
+            64-character URL-safe token
+        """
+        return secrets.token_urlsafe(48)[:64]
+
+    def is_expired(self) -> bool:
+        """Check if share token has expired.
+
+        Returns:
+            True if share has expired, False otherwise
+        """
+        if self.expires_at is None:
+            return False
+        return datetime.utcnow() > self.expires_at
+
+    async def increment_view_count(self, session) -> None:
+        """Increment view count for this share token.
+
+        Args:
+            session: SQLAlchemy async session
+        """
+        self.view_count += 1
+        session.add(self)
+        await session.flush()
+
+    def __repr__(self) -> str:
+        status = "expired" if self.is_expired() else "active"
+        return f"<CollectionShareToken(id={self.id}, collection_id={self.collection_id}, token='{self.token[:8]}...', views={self.view_count}, status={status})>"
 
 
 class Notification(Base, TimestampMixin):

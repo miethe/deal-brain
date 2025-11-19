@@ -1,0 +1,197 @@
+{
+  "deal_brain_export": {
+    "version": "1.0.0",
+    "exported_at": "2025-11-19T10:35:00Z",
+    "exported_by": "550e8400-e29b-41d4-a716-446655440000",
+    "type": "collection"
+  },
+  "data": {
+    "collection": {
+      "id": 15,
+      "name": "Best Budget SFF Builds Under $400",
+      "description": "Curated collection of small form factor PCs offering the best price-to-performance ratio for budget-conscious buyers.",
+      "visibility": "public",
+      "created_at": "2025-11-10T12:00:00Z",
+      "updated_at": "2025-11-18T16:30:00Z"
+    },
+    "items": [
+      {
+        "listing": {
+          "listing": {
+            "id": 42,
+            "title": "Dell OptiPlex 7050 Micro - i7-7700T, 16GB DDR4, 512GB NVMe",
+            "listing_url": "https://example.com/listings/dell-optiplex-7050",
+            "other_urls": [],
+            "seller": "TechDeals Inc",
+            "price_usd": 299.99,
+            "price_date": "2025-11-18T15:00:00Z",
+            "condition": "refurb",
+            "status": "active",
+            "device_model": "OptiPlex 7050 Micro",
+            "notes": "Excellent condition, recently refurbished.",
+            "custom_fields": {
+              "warranty_months": 12
+            },
+            "created_at": "2025-11-15T08:00:00Z",
+            "updated_at": "2025-11-18T15:00:00Z"
+          },
+          "valuation": {
+            "base_price_usd": 299.99,
+            "adjusted_price_usd": 289.99,
+            "valuation_breakdown": {
+              "base_price": 299.99,
+              "adjustments": [
+                {
+                  "rule_name": "RAM Upgrade Bonus",
+                  "adjustment": -10.0
+                }
+              ],
+              "final_price": 289.99
+            },
+            "ruleset_name": "Standard Valuation Rules v2"
+          },
+          "performance": {
+            "cpu": {
+              "name": "Intel Core i7-7700T",
+              "manufacturer": "Intel",
+              "cores": 4,
+              "threads": 8,
+              "tdp_w": 35,
+              "igpu_model": "Intel HD Graphics 630",
+              "cpu_mark_multi": 8542,
+              "cpu_mark_single": 2234,
+              "igpu_mark": 1153,
+              "release_year": 2017
+            },
+            "gpu": null,
+            "ram": {
+              "total_gb": 16,
+              "ddr_generation": "ddr4",
+              "speed_mhz": 2400,
+              "module_count": 2,
+              "capacity_per_module_gb": 8,
+              "notes": null
+            },
+            "storage_primary": {
+              "capacity_gb": 512,
+              "medium": "nvme",
+              "interface": "PCIe 3.0 x4",
+              "form_factor": "M.2 2280",
+              "performance_tier": "Mid-range"
+            },
+            "storage_secondary": null,
+            "metrics": {
+              "dollar_per_cpu_mark_single": 0.134,
+              "dollar_per_cpu_mark_single_adjusted": 0.130,
+              "dollar_per_cpu_mark_multi": 0.035,
+              "dollar_per_cpu_mark_multi_adjusted": 0.034,
+              "score_cpu_multi": 85.0,
+              "score_cpu_single": 88.0,
+              "score_gpu": null,
+              "score_composite": 86.5,
+              "perf_per_watt": 243.9
+            },
+            "ports": null,
+            "components": []
+          },
+          "metadata": {
+            "manufacturer": "Dell",
+            "series": "OptiPlex",
+            "model_number": "7050",
+            "form_factor": "Micro"
+          }
+        },
+        "status": "shortlisted",
+        "notes": "Top pick - best overall value in this price range",
+        "position": 1,
+        "added_at": "2025-11-12T14:20:00Z"
+      },
+      {
+        "listing": {
+          "listing": {
+            "id": 58,
+            "title": "HP EliteDesk 800 G3 Mini - i5-7500T, 8GB DDR4, 256GB SSD",
+            "listing_url": "https://example.com/listings/hp-elitedesk-800-g3",
+            "other_urls": [],
+            "seller": "Office Surplus",
+            "price_usd": 249.99,
+            "price_date": "2025-11-17T10:00:00Z",
+            "condition": "used",
+            "status": "active",
+            "device_model": "EliteDesk 800 G3 Mini",
+            "notes": "Good condition, minor cosmetic wear.",
+            "custom_fields": {
+              "warranty_months": 6
+            },
+            "created_at": "2025-11-16T09:00:00Z",
+            "updated_at": "2025-11-17T10:00:00Z"
+          },
+          "valuation": {
+            "base_price_usd": 249.99,
+            "adjusted_price_usd": 249.99,
+            "valuation_breakdown": {
+              "base_price": 249.99,
+              "adjustments": [],
+              "final_price": 249.99
+            },
+            "ruleset_name": "Standard Valuation Rules v2"
+          },
+          "performance": {
+            "cpu": {
+              "name": "Intel Core i5-7500T",
+              "manufacturer": "Intel",
+              "cores": 4,
+              "threads": 4,
+              "tdp_w": 35,
+              "igpu_model": "Intel HD Graphics 630",
+              "cpu_mark_multi": 6842,
+              "cpu_mark_single": 2089,
+              "igpu_mark": 1153,
+              "release_year": 2017
+            },
+            "gpu": null,
+            "ram": {
+              "total_gb": 8,
+              "ddr_generation": "ddr4",
+              "speed_mhz": 2400,
+              "module_count": 1,
+              "capacity_per_module_gb": 8,
+              "notes": null
+            },
+            "storage_primary": {
+              "capacity_gb": 256,
+              "medium": "sata_ssd",
+              "interface": "SATA III",
+              "form_factor": "2.5-inch",
+              "performance_tier": "Standard"
+            },
+            "storage_secondary": null,
+            "metrics": {
+              "dollar_per_cpu_mark_single": 0.120,
+              "dollar_per_cpu_mark_single_adjusted": 0.120,
+              "dollar_per_cpu_mark_multi": 0.037,
+              "dollar_per_cpu_mark_multi_adjusted": 0.037,
+              "score_cpu_multi": 78.0,
+              "score_cpu_single": 82.0,
+              "score_gpu": null,
+              "score_composite": 80.0,
+              "perf_per_watt": 195.5
+            },
+            "ports": null,
+            "components": []
+          },
+          "metadata": {
+            "manufacturer": "HP",
+            "series": "EliteDesk",
+            "model_number": "800 G3",
+            "form_factor": "Mini"
+          }
+        },
+        "status": "undecided",
+        "notes": "Lower specs but good price. Consider for tight budgets.",
+        "position": 2,
+        "added_at": "2025-11-13T16:45:00Z"
+      }
+    ]
+  }
+}

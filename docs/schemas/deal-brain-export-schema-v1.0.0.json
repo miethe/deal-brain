@@ -1,0 +1,385 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dealbrain.io/schemas/export/v1.0.0",
+  "title": "Deal Brain Export Format v1.0.0",
+  "description": "Portable export format for Deal Brain listings and collections. This schema is LOCKED - v1.0.0 cannot have breaking changes.",
+  "type": "object",
+  "required": ["deal_brain_export"],
+  "properties": {
+    "deal_brain_export": {
+      "type": "object",
+      "required": ["version", "exported_at", "type", "data"],
+      "properties": {
+        "version": {
+          "type": "string",
+          "enum": ["1.0.0"],
+          "description": "Export format version (semver)"
+        },
+        "exported_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when export was created"
+        },
+        "exported_by": {
+          "type": "string",
+          "format": "uuid",
+          "description": "UUID of user who created the export"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["deal", "collection"],
+          "description": "Type of export (single deal or collection)"
+        },
+        "data": {
+          "oneOf": [
+            { "$ref": "#/definitions/DealData" },
+            { "$ref": "#/definitions/CollectionData" }
+          ]
+        }
+      }
+    }
+  },
+  "definitions": {
+    "DealData": {
+      "type": "object",
+      "required": ["listing"],
+      "properties": {
+        "listing": { "$ref": "#/definitions/Listing" },
+        "valuation": { "$ref": "#/definitions/Valuation" },
+        "performance": { "$ref": "#/definitions/Performance" },
+        "metadata": { "$ref": "#/definitions/Metadata" }
+      }
+    },
+    "CollectionData": {
+      "type": "object",
+      "required": ["collection", "items"],
+      "properties": {
+        "collection": { "$ref": "#/definitions/Collection" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CollectionItem" }
+        }
+      }
+    },
+    "Listing": {
+      "type": "object",
+      "required": ["id", "title", "price_usd", "condition", "status"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Original listing ID (reference only, may not be unique in target system)"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "listing_url": {
+          "type": ["string", "null"],
+          "format": "uri"
+        },
+        "other_urls": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ListingLink" },
+          "default": []
+        },
+        "seller": {
+          "type": ["string", "null"],
+          "maxLength": 128
+        },
+        "price_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "price_date": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "condition": {
+          "type": "string",
+          "enum": ["new", "refurb", "used"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "archived", "pending"]
+        },
+        "device_model": {
+          "type": ["string", "null"],
+          "maxLength": 255
+        },
+        "notes": {
+          "type": ["string", "null"]
+        },
+        "custom_fields": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Custom field values (attributes_json)"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "ListingLink": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "label": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "Valuation": {
+      "type": "object",
+      "properties": {
+        "base_price_usd": {
+          "type": "number",
+          "description": "Original listing price"
+        },
+        "adjusted_price_usd": {
+          "type": ["number", "null"],
+          "description": "Price after applying valuation rules"
+        },
+        "valuation_breakdown": {
+          "type": ["object", "null"],
+          "description": "Detailed breakdown of applied valuation rules",
+          "additionalProperties": true
+        },
+        "ruleset_name": {
+          "type": ["string", "null"],
+          "description": "Name of the valuation ruleset used"
+        }
+      }
+    },
+    "Performance": {
+      "type": "object",
+      "properties": {
+        "cpu": { "$ref": "#/definitions/CPU" },
+        "gpu": { "$ref": "#/definitions/GPU" },
+        "ram": { "$ref": "#/definitions/RAM" },
+        "storage_primary": { "$ref": "#/definitions/Storage" },
+        "storage_secondary": { "$ref": "#/definitions/Storage" },
+        "metrics": { "$ref": "#/definitions/PerformanceMetrics" },
+        "ports": { "$ref": "#/definitions/Ports" },
+        "components": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Component" },
+          "default": []
+        }
+      }
+    },
+    "CPU": {
+      "type": ["object", "null"],
+      "properties": {
+        "name": { "type": "string" },
+        "manufacturer": { "type": "string" },
+        "cores": { "type": ["integer", "null"] },
+        "threads": { "type": ["integer", "null"] },
+        "tdp_w": { "type": ["integer", "null"] },
+        "igpu_model": { "type": ["string", "null"] },
+        "cpu_mark_multi": { "type": ["integer", "null"] },
+        "cpu_mark_single": { "type": ["integer", "null"] },
+        "igpu_mark": { "type": ["integer", "null"] },
+        "release_year": { "type": ["integer", "null"] }
+      }
+    },
+    "GPU": {
+      "type": ["object", "null"],
+      "properties": {
+        "name": { "type": "string" },
+        "manufacturer": { "type": "string" },
+        "gpu_mark": { "type": ["integer", "null"] },
+        "metal_score": { "type": ["integer", "null"] }
+      }
+    },
+    "RAM": {
+      "type": ["object", "null"],
+      "properties": {
+        "total_gb": { "type": "integer" },
+        "ddr_generation": {
+          "type": ["string", "null"],
+          "enum": ["ddr3", "ddr4", "ddr5", "lpddr4", "lpddr4x", "lpddr5", "lpddr5x", "hbm2", "hbm3", "unknown", null]
+        },
+        "speed_mhz": { "type": ["integer", "null"] },
+        "module_count": { "type": ["integer", "null"] },
+        "capacity_per_module_gb": { "type": ["integer", "null"] },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+    "Storage": {
+      "type": ["object", "null"],
+      "properties": {
+        "capacity_gb": { "type": "integer" },
+        "medium": {
+          "type": ["string", "null"],
+          "enum": ["nvme", "sata_ssd", "hdd", "hybrid", "emmc", "ufs", "unknown", null]
+        },
+        "interface": { "type": ["string", "null"] },
+        "form_factor": { "type": ["string", "null"] },
+        "performance_tier": { "type": ["string", "null"] }
+      }
+    },
+    "PerformanceMetrics": {
+      "type": "object",
+      "properties": {
+        "dollar_per_cpu_mark_single": {
+          "type": ["number", "null"],
+          "description": "Base price / single-thread mark"
+        },
+        "dollar_per_cpu_mark_single_adjusted": {
+          "type": ["number", "null"],
+          "description": "Adjusted price / single-thread mark"
+        },
+        "dollar_per_cpu_mark_multi": {
+          "type": ["number", "null"],
+          "description": "Base price / multi-thread mark"
+        },
+        "dollar_per_cpu_mark_multi_adjusted": {
+          "type": ["number", "null"],
+          "description": "Adjusted price / multi-thread mark"
+        },
+        "score_cpu_multi": { "type": ["number", "null"] },
+        "score_cpu_single": { "type": ["number", "null"] },
+        "score_gpu": { "type": ["number", "null"] },
+        "score_composite": { "type": ["number", "null"] },
+        "perf_per_watt": { "type": ["number", "null"] }
+      }
+    },
+    "Ports": {
+      "type": ["object", "null"],
+      "properties": {
+        "profile_name": { "type": ["string", "null"] },
+        "ports": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Port" },
+          "default": []
+        }
+      }
+    },
+    "Port": {
+      "type": "object",
+      "required": ["type", "count"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["usb_a", "usb_c", "thunderbolt", "hdmi", "displayport", "rj45_1g", "rj45_2_5g", "rj45_10g", "audio", "sdxc", "pcie_x16", "pcie_x8", "m2_slot", "sata_bay", "other"]
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "spec_notes": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "Component": {
+      "type": "object",
+      "required": ["component_type", "quantity"],
+      "properties": {
+        "component_type": {
+          "type": "string",
+          "enum": ["ram", "ssd", "hdd", "os_license", "wifi", "gpu", "misc"]
+        },
+        "name": {
+          "type": ["string", "null"]
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "metadata": {
+          "type": ["object", "null"],
+          "additionalProperties": true
+        },
+        "adjustment_value_usd": {
+          "type": ["number", "null"]
+        }
+      }
+    },
+    "Metadata": {
+      "type": "object",
+      "properties": {
+        "manufacturer": {
+          "type": ["string", "null"],
+          "maxLength": 64
+        },
+        "series": {
+          "type": ["string", "null"],
+          "maxLength": 128
+        },
+        "model_number": {
+          "type": ["string", "null"],
+          "maxLength": 128
+        },
+        "form_factor": {
+          "type": ["string", "null"],
+          "maxLength": 32
+        }
+      }
+    },
+    "Collection": {
+      "type": "object",
+      "required": ["id", "name", "visibility"],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Original collection ID (reference only)"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "description": {
+          "type": ["string", "null"],
+          "maxLength": 1000
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["private", "unlisted", "public"]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "CollectionItem": {
+      "type": "object",
+      "required": ["listing", "status"],
+      "properties": {
+        "listing": { "$ref": "#/definitions/DealData" },
+        "status": {
+          "type": "string",
+          "enum": ["undecided", "shortlisted", "rejected", "bought"]
+        },
+        "notes": {
+          "type": ["string", "null"],
+          "maxLength": 500
+        },
+        "position": {
+          "type": ["integer", "null"]
+        },
+        "added_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}
