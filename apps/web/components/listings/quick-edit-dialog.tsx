@@ -16,8 +16,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCatalogStore } from "@/stores/catalog-store";
 import { apiFetch } from "@/lib/utils";
-import { ListingRecord } from "@/types/listings";
+import { ListingRecord, RamSpecRecord, StorageProfileRecord } from "@/types/listings";
 import { useToast } from "@/hooks/use-toast";
+import { CpuSelector } from "@/components/forms/cpu-selector";
+import { GpuSelector } from "@/components/forms/gpu-selector";
+import { RamSpecSelector } from "@/components/forms/ram-spec-selector";
+import { StorageProfileSelector } from "@/components/forms/storage-profile-selector";
 
 /**
  * Quick Edit Dialog
@@ -64,6 +68,13 @@ export function QuickEditDialog() {
   const [otherLinks, setOtherLinks] = useState<Array<{ id: string; url: string; label: string }>>([]);
   const [linkError, setLinkError] = useState<string | null>(null);
 
+  // Hardware component states
+  const [cpuId, setCpuId] = useState<number | null>(null);
+  const [gpuId, setGpuId] = useState<number | null>(null);
+  const [ramSpec, setRamSpec] = useState<RamSpecRecord | null>(null);
+  const [primaryStorage, setPrimaryStorage] = useState<StorageProfileRecord | null>(null);
+  const [secondaryStorage, setSecondaryStorage] = useState<StorageProfileRecord | null>(null);
+
   // Fetch listing data
   const { data: listing, isLoading } = useQuery({
     queryKey: ["listings", "single", listingId],
@@ -86,6 +97,13 @@ export function QuickEditDialog() {
       }));
       setOtherLinks(supplemental);
       setLinkError(null);
+
+      // Populate hardware component fields
+      setCpuId(listing.cpu?.id ?? null);
+      setGpuId(listing.gpu?.id ?? null);
+      setRamSpec(listing.ram_spec ?? null);
+      setPrimaryStorage(listing.primary_storage_profile ?? null);
+      setSecondaryStorage(listing.secondary_storage_profile ?? null);
     }
   }, [listing]);
 
@@ -172,6 +190,11 @@ export function QuickEditDialog() {
       status,
       listing_url: primaryLink || null,
       other_urls: uniqueSupplemental,
+      cpu_id: cpuId,
+      gpu_id: gpuId,
+      ram_spec_id: ramSpec?.id ?? null,
+      primary_storage_profile_id: primaryStorage?.id ?? null,
+      secondary_storage_profile_id: secondaryStorage?.id ?? null,
     };
 
     const parsedPrice = parseFloat(price);
@@ -184,7 +207,7 @@ export function QuickEditDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={closeDialog}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Quick Edit Listing</DialogTitle>
           <DialogDescription>
@@ -256,6 +279,51 @@ export function QuickEditDialog() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Hardware Components Section */}
+            <div className="pt-2 border-t">
+              <h4 className="text-sm font-semibold mb-3">Hardware Components</h4>
+
+              {/* CPU */}
+              <div className="space-y-2 mb-3">
+                <Label htmlFor="cpu">CPU</Label>
+                <CpuSelector value={cpuId} onChange={setCpuId} placeholder="Select CPU" />
+              </div>
+
+              {/* GPU */}
+              <div className="space-y-2 mb-3">
+                <Label htmlFor="gpu">GPU</Label>
+                <GpuSelector value={gpuId} onChange={setGpuId} placeholder="Select GPU (optional)" />
+              </div>
+
+              {/* RAM */}
+              <div className="space-y-2 mb-3">
+                <Label htmlFor="ram">RAM</Label>
+                <RamSpecSelector value={ramSpec} onChange={setRamSpec} placeholder="Select RAM spec" />
+              </div>
+
+              {/* Primary Storage */}
+              <div className="space-y-2 mb-3">
+                <Label htmlFor="primary-storage">Primary Storage</Label>
+                <StorageProfileSelector
+                  value={primaryStorage}
+                  onChange={setPrimaryStorage}
+                  placeholder="Select primary storage"
+                  context="primary"
+                />
+              </div>
+
+              {/* Secondary Storage */}
+              <div className="space-y-2">
+                <Label htmlFor="secondary-storage">Secondary Storage</Label>
+                <StorageProfileSelector
+                  value={secondaryStorage}
+                  onChange={setSecondaryStorage}
+                  placeholder="Select secondary storage (optional)"
+                  context="secondary"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

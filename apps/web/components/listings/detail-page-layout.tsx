@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2 } from "lucide-react";
+import { Trash2, Edit } from "lucide-react";
 import { BreadcrumbNav } from "./breadcrumb-nav";
 import { DetailPageHero } from "./detail-page-hero";
 import { DetailPageTabs } from "./detail-page-tabs";
@@ -58,15 +59,23 @@ export function DetailPageLayout({ listing }: DetailPageLayoutProps) {
       <div className="flex items-center justify-between gap-4">
         <BreadcrumbNav listingTitle={listing.title} />
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setDeleteConfirmOpen(true)}
-          disabled={isDeleting}
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Delete
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/listings/${listing.id}/edit`}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDeleteConfirmOpen(true)}
+            disabled={isDeleting}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+        </div>
       </div>
 
       {/* Hero Section */}

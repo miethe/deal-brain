@@ -15,10 +15,11 @@ import { useValuationThresholds } from "../../hooks/use-valuation-thresholds";
 import { useToast } from "../../hooks/use-toast";
 import { ListingRecord } from "../../types/listings";
 import { formatRamSummary, formatStorageSummary } from "./listing-formatters";
-import { ExternalLink, Trash2 } from "lucide-react";
+import { ExternalLink, Trash2, Edit } from "lucide-react";
 import { EntityTooltip } from "./entity-tooltip";
 import { ProductImageDisplay } from "./product-image-display";
 import { ConfirmationDialog } from "../ui/confirmation-dialog";
+import { useCatalogStore } from "../../stores/catalog-store";
 
 interface ListingOverviewModalProps {
   listingId: number | null;
@@ -30,6 +31,7 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const openQuickEditDialog = useCatalogStore((state) => state.openQuickEditDialog);
 
   const { data: listing, isLoading } = useQuery<ListingRecord>({
     queryKey: ['listing', listingId],
@@ -347,6 +349,17 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
             </div>
 
             <div className="flex gap-2 mt-6 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (listingId) {
+                    openQuickEditDialog(listingId);
+                  }
+                }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Quick Edit
+              </Button>
               <Button asChild className="flex-1">
                 <Link href={`/listings?highlight=${listing.id}`}>
                   View Full Listing
