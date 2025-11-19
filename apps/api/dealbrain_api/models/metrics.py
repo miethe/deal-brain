@@ -24,18 +24,17 @@ class RawPayload(Base, TimestampMixin):
     debugging, re-processing, and audit trails. TTL-based cleanup prevents
     unbounded storage growth.
     """
+
     __tablename__ = "raw_payload"
-    __table_args__ = (
-        Index("ix_raw_payload_listing_adapter", "listing_id", "adapter"),
-    )
+    __table_args__ = (Index("ix_raw_payload_listing_adapter", "listing_id", "adapter"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    listing_id: Mapped[int] = mapped_column(ForeignKey("listing.id", ondelete="CASCADE"), nullable=False)
+    listing_id: Mapped[int] = mapped_column(
+        ForeignKey("listing.id", ondelete="CASCADE"), nullable=False
+    )
     adapter: Mapped[str] = mapped_column(String(64), nullable=False)
     source_type: Mapped[str] = mapped_column(
-        String(16),
-        nullable=False,
-        default=SourceDataType.JSON.value
+        String(16), nullable=False, default=SourceDataType.JSON.value
     )
     payload: Mapped[dict[str, Any] | str] = mapped_column(JSON, nullable=False)
     ttl_days: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
@@ -75,10 +74,9 @@ class IngestionMetric(Base, TimestampMixin):
         GROUP BY adapter
         ORDER BY avg_completeness DESC;
     """
+
     __tablename__ = "ingestion_metric"
-    __table_args__ = (
-        Index("ix_ingestion_metric_adapter_measured", "adapter", "measured_at"),
-    )
+    __table_args__ = (Index("ix_ingestion_metric_adapter_measured", "adapter", "measured_at"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     adapter: Mapped[str] = mapped_column(String(64), nullable=False)

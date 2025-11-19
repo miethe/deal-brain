@@ -121,10 +121,11 @@ def create_realistic_ebay_response(item_id: str, variation: int = 0) -> dict[str
         "price": {"value": product["price"], "currency": "USD"},
         "condition": product["condition"],
         "conditionId": "3000" if "refurbished" in product["condition"].lower() else "1000",
-        "seller": {"username": f"tech_seller_{(variation % 20) + 1}", "feedbackScore": 5000 + variation * 50},
-        "image": {
-            "imageUrl": f"https://i.ebayimg.com/images/g/{item_id}/s-l500.jpg"
+        "seller": {
+            "username": f"tech_seller_{(variation % 20) + 1}",
+            "feedbackScore": 5000 + variation * 50,
         },
+        "image": {"imageUrl": f"https://i.ebayimg.com/images/g/{item_id}/s-l500.jpg"},
         "description": (
             f"Professionally refurbished desktop computer with {product['cpu']}, "
             f"{product['ram']}GB RAM, {product['storage']}GB SSD. "
@@ -138,7 +139,10 @@ def create_realistic_ebay_response(item_id: str, variation: int = 0) -> dict[str
             {"name": "Processor", "value": product["cpu"]},
             {"name": "RAM Size", "value": f"{product['ram']}GB"},
             {"name": "SSD Capacity", "value": f"{product['storage']}GB"},
-            {"name": "Operating System", "value": "Windows 11 Pro" if variation % 2 == 0 else "Windows 10 Pro"},
+            {
+                "name": "Operating System",
+                "value": "Windows 11 Pro" if variation % 2 == 0 else "Windows 10 Pro",
+            },
         ],
     }
 
@@ -276,6 +280,7 @@ async def test_single_url_import_e2e_latency(app, db_session, mock_httpx_client,
 
     # Mock settings to provide API key
     from unittest.mock import MagicMock
+
     mock_settings = MagicMock()
     mock_settings.ingestion.ebay.api_key = "test_api_key_123"
     mock_settings.ingestion.ebay.timeout_s = 6
@@ -284,9 +289,9 @@ async def test_single_url_import_e2e_latency(app, db_session, mock_httpx_client,
     mock_settings.ingestion.price_change_threshold_pct = 2.0
 
     # Patch both settings and httpx
-    with patch("dealbrain_api.adapters.ebay.get_settings", return_value=mock_settings), \
-         patch("dealbrain_api.settings.get_settings", return_value=mock_settings), \
-         patch("httpx.AsyncClient", return_value=mock_httpx_client):
+    with patch("dealbrain_api.adapters.ebay.get_settings", return_value=mock_settings), patch(
+        "dealbrain_api.settings.get_settings", return_value=mock_settings
+    ), patch("httpx.AsyncClient", return_value=mock_httpx_client):
         # Measure latency for multiple runs to get p50
         latencies = []
 
@@ -373,6 +378,7 @@ async def test_bulk_import_50_urls_e2e(app, db_session, mock_httpx_client, bulk_
 
     # Mock settings to provide API key
     from unittest.mock import MagicMock
+
     mock_settings = MagicMock()
     mock_settings.ingestion.ebay.api_key = "test_api_key_123"
     mock_settings.ingestion.ebay.timeout_s = 6
@@ -381,9 +387,9 @@ async def test_bulk_import_50_urls_e2e(app, db_session, mock_httpx_client, bulk_
     mock_settings.ingestion.price_change_threshold_pct = 2.0
 
     # Patch both settings and httpx
-    with patch("dealbrain_api.adapters.ebay.get_settings", return_value=mock_settings), \
-         patch("dealbrain_api.settings.get_settings", return_value=mock_settings), \
-         patch("httpx.AsyncClient", return_value=mock_httpx_client):
+    with patch("dealbrain_api.adapters.ebay.get_settings", return_value=mock_settings), patch(
+        "dealbrain_api.settings.get_settings", return_value=mock_settings
+    ), patch("httpx.AsyncClient", return_value=mock_httpx_client):
         start_time = time.perf_counter()
 
         # Step 1: Parse CSV to get URLs
@@ -425,7 +431,9 @@ async def test_bulk_import_50_urls_e2e(app, db_session, mock_httpx_client, bulk_
         print(f"   - Throughput: {len(urls) / completion_time:.2f} URLs/sec")
 
         # Verify completion time < 3 minutes (180 seconds)
-        assert completion_time < 180, f"Completion time {completion_time:.2f}s exceeds 3 min threshold"
+        assert (
+            completion_time < 180
+        ), f"Completion time {completion_time:.2f}s exceeds 3 min threshold"
 
         # Verify 100% success rate
         assert success_count == 50, f"Expected 50 successful imports, got {success_count}"
@@ -441,15 +449,16 @@ async def test_bulk_import_50_urls_e2e(app, db_session, mock_httpx_client, bulk_
         # Unique listings = created_count (dedup prevents duplicates)
         expected_listing_count = created_count
         assert len(listings) == expected_listing_count, (
-            f"Expected {expected_listing_count} unique listings in DB " f"(created={created_count}, updated={updated_count}), got {len(listings)}"
+            f"Expected {expected_listing_count} unique listings in DB "
+            f"(created={created_count}, updated={updated_count}), got {len(listings)}"
         )
 
         # Verify no duplicates by vendor_item_id (all vendor_item_ids should be unique)
         vendor_item_ids = [listing.vendor_item_id for listing in listings]
         unique_vendor_ids = set(vendor_item_ids)
-        assert len(unique_vendor_ids) == len(vendor_item_ids), (
-            f"Found duplicate vendor_item_ids: {len(unique_vendor_ids)} unique out of {len(vendor_item_ids)}"
-        )
+        assert len(unique_vendor_ids) == len(
+            vendor_item_ids
+        ), f"Found duplicate vendor_item_ids: {len(unique_vendor_ids)} unique out of {len(vendor_item_ids)}"
 
         # Verify all listings have expected fields
         for listing in listings:
@@ -462,15 +471,15 @@ async def test_bulk_import_50_urls_e2e(app, db_session, mock_httpx_client, bulk_
 
         # Verify data quality from results (all successful operations should have full quality)
         full_quality_count = sum(1 for r in results if r.success and r.quality == "full")
-        assert full_quality_count == success_count, (
-            f"Expected all {success_count} successful operations to have 'full' quality, got {full_quality_count}"
-        )
+        assert (
+            full_quality_count == success_count
+        ), f"Expected all {success_count} successful operations to have 'full' quality, got {full_quality_count}"
 
         # Verify provenance (all successful operations should have ebay provenance)
         ebay_provenance_count = sum(1 for r in results if r.success and r.provenance == "ebay")
-        assert ebay_provenance_count == success_count, (
-            f"Expected all {success_count} successful operations to have 'ebay' provenance, got {ebay_provenance_count}"
-        )
+        assert (
+            ebay_provenance_count == success_count
+        ), f"Expected all {success_count} successful operations to have 'ebay' provenance, got {ebay_provenance_count}"
 
 
 # ============================================================================
@@ -500,6 +509,7 @@ async def test_single_url_deduplication_e2e(app, db_session, mock_httpx_client):
 
     # Mock settings to provide API key
     from unittest.mock import MagicMock
+
     mock_settings = MagicMock()
     mock_settings.ingestion.ebay.api_key = "test_api_key_123"
     mock_settings.ingestion.ebay.timeout_s = 6
@@ -507,9 +517,9 @@ async def test_single_url_deduplication_e2e(app, db_session, mock_httpx_client):
     mock_settings.ingestion.price_change_threshold_abs = 1.0
     mock_settings.ingestion.price_change_threshold_pct = 2.0
 
-    with patch("dealbrain_api.adapters.ebay.get_settings", return_value=mock_settings), \
-         patch("dealbrain_api.settings.get_settings", return_value=mock_settings), \
-         patch("httpx.AsyncClient", return_value=mock_httpx_client):
+    with patch("dealbrain_api.adapters.ebay.get_settings", return_value=mock_settings), patch(
+        "dealbrain_api.settings.get_settings", return_value=mock_settings
+    ), patch("httpx.AsyncClient", return_value=mock_httpx_client):
         service = IngestionService(db_session)
 
         # First import
@@ -562,6 +572,7 @@ async def test_single_url_data_quality_e2e(app, db_session, mock_httpx_client):
 
     # Mock settings to provide API key
     from unittest.mock import MagicMock
+
     mock_settings = MagicMock()
     mock_settings.ingestion.ebay.api_key = "test_api_key_123"
     mock_settings.ingestion.ebay.timeout_s = 6
@@ -569,9 +580,9 @@ async def test_single_url_data_quality_e2e(app, db_session, mock_httpx_client):
     mock_settings.ingestion.price_change_threshold_abs = 1.0
     mock_settings.ingestion.price_change_threshold_pct = 2.0
 
-    with patch("dealbrain_api.adapters.ebay.get_settings", return_value=mock_settings), \
-         patch("dealbrain_api.settings.get_settings", return_value=mock_settings), \
-         patch("httpx.AsyncClient", return_value=mock_httpx_client):
+    with patch("dealbrain_api.adapters.ebay.get_settings", return_value=mock_settings), patch(
+        "dealbrain_api.settings.get_settings", return_value=mock_settings
+    ), patch("httpx.AsyncClient", return_value=mock_httpx_client):
         service = IngestionService(db_session)
         result = await service.ingest_single_url(test_url)
         await db_session.commit()  # Use commit instead of flush
@@ -586,7 +597,11 @@ async def test_single_url_data_quality_e2e(app, db_session, mock_httpx_client):
 
         # Verify all fields
         assert listing.title is not None
-        assert "Dell OptiPlex" in listing.title or "HP EliteDesk" in listing.title or "Lenovo ThinkCentre" in listing.title
+        assert (
+            "Dell OptiPlex" in listing.title
+            or "HP EliteDesk" in listing.title
+            or "Lenovo ThinkCentre" in listing.title
+        )
         assert isinstance(listing.price_usd, float)
         assert listing.price_usd > 0
         assert listing.condition in ["new", "refurb", "used"]

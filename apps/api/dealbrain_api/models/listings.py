@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
 class Profile(Base, TimestampMixin):
     """Scoring profile with configurable weights for different metrics."""
+
     __tablename__ = "profile"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -36,6 +37,7 @@ class Profile(Base, TimestampMixin):
 
 class Listing(Base, TimestampMixin):
     """PC listing with pricing, components, and performance metrics."""
+
     __tablename__ = "listing"
     __table_args__ = (
         UniqueConstraint("vendor_item_id", "marketplace", name="uq_listing_vendor_id"),
@@ -48,25 +50,25 @@ class Listing(Base, TimestampMixin):
     price_usd: Mapped[float | None] = mapped_column(nullable=True)
     price_date: Mapped[datetime | None]
     condition: Mapped[str] = mapped_column(String(16), nullable=False, default=Condition.USED.value)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default=ListingStatus.ACTIVE.value)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=ListingStatus.ACTIVE.value
+    )
 
     # Partial Import Support (Phase 1)
-    quality: Mapped[str] = mapped_column(String(20), nullable=False, default="full", server_default="full")
+    quality: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="full", server_default="full"
+    )
     extraction_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     missing_fields: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
 
     # URL Ingestion Fields (Phase 1)
     vendor_item_id: Mapped[str | None] = mapped_column(String(128))
     marketplace: Mapped[str] = mapped_column(
-        String(16),
-        nullable=False,
-        default=Marketplace.OTHER.value
+        String(16), nullable=False, default=Marketplace.OTHER.value
     )
     provenance: Mapped[str | None] = mapped_column(String(64))
     last_seen_at: Mapped[datetime] = mapped_column(
-        default=func.now(),
-        onupdate=func.now(),
-        nullable=False
+        default=func.now(), onupdate=func.now(), nullable=False
     )
     dedup_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     cpu_id: Mapped[int | None] = mapped_column(ForeignKey("cpu.id"))
@@ -106,9 +108,13 @@ class Listing(Base, TimestampMixin):
 
     # Performance Metrics (New)
     dollar_per_cpu_mark_single: Mapped[float | None]  # base_price / single-thread mark
-    dollar_per_cpu_mark_single_adjusted: Mapped[float | None]  # (base_price + component_adjustments) / single-thread mark
+    dollar_per_cpu_mark_single_adjusted: Mapped[
+        float | None
+    ]  # (base_price + component_adjustments) / single-thread mark
     dollar_per_cpu_mark_multi: Mapped[float | None]  # base_price / multi-thread mark
-    dollar_per_cpu_mark_multi_adjusted: Mapped[float | None]  # (base_price + component_adjustments) / multi-thread mark
+    dollar_per_cpu_mark_multi_adjusted: Mapped[
+        float | None
+    ]  # (base_price + component_adjustments) / multi-thread mark
 
     # Product Metadata (New)
     manufacturer: Mapped[str | None] = mapped_column(String(64))
@@ -116,15 +122,25 @@ class Listing(Base, TimestampMixin):
     model_number: Mapped[str | None] = mapped_column(String(128))
     form_factor: Mapped[str | None] = mapped_column(String(32))
 
-    ruleset_id: Mapped[int | None] = mapped_column(ForeignKey("valuation_ruleset.id", ondelete="SET NULL"))
+    ruleset_id: Mapped[int | None] = mapped_column(
+        ForeignKey("valuation_ruleset.id", ondelete="SET NULL")
+    )
 
     cpu: Mapped[Cpu | None] = relationship(back_populates="listings", lazy="joined")
     gpu: Mapped[Gpu | None] = relationship(back_populates="listings", lazy="joined")
-    ports_profile: Mapped[PortsProfile | None] = relationship(back_populates="listings", lazy="joined")
+    ports_profile: Mapped[PortsProfile | None] = relationship(
+        back_populates="listings", lazy="joined"
+    )
     active_profile: Mapped[Profile | None] = relationship(back_populates="listings", lazy="joined")
-    components: Mapped[list[ListingComponent]] = relationship(back_populates="listing", cascade="all, delete-orphan", lazy="selectin")
-    score_history: Mapped[list[ListingScoreSnapshot]] = relationship(back_populates="listing", cascade="all, delete-orphan", lazy="selectin")
-    ruleset: Mapped[ValuationRuleset | None] = relationship(back_populates="listings", lazy="joined")
+    components: Mapped[list[ListingComponent]] = relationship(
+        back_populates="listing", cascade="all, delete-orphan", lazy="selectin"
+    )
+    score_history: Mapped[list[ListingScoreSnapshot]] = relationship(
+        back_populates="listing", cascade="all, delete-orphan", lazy="selectin"
+    )
+    ruleset: Mapped[ValuationRuleset | None] = relationship(
+        back_populates="listings", lazy="joined"
+    )
     ram_spec: Mapped[RamSpec | None] = relationship(back_populates="listings", lazy="joined")
     primary_storage_profile: Mapped[StorageProfile | None] = relationship(
         back_populates="listings_primary",
@@ -138,17 +154,10 @@ class Listing(Base, TimestampMixin):
     )
 
     # Collections & Sharing relationships
-    shares: Mapped[list[ListingShare]] = relationship(
-        back_populates="listing",
-        lazy="selectin"
-    )
-    user_shares: Mapped[list[UserShare]] = relationship(
-        back_populates="listing",
-        lazy="selectin"
-    )
+    shares: Mapped[list[ListingShare]] = relationship(back_populates="listing", lazy="selectin")
+    user_shares: Mapped[list[UserShare]] = relationship(back_populates="listing", lazy="selectin")
     collection_items: Mapped[list[CollectionItem]] = relationship(
-        back_populates="listing",
-        lazy="selectin"
+        back_populates="listing", lazy="selectin"
     )
 
     @property
@@ -174,13 +183,13 @@ class Listing(Base, TimestampMixin):
         """Extract thumbnail URL from raw listing JSON or attributes."""
         if self.raw_listing_json:
             # Check common fields from marketplace adapters
-            for key in ['image_url', 'thumbnail_url', 'imageUrl', 'thumbnailUrl', 'img_url']:
+            for key in ["image_url", "thumbnail_url", "imageUrl", "thumbnailUrl", "img_url"]:
                 if key in self.raw_listing_json and self.raw_listing_json[key]:
                     return self.raw_listing_json[key]
 
         # Fallback to attributes_json
         if self.attributes_json:
-            for key in ['image_url', 'thumbnail_url']:
+            for key in ["image_url", "thumbnail_url"]:
                 if key in self.attributes_json and self.attributes_json[key]:
                     return self.attributes_json[key]
 
@@ -189,10 +198,13 @@ class Listing(Base, TimestampMixin):
 
 class ListingComponent(Base, TimestampMixin):
     """Component associated with a listing (e.g., RAM, storage, GPU)."""
+
     __tablename__ = "listing_component"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    listing_id: Mapped[int] = mapped_column(ForeignKey("listing.id", ondelete="CASCADE"), nullable=False)
+    listing_id: Mapped[int] = mapped_column(
+        ForeignKey("listing.id", ondelete="CASCADE"), nullable=False
+    )
     component_type: Mapped[str] = mapped_column(String(32), nullable=False)
     name: Mapped[str | None] = mapped_column(String(255))
     quantity: Mapped[int] = mapped_column(default=1)
@@ -204,10 +216,13 @@ class ListingComponent(Base, TimestampMixin):
 
 class ListingScoreSnapshot(Base, TimestampMixin):
     """Historical snapshot of listing scores for trend analysis."""
+
     __tablename__ = "listing_score_snapshot"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    listing_id: Mapped[int] = mapped_column(ForeignKey("listing.id", ondelete="CASCADE"), nullable=False)
+    listing_id: Mapped[int] = mapped_column(
+        ForeignKey("listing.id", ondelete="CASCADE"), nullable=False
+    )
     profile_id: Mapped[int | None] = mapped_column(ForeignKey("profile.id"))
     score_composite: Mapped[float | None]
     adjusted_price_usd: Mapped[float | None]

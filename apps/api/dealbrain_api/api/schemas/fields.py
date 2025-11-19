@@ -72,7 +72,7 @@ class FieldValuesResponse(BaseModel):
                 {
                     "field_name": "listing.condition",
                     "values": ["New", "Like New", "Good", "Fair"],
-                    "count": 4
+                    "count": 4,
                 }
             ]
         }

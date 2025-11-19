@@ -216,9 +216,7 @@ class TestPackageExport:
 
         output_path = tmp_path / "test-package.dbrs"
 
-        await packaging_service.export_to_file(
-            db_session, ruleset.id, metadata, str(output_path)
-        )
+        await packaging_service.export_to_file(db_session, ruleset.id, metadata, str(output_path))
 
         # Verify file exists
         assert output_path.exists()
@@ -257,9 +255,7 @@ class TestPackageExport:
                     operator=ConditionOperator.GREATER_THAN,
                     value=0,
                 ),
-                actions=[
-                    ActionCreate(action_type=ActionType.FIXED_VALUE, value_usd=10.00)
-                ],
+                actions=[ActionCreate(action_type=ActionType.FIXED_VALUE, value_usd=10.00)],
             ),
         )
 
@@ -414,9 +410,7 @@ class TestPackageImport:
 
         # Export to file
         output_path = tmp_path / "import-test.dbrs"
-        await packaging_service.export_to_file(
-            db_session, ruleset.id, metadata, str(output_path)
-        )
+        await packaging_service.export_to_file(db_session, ruleset.id, metadata, str(output_path))
 
         # Delete original
         await db_session.delete(ruleset)

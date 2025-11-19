@@ -36,7 +36,9 @@ custom_field_service = CustomFieldService()
 async def _get_session_or_404(db: AsyncSession, session_id: UUID) -> ImportSession:
     import_session = await db.get(ImportSession, session_id)
     if import_session is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Import session not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Import session not found"
+        )
     return import_session
 
 
@@ -45,7 +47,9 @@ def _snapshot(import_session: ImportSession) -> ImportSessionSnapshotModel:
     return ImportSessionSnapshotModel.model_validate(import_session)
 
 
-@router.post("/sessions", response_model=ImportSessionSnapshotModel, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/sessions", response_model=ImportSessionSnapshotModel, status_code=status.HTTP_201_CREATED
+)
 async def create_import_session(
     upload: UploadFile = File(...),
     declared_entities: str | None = Form(default=None),
@@ -89,7 +93,9 @@ async def create_import_session(
 
 
 @router.get("/sessions", response_model=ImportSessionListModel)
-async def list_import_sessions(db: AsyncSession = Depends(session_dependency)) -> ImportSessionListModel:
+async def list_import_sessions(
+    db: AsyncSession = Depends(session_dependency),
+) -> ImportSessionListModel:
     result = await db.execute(select(ImportSession).order_by(ImportSession.created_at.desc()))
     sessions = result.scalars().all()
     session_dicts = [

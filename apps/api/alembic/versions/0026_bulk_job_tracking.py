@@ -20,14 +20,15 @@ These fields enable:
 - Recording completion timestamps for status polling
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision: str = '0026'
-down_revision: Union[str, Sequence[str], None] = '0025'
+revision: str = "0026"
+down_revision: Union[str, Sequence[str], None] = "0025"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -46,9 +47,9 @@ def upgrade() -> None:
     # Step 1: Add bulk_job_id column
     # Groups multiple URL imports under a single bulk job (UUID format)
     op.add_column(
-        'import_session',
+        "import_session",
         sa.Column(
-            'bulk_job_id',
+            "bulk_job_id",
             sa.String(length=36),
             nullable=True,
         ),
@@ -57,9 +58,9 @@ def upgrade() -> None:
     # Step 2: Add quality column
     # Tracks data completeness for this import: 'full' or 'partial'
     op.add_column(
-        'import_session',
+        "import_session",
         sa.Column(
-            'quality',
+            "quality",
             sa.String(length=20),
             nullable=True,
         ),
@@ -68,11 +69,11 @@ def upgrade() -> None:
     # Step 3: Add listing_id column
     # Links import session to the created listing (if successful)
     op.add_column(
-        'import_session',
+        "import_session",
         sa.Column(
-            'listing_id',
+            "listing_id",
             sa.Integer(),
-            sa.ForeignKey('listing.id', ondelete='SET NULL'),
+            sa.ForeignKey("listing.id", ondelete="SET NULL"),
             nullable=True,
         ),
     )
@@ -80,9 +81,9 @@ def upgrade() -> None:
     # Step 4: Add completed_at column
     # Tracks when import finished processing (success, partial, or failure)
     op.add_column(
-        'import_session',
+        "import_session",
         sa.Column(
-            'completed_at',
+            "completed_at",
             sa.DateTime(timezone=True),
             nullable=True,
         ),
@@ -90,23 +91,23 @@ def upgrade() -> None:
 
     # Create index on bulk_job_id for efficient bulk job status queries
     op.create_index(
-        'idx_import_session_bulk_job_id',
-        'import_session',
-        ['bulk_job_id'],
+        "idx_import_session_bulk_job_id",
+        "import_session",
+        ["bulk_job_id"],
     )
 
     # Create composite index on bulk_job_id + status for filtering
     op.create_index(
-        'idx_import_session_bulk_job_status',
-        'import_session',
-        ['bulk_job_id', 'status'],
+        "idx_import_session_bulk_job_status",
+        "import_session",
+        ["bulk_job_id", "status"],
     )
 
     # Create index on listing_id for reverse lookups
     op.create_index(
-        'idx_import_session_listing_id',
-        'import_session',
-        ['listing_id'],
+        "idx_import_session_listing_id",
+        "import_session",
+        ["listing_id"],
     )
 
 
@@ -119,12 +120,12 @@ def downgrade() -> None:
     """
 
     # Drop indexes first
-    op.drop_index('idx_import_session_listing_id', table_name='import_session')
-    op.drop_index('idx_import_session_bulk_job_status', table_name='import_session')
-    op.drop_index('idx_import_session_bulk_job_id', table_name='import_session')
+    op.drop_index("idx_import_session_listing_id", table_name="import_session")
+    op.drop_index("idx_import_session_bulk_job_status", table_name="import_session")
+    op.drop_index("idx_import_session_bulk_job_id", table_name="import_session")
 
     # Drop columns
-    op.drop_column('import_session', 'completed_at')
-    op.drop_column('import_session', 'listing_id')
-    op.drop_column('import_session', 'quality')
-    op.drop_column('import_session', 'bulk_job_id')
+    op.drop_column("import_session", "completed_at")
+    op.drop_column("import_session", "listing_id")
+    op.drop_column("import_session", "quality")
+    op.drop_column("import_session", "bulk_job_id")

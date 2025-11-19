@@ -50,10 +50,7 @@ class SharingService:
     # ==================== ListingShare Methods ====================
 
     async def generate_listing_share_token(
-        self,
-        listing_id: int,
-        user_id: Optional[int] = None,
-        ttl_days: int = 180
+        self, listing_id: int, user_id: Optional[int] = None, ttl_days: int = 180
     ) -> ListingShare:
         """Generate shareable link for listing.
 
@@ -81,9 +78,8 @@ class SharingService:
         """
         # 1. Validate listing exists
         from ..models.listings import Listing
-        result = await self.session.execute(
-            select(Listing).where(Listing.id == listing_id)
-        )
+
+        result = await self.session.execute(select(Listing).where(Listing.id == listing_id))
         listing = result.scalar_one_or_none()
 
         if not listing:
@@ -96,9 +92,7 @@ class SharingService:
 
         # 3. Create share via repository
         share = await self.share_repo.create_listing_share(
-            listing_id=listing_id,
-            created_by=user_id,
-            expires_at=expires_at
+            listing_id=listing_id, created_by=user_id, expires_at=expires_at
         )
 
         await self.session.commit()
@@ -110,10 +104,7 @@ class SharingService:
 
         return share
 
-    async def validate_listing_share_token(
-        self,
-        token: str
-    ) -> tuple[Optional[ListingShare], bool]:
+    async def validate_listing_share_token(self, token: str) -> tuple[Optional[ListingShare], bool]:
         """Validate share token and return (share, is_valid).
 
         Checks if the token exists and whether it has expired.
@@ -186,7 +177,7 @@ class SharingService:
         recipient_id: int,
         listing_id: int,
         message: Optional[str] = None,
-        ttl_days: int = 30
+        ttl_days: int = 30,
     ) -> UserShare:
         """Share listing with specific user.
 
@@ -219,25 +210,19 @@ class SharingService:
         from ..models.sharing import User
         from ..models.listings import Listing
 
-        sender_result = await self.session.execute(
-            select(User).where(User.id == sender_id)
-        )
+        sender_result = await self.session.execute(select(User).where(User.id == sender_id))
         sender = sender_result.scalar_one_or_none()
         if not sender:
             raise ValueError(f"Sender user {sender_id} not found")
 
         # 2. Validate recipient exists
-        recipient_result = await self.session.execute(
-            select(User).where(User.id == recipient_id)
-        )
+        recipient_result = await self.session.execute(select(User).where(User.id == recipient_id))
         recipient = recipient_result.scalar_one_or_none()
         if not recipient:
             raise ValueError(f"Recipient user {recipient_id} not found")
 
         # 3. Validate listing exists
-        listing_result = await self.session.execute(
-            select(Listing).where(Listing.id == listing_id)
-        )
+        listing_result = await self.session.execute(select(Listing).where(Listing.id == listing_id))
         listing = listing_result.scalar_one_or_none()
         if not listing:
             raise ValueError(f"Listing {listing_id} not found")
@@ -245,9 +230,7 @@ class SharingService:
         # 4. Check rate limit
         rate_limit_ok = await self.check_share_rate_limit(sender_id)
         if not rate_limit_ok:
-            raise PermissionError(
-                f"User {sender_id} has exceeded share rate limit (10/hour)"
-            )
+            raise PermissionError(f"User {sender_id} has exceeded share rate limit (10/hour)")
 
         # 5. Create share via repository (repository calculates expiry)
         share = await self.share_repo.create_user_share(
@@ -255,7 +238,7 @@ class SharingService:
             recipient_id=recipient_id,
             listing_id=listing_id,
             message=message,
-            expires_in_days=ttl_days
+            expires_in_days=ttl_days,
         )
 
         await self.session.commit()
@@ -276,7 +259,7 @@ class SharingService:
         include_expired: bool = False,
         include_imported: bool = False,
         limit: int = 50,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[UserShare]:
         """Get shares received by user.
 
@@ -308,7 +291,7 @@ class SharingService:
             include_expired=include_expired,
             include_imported=include_imported,
             limit=limit,
-            offset=offset
+            offset=offset,
         )
 
         return shares
@@ -342,9 +325,7 @@ class SharingService:
 
         # 2. Verify user is recipient
         if share.recipient_id != user_id:
-            raise PermissionError(
-                f"User {user_id} is not the recipient of share {share_id}"
-            )
+            raise PermissionError(f"User {user_id} is not the recipient of share {share_id}")
 
         # 3. Mark viewed via repository
         await self.share_repo.mark_share_viewed(share_id)
@@ -355,10 +336,7 @@ class SharingService:
         return True
 
     async def import_share_to_collection(
-        self,
-        share_token: str,
-        user_id: int,
-        collection_id: Optional[int] = None
+        self, share_token: str, user_id: int, collection_id: Optional[int] = None
     ) -> CollectionItem:
         """Import shared deal to collection.
 
@@ -395,9 +373,7 @@ class SharingService:
 
         # 2. Verify user is recipient
         if share.recipient_id != user_id:
-            raise PermissionError(
-                f"User {user_id} is not the recipient of this share"
-            )
+            raise PermissionError(f"User {user_id} is not the recipient of this share")
 
         # 3. Get or create collection
         if collection_id is None:
@@ -406,31 +382,25 @@ class SharingService:
         else:
             # Verify ownership
             collection = await self.collection_repo.get_collection_by_id(
-                collection_id,
-                load_items=False
+                collection_id, load_items=False
             )
             if not collection or collection.user_id != user_id:
-                raise PermissionError(
-                    f"User {user_id} does not own collection {collection_id}"
-                )
+                raise PermissionError(f"User {user_id} does not own collection {collection_id}")
 
         # 4. Check for duplicate
         exists = await self.collection_repo.check_item_exists(
-            collection_id=collection_id,
-            listing_id=share.listing_id
+            collection_id=collection_id, listing_id=share.listing_id
         )
 
         if exists:
-            raise ValueError(
-                f"Listing {share.listing_id} already in collection {collection_id}"
-            )
+            raise ValueError(f"Listing {share.listing_id} already in collection {collection_id}")
 
         # 5. Add item to collection
         item = await self.collection_repo.add_item(
             collection_id=collection_id,
             listing_id=share.listing_id,
             status="undecided",
-            notes=f"Shared by user {share.sender_id}: {share.message or '(no message)'}"
+            notes=f"Shared by user {share.sender_id}: {share.message or '(no message)'}",
         )
 
         # 6. Mark share as imported
@@ -462,10 +432,9 @@ class SharingService:
         """
         # Query for default collection
         result = await self.session.execute(
-            select(Collection).where(
-                Collection.user_id == user_id,
-                Collection.name.in_(["My Deals", "Default"])
-            ).limit(1)
+            select(Collection)
+            .where(Collection.user_id == user_id, Collection.name.in_(["My Deals", "Default"]))
+            .limit(1)
         )
         collection = result.scalar_one_or_none()
 
@@ -477,7 +446,7 @@ class SharingService:
             user_id=user_id,
             name="My Deals",
             description="Default collection for saved deals",
-            visibility="private"
+            visibility="private",
         )
 
         await self.session.commit()
@@ -514,8 +483,7 @@ class SharingService:
         # Query shares created in last hour
         result = await self.session.execute(
             select(func.count(UserShare.id)).where(
-                UserShare.sender_id == user_id,
-                UserShare.created_at >= one_hour_ago
+                UserShare.sender_id == user_id, UserShare.created_at >= one_hour_ago
             )
         )
         count = result.scalar_one()

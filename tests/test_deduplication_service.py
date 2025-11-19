@@ -1002,9 +1002,7 @@ class TestDedupAdvancedEdgeCases:
         assert result.exists is True
         assert result.existing_listing is not None
 
-    async def test_vendor_id_and_hash_match_different_listings(
-        self, db_session: AsyncSession
-    ):
+    async def test_vendor_id_and_hash_match_different_listings(self, db_session: AsyncSession):
         """Test when vendor_id matches one listing but hash matches another."""
         service = DeduplicationService(db_session)
 

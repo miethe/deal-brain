@@ -68,11 +68,7 @@ async def repository(session: AsyncSession):
 @pytest_asyncio.fixture
 async def sample_user(session: AsyncSession):
     """Create sample user for testing."""
-    user = User(
-        username="testuser",
-        email="test@example.com",
-        display_name="Test User"
-    )
+    user = User(username="testuser", email="test@example.com", display_name="Test User")
     session.add(user)
     await session.flush()
     return user
@@ -81,11 +77,7 @@ async def sample_user(session: AsyncSession):
 @pytest_asyncio.fixture
 async def sample_listing(session: AsyncSession):
     """Create sample listing for testing."""
-    listing = Listing(
-        name="Test PC Build",
-        base_price=1000.0,
-        adjusted_price=950.0
-    )
+    listing = Listing(name="Test PC Build", base_price=1000.0, adjusted_price=950.0)
     session.add(listing)
     await session.flush()
     return listing
@@ -96,15 +88,10 @@ class TestCreateListingShare:
     """Test ShareRepository.create_listing_share() method."""
 
     async def test_create_minimal_listing_share(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test creating listing share with minimal fields."""
-        share = await repository.create_listing_share(
-            listing_id=sample_listing.id
-        )
+        share = await repository.create_listing_share(listing_id=sample_listing.id)
         await session.commit()
 
         assert share.id is not None
@@ -120,29 +107,24 @@ class TestCreateListingShare:
         repository: ShareRepository,
         session: AsyncSession,
         sample_listing: Listing,
-        sample_user: User
+        sample_user: User,
     ):
         """Test creating listing share with creator."""
         share = await repository.create_listing_share(
-            listing_id=sample_listing.id,
-            created_by=sample_user.id
+            listing_id=sample_listing.id, created_by=sample_user.id
         )
         await session.commit()
 
         assert share.created_by == sample_user.id
 
     async def test_create_listing_share_with_expiry(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test creating listing share with expiry."""
         expires_at = datetime.utcnow() + timedelta(days=7)
 
         share = await repository.create_listing_share(
-            listing_id=sample_listing.id,
-            expires_at=expires_at
+            listing_id=sample_listing.id, expires_at=expires_at
         )
         await session.commit()
 
@@ -151,10 +133,7 @@ class TestCreateListingShare:
         assert abs((share.expires_at - expires_at).total_seconds()) < 1
 
     async def test_token_generation_uniqueness(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test that share tokens are unique."""
         share1 = await repository.create_listing_share(sample_listing.id)
@@ -169,10 +148,7 @@ class TestGetListingShareByToken:
     """Test ShareRepository.get_listing_share_by_token() method."""
 
     async def test_get_existing_listing_share(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test retrieving existing listing share by token."""
         share = await repository.create_listing_share(sample_listing.id)
@@ -187,27 +163,18 @@ class TestGetListingShareByToken:
         assert retrieved.listing is not None
         assert retrieved.listing.id == sample_listing.id
 
-    async def test_get_listing_share_invalid_token(
-        self,
-        repository: ShareRepository
-    ):
+    async def test_get_listing_share_invalid_token(self, repository: ShareRepository):
         """Test getting listing share with invalid token."""
         retrieved = await repository.get_listing_share_by_token("invalid_token_xyz")
         assert retrieved is None
 
     async def test_get_listing_share_includes_expired(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test that get_listing_share_by_token includes expired shares."""
         # Create expired share
         expires_at = datetime.utcnow() - timedelta(days=1)
-        share = await repository.create_listing_share(
-            sample_listing.id,
-            expires_at=expires_at
-        )
+        share = await repository.create_listing_share(sample_listing.id, expires_at=expires_at)
         await session.commit()
 
         # Should still be retrievable
@@ -221,17 +188,11 @@ class TestGetActiveListingShareByToken:
     """Test ShareRepository.get_active_listing_share_by_token() method."""
 
     async def test_get_active_listing_share(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test getting active (non-expired) listing share."""
         expires_at = datetime.utcnow() + timedelta(days=7)
-        share = await repository.create_listing_share(
-            sample_listing.id,
-            expires_at=expires_at
-        )
+        share = await repository.create_listing_share(sample_listing.id, expires_at=expires_at)
         await session.commit()
 
         retrieved = await repository.get_active_listing_share_by_token(share.share_token)
@@ -240,16 +201,10 @@ class TestGetActiveListingShareByToken:
         assert retrieved.id == share.id
 
     async def test_get_active_listing_share_never_expires(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test getting listing share that never expires."""
-        share = await repository.create_listing_share(
-            sample_listing.id,
-            expires_at=None
-        )
+        share = await repository.create_listing_share(sample_listing.id, expires_at=None)
         await session.commit()
 
         retrieved = await repository.get_active_listing_share_by_token(share.share_token)
@@ -258,18 +213,12 @@ class TestGetActiveListingShareByToken:
         assert retrieved.expires_at is None
 
     async def test_get_active_listing_share_expired_returns_none(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test that expired shares are not returned as active."""
         # Create expired share
         expires_at = datetime.utcnow() - timedelta(days=1)
-        share = await repository.create_listing_share(
-            sample_listing.id,
-            expires_at=expires_at
-        )
+        share = await repository.create_listing_share(sample_listing.id, expires_at=expires_at)
         await session.commit()
 
         retrieved = await repository.get_active_listing_share_by_token(share.share_token)
@@ -281,10 +230,7 @@ class TestIncrementViewCount:
     """Test ShareRepository.increment_view_count() method."""
 
     async def test_increment_view_count(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test incrementing view count."""
         share = await repository.create_listing_share(sample_listing.id)
@@ -301,10 +247,7 @@ class TestIncrementViewCount:
         assert share.view_count == 1
 
     async def test_increment_view_count_multiple_times(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test incrementing view count multiple times."""
         share = await repository.create_listing_share(sample_listing.id)
@@ -326,27 +269,18 @@ class TestFindExpiredListingShares:
     """Test ShareRepository.find_expired_listing_shares() method."""
 
     async def test_find_expired_listing_shares(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test finding expired listing shares."""
         # Create expired shares
         for i in range(3):
             expires_at = datetime.utcnow() - timedelta(days=i + 1)
-            await repository.create_listing_share(
-                sample_listing.id,
-                expires_at=expires_at
-            )
+            await repository.create_listing_share(sample_listing.id, expires_at=expires_at)
 
         # Create active shares
         for i in range(2):
             expires_at = datetime.utcnow() + timedelta(days=i + 1)
-            await repository.create_listing_share(
-                sample_listing.id,
-                expires_at=expires_at
-            )
+            await repository.create_listing_share(sample_listing.id, expires_at=expires_at)
 
         await session.commit()
 
@@ -356,19 +290,13 @@ class TestFindExpiredListingShares:
         assert len(expired) == 3
 
     async def test_find_expired_listing_shares_with_limit(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test finding expired shares with limit."""
         # Create 5 expired shares
         for i in range(5):
             expires_at = datetime.utcnow() - timedelta(days=i + 1)
-            await repository.create_listing_share(
-                sample_listing.id,
-                expires_at=expires_at
-            )
+            await repository.create_listing_share(sample_listing.id, expires_at=expires_at)
 
         await session.commit()
 
@@ -383,10 +311,7 @@ class TestCreateUserShare:
     """Test ShareRepository.create_user_share() method."""
 
     async def test_create_user_share(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test creating user-to-user share."""
         sender = User(username="sender", email="sender@example.com")
@@ -395,9 +320,7 @@ class TestCreateUserShare:
         await session.flush()
 
         share = await repository.create_user_share(
-            sender_id=sender.id,
-            recipient_id=recipient.id,
-            listing_id=sample_listing.id
+            sender_id=sender.id, recipient_id=recipient.id, listing_id=sample_listing.id
         )
         await session.commit()
 
@@ -414,10 +337,7 @@ class TestCreateUserShare:
         assert abs((share.expires_at - expected_expiry).total_seconds()) < 2
 
     async def test_create_user_share_with_message(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test creating user share with message."""
         sender = User(username="sender", email="sender@example.com")
@@ -430,17 +350,14 @@ class TestCreateUserShare:
             sender_id=sender.id,
             recipient_id=recipient.id,
             listing_id=sample_listing.id,
-            message=message
+            message=message,
         )
         await session.commit()
 
         assert share.message == message
 
     async def test_create_user_share_custom_expiry(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test creating user share with custom expiry."""
         sender = User(username="sender", email="sender@example.com")
@@ -452,7 +369,7 @@ class TestCreateUserShare:
             sender_id=sender.id,
             recipient_id=recipient.id,
             listing_id=sample_listing.id,
-            expires_in_days=7
+            expires_in_days=7,
         )
         await session.commit()
 
@@ -465,10 +382,7 @@ class TestGetUserShareByToken:
     """Test ShareRepository.get_user_share_by_token() method."""
 
     async def test_get_user_share_by_token(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test getting user share by token with eager loading."""
         sender = User(username="sender", email="sender@example.com")
@@ -477,9 +391,7 @@ class TestGetUserShareByToken:
         await session.flush()
 
         share = await repository.create_user_share(
-            sender_id=sender.id,
-            recipient_id=recipient.id,
-            listing_id=sample_listing.id
+            sender_id=sender.id, recipient_id=recipient.id, listing_id=sample_listing.id
         )
         await session.commit()
 
@@ -500,10 +412,7 @@ class TestGetUserReceivedShares:
     """Test ShareRepository.get_user_received_shares() method."""
 
     async def test_get_user_received_shares(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test getting shares received by user."""
         sender = User(username="sender", email="sender@example.com")
@@ -514,9 +423,7 @@ class TestGetUserReceivedShares:
         # Create shares
         for i in range(3):
             await repository.create_user_share(
-                sender_id=sender.id,
-                recipient_id=recipient.id,
-                listing_id=sample_listing.id
+                sender_id=sender.id, recipient_id=recipient.id, listing_id=sample_listing.id
             )
 
         await session.commit()
@@ -527,10 +434,7 @@ class TestGetUserReceivedShares:
         assert len(received) == 3
 
     async def test_get_user_received_shares_excludes_expired(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test that expired shares are excluded by default."""
         sender = User(username="sender", email="sender@example.com")
@@ -543,7 +447,7 @@ class TestGetUserReceivedShares:
             sender_id=sender.id,
             recipient_id=recipient.id,
             listing_id=sample_listing.id,
-            expires_in_days=7
+            expires_in_days=7,
         )
 
         # Create expired share (need to manually set)
@@ -552,7 +456,7 @@ class TestGetUserReceivedShares:
             recipient_id=recipient.id,
             listing_id=sample_listing.id,
             share_token=UserShare.generate_token(),
-            expires_at=datetime.utcnow() - timedelta(days=1)
+            expires_at=datetime.utcnow() - timedelta(days=1),
         )
         session.add(expired_share)
         await session.commit()
@@ -563,10 +467,7 @@ class TestGetUserReceivedShares:
         assert len(received) == 1
 
     async def test_get_user_received_shares_with_pagination(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test pagination for received shares."""
         sender = User(username="sender", email="sender@example.com")
@@ -577,9 +478,7 @@ class TestGetUserReceivedShares:
         # Create 10 shares
         for i in range(10):
             await repository.create_user_share(
-                sender_id=sender.id,
-                recipient_id=recipient.id,
-                listing_id=sample_listing.id
+                sender_id=sender.id, recipient_id=recipient.id, listing_id=sample_listing.id
             )
 
         await session.commit()
@@ -598,10 +497,7 @@ class TestGetUserSentShares:
     """Test ShareRepository.get_user_sent_shares() method."""
 
     async def test_get_user_sent_shares(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test getting shares sent by user."""
         sender = User(username="sender", email="sender@example.com")
@@ -612,9 +508,7 @@ class TestGetUserSentShares:
         # Create shares
         for i in range(3):
             await repository.create_user_share(
-                sender_id=sender.id,
-                recipient_id=recipient.id,
-                listing_id=sample_listing.id
+                sender_id=sender.id, recipient_id=recipient.id, listing_id=sample_listing.id
             )
 
         await session.commit()
@@ -630,10 +524,7 @@ class TestMarkShareViewed:
     """Test ShareRepository.mark_share_viewed() method."""
 
     async def test_mark_share_viewed(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test marking share as viewed."""
         sender = User(username="sender", email="sender@example.com")
@@ -642,9 +533,7 @@ class TestMarkShareViewed:
         await session.flush()
 
         share = await repository.create_user_share(
-            sender_id=sender.id,
-            recipient_id=recipient.id,
-            listing_id=sample_listing.id
+            sender_id=sender.id, recipient_id=recipient.id, listing_id=sample_listing.id
         )
         await session.commit()
 
@@ -664,10 +553,7 @@ class TestMarkShareImported:
     """Test ShareRepository.mark_share_imported() method."""
 
     async def test_mark_share_imported(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test marking share as imported."""
         sender = User(username="sender", email="sender@example.com")
@@ -676,9 +562,7 @@ class TestMarkShareImported:
         await session.flush()
 
         share = await repository.create_user_share(
-            sender_id=sender.id,
-            recipient_id=recipient.id,
-            listing_id=sample_listing.id
+            sender_id=sender.id, recipient_id=recipient.id, listing_id=sample_listing.id
         )
         await session.commit()
 
@@ -698,10 +582,7 @@ class TestFindExpiredUserShares:
     """Test ShareRepository.find_expired_user_shares() method."""
 
     async def test_find_expired_user_shares(
-        self,
-        repository: ShareRepository,
-        session: AsyncSession,
-        sample_listing: Listing
+        self, repository: ShareRepository, session: AsyncSession, sample_listing: Listing
     ):
         """Test finding expired user shares."""
         sender = User(username="sender", email="sender@example.com")
@@ -716,7 +597,7 @@ class TestFindExpiredUserShares:
                 recipient_id=recipient.id,
                 listing_id=sample_listing.id,
                 share_token=UserShare.generate_token(),
-                expires_at=datetime.utcnow() - timedelta(days=i + 1)
+                expires_at=datetime.utcnow() - timedelta(days=i + 1),
             )
             session.add(expired_share)
 
@@ -725,7 +606,7 @@ class TestFindExpiredUserShares:
             sender_id=sender.id,
             recipient_id=recipient.id,
             listing_id=sample_listing.id,
-            expires_in_days=7
+            expires_in_days=7,
         )
 
         await session.commit()

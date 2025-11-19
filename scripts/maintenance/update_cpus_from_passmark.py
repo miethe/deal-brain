@@ -28,16 +28,18 @@ from pathlib import Path
 from typing import Dict, Any, List, Tuple, Optional
 from difflib import get_close_matches, SequenceMatcher
 
+
 def slugify(name: str) -> str:
     s = name.lower()
-    s = re.sub(r'\(.*?\)', '', s)  # drop bracketed
-    s = s.replace('cpu @', '').replace('@', '')
-    s = re.sub(r'\s+', ' ', s)
+    s = re.sub(r"\(.*?\)", "", s)  # drop bracketed
+    s = s.replace("cpu @", "").replace("@", "")
+    s = re.sub(r"\s+", " ", s)
     s = s.strip()
     # normalize common vendor prefixes
-    s = s.replace('intel(r) ', 'intel ').replace('amd ryzen(tm) ', 'amd ryzen ')
-    s = s.replace(' with radeon graphics', '')
+    s = s.replace("intel(r) ", "intel ").replace("amd ryzen(tm) ", "amd ryzen ")
+    s = s.replace(" with radeon graphics", "")
     return s
+
 
 def load_passmark_csv(path: Path) -> Dict[str, Dict[str, Any]]:
     """
@@ -48,10 +50,10 @@ def load_passmark_csv(path: Path) -> Dict[str, Dict[str, Any]]:
       CPU name, CPU Mark, Single Thread, ... (we'll try to infer)
     Returns dict keyed by normalized name slug.
     """
-    text = path.read_text(errors='ignore', encoding='utf-8')
+    text = path.read_text(errors="ignore", encoding="utf-8")
     # Attempt to sniff dialect safely
     try:
-        dialect = csv.Sniffer().sniff(text.splitlines()[0] + '\n' + text.splitlines()[1])
+        dialect = csv.Sniffer().sniff(text.splitlines()[0] + "\n" + text.splitlines()[1])
     except Exception:
         dialect = csv.excel
 
@@ -62,28 +64,31 @@ def load_passmark_csv(path: Path) -> Dict[str, Dict[str, Any]]:
     # Map a few possible header aliases
     def get(row, *names):
         for n in names:
-            if n in row and row[n] not in (None, ''):
+            if n in row and row[n] not in (None, ""):
                 return row[n]
         return None
 
     for r in rows:
-        name = get(r, 'CPU Name', 'CPU name', 'cpu name', 'Name')
+        name = get(r, "CPU Name", "CPU name", "cpu name", "Name")
         if not name:
             # skip unknown lines
             continue
-        rating = get(r, 'Rating', 'CPU Mark', 'CPUMark', 'CPUmark', 'CPUMARK')
-        single = get(r, 'Single Thread', 'SingleThread', 'Single Thread Rating', 'SingleThreadRating')
-        samples = get(r, 'Samples', 'Sample Count', 'Num Samples')
-        rank = get(r, 'Rank', 'Ranking')
-        tdp = get(r, 'maxTDP', 'TDP', 'Max TDP')
-        url = get(r, 'URL', 'Link')
+        rating = get(r, "Rating", "CPU Mark", "CPUMark", "CPUmark", "CPUMARK")
+        single = get(
+            r, "Single Thread", "SingleThread", "Single Thread Rating", "SingleThreadRating"
+        )
+        samples = get(r, "Samples", "Sample Count", "Num Samples")
+        rank = get(r, "Rank", "Ranking")
+        tdp = get(r, "maxTDP", "TDP", "Max TDP")
+        url = get(r, "URL", "Link")
 
         # Coerce numerics
         def to_int(v):
             try:
-                return int(float(str(v).replace(',', '').strip()))
+                return int(float(str(v).replace(",", "").strip()))
             except Exception:
                 return None
+
         rating_i = to_int(rating)
         single_i = to_int(single)
         samples_i = to_int(samples)
@@ -91,16 +96,17 @@ def load_passmark_csv(path: Path) -> Dict[str, Dict[str, Any]]:
         tdp_i = to_int(tdp)
 
         entry = {
-            'cpu_name_raw': name.strip(),
-            'cpu_mark_multi': rating_i,
-            'cpu_mark_single': single_i,
-            'samples': samples_i,
-            'rank': rank_i,
-            'max_tdp_w': tdp_i,
-            'source_url': url.strip() if isinstance(url, str) else None,
+            "cpu_name_raw": name.strip(),
+            "cpu_mark_multi": rating_i,
+            "cpu_mark_single": single_i,
+            "samples": samples_i,
+            "rank": rank_i,
+            "max_tdp_w": tdp_i,
+            "source_url": url.strip() if isinstance(url, str) else None,
         }
         norm[slugify(name)] = entry
     return norm
+
 
 def best_match(name: str, candidates: Dict[str, Dict[str, Any]]) -> Tuple[Optional[str], float]:
     """Return best matching key and score [0..1] for a given CPU name."""
@@ -116,13 +122,18 @@ def best_match(name: str, candidates: Dict[str, Dict[str, Any]]) -> Tuple[Option
         return k, score
     return None, 0.0
 
-def update_cpu_json(cpu_json_path: Path, passmark_map: Dict[str, Dict[str, Any]],
-                    out_path: Path, min_match: float = 0.72) -> Tuple[List[Dict[str, Any]], List[Tuple[str, str, float]]]:
+
+def update_cpu_json(
+    cpu_json_path: Path,
+    passmark_map: Dict[str, Dict[str, Any]],
+    out_path: Path,
+    min_match: float = 0.72,
+) -> Tuple[List[Dict[str, Any]], List[Tuple[str, str, float]]]:
     data = json.loads(cpu_json_path.read_text())
     updated = []
     misses = []
     for cpu in data:
-        name = cpu.get('name') or cpu.get('cpu_name') or ''
+        name = cpu.get("name") or cpu.get("cpu_name") or ""
         if not name:
             updated.append(cpu)
             continue
@@ -130,45 +141,55 @@ def update_cpu_json(cpu_json_path: Path, passmark_map: Dict[str, Dict[str, Any]]
         if key and score >= min_match:
             p = passmark_map[key]
             # Only overwrite if values are present
-            if p.get('cpu_mark_multi') is not None:
-                cpu['cpu_mark_multi'] = p['cpu_mark_multi']
-            if p.get('cpu_mark_single') is not None:
-                cpu['cpu_mark_single'] = p['cpu_mark_single']
+            if p.get("cpu_mark_multi") is not None:
+                cpu["cpu_mark_multi"] = p["cpu_mark_multi"]
+            if p.get("cpu_mark_single") is not None:
+                cpu["cpu_mark_single"] = p["cpu_mark_single"]
             # Populate tdp if missing and available
-            if (cpu.get('tdp_w') in (None, 0) or 'tdp_w' not in cpu) and p.get('max_tdp_w') is not None:
-                cpu['tdp_w'] = p['max_tdp_w']
+            if (cpu.get("tdp_w") in (None, 0) or "tdp_w" not in cpu) and p.get(
+                "max_tdp_w"
+            ) is not None:
+                cpu["tdp_w"] = p["max_tdp_w"]
             # Add attributes container if missing
-            cpu.setdefault('attributes', {})
-            if p.get('samples') is not None:
-                cpu['attributes']['passmark_samples'] = p['samples']
-            if p.get('rank') is not None:
-                cpu['attributes']['passmark_rank'] = p['rank']
-            if p.get('source_url'):
-                cpu['attributes']['passmark_url'] = p['source_url']
+            cpu.setdefault("attributes", {})
+            if p.get("samples") is not None:
+                cpu["attributes"]["passmark_samples"] = p["samples"]
+            if p.get("rank") is not None:
+                cpu["attributes"]["passmark_rank"] = p["rank"]
+            if p.get("source_url"):
+                cpu["attributes"]["passmark_url"] = p["source_url"]
         else:
-            misses.append((name, key or '', score))
+            misses.append((name, key or "", score))
         updated.append(cpu)
     out_path.write_text(json.dumps(updated, indent=2))
     return updated, misses
 
-def build_top_subset(passmark_map: Dict[str, Dict[str, Any]],
-                     min_rating: int = 15000, min_samples: int = 20,
-                     rank_top_n: int = 0, keep_mobile: bool = True) -> List[Dict[str, Any]]:
+
+def build_top_subset(
+    passmark_map: Dict[str, Dict[str, Any]],
+    min_rating: int = 15000,
+    min_samples: int = 20,
+    rank_top_n: int = 0,
+    keep_mobile: bool = True,
+) -> List[Dict[str, Any]]:
     """
     Create a bounded 'top CPUs' list based on rating/samples (and optionally rank).
     Heuristics: filter out obscure ES/engineering samples; keep consumer desktop & mobile.
     """
+
     def looks_like_mobile(name: str) -> bool:
         # heuristic for Intel mobile parts: U, P, H/HX; AMD: U/HS/H/HX; Apple M*
         n = name.upper()
-        return any(tag in n for tag in [' U ', ' P ', ' H ', ' HX ', 'HS ']) or n.startswith('APPLE M')
+        return any(tag in n for tag in [" U ", " P ", " H ", " HX ", "HS "]) or n.startswith(
+            "APPLE M"
+        )
 
     items = []
     for k, p in passmark_map.items():
-        name = p['cpu_name_raw']
-        rating = p.get('cpu_mark_multi') or 0
-        samples = p.get('samples') or 0
-        rank = p.get('rank') or 10**9
+        name = p["cpu_name_raw"]
+        rating = p.get("cpu_mark_multi") or 0
+        samples = p.get("samples") or 0
+        rank = p.get("rank") or 10**9
 
         # Basic filters
         if min_rating and (rating is None or rating < min_rating):
@@ -178,35 +199,78 @@ def build_top_subset(passmark_map: Dict[str, Dict[str, Any]],
         if not keep_mobile and looks_like_mobile(name):
             continue
 
-        items.append({
-            'name': name,
-            'manufacturer': 'Intel' if name.lower().startswith('intel') else ('AMD' if name.lower().startswith('amd') else 'Other'),
-            'cpu_mark_multi': rating,
-            'cpu_mark_single': p.get('cpu_mark_single'),
-            'attributes': {
-                'passmark_rank': rank,
-                'passmark_samples': samples,
-                'passmark_url': p.get('source_url'),
+        items.append(
+            {
+                "name": name,
+                "manufacturer": (
+                    "Intel"
+                    if name.lower().startswith("intel")
+                    else ("AMD" if name.lower().startswith("amd") else "Other")
+                ),
+                "cpu_mark_multi": rating,
+                "cpu_mark_single": p.get("cpu_mark_single"),
+                "attributes": {
+                    "passmark_rank": rank,
+                    "passmark_samples": samples,
+                    "passmark_url": p.get("source_url"),
+                },
             }
-        })
+        )
     # Apply rank cut if provided
     if rank_top_n and rank_top_n > 0:
-        items = [x for x in items if x['attributes']['passmark_rank'] and x['attributes']['passmark_rank'] <= rank_top_n]
+        items = [
+            x
+            for x in items
+            if x["attributes"]["passmark_rank"] and x["attributes"]["passmark_rank"] <= rank_top_n
+        ]
     # Sort by rating desc
-    items.sort(key=lambda x: (x['cpu_mark_multi'] or 0), reverse=True)
+    items.sort(key=lambda x: (x["cpu_mark_multi"] or 0), reverse=True)
     return items
 
+
 def main():
-    ap = argparse.ArgumentParser(description="Update Deal Brain cpu.json from PassMark CSV dump (no scraping).")
-    ap.add_argument('--cpu-json', type=Path, required=True, help='Path to existing cpu.json to update')
-    ap.add_argument('--passmark-csv', type=Path, required=True, help='Path to PassMark CSV (licensed dump or sample)')
-    ap.add_argument('--out', type=Path, default=None, help='Output path for updated cpu.json (defaults to overwrite input)')
-    ap.add_argument('--top-out', type=Path, default=None, help='Optional output for bounded top CPUs subset (cpu_top.json)')
-    ap.add_argument('--min-match', type=float, default=0.72, help='Minimum fuzzy match ratio to accept')
-    ap.add_argument('--min-rating', type=int, default=15000, help='Min CPU Mark for inclusion in top subset')
-    ap.add_argument('--min-samples', type=int, default=20, help='Min sample count for inclusion in top subset')
-    ap.add_argument('--rank-top-n', type=int, default=0, help='Keep only CPUs with rank <= N in top subset (0 to ignore)')
-    ap.add_argument('--exclude-mobile', action='store_true', help='Exclude mobile parts in top subset')
+    ap = argparse.ArgumentParser(
+        description="Update Deal Brain cpu.json from PassMark CSV dump (no scraping)."
+    )
+    ap.add_argument(
+        "--cpu-json", type=Path, required=True, help="Path to existing cpu.json to update"
+    )
+    ap.add_argument(
+        "--passmark-csv",
+        type=Path,
+        required=True,
+        help="Path to PassMark CSV (licensed dump or sample)",
+    )
+    ap.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="Output path for updated cpu.json (defaults to overwrite input)",
+    )
+    ap.add_argument(
+        "--top-out",
+        type=Path,
+        default=None,
+        help="Optional output for bounded top CPUs subset (cpu_top.json)",
+    )
+    ap.add_argument(
+        "--min-match", type=float, default=0.72, help="Minimum fuzzy match ratio to accept"
+    )
+    ap.add_argument(
+        "--min-rating", type=int, default=15000, help="Min CPU Mark for inclusion in top subset"
+    )
+    ap.add_argument(
+        "--min-samples", type=int, default=20, help="Min sample count for inclusion in top subset"
+    )
+    ap.add_argument(
+        "--rank-top-n",
+        type=int,
+        default=0,
+        help="Keep only CPUs with rank <= N in top subset (0 to ignore)",
+    )
+    ap.add_argument(
+        "--exclude-mobile", action="store_true", help="Exclude mobile parts in top subset"
+    )
     args = ap.parse_args()
 
     if not args.cpu_json.exists():
@@ -227,13 +291,16 @@ def main():
             print(f"  - {n} -> {k} ({s:.2f})")
 
     if args.top_out:
-        top = build_top_subset(passmap,
-                               min_rating=args.min_rating,
-                               min_samples=args.min_samples,
-                               rank_top_n=args.rank_top_n,
-                               keep_mobile=not args.exclude_mobile)
+        top = build_top_subset(
+            passmap,
+            min_rating=args.min_rating,
+            min_samples=args.min_samples,
+            rank_top_n=args.rank_top_n,
+            keep_mobile=not args.exclude_mobile,
+        )
         args.top_out.write_text(json.dumps(top, indent=2))
         print(f"Wrote top subset: {args.top_out} ({len(top)} CPUs)")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

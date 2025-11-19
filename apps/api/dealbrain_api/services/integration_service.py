@@ -42,10 +42,7 @@ class IntegrationService:
         self.collections_service = CollectionsService(session)
 
     async def import_shared_deal(
-        self,
-        share_token: str,
-        user_id: int,
-        collection_id: Optional[int] = None
+        self, share_token: str, user_id: int, collection_id: Optional[int] = None
     ) -> tuple[CollectionItem, Collection]:
         """Import shared deal to collection.
 
@@ -83,17 +80,13 @@ class IntegrationService:
         listing_share = await self.sharing_service.share_repo.get_listing_share_by_token(
             share_token
         )
-        user_share = await self.sharing_service.share_repo.get_user_share_by_token(
-            share_token
-        )
+        user_share = await self.sharing_service.share_repo.get_user_share_by_token(share_token)
 
         # Determine which type of share this is
         if user_share:
             # UserShare - verify user is recipient
             if user_share.recipient_id != user_id:
-                raise PermissionError(
-                    f"User {user_id} is not the recipient of this share"
-                )
+                raise PermissionError(f"User {user_id} is not the recipient of this share")
 
             if user_share.is_expired():
                 raise ValueError("This share has expired")
@@ -114,30 +107,23 @@ class IntegrationService:
 
         # 2. Get or create collection
         if collection_id is None:
-            collection = await self.collections_service.get_or_create_default_collection(
-                user_id
-            )
+            collection = await self.collections_service.get_or_create_default_collection(user_id)
             collection_id = collection.id
         else:
             # Verify ownership
             collection = await self.collections_service.get_collection(
-                collection_id=collection_id,
-                user_id=user_id,
-                load_items=False
+                collection_id=collection_id, user_id=user_id, load_items=False
             )
             if not collection:
                 raise ValueError(f"Collection {collection_id} not found")
 
         # 3. Check for duplicate
         duplicate = await self.check_duplicate_in_collection(
-            listing_id=listing_id,
-            collection_id=collection_id
+            listing_id=listing_id, collection_id=collection_id
         )
 
         if duplicate:
-            raise ValueError(
-                f"Listing {listing_id} already exists in collection {collection_id}"
-            )
+            raise ValueError(f"Listing {listing_id} already exists in collection {collection_id}")
 
         # 4. Add item to collection
         notes = None
@@ -149,7 +135,7 @@ class IntegrationService:
             listing_id=listing_id,
             user_id=user_id,
             status="undecided",
-            notes=notes
+            notes=notes,
         )
 
         # 5. Mark share as imported (if UserShare)
@@ -165,11 +151,7 @@ class IntegrationService:
 
         return (item, collection)
 
-    async def check_duplicate_in_collection(
-        self,
-        listing_id: int,
-        collection_id: int
-    ) -> bool:
+    async def check_duplicate_in_collection(self, listing_id: int, collection_id: int) -> bool:
         """Check if listing already exists in collection.
 
         Args:
@@ -186,17 +168,13 @@ class IntegrationService:
             )
         """
         exists = await self.collections_service.collection_repo.check_item_exists(
-            collection_id=collection_id,
-            listing_id=listing_id
+            collection_id=collection_id, listing_id=listing_id
         )
 
         return exists
 
     async def bulk_import_shares(
-        self,
-        share_tokens: list[str],
-        user_id: int,
-        collection_id: Optional[int] = None
+        self, share_tokens: list[str], user_id: int, collection_id: Optional[int] = None
     ) -> dict[str, CollectionItem | str]:
         """Import multiple shares at once.
 
@@ -230,18 +208,14 @@ class IntegrationService:
 
         # Get or create collection once
         if collection_id is None:
-            collection = await self.collections_service.get_or_create_default_collection(
-                user_id
-            )
+            collection = await self.collections_service.get_or_create_default_collection(user_id)
             collection_id = collection.id
 
         # Process each token
         for token in share_tokens:
             try:
                 item, _ = await self.import_shared_deal(
-                    share_token=token,
-                    user_id=user_id,
-                    collection_id=collection_id
+                    share_token=token, user_id=user_id, collection_id=collection_id
                 )
                 results[token] = item
 
@@ -261,14 +235,11 @@ class IntegrationService:
         # Commit all successful imports
         await self.session.commit()
 
-        success_count = sum(
-            1 for v in results.values() if isinstance(v, CollectionItem)
-        )
+        success_count = sum(1 for v in results.values() if isinstance(v, CollectionItem))
         error_count = len(results) - success_count
 
         logger.info(
-            f"Bulk import for user {user_id}: {success_count} success, "
-            f"{error_count} errors"
+            f"Bulk import for user {user_id}: {success_count} success, " f"{error_count} errors"
         )
 
         return results

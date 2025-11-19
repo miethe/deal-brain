@@ -72,9 +72,7 @@ async def sample_gpu(db_session: AsyncSession) -> GPU:
 
 
 @pytest.fixture
-async def sample_listing(
-    db_session: AsyncSession, sample_cpu: CPU, sample_gpu: GPU
-) -> Listing:
+async def sample_listing(db_session: AsyncSession, sample_cpu: CPU, sample_gpu: GPU) -> Listing:
     """Create a sample listing for testing."""
     listing = Listing(
         source="test",

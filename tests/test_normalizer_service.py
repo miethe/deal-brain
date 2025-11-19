@@ -1142,9 +1142,7 @@ class TestEdgeCasesAndUnusualFormats:
             )
 
             specs = normalizer._extract_specs(data)
-            assert (
-                specs.get("storage_gb") == expected_storage
-            ), f"Failed for: {description}"
+            assert specs.get("storage_gb") == expected_storage, f"Failed for: {description}"
 
     @pytest.mark.asyncio
     async def test_normalize_with_empty_strings(self, db_session: AsyncSession):

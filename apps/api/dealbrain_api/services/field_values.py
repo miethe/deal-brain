@@ -65,6 +65,7 @@ async def get_field_distinct_values(
         if search:
             # Cast column to string type for search
             from sqlalchemy import String, cast
+
             query = query.where(func.lower(cast(column, String)).contains(search.lower()))
 
         # Order and limit

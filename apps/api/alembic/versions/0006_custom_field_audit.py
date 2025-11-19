@@ -16,12 +16,23 @@ def upgrade() -> None:
     op.create_table(
         "custom_field_audit_log",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("field_id", sa.Integer(), sa.ForeignKey("custom_field_definition.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "field_id",
+            sa.Integer(),
+            sa.ForeignKey("custom_field_definition.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("action", sa.String(length=32), nullable=False),
         sa.Column("actor", sa.String(length=128), nullable=True),
         sa.Column("payload_json", sa.JSON(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now(), onupdate=sa.func.now()),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
     )
     op.create_index(
         "ix_custom_field_audit_field",
@@ -33,4 +44,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_custom_field_audit_field", table_name="custom_field_audit_log")
     op.drop_table("custom_field_audit_log")
-

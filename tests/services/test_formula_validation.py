@@ -17,6 +17,7 @@ from dealbrain_api.db import Base
 # Try to import aiosqlite
 try:
     import aiosqlite
+
     AIOSQLITE_AVAILABLE = True
 except ImportError:
     AIOSQLITE_AVAILABLE = False
@@ -83,11 +84,7 @@ async def sample_gpu(db_session: AsyncSession) -> Gpu:
 
 
 @pytest_asyncio.fixture
-async def sample_listing(
-    db_session: AsyncSession,
-    sample_cpu: Cpu,
-    sample_gpu: Gpu
-) -> Listing:
+async def sample_listing(db_session: AsyncSession, sample_cpu: Cpu, sample_gpu: Gpu) -> Listing:
     """Create a sample listing for testing"""
     listing = Listing(
         title="Test Gaming PC",
@@ -130,6 +127,7 @@ async def custom_field(db_session: AsyncSession) -> CustomFieldDefinition:
 
 
 # --- Valid Formula Tests ---
+
 
 @pytest.mark.asyncio
 async def test_validate_simple_formula(
@@ -212,6 +210,7 @@ async def test_validate_formula_with_conditional(
 
 
 # --- Invalid Formula Tests ---
+
 
 @pytest.mark.asyncio
 async def test_validate_empty_formula(
@@ -303,6 +302,7 @@ async def test_validate_formula_disallowed_function(
 
 # --- Field Availability Tests ---
 
+
 @pytest.mark.asyncio
 async def test_get_available_fields_listing(
     validation_service: FormulaValidationService,
@@ -365,6 +365,7 @@ async def test_get_available_fields_gpu(
 
 # --- Sample Context Tests ---
 
+
 @pytest.mark.asyncio
 async def test_get_sample_context_from_database(
     validation_service: FormulaValidationService,
@@ -424,6 +425,7 @@ async def test_get_sample_context_default_values(
 
 # --- Preview Calculation Tests ---
 
+
 @pytest.mark.asyncio
 async def test_preview_with_custom_context(
     validation_service: FormulaValidationService,
@@ -469,6 +471,7 @@ async def test_preview_with_nested_fields(
 
 # --- Warning Tests ---
 
+
 @pytest.mark.asyncio
 async def test_validation_warnings_division(
     validation_service: FormulaValidationService,
@@ -508,6 +511,7 @@ async def test_validation_warnings_deep_nesting(
 
 # --- Performance Tests ---
 
+
 @pytest.mark.asyncio
 async def test_validation_performance(
     validation_service: FormulaValidationService,
@@ -530,6 +534,7 @@ async def test_validation_performance(
 
 
 # --- Security Tests ---
+
 
 @pytest.mark.asyncio
 async def test_security_injection_attempt(
@@ -557,6 +562,7 @@ async def test_security_injection_attempt(
 
 
 # --- Edge Cases ---
+
 
 @pytest.mark.asyncio
 async def test_validate_formula_with_zero_division_risk(

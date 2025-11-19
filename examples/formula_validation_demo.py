@@ -182,9 +182,7 @@ def demo_validation_warnings():
             print("  ✓ No issues")
         else:
             for error in errors:
-                icon = {"error": "✗", "warning": "⚠", "info": "ℹ"}.get(
-                    error.severity, "•"
-                )
+                icon = {"error": "✗", "warning": "⚠", "info": "ℹ"}.get(error.severity, "•")
                 print(f"  {icon} [{error.severity.upper()}] {error.message}")
                 if error.suggestion:
                     print(f"    Suggestion: {error.suggestion}")

@@ -56,7 +56,7 @@ class CollectionsService:
         user_id: int,
         name: str,
         description: Optional[str] = None,
-        visibility: str = "private"
+        visibility: str = "private",
     ) -> Collection:
         """Create new collection.
 
@@ -86,31 +86,21 @@ class CollectionsService:
 
         # 2. Validate visibility
         if visibility not in VALID_VISIBILITIES:
-            raise ValueError(
-                f"Visibility must be one of: {', '.join(VALID_VISIBILITIES)}"
-            )
+            raise ValueError(f"Visibility must be one of: {', '.join(VALID_VISIBILITIES)}")
 
         # 3. Create via repository
         collection = await self.collection_repo.create_collection(
-            user_id=user_id,
-            name=name,
-            description=description,
-            visibility=visibility
+            user_id=user_id, name=name, description=description, visibility=visibility
         )
 
         await self.session.commit()
 
-        logger.info(
-            f"Created collection {collection.id} '{name}' for user {user_id}"
-        )
+        logger.info(f"Created collection {collection.id} '{name}' for user {user_id}")
 
         return collection
 
     async def get_collection(
-        self,
-        collection_id: int,
-        user_id: int,
-        load_items: bool = True
+        self, collection_id: int, user_id: int, load_items: bool = True
     ) -> Optional[Collection]:
         """Get collection by ID with ownership check.
 
@@ -135,8 +125,7 @@ class CollectionsService:
         """
         # 1. Get collection via repository
         collection = await self.collection_repo.get_collection_by_id(
-            collection_id=collection_id,
-            load_items=load_items
+            collection_id=collection_id, load_items=load_items
         )
 
         # 2. If not found
@@ -145,9 +134,7 @@ class CollectionsService:
 
         # 3. Verify ownership
         if collection.user_id != user_id:
-            raise PermissionError(
-                f"User {user_id} does not own collection {collection_id}"
-            )
+            raise PermissionError(f"User {user_id} does not own collection {collection_id}")
 
         return collection
 
@@ -157,7 +144,7 @@ class CollectionsService:
         user_id: int,
         name: Optional[str] = None,
         description: Optional[str] = None,
-        visibility: Optional[str] = None
+        visibility: Optional[str] = None,
     ) -> Optional[Collection]:
         """Update collection metadata.
 
@@ -185,9 +172,7 @@ class CollectionsService:
         """
         # 1. Verify ownership
         collection = await self.get_collection(
-            collection_id=collection_id,
-            user_id=user_id,
-            load_items=False
+            collection_id=collection_id, user_id=user_id, load_items=False
         )
 
         if not collection:
@@ -200,9 +185,7 @@ class CollectionsService:
 
         if visibility is not None:
             if visibility not in VALID_VISIBILITIES:
-                raise ValueError(
-                    f"Visibility must be one of: {', '.join(VALID_VISIBILITIES)}"
-                )
+                raise ValueError(f"Visibility must be one of: {', '.join(VALID_VISIBILITIES)}")
 
         # 3. Update via repository
         updated = await self.collection_repo.update_collection(
@@ -210,7 +193,7 @@ class CollectionsService:
             user_id=user_id,
             name=name,
             description=description,
-            visibility=visibility
+            visibility=visibility,
         )
 
         await self.session.commit()
@@ -240,9 +223,7 @@ class CollectionsService:
         """
         # 1. Verify ownership
         collection = await self.get_collection(
-            collection_id=collection_id,
-            user_id=user_id,
-            load_items=False
+            collection_id=collection_id, user_id=user_id, load_items=False
         )
 
         if not collection:
@@ -254,17 +235,13 @@ class CollectionsService:
         await self.session.commit()
 
         logger.info(
-            f"Deleted collection {collection_id} by user {user_id} "
-            f"(cascade deleted items)"
+            f"Deleted collection {collection_id} by user {user_id} " f"(cascade deleted items)"
         )
 
         return deleted
 
     async def list_user_collections(
-        self,
-        user_id: int,
-        limit: int = 50,
-        offset: int = 0
+        self, user_id: int, limit: int = 50, offset: int = 0
     ) -> list[Collection]:
         """List all user's collections.
 
@@ -285,9 +262,7 @@ class CollectionsService:
                 print(f"{c.name}: {len(c.items)} items")
         """
         collections = await self.collection_repo.find_user_collections(
-            user_id=user_id,
-            limit=limit,
-            offset=offset
+            user_id=user_id, limit=limit, offset=offset
         )
 
         return collections
@@ -301,7 +276,7 @@ class CollectionsService:
         user_id: int,
         status: str = "undecided",
         notes: Optional[str] = None,
-        position: Optional[int] = None
+        position: Optional[int] = None,
     ) -> CollectionItem:
         """Add item to collection with deduplication.
 
@@ -331,9 +306,7 @@ class CollectionsService:
         """
         # 1. Verify collection ownership
         collection = await self.get_collection(
-            collection_id=collection_id,
-            user_id=user_id,
-            load_items=False
+            collection_id=collection_id, user_id=user_id, load_items=False
         )
 
         if not collection:
@@ -343,9 +316,7 @@ class CollectionsService:
         from ..models.listings import Listing
         from sqlalchemy import select
 
-        result = await self.session.execute(
-            select(Listing).where(Listing.id == listing_id)
-        )
+        result = await self.session.execute(select(Listing).where(Listing.id == listing_id))
         listing = result.scalar_one_or_none()
 
         if not listing:
@@ -353,20 +324,15 @@ class CollectionsService:
 
         # 3. Validate status
         if status not in VALID_STATUSES:
-            raise ValueError(
-                f"Status must be one of: {', '.join(VALID_STATUSES)}"
-            )
+            raise ValueError(f"Status must be one of: {', '.join(VALID_STATUSES)}")
 
         # 4. Check for duplicates
         exists = await self.collection_repo.check_item_exists(
-            collection_id=collection_id,
-            listing_id=listing_id
+            collection_id=collection_id, listing_id=listing_id
         )
 
         if exists:
-            raise ValueError(
-                f"Listing {listing_id} already exists in collection {collection_id}"
-            )
+            raise ValueError(f"Listing {listing_id} already exists in collection {collection_id}")
 
         # 5. Add item via repository
         item = await self.collection_repo.add_item(
@@ -374,14 +340,13 @@ class CollectionsService:
             listing_id=listing_id,
             status=status,
             notes=notes,
-            position=position
+            position=position,
         )
 
         await self.session.commit()
 
         logger.info(
-            f"Added listing {listing_id} to collection {collection_id} "
-            f"by user {user_id}"
+            f"Added listing {listing_id} to collection {collection_id} " f"by user {user_id}"
         )
 
         return item
@@ -392,7 +357,7 @@ class CollectionsService:
         user_id: int,
         status: Optional[str] = None,
         notes: Optional[str] = None,
-        position: Optional[int] = None
+        position: Optional[int] = None,
     ) -> Optional[CollectionItem]:
         """Update collection item.
 
@@ -431,28 +396,19 @@ class CollectionsService:
 
         # Verify collection ownership
         collection = await self.get_collection(
-            collection_id=item.collection_id,
-            user_id=user_id,
-            load_items=False
+            collection_id=item.collection_id, user_id=user_id, load_items=False
         )
 
         if not collection:
-            raise PermissionError(
-                f"User {user_id} does not own collection {item.collection_id}"
-            )
+            raise PermissionError(f"User {user_id} does not own collection {item.collection_id}")
 
         # 2. Validate status if provided
         if status is not None and status not in VALID_STATUSES:
-            raise ValueError(
-                f"Status must be one of: {', '.join(VALID_STATUSES)}"
-            )
+            raise ValueError(f"Status must be one of: {', '.join(VALID_STATUSES)}")
 
         # 3. Update via repository
         updated = await self.collection_repo.update_item(
-            item_id=item_id,
-            status=status,
-            notes=notes,
-            position=position
+            item_id=item_id, status=status, notes=notes, position=position
         )
 
         await self.session.commit()
@@ -461,11 +417,7 @@ class CollectionsService:
 
         return updated
 
-    async def remove_item_from_collection(
-        self,
-        item_id: int,
-        user_id: int
-    ) -> bool:
+    async def remove_item_from_collection(self, item_id: int, user_id: int) -> bool:
         """Remove item from collection.
 
         Args:
@@ -497,15 +449,11 @@ class CollectionsService:
 
         # Verify collection ownership
         collection = await self.get_collection(
-            collection_id=item.collection_id,
-            user_id=user_id,
-            load_items=False
+            collection_id=item.collection_id, user_id=user_id, load_items=False
         )
 
         if not collection:
-            raise PermissionError(
-                f"User {user_id} does not own collection {item.collection_id}"
-            )
+            raise PermissionError(f"User {user_id} does not own collection {item.collection_id}")
 
         # 2. Remove via repository
         removed = await self.collection_repo.remove_item(item_id)
@@ -523,7 +471,7 @@ class CollectionsService:
         collection_id: int,
         user_id: int,
         status_filter: Optional[str] = None,
-        sort_by: str = "position"
+        sort_by: str = "position",
     ) -> list[CollectionItem]:
         """Get collection items with optional filtering and sorting.
 
@@ -562,20 +510,15 @@ class CollectionsService:
         """
         # 1. Verify collection ownership
         collection = await self.get_collection(
-            collection_id=collection_id,
-            user_id=user_id,
-            load_items=False
+            collection_id=collection_id, user_id=user_id, load_items=False
         )
 
         if not collection:
-            raise PermissionError(
-                f"User {user_id} does not own collection {collection_id}"
-            )
+            raise PermissionError(f"User {user_id} does not own collection {collection_id}")
 
         # 2. Get items via repository
         items = await self.collection_repo.get_collection_items(
-            collection_id=collection_id,
-            load_listings=True
+            collection_id=collection_id, load_listings=True
         )
 
         # 3. Apply status filter if provided
@@ -614,10 +557,9 @@ class CollectionsService:
 
         # Query for default collection
         result = await self.session.execute(
-            select(Collection).where(
-                Collection.user_id == user_id,
-                Collection.name.in_(["My Deals", "Default"])
-            ).limit(1)
+            select(Collection)
+            .where(Collection.user_id == user_id, Collection.name.in_(["My Deals", "Default"]))
+            .limit(1)
         )
         collection = result.scalar_one_or_none()
 
@@ -629,7 +571,7 @@ class CollectionsService:
             user_id=user_id,
             name="My Deals",
             description="Default collection for saved deals",
-            visibility="private"
+            visibility="private",
         )
 
         await self.session.commit()

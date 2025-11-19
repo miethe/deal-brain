@@ -59,14 +59,8 @@ async def get_top_rules(
         List of top contributing rules
     """
     service = BaselineMetricsService()
-    rules = await service.get_top_rules_by_contribution(
-        session, limit=limit, days_back=days
-    )
-    return {
-        "top_rules": rules,
-        "period_days": days,
-        "limit": limit
-    }
+    rules = await service.get_top_rules_by_contribution(session, limit=limit, days_back=days)
+    return {"top_rules": rules, "period_days": days, "limit": limit}
 
 
 @router.get("/metrics/override-churn")

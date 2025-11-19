@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 class Cpu(Base, TimestampMixin):
     """CPU catalog with benchmarks and pricing analytics."""
+
     __tablename__ = "cpu"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -73,6 +74,7 @@ class Cpu(Base, TimestampMixin):
 
 class Gpu(Base, TimestampMixin):
     """GPU catalog with benchmark scores."""
+
     __tablename__ = "gpu"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -88,6 +90,7 @@ class Gpu(Base, TimestampMixin):
 
 class RamSpec(Base, TimestampMixin):
     """RAM specification with DDR generation and module configuration."""
+
     __tablename__ = "ram_spec"
     __table_args__ = (
         UniqueConstraint(
@@ -103,7 +106,12 @@ class RamSpec(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     label: Mapped[str | None] = mapped_column(String(128))
     ddr_generation: Mapped[RamGeneration] = mapped_column(
-        SAEnum(RamGeneration, name="ram_generation", native_enum=True, values_callable=lambda x: [e.value for e in x]),
+        SAEnum(
+            RamGeneration,
+            name="ram_generation",
+            native_enum=True,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
         default=RamGeneration.UNKNOWN,
     )
@@ -119,6 +127,7 @@ class RamSpec(Base, TimestampMixin):
 
 class StorageProfile(Base, TimestampMixin):
     """Storage specification with medium, interface, and performance tier."""
+
     __tablename__ = "storage_profile"
     __table_args__ = (
         UniqueConstraint(
@@ -134,7 +143,12 @@ class StorageProfile(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     label: Mapped[str | None] = mapped_column(String(128))
     medium: Mapped[StorageMedium] = mapped_column(
-        SAEnum(StorageMedium, name="storage_medium", native_enum=True, values_callable=lambda x: [e.value for e in x]),
+        SAEnum(
+            StorageMedium,
+            name="storage_medium",
+            native_enum=True,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
         default=StorageMedium.UNKNOWN,
     )

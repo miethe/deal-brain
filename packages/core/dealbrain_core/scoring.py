@@ -40,8 +40,7 @@ def dollar_per_metric(price_usd: float, metric: float | None) -> float | None:
 
 
 def apply_rule_group_weights(
-    rule_group_adjustments: dict[str, float],
-    rule_group_weights: dict[str, float]
+    rule_group_adjustments: dict[str, float], rule_group_weights: dict[str, float]
 ) -> float:
     """
     Apply weighted rule group adjustments to compute total valuation adjustment.

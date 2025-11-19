@@ -75,6 +75,7 @@ async def custom_field(db_session: AsyncSession) -> CustomFieldDefinition:
 
 # --- Valid Formula Tests ---
 
+
 @pytest.mark.asyncio
 async def test_api_validate_simple_formula(
     async_client: AsyncClient,
@@ -194,6 +195,7 @@ async def test_api_validate_formula_with_custom_context(
 
 # --- Invalid Formula Tests ---
 
+
 @pytest.mark.asyncio
 async def test_api_validate_empty_formula(async_client: AsyncClient):
     """Test API validation of empty formula"""
@@ -287,6 +289,7 @@ async def test_api_validate_disallowed_function(async_client: AsyncClient):
 
 # --- Entity Type Tests ---
 
+
 @pytest.mark.asyncio
 async def test_api_validate_cpu_formula(async_client: AsyncClient, sample_cpu: Cpu):
     """Test API validation for CPU entity type"""
@@ -328,6 +331,7 @@ async def test_api_validate_gpu_formula(async_client: AsyncClient):
 
 # --- Custom Field Tests ---
 
+
 @pytest.mark.asyncio
 async def test_api_validate_with_custom_field(
     async_client: AsyncClient,
@@ -352,6 +356,7 @@ async def test_api_validate_with_custom_field(
 
 # --- Warning Tests ---
 
+
 @pytest.mark.asyncio
 async def test_api_validation_warnings(async_client: AsyncClient):
     """Test that warnings are returned for risky operations"""
@@ -374,6 +379,7 @@ async def test_api_validation_warnings(async_client: AsyncClient):
 
 
 # --- Security Tests ---
+
 
 @pytest.mark.asyncio
 async def test_api_security_injection_attempts(async_client: AsyncClient):
@@ -400,6 +406,7 @@ async def test_api_security_injection_attempts(async_client: AsyncClient):
 
 
 # --- Error Handling Tests ---
+
 
 @pytest.mark.asyncio
 async def test_api_missing_required_fields(async_client: AsyncClient):
@@ -434,6 +441,7 @@ async def test_api_default_entity_type(async_client: AsyncClient, sample_listing
 
 
 # --- Response Structure Tests ---
+
 
 @pytest.mark.asyncio
 async def test_api_response_structure(async_client: AsyncClient, sample_listing: Listing):

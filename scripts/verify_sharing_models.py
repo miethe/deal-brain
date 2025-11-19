@@ -24,6 +24,7 @@ def verify_imports():
             CollectionItem,
             Listing,
         )
+
         print("✅ All models imported successfully")
         return User, ListingShare, UserShare, Collection, CollectionItem, Listing
     except ImportError as e:
@@ -36,12 +37,12 @@ def verify_user_model(User):
     print("\nVerifying User model...")
 
     # Check fields
-    expected_fields = ['id', 'username', 'email', 'display_name', 'created_at', 'updated_at']
+    expected_fields = ["id", "username", "email", "display_name", "created_at", "updated_at"]
     for field in expected_fields:
         assert hasattr(User, field), f"Missing field: {field}"
 
     # Check relationships
-    expected_relationships = ['collections', 'created_shares', 'sent_shares', 'received_shares']
+    expected_relationships = ["collections", "created_shares", "sent_shares", "received_shares"]
     for rel in expected_relationships:
         assert hasattr(User, rel), f"Missing relationship: {rel}"
 
@@ -54,22 +55,27 @@ def verify_listing_share_model(ListingShare):
 
     # Check fields
     expected_fields = [
-        'id', 'listing_id', 'created_by', 'share_token',
-        'view_count', 'created_at', 'expires_at'
+        "id",
+        "listing_id",
+        "created_by",
+        "share_token",
+        "view_count",
+        "created_at",
+        "expires_at",
     ]
     for field in expected_fields:
         assert hasattr(ListingShare, field), f"Missing field: {field}"
 
     # Check relationships
-    expected_relationships = ['listing', 'creator']
+    expected_relationships = ["listing", "creator"]
     for rel in expected_relationships:
         assert hasattr(ListingShare, rel), f"Missing relationship: {rel}"
 
     # Check class methods
-    assert hasattr(ListingShare, 'generate_token'), "Missing generate_token() class method"
+    assert hasattr(ListingShare, "generate_token"), "Missing generate_token() class method"
 
     # Check instance methods
-    expected_methods = ['is_expired', 'increment_view_count']
+    expected_methods = ["is_expired", "increment_view_count"]
     for method in expected_methods:
         assert hasattr(ListingShare, method), f"Missing method: {method}"
 
@@ -87,22 +93,31 @@ def verify_user_share_model(UserShare):
 
     # Check fields
     expected_fields = [
-        'id', 'sender_id', 'recipient_id', 'listing_id', 'share_token',
-        'message', 'shared_at', 'expires_at', 'viewed_at', 'imported_at', 'created_at'
+        "id",
+        "sender_id",
+        "recipient_id",
+        "listing_id",
+        "share_token",
+        "message",
+        "shared_at",
+        "expires_at",
+        "viewed_at",
+        "imported_at",
+        "created_at",
     ]
     for field in expected_fields:
         assert hasattr(UserShare, field), f"Missing field: {field}"
 
     # Check relationships
-    expected_relationships = ['sender', 'recipient', 'listing']
+    expected_relationships = ["sender", "recipient", "listing"]
     for rel in expected_relationships:
         assert hasattr(UserShare, rel), f"Missing relationship: {rel}"
 
     # Check class methods
-    assert hasattr(UserShare, 'generate_token'), "Missing generate_token() class method"
+    assert hasattr(UserShare, "generate_token"), "Missing generate_token() class method"
 
     # Check instance methods
-    expected_methods = ['is_expired', 'is_viewed', 'is_imported', 'mark_viewed', 'mark_imported']
+    expected_methods = ["is_expired", "is_viewed", "is_imported", "mark_viewed", "mark_imported"]
     for method in expected_methods:
         assert hasattr(UserShare, method), f"Missing method: {method}"
 
@@ -120,19 +135,24 @@ def verify_collection_model(Collection):
 
     # Check fields
     expected_fields = [
-        'id', 'user_id', 'name', 'description', 'visibility',
-        'created_at', 'updated_at'
+        "id",
+        "user_id",
+        "name",
+        "description",
+        "visibility",
+        "created_at",
+        "updated_at",
     ]
     for field in expected_fields:
         assert hasattr(Collection, field), f"Missing field: {field}"
 
     # Check relationships
-    expected_relationships = ['user', 'items']
+    expected_relationships = ["user", "items"]
     for rel in expected_relationships:
         assert hasattr(Collection, rel), f"Missing relationship: {rel}"
 
     # Check instance methods/properties
-    expected_methods = ['item_count', 'has_item']
+    expected_methods = ["item_count", "has_item"]
     for method in expected_methods:
         assert hasattr(Collection, method), f"Missing method/property: {method}"
 
@@ -145,14 +165,21 @@ def verify_collection_item_model(CollectionItem):
 
     # Check fields
     expected_fields = [
-        'id', 'collection_id', 'listing_id', 'status', 'notes',
-        'position', 'added_at', 'created_at', 'updated_at'
+        "id",
+        "collection_id",
+        "listing_id",
+        "status",
+        "notes",
+        "position",
+        "added_at",
+        "created_at",
+        "updated_at",
     ]
     for field in expected_fields:
         assert hasattr(CollectionItem, field), f"Missing field: {field}"
 
     # Check relationships
-    expected_relationships = ['collection', 'listing']
+    expected_relationships = ["collection", "listing"]
     for rel in expected_relationships:
         assert hasattr(CollectionItem, rel), f"Missing relationship: {rel}"
 
@@ -164,7 +191,7 @@ def verify_listing_relationships(Listing):
     print("\nVerifying Listing model relationships...")
 
     # Check new relationships
-    expected_relationships = ['shares', 'user_shares', 'collection_items']
+    expected_relationships = ["shares", "user_shares", "collection_items"]
     for rel in expected_relationships:
         assert hasattr(Listing, rel), f"Missing relationship on Listing: {rel}"
 

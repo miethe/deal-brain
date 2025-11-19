@@ -33,7 +33,9 @@ async def list_custom_fields(
         include_inactive=include_inactive,
         include_deleted=include_deleted,
     )
-    return CustomFieldListResponse(fields=[CustomFieldResponse.model_validate(record) for record in records])
+    return CustomFieldListResponse(
+        fields=[CustomFieldResponse.model_validate(record) for record in records]
+    )
 
 
 @router.post("", response_model=CustomFieldResponse, status_code=status.HTTP_201_CREATED)
@@ -103,7 +105,9 @@ async def update_custom_field(
     return CustomFieldResponse.model_validate(record)
 
 
-@router.post("/{field_id}/options", response_model=FieldOptionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{field_id}/options", response_model=FieldOptionResponse, status_code=status.HTTP_201_CREATED
+)
 async def add_field_option(
     field_id: int,
     request: AddFieldOptionRequest,

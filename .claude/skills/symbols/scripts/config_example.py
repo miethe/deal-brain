@@ -44,9 +44,7 @@ def example_domain_files():
     with open(ui_file) as f:
         ui_data = json.load(f)
         if "modules" in ui_data:
-            total_symbols = sum(
-                len(module.get("symbols", [])) for module in ui_data["modules"]
-            )
+            total_symbols = sum(len(module.get("symbols", [])) for module in ui_data["modules"])
         else:
             total_symbols = len(ui_data.get("symbols", []))
 

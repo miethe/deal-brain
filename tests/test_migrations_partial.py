@@ -82,9 +82,7 @@ class TestMigration0025PartialImport:
         await db_session.commit()
 
         # Verify listing was created
-        result = await db_session.execute(
-            select(Listing).where(Listing.id == listing.id)
-        )
+        result = await db_session.execute(select(Listing).where(Listing.id == listing.id))
         saved_listing = result.scalar_one()
         assert saved_listing.price_usd is None
         assert saved_listing.quality == "partial"
@@ -111,9 +109,7 @@ class TestMigration0025PartialImport:
         db_session.add(listing)
         await db_session.commit()
 
-        result = await db_session.execute(
-            select(Listing).where(Listing.id == listing.id)
-        )
+        result = await db_session.execute(select(Listing).where(Listing.id == listing.id))
         saved_listing = result.scalar_one()
         assert saved_listing.quality == "full"
         assert saved_listing.extraction_metadata == {}
@@ -149,9 +145,7 @@ class TestMigration0025PartialImport:
         db_session.add(listing)
         await db_session.commit()
 
-        result = await db_session.execute(
-            select(Listing).where(Listing.id == listing.id)
-        )
+        result = await db_session.execute(select(Listing).where(Listing.id == listing.id))
         saved_listing = result.scalar_one()
         assert saved_listing.extraction_metadata == extraction_metadata
         assert saved_listing.extraction_metadata["title"] == "extracted"
@@ -182,9 +176,7 @@ class TestMigration0025PartialImport:
         db_session.add(listing)
         await db_session.commit()
 
-        result = await db_session.execute(
-            select(Listing).where(Listing.id == listing.id)
-        )
+        result = await db_session.execute(select(Listing).where(Listing.id == listing.id))
         saved_listing = result.scalar_one()
         assert saved_listing.missing_fields == missing_fields
         assert len(saved_listing.missing_fields) == 3
@@ -225,17 +217,13 @@ class TestMigration0025PartialImport:
         await db_session.commit()
 
         # Query for partial listings
-        result = await db_session.execute(
-            select(Listing).where(Listing.quality == "partial")
-        )
+        result = await db_session.execute(select(Listing).where(Listing.quality == "partial"))
         partial_listings = result.scalars().all()
         assert len(partial_listings) == 1
         assert partial_listings[0].id == partial_listing.id
 
         # Query for full listings
-        result = await db_session.execute(
-            select(Listing).where(Listing.quality == "full")
-        )
+        result = await db_session.execute(select(Listing).where(Listing.quality == "full"))
         full_listings = result.scalars().all()
         assert len(full_listings) == 1
         assert full_listings[0].id == full_listing.id
@@ -373,13 +361,15 @@ class TestMigration0026BulkJobTracking:
                 status=status,
                 quality=quality,
             )
-            for i, (status, quality) in enumerate([
-                ("complete", "full"),
-                ("complete", "full"),
-                ("partial", "partial"),
-                ("failed", None),
-                ("running", None),
-            ])
+            for i, (status, quality) in enumerate(
+                [
+                    ("complete", "full"),
+                    ("complete", "full"),
+                    ("partial", "partial"),
+                    ("failed", None),
+                    ("running", None),
+                ]
+            )
         ]
         db_session.add_all(sessions)
         await db_session.commit()
@@ -387,8 +377,7 @@ class TestMigration0026BulkJobTracking:
         # Query by bulk_job_id and status
         result = await db_session.execute(
             select(ImportSession).where(
-                ImportSession.bulk_job_id == bulk_job_id,
-                ImportSession.status == "complete"
+                ImportSession.bulk_job_id == bulk_job_id, ImportSession.status == "complete"
             )
         )
         complete_sessions = result.scalars().all()
@@ -397,8 +386,7 @@ class TestMigration0026BulkJobTracking:
         # Query by bulk_job_id and partial status
         result = await db_session.execute(
             select(ImportSession).where(
-                ImportSession.bulk_job_id == bulk_job_id,
-                ImportSession.status == "partial"
+                ImportSession.bulk_job_id == bulk_job_id, ImportSession.status == "partial"
             )
         )
         partial_sessions = result.scalars().all()
@@ -458,7 +446,7 @@ class TestMigrationIntegration:
             .where(
                 ImportSession.bulk_job_id == bulk_job_id,
                 ImportSession.quality == "partial",
-                Listing.quality == "partial"
+                Listing.quality == "partial",
             )
         )
         rows = result.all()

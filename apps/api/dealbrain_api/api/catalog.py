@@ -171,8 +171,7 @@ async def delete_cpu(
         usage_count = await get_cpu_usage_count(session, cpu_id)
         if usage_count > 0:
             raise HTTPException(
-                status_code=409,
-                detail=f"Cannot delete CPU: used in {usage_count} listing(s)"
+                status_code=409, detail=f"Cannot delete CPU: used in {usage_count} listing(s)"
             )
 
         # Delete
@@ -302,8 +301,7 @@ async def delete_gpu(
         usage_count = await get_gpu_usage_count(session, gpu_id)
         if usage_count > 0:
             raise HTTPException(
-                status_code=409,
-                detail=f"Cannot delete GPU: used in {usage_count} listing(s)"
+                status_code=409, detail=f"Cannot delete GPU: used in {usage_count} listing(s)"
             )
 
         # Delete
@@ -322,7 +320,9 @@ async def list_profiles(
 
 
 @router.get("/profiles/{profile_id}", response_model=ProfileRead)
-async def get_profile(profile_id: int, session: AsyncSession = Depends(session_dependency)) -> ProfileRead:
+async def get_profile(
+    profile_id: int, session: AsyncSession = Depends(session_dependency)
+) -> ProfileRead:
     """Get a single scoring profile by ID."""
     profile = await session.get(Profile, profile_id)
     if not profile:
@@ -507,8 +507,7 @@ async def delete_profile(
             )
             if other_defaults == 0:
                 raise HTTPException(
-                    status_code=409,
-                    detail="Cannot delete the only default profile"
+                    status_code=409, detail="Cannot delete the only default profile"
                 )
 
         # Check if in use
@@ -516,7 +515,7 @@ async def delete_profile(
         if usage_count > 0:
             raise HTTPException(
                 status_code=409,
-                detail=f"Cannot delete Scoring Profile: used in {usage_count} listing(s)"
+                detail=f"Cannot delete Scoring Profile: used in {usage_count} listing(s)",
             )
 
         # Delete
@@ -729,7 +728,7 @@ async def delete_ports_profile(
         if usage_count > 0:
             raise HTTPException(
                 status_code=409,
-                detail=f"Cannot delete Ports Profile: used in {usage_count} listing(s)"
+                detail=f"Cannot delete Ports Profile: used in {usage_count} listing(s)",
             )
 
         # Delete (related Port entities will be cascade deleted by the database)
@@ -806,9 +805,7 @@ async def update_ram_spec(
     with tracer.start_as_current_span("catalog.update_ram_spec"):
         ram_spec = await session.get(RamSpec, ram_spec_id)
         if not ram_spec:
-            raise HTTPException(
-                status_code=404, detail=f"RAM spec with id {ram_spec_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"RAM spec with id {ram_spec_id} not found")
 
         update_data = payload.model_dump(exclude_unset=True)
 
@@ -822,9 +819,7 @@ async def update_ram_spec(
             "capacity_per_module_gb": update_data.get(
                 "capacity_per_module_gb", ram_spec.capacity_per_module_gb
             ),
-            "total_capacity_gb": update_data.get(
-                "total_capacity_gb", ram_spec.total_capacity_gb
-            ),
+            "total_capacity_gb": update_data.get("total_capacity_gb", ram_spec.total_capacity_gb),
         }
 
         # Check if any constraint field changed
@@ -869,9 +864,7 @@ async def partial_update_ram_spec(
     with tracer.start_as_current_span("catalog.partial_update_ram_spec"):
         ram_spec = await session.get(RamSpec, ram_spec_id)
         if not ram_spec:
-            raise HTTPException(
-                status_code=404, detail=f"RAM spec with id {ram_spec_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"RAM spec with id {ram_spec_id} not found")
 
         update_data = payload.model_dump(exclude_unset=True)
 
@@ -936,16 +929,13 @@ async def delete_ram_spec(
         # Get entity
         ram_spec = await session.get(RamSpec, ram_spec_id)
         if not ram_spec:
-            raise HTTPException(
-                status_code=404, detail=f"RAM spec with id {ram_spec_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"RAM spec with id {ram_spec_id} not found")
 
         # Check if in use
         usage_count = await get_ram_spec_usage_count(session, ram_spec_id)
         if usage_count > 0:
             raise HTTPException(
-                status_code=409,
-                detail=f"Cannot delete RAM Spec: used in {usage_count} listing(s)"
+                status_code=409, detail=f"Cannot delete RAM Spec: used in {usage_count} listing(s)"
             )
 
         # Delete
@@ -1175,8 +1165,7 @@ async def delete_storage_profile(
         storage_profile = await session.get(StorageProfile, storage_profile_id)
         if not storage_profile:
             raise HTTPException(
-                status_code=404,
-                detail=f"Storage profile with id {storage_profile_id} not found"
+                status_code=404, detail=f"Storage profile with id {storage_profile_id} not found"
             )
 
         # Check if in use (checks both primary and secondary storage)
@@ -1184,7 +1173,7 @@ async def delete_storage_profile(
         if usage_count > 0:
             raise HTTPException(
                 status_code=409,
-                detail=f"Cannot delete Storage Profile: used in {usage_count} listing(s)"
+                detail=f"Cannot delete Storage Profile: used in {usage_count} listing(s)",
             )
 
         # Delete

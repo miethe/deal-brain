@@ -197,9 +197,7 @@ class CatalogPerformanceTester:
                 times.append(elapsed)
 
                 if self.verbose:
-                    print(
-                        f"  Run {i + 1}/{self.runs}: {elapsed:.1f}ms", end="\r", flush=True
-                    )
+                    print(f"  Run {i + 1}/{self.runs}: {elapsed:.1f}ms", end="\r", flush=True)
             except Exception as e:
                 failed += 1
                 if self.verbose:
@@ -262,18 +260,14 @@ class CatalogPerformanceTester:
         response = await client.get(f"{self.base_url}/v1/catalog/cpus")
         response.raise_for_status()
 
-    async def test_cpu_detail_with_listings(
-        self, client: httpx.AsyncClient, cpu_id: int
-    ):
+    async def test_cpu_detail_with_listings(self, client: httpx.AsyncClient, cpu_id: int):
         """Test CPU detail view with listings."""
         # Get CPU detail
         response1 = await client.get(f"{self.base_url}/v1/catalog/cpus/{cpu_id}")
         response1.raise_for_status()
 
         # Get CPU listings
-        response2 = await client.get(
-            f"{self.base_url}/v1/catalog/cpus/{cpu_id}/listings?limit=50"
-        )
+        response2 = await client.get(f"{self.base_url}/v1/catalog/cpus/{cpu_id}/listings?limit=50")
         response2.raise_for_status()
 
     async def test_gpu_patch(self, client: httpx.AsyncClient, gpu_id: int):
@@ -309,16 +303,12 @@ class CatalogPerformanceTester:
 
     async def test_ram_spec_list(self, client: httpx.AsyncClient):
         """Test RamSpec LIST with filters."""
-        response = await client.get(
-            f"{self.base_url}/v1/catalog/ram-specs?limit=200"
-        )
+        response = await client.get(f"{self.base_url}/v1/catalog/ram-specs?limit=200")
         response.raise_for_status()
 
     async def test_storage_profile_list(self, client: httpx.AsyncClient):
         """Test StorageProfile LIST with filters."""
-        response = await client.get(
-            f"{self.base_url}/v1/catalog/storage-profiles?limit=200"
-        )
+        response = await client.get(f"{self.base_url}/v1/catalog/storage-profiles?limit=200")
         response.raise_for_status()
 
     async def run_scenario(
@@ -335,17 +325,13 @@ class CatalogPerformanceTester:
             # Get a sample entity ID for testing
             entity_id = await self._get_sample_entity_id(client, scenario.entity_type)
             if entity_id is None:
-                print(
-                    f"⚠️  Skipping {scenario.name}: No {scenario.entity_type} entities found"
-                )
+                print(f"⚠️  Skipping {scenario.name}: No {scenario.entity_type} entities found")
                 return None
 
             # Get entity data if needed for PUT operations
             entity_data = None
             if scenario.operation == "PUT":
-                entity_data = await self._get_entity_data(
-                    client, scenario.entity_type, entity_id
-                )
+                entity_data = await self._get_entity_data(client, scenario.entity_type, entity_id)
 
             # Create operation function
             async def operation():
@@ -529,10 +515,7 @@ class CatalogPerformanceTester:
                     return
             except Exception as e:
                 print(f"❌ Cannot connect to API: {e}")
-                print(
-                    "\nPlease ensure the API is running with: make up"
-                    " or make api"
-                )
+                print("\nPlease ensure the API is running with: make up" " or make api")
                 return
 
             # Run scenarios
@@ -613,9 +596,7 @@ class CatalogPerformanceTester:
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Performance validation for catalog API endpoints"
-    )
+    parser = argparse.ArgumentParser(description="Performance validation for catalog API endpoints")
     parser.add_argument(
         "--base-url",
         default="http://localhost:8000",

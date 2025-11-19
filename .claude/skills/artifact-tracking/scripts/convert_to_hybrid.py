@@ -56,25 +56,27 @@ def _extract_progress_metadata(content: str) -> Dict[str, Any]:
     metadata: Dict[str, Any] = {}
 
     # Extract title from first h1 header
-    title_match = re.search(r'^#\s+(.+?)(?:\s*-\s*Phase\s*\d+)?$', content, re.MULTILINE)
+    title_match = re.search(r"^#\s+(.+?)(?:\s*-\s*Phase\s*\d+)?$", content, re.MULTILINE)
     if title_match:
         title = title_match.group(1).strip()
         # Remove PRD prefix if present
-        title = re.sub(r'^[a-z0-9-]+\s*-\s*', '', title, flags=re.IGNORECASE)
+        title = re.sub(r"^[a-z0-9-]+\s*-\s*", "", title, flags=re.IGNORECASE)
         metadata["title"] = title
 
     # Extract PRD from filename or header
-    prd_match = re.search(r'(?:PRD|prd):\s*([a-z0-9-]+)', content, re.IGNORECASE)
+    prd_match = re.search(r"(?:PRD|prd):\s*([a-z0-9-]+)", content, re.IGNORECASE)
     if prd_match:
         metadata["prd"] = prd_match.group(1).lower()
 
     # Extract phase number
-    phase_match = re.search(r'(?:Phase|phase):\s*(\d+)', content, re.IGNORECASE)
+    phase_match = re.search(r"(?:Phase|phase):\s*(\d+)", content, re.IGNORECASE)
     if phase_match:
         metadata["phase"] = int(phase_match.group(1))
 
     # Extract status
-    status_match = re.search(r'(?:Status|status):\s*(?:\S+\s+)?(\w+(?:-\w+)?)', content, re.IGNORECASE)
+    status_match = re.search(
+        r"(?:Status|status):\s*(?:\S+\s+)?(\w+(?:-\w+)?)", content, re.IGNORECASE
+    )
     if status_match:
         status = status_match.group(1).lower()
         # Map common status values
@@ -90,21 +92,21 @@ def _extract_progress_metadata(content: str) -> Dict[str, Any]:
         metadata["status"] = status_map.get(status, "in-progress")
 
     # Extract dates
-    started_match = re.search(r'(?:Started|started):\s*(\d{4}-\d{2}-\d{2})', content)
+    started_match = re.search(r"(?:Started|started):\s*(\d{4}-\d{2}-\d{2})", content)
     if started_match:
         metadata["started"] = started_match.group(1)
     else:
         # Use today's date as fallback
         metadata["started"] = datetime.now().strftime("%Y-%m-%d")
 
-    completed_match = re.search(r'(?:Completed|completed):\s*(\d{4}-\d{2}-\d{2})', content)
+    completed_match = re.search(r"(?:Completed|completed):\s*(\d{4}-\d{2}-\d{2})", content)
     if completed_match:
         metadata["completed"] = completed_match.group(1)
     else:
         metadata["completed"] = None
 
     # Extract progress percentage
-    progress_match = re.search(r'(\d+)%\s*(?:complete|progress)', content, re.IGNORECASE)
+    progress_match = re.search(r"(\d+)%\s*(?:complete|progress)", content, re.IGNORECASE)
     if progress_match:
         metadata["overall_progress"] = int(progress_match.group(1))
     else:
@@ -115,15 +117,15 @@ def _extract_progress_metadata(content: str) -> Dict[str, Any]:
     metadata.update(task_counts)
 
     # Extract owners and contributors
-    owner_match = re.search(r'(?:Owner|owner)s?:\s*([^\n]+)', content)
+    owner_match = re.search(r"(?:Owner|owner)s?:\s*([^\n]+)", content)
     if owner_match:
-        owners = [o.strip() for o in owner_match.group(1).split(',')]
-        metadata["owners"] = [o.lower().replace(' ', '-') for o in owners if o]
+        owners = [o.strip() for o in owner_match.group(1).split(",")]
+        metadata["owners"] = [o.lower().replace(" ", "-") for o in owners if o]
 
-    contributor_match = re.search(r'(?:Contributor|contributor)s?:\s*([^\n]+)', content)
+    contributor_match = re.search(r"(?:Contributor|contributor)s?:\s*([^\n]+)", content)
     if contributor_match:
-        contributors = [c.strip() for c in contributor_match.group(1).split(',')]
-        metadata["contributors"] = [c.lower().replace(' ', '-') for c in contributors if c]
+        contributors = [c.strip() for c in contributor_match.group(1).split(",")]
+        metadata["contributors"] = [c.lower().replace(" ", "-") for c in contributors if c]
 
     # Set defaults if not found
     metadata.setdefault("title", "Untitled Phase")
@@ -145,24 +147,24 @@ def _extract_context_metadata(content: str) -> Dict[str, Any]:
     metadata: Dict[str, Any] = {}
 
     # Extract title
-    title_match = re.search(r'^#\s+(.+?)$', content, re.MULTILINE)
+    title_match = re.search(r"^#\s+(.+?)$", content, re.MULTILINE)
     if title_match:
         metadata["title"] = title_match.group(1).strip()
 
     # Extract PRD
-    prd_match = re.search(r'(?:PRD|prd):\s*([a-z0-9-]+)', content, re.IGNORECASE)
+    prd_match = re.search(r"(?:PRD|prd):\s*([a-z0-9-]+)", content, re.IGNORECASE)
     if prd_match:
         metadata["prd"] = prd_match.group(1).lower()
 
     # Extract phase (optional for context)
-    phase_match = re.search(r'(?:Phase|phase):\s*(\d+)', content, re.IGNORECASE)
+    phase_match = re.search(r"(?:Phase|phase):\s*(\d+)", content, re.IGNORECASE)
     if phase_match:
         metadata["phase"] = int(phase_match.group(1))
     else:
         metadata["phase"] = None
 
     # Extract status
-    status_match = re.search(r'(?:Status|status):\s*(\w+(?:-\w+)?)', content, re.IGNORECASE)
+    status_match = re.search(r"(?:Status|status):\s*(\w+(?:-\w+)?)", content, re.IGNORECASE)
     if status_match:
         status = status_match.group(1).lower()
         status_map = {
@@ -194,7 +196,7 @@ def _extract_bug_fix_metadata(content: str) -> Dict[str, Any]:
     metadata: Dict[str, Any] = {}
 
     # Extract month from filename or content
-    month_match = re.search(r'(\d{2})-(\d{2})', content)
+    month_match = re.search(r"(\d{2})-(\d{2})", content)
     if month_match:
         metadata["month"] = f"{month_match.group(1)}-{month_match.group(2)}"
     else:
@@ -214,7 +216,7 @@ def _extract_observation_metadata(content: str) -> Dict[str, Any]:
     metadata: Dict[str, Any] = {}
 
     # Extract month from filename or content
-    month_match = re.search(r'(\d{2})-(\d{2})', content)
+    month_match = re.search(r"(\d{2})-(\d{2})", content)
     if month_match:
         metadata["month"] = f"{month_match.group(1)}-{month_match.group(2)}"
     else:
@@ -238,22 +240,24 @@ def _extract_task_counts_from_table(content: str) -> Dict[str, int]:
     }
 
     # Look for task table
-    task_table_match = re.search(r'\|\s*ID\s*\|.*?Status.*?\|.*?\n\|[-\s|]+\n((?:\|.*?\n)+)', content, re.MULTILINE)
+    task_table_match = re.search(
+        r"\|\s*ID\s*\|.*?Status.*?\|.*?\n\|[-\s|]+\n((?:\|.*?\n)+)", content, re.MULTILINE
+    )
     if task_table_match:
-        task_rows = task_table_match.group(1).strip().split('\n')
+        task_rows = task_table_match.group(1).strip().split("\n")
 
         for row in task_rows:
-            if not row.strip().startswith('|'):
+            if not row.strip().startswith("|"):
                 continue
 
             counts["total_tasks"] += 1
 
             # Check status symbols
-            if '✓' in row or 'Complete' in row or 'Done' in row:
+            if "✓" in row or "Complete" in row or "Done" in row:
                 counts["completed_tasks"] += 1
-            elif '🔄' in row or 'In Progress' in row or 'In-Progress' in row:
+            elif "🔄" in row or "In Progress" in row or "In-Progress" in row:
                 counts["in_progress_tasks"] += 1
-            elif '🚫' in row or 'Blocked' in row:
+            elif "🚫" in row or "Blocked" in row:
                 counts["blocked_tasks"] += 1
 
     return counts
@@ -270,9 +274,9 @@ def split_frontmatter_and_body(content: str) -> Tuple[Optional[str], str]:
         Tuple of (frontmatter_string, body_content)
     """
     # Check if content starts with frontmatter delimiter
-    if content.strip().startswith('---'):
+    if content.strip().startswith("---"):
         # Find the closing delimiter
-        match = re.match(r'^---\n(.*?)\n---\n(.*)$', content, re.DOTALL)
+        match = re.match(r"^---\n(.*?)\n---\n(.*)$", content, re.DOTALL)
         if match:
             return match.group(1), match.group(2)
 
@@ -320,27 +324,27 @@ def detect_artifact_type(filepath: Path, content: str) -> str:
     filename = filepath.name.lower()
 
     # Check filename patterns
-    if 'progress' in filename:
-        return 'progress'
-    elif 'context' in filename:
-        return 'context'
-    elif 'bug-fix' in filename or 'bug_fix' in filename:
-        return 'bug-fix'
-    elif 'observation' in filename:
-        return 'observation'
+    if "progress" in filename:
+        return "progress"
+    elif "context" in filename:
+        return "context"
+    elif "bug-fix" in filename or "bug_fix" in filename:
+        return "bug-fix"
+    elif "observation" in filename:
+        return "observation"
 
     # Check content patterns
-    if re.search(r'(?:Phase|phase):\s*\d+', content):
-        return 'progress'
-    elif re.search(r'(?:Decision|DECISION)-\d+', content):
-        return 'context'
-    elif re.search(r'(?:Fix|fix)(?:es)?:', content):
-        return 'bug-fix'
-    elif re.search(r'(?:Observation|observation)s?:', content):
-        return 'observation'
+    if re.search(r"(?:Phase|phase):\s*\d+", content):
+        return "progress"
+    elif re.search(r"(?:Decision|DECISION)-\d+", content):
+        return "context"
+    elif re.search(r"(?:Fix|fix)(?:es)?:", content):
+        return "bug-fix"
+    elif re.search(r"(?:Observation|observation)s?:", content):
+        return "observation"
 
     # Default to progress
-    return 'progress'
+    return "progress"
 
 
 def convert_file(
@@ -367,7 +371,7 @@ def convert_file(
             print(f"Error: Input file not found: {input_path}", file=sys.stderr)
             return False
 
-        content = input_path.read_text(encoding='utf-8')
+        content = input_path.read_text(encoding="utf-8")
 
         # Auto-detect artifact type if not provided
         if artifact_type is None:
@@ -404,12 +408,13 @@ def convert_file(
 
             # Validate without writing
             from io import StringIO
+
             temp_file = StringIO(hybrid_content)
             is_valid = validate_artifact_file(temp_file, artifact_type, verbose=True)
             return is_valid
 
         # Write output file
-        output_path.write_text(hybrid_content, encoding='utf-8')
+        output_path.write_text(hybrid_content, encoding="utf-8")
         print(f"Successfully converted: {input_path} -> {output_path}")
 
         # Validate the output
@@ -424,6 +429,7 @@ def convert_file(
     except Exception as e:
         print(f"Error converting {input_path}: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -446,41 +452,26 @@ Examples:
 
   # Dry run to preview changes
   python convert_to_hybrid.py input.md --dry-run
-        """
+        """,
+    )
+
+    parser.add_argument("input", type=Path, help="Input markdown file path")
+
+    parser.add_argument(
+        "output", type=Path, nargs="?", help="Output file path (optional if using --in-place)"
     )
 
     parser.add_argument(
-        'input',
-        type=Path,
-        help='Input markdown file path'
+        "--artifact-type",
+        "-t",
+        choices=["progress", "context", "bug-fix", "observation"],
+        help="Type of artifact (auto-detected if not specified)",
     )
 
-    parser.add_argument(
-        'output',
-        type=Path,
-        nargs='?',
-        help='Output file path (optional if using --in-place)'
-    )
+    parser.add_argument("--in-place", "-i", action="store_true", help="Modify input file in-place")
 
     parser.add_argument(
-        '--artifact-type',
-        '-t',
-        choices=['progress', 'context', 'bug-fix', 'observation'],
-        help='Type of artifact (auto-detected if not specified)'
-    )
-
-    parser.add_argument(
-        '--in-place',
-        '-i',
-        action='store_true',
-        help='Modify input file in-place'
-    )
-
-    parser.add_argument(
-        '--dry-run',
-        '-n',
-        action='store_true',
-        help='Preview changes without writing'
+        "--dry-run", "-n", action="store_true", help="Preview changes without writing"
     )
 
     args = parser.parse_args()
@@ -492,15 +483,10 @@ Examples:
     output_path = None if args.in_place else args.output
 
     # Convert file
-    success = convert_file(
-        args.input,
-        output_path,
-        args.artifact_type,
-        args.dry_run
-    )
+    success = convert_file(args.input, output_path, args.artifact_type, args.dry_run)
 
     sys.exit(0 if success else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

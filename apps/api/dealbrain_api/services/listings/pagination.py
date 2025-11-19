@@ -121,13 +121,10 @@ async def get_paginated_listings(
         raise ValueError(f"Invalid sort column: {sort_by}")
 
     # Build base query with eager loading
-    stmt = (
-        select(Listing)
-        .options(
-            selectinload(Listing.cpu),
-            selectinload(Listing.gpu),
-            selectinload(Listing.ports_profile),
-        )
+    stmt = select(Listing).options(
+        selectinload(Listing.cpu),
+        selectinload(Listing.gpu),
+        selectinload(Listing.ports_profile),
     )
 
     # Apply filters
@@ -155,7 +152,7 @@ async def get_paginated_listings(
                 # Convert cursor_sort_value back to appropriate type
                 if isinstance(sort_column.type, type(Listing.id.type)):  # Integer column
                     cursor_sort_value = int(cursor_sort_value)
-                elif hasattr(sort_column.type, 'python_type'):
+                elif hasattr(sort_column.type, "python_type"):
                     # For datetime columns
                     if sort_column.type.python_type == datetime:
                         cursor_sort_value = datetime.fromisoformat(cursor_sort_value)
@@ -165,7 +162,7 @@ async def get_paginated_listings(
                 stmt = stmt.where(
                     or_(
                         sort_column < cursor_sort_value,
-                        and_(sort_column == cursor_sort_value, Listing.id < cursor_id)
+                        and_(sort_column == cursor_sort_value, Listing.id < cursor_id),
                     )
                 )
             else:
@@ -177,7 +174,7 @@ async def get_paginated_listings(
                 # Convert cursor_sort_value back to appropriate type
                 if isinstance(sort_column.type, type(Listing.id.type)):  # Integer column
                     cursor_sort_value = int(cursor_sort_value)
-                elif hasattr(sort_column.type, 'python_type'):
+                elif hasattr(sort_column.type, "python_type"):
                     # For datetime columns
                     if sort_column.type.python_type == datetime:
                         cursor_sort_value = datetime.fromisoformat(cursor_sort_value)
@@ -187,7 +184,7 @@ async def get_paginated_listings(
                 stmt = stmt.where(
                     or_(
                         sort_column > cursor_sort_value,
-                        and_(sort_column == cursor_sort_value, Listing.id > cursor_id)
+                        and_(sort_column == cursor_sort_value, Listing.id > cursor_id),
                     )
                 )
             else:

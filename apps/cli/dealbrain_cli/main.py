@@ -78,7 +78,9 @@ def add(
             primary_storage_type=storage_type,
         )
         async with session_scope() as session:
-            listing = await create_listing(session, payload.model_dump(exclude={"components"}, exclude_none=True))
+            listing = await create_listing(
+                session, payload.model_dump(exclude={"components"}, exclude_none=True)
+            )
             await sync_listing_components(session, listing, None)
             await apply_listing_metrics(session, listing)
             await session.refresh(listing)
@@ -88,7 +90,9 @@ def add(
                 title=listing.title,
                 adjusted_price=listing.adjusted_price_usd,
             )
-            typer.echo(f"Created listing #{listing.id} — adjusted price ${listing.adjusted_price_usd}")
+            typer.echo(
+                f"Created listing #{listing.id} — adjusted price ${listing.adjusted_price_usd}"
+            )
 
     logger.info(
         "cli.add.start",
@@ -111,10 +115,7 @@ def top(metric: str = typer.Option("score_composite"), limit: int = typer.Option
             ordering = VALID_METRICS.get(metric, lambda column: column.desc())
             column = getattr(Listing, metric)
             result = await session.execute(
-                select(Listing)
-                    .where(column.is_not(None))
-                    .order_by(ordering(column))
-                    .limit(limit)
+                select(Listing).where(column.is_not(None)).order_by(ordering(column)).limit(limit)
             )
             for listing in result.scalars().all():
                 value = getattr(listing, metric)
@@ -163,10 +164,7 @@ def export(
             ordering = VALID_METRICS.get(metric, lambda column: column.desc())
             column = getattr(Listing, metric)
             result = await session.execute(
-                select(Listing)
-                    .where(column.is_not(None))
-                    .order_by(ordering(column))
-                    .limit(limit)
+                select(Listing).where(column.is_not(None)).order_by(ordering(column)).limit(limit)
             )
             return [listing_to_dict(listing) for listing in result.scalars().all()]
 
@@ -177,7 +175,13 @@ def export(
         typer.echo(f"Exported {len(data)} listings to {output}")
     else:
         typer.echo(payload)
-    logger.info("cli.export.complete", metric=metric, limit=limit, output=str(output) if output else None, count=len(data))
+    logger.info(
+        "cli.export.complete",
+        metric=metric,
+        limit=limit,
+        output=str(output) if output else None,
+        count=len(data),
+    )
 
 
 @app.command()

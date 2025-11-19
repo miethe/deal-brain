@@ -141,20 +141,34 @@ def normalize_ram_spec_payload(
 
 async def get_or_create_ram_spec(session: AsyncSession, spec_data: dict[str, Any]) -> RamSpec:
     """Return existing RAM spec matching payload or create a new one."""
-    normalized = normalize_ram_spec_payload(spec_data, fallback_total_gb=spec_data.get("total_capacity_gb"))
+    normalized = normalize_ram_spec_payload(
+        spec_data, fallback_total_gb=spec_data.get("total_capacity_gb")
+    )
     if not normalized:
         raise ValueError("Unable to determine RAM specification from payload")
 
     conditions = [
         RamSpec.ddr_generation == normalized["ddr_generation"],
-        (RamSpec.speed_mhz == normalized["speed_mhz"]) if normalized["speed_mhz"] is not None else RamSpec.speed_mhz.is_(None),
-        (RamSpec.module_count == normalized["module_count"]) if normalized["module_count"] is not None else RamSpec.module_count.is_(None),
-        (RamSpec.capacity_per_module_gb == normalized["capacity_per_module_gb"])
-        if normalized["capacity_per_module_gb"] is not None
-        else RamSpec.capacity_per_module_gb.is_(None),
-        (RamSpec.total_capacity_gb == normalized["total_capacity_gb"])
-        if normalized["total_capacity_gb"] is not None
-        else RamSpec.total_capacity_gb.is_(None),
+        (
+            (RamSpec.speed_mhz == normalized["speed_mhz"])
+            if normalized["speed_mhz"] is not None
+            else RamSpec.speed_mhz.is_(None)
+        ),
+        (
+            (RamSpec.module_count == normalized["module_count"])
+            if normalized["module_count"] is not None
+            else RamSpec.module_count.is_(None)
+        ),
+        (
+            (RamSpec.capacity_per_module_gb == normalized["capacity_per_module_gb"])
+            if normalized["capacity_per_module_gb"] is not None
+            else RamSpec.capacity_per_module_gb.is_(None)
+        ),
+        (
+            (RamSpec.total_capacity_gb == normalized["total_capacity_gb"])
+            if normalized["total_capacity_gb"] is not None
+            else RamSpec.total_capacity_gb.is_(None)
+        ),
     ]
 
     existing = await session.scalar(select(RamSpec).where(and_(*conditions)))
@@ -167,7 +181,8 @@ async def get_or_create_ram_spec(session: AsyncSession, spec_data: dict[str, Any
     notes = payload.pop("notes", None)
 
     ram_spec = RamSpec(
-        label=label or format_ram_label(
+        label=label
+        or format_ram_label(
             payload["ddr_generation"],
             payload.get("speed_mhz"),
             payload.get("total_capacity_gb"),
@@ -243,14 +258,15 @@ def normalize_storage_profile_payload(
         data = {}
 
     medium = normalize_storage_medium(
-        data.get("medium")
-        or data.get("storage_type")
-        or fallback_type
+        data.get("medium") or data.get("storage_type") or fallback_type
     )
     interface = normalize_str(data.get("interface") or data.get("bus"))
     form_factor = normalize_str(data.get("form_factor") or data.get("size"))
     capacity_gb = normalize_int(
-        data.get("capacity_gb") or data.get("capacity") or data.get("storage_gb") or fallback_capacity_gb
+        data.get("capacity_gb")
+        or data.get("capacity")
+        or data.get("storage_gb")
+        or fallback_capacity_gb
     )
     performance_tier = normalize_str(data.get("performance_tier") or data.get("tier"))
     if capacity_gb is None:
@@ -258,7 +274,9 @@ def normalize_storage_profile_payload(
 
     attributes = data.get("attributes") or data.get("attributes_json")
     attributes_json = attributes if isinstance(attributes, dict) else {}
-    label = normalize_str(data.get("label")) or format_storage_label(medium, capacity_gb, interface, form_factor)
+    label = normalize_str(data.get("label")) or format_storage_label(
+        medium, capacity_gb, interface, form_factor
+    )
     notes = normalize_str(data.get("notes"))
 
     return {
@@ -273,22 +291,38 @@ def normalize_storage_profile_payload(
     }
 
 
-async def get_or_create_storage_profile(session: AsyncSession, profile_data: dict[str, Any]) -> StorageProfile:
+async def get_or_create_storage_profile(
+    session: AsyncSession, profile_data: dict[str, Any]
+) -> StorageProfile:
     """Return existing storage profile matching payload or create a new one."""
-    normalized = normalize_storage_profile_payload(profile_data, fallback_capacity_gb=profile_data.get("capacity_gb"))
+    normalized = normalize_storage_profile_payload(
+        profile_data, fallback_capacity_gb=profile_data.get("capacity_gb")
+    )
     if not normalized:
         raise ValueError("Unable to determine storage profile from payload")
 
     conditions = [
         StorageProfile.medium == normalized["medium"],
-        (StorageProfile.interface == normalized["interface"]) if normalized["interface"] is not None else StorageProfile.interface.is_(None),
-        (StorageProfile.form_factor == normalized["form_factor"]) if normalized["form_factor"] is not None else StorageProfile.form_factor.is_(None),
-        (StorageProfile.capacity_gb == normalized["capacity_gb"])
-        if normalized["capacity_gb"] is not None
-        else StorageProfile.capacity_gb.is_(None),
-        (StorageProfile.performance_tier == normalized["performance_tier"])
-        if normalized["performance_tier"] is not None
-        else StorageProfile.performance_tier.is_(None),
+        (
+            (StorageProfile.interface == normalized["interface"])
+            if normalized["interface"] is not None
+            else StorageProfile.interface.is_(None)
+        ),
+        (
+            (StorageProfile.form_factor == normalized["form_factor"])
+            if normalized["form_factor"] is not None
+            else StorageProfile.form_factor.is_(None)
+        ),
+        (
+            (StorageProfile.capacity_gb == normalized["capacity_gb"])
+            if normalized["capacity_gb"] is not None
+            else StorageProfile.capacity_gb.is_(None)
+        ),
+        (
+            (StorageProfile.performance_tier == normalized["performance_tier"])
+            if normalized["performance_tier"] is not None
+            else StorageProfile.performance_tier.is_(None)
+        ),
     ]
 
     existing = await session.scalar(select(StorageProfile).where(and_(*conditions)))
@@ -299,7 +333,8 @@ async def get_or_create_storage_profile(session: AsyncSession, profile_data: dic
     notes = normalized.pop("notes", None)
     label = normalized.pop("label", None)
     storage_profile = StorageProfile(
-        label=label or format_storage_label(
+        label=label
+        or format_storage_label(
             normalized["medium"],
             normalized.get("capacity_gb"),
             normalized.get("interface"),

@@ -141,17 +141,13 @@ async def seed_sample_listings():
     async with async_session() as session:
         for sample in SAMPLE_LISTINGS:
             # Check if listing already exists
-            existing = await session.scalar(
-                select(Listing).where(Listing.title == sample["title"])
-            )
+            existing = await session.scalar(select(Listing).where(Listing.title == sample["title"]))
             if existing:
                 print(f"Skipping existing listing: {sample['title']}")
                 continue
 
             # Find CPU by name
-            cpu = await session.scalar(
-                select(Cpu).where(Cpu.name == sample["cpu_name"])
-            )
+            cpu = await session.scalar(select(Cpu).where(Cpu.name == sample["cpu_name"]))
             if not cpu:
                 print(f"Warning: CPU not found '{sample['cpu_name']}' for {sample['title']}")
                 continue
@@ -159,9 +155,7 @@ async def seed_sample_listings():
             # Create ports profile
             ports_profile = None
             if sample.get("ports"):
-                ports_profile = PortsProfile(
-                    name=f"{sample['title']} Ports"
-                )
+                ports_profile = PortsProfile(name=f"{sample['title']} Ports")
                 session.add(ports_profile)
                 await session.flush()
 

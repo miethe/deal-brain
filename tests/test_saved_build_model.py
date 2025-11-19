@@ -76,11 +76,7 @@ def test_saved_build_can_be_instantiated():
     from dealbrain_api.models import SavedBuild
 
     # Create instance with minimal required fields
-    build = SavedBuild(
-        name="Test Build",
-        visibility="private",
-        share_token=uuid.uuid4().hex
-    )
+    build = SavedBuild(name="Test Build", visibility="private", share_token=uuid.uuid4().hex)
 
     assert build.name == "Test Build"
     assert build.visibility == "private"
@@ -92,11 +88,7 @@ def test_saved_build_soft_delete():
     """Verify soft_delete method sets deleted_at timestamp."""
     from dealbrain_api.models import SavedBuild
 
-    build = SavedBuild(
-        name="Test Build",
-        visibility="private",
-        share_token=uuid.uuid4().hex
-    )
+    build = SavedBuild(name="Test Build", visibility="private", share_token=uuid.uuid4().hex)
 
     # Initially not deleted
     assert build.deleted_at is None
@@ -117,27 +109,21 @@ def test_saved_build_visibility_properties():
 
     # Test public build
     public_build = SavedBuild(
-        name="Public Build",
-        visibility="public",
-        share_token=uuid.uuid4().hex
+        name="Public Build", visibility="public", share_token=uuid.uuid4().hex
     )
     assert public_build.is_public
     assert not public_build.is_unlisted
 
     # Test unlisted build
     unlisted_build = SavedBuild(
-        name="Unlisted Build",
-        visibility="unlisted",
-        share_token=uuid.uuid4().hex
+        name="Unlisted Build", visibility="unlisted", share_token=uuid.uuid4().hex
     )
     assert not unlisted_build.is_public
     assert unlisted_build.is_unlisted
 
     # Test private build
     private_build = SavedBuild(
-        name="Private Build",
-        visibility="private",
-        share_token=uuid.uuid4().hex
+        name="Private Build", visibility="private", share_token=uuid.uuid4().hex
     )
     assert not private_build.is_public
     assert not private_build.is_unlisted
@@ -148,11 +134,7 @@ def test_saved_build_share_url():
     from dealbrain_api.models import SavedBuild
 
     share_token = uuid.uuid4().hex
-    build = SavedBuild(
-        name="Test Build",
-        visibility="public",
-        share_token=share_token
-    )
+    build = SavedBuild(name="Test Build", visibility="public", share_token=share_token)
 
     assert build.share_url == f"/builds/{share_token}"
 
@@ -178,17 +160,17 @@ def test_saved_build_with_optional_fields():
             "base_price": 1500.0,
             "adjusted_price": 1450.0,
             "delta_amount": -50.0,
-            "delta_percentage": -3.33
+            "delta_percentage": -3.33,
         },
         metrics_snapshot={
             "dollar_per_cpu_mark_multi": 5.5,
             "dollar_per_cpu_mark_single": 8.2,
-            "composite_score": 85.3
+            "composite_score": 85.3,
         },
         valuation_breakdown={
             "rules_applied": ["RAM_UPGRADE", "GPU_PREMIUM"],
-            "total_adjustment": -50.0
-        }
+            "total_adjustment": -50.0,
+        },
     )
 
     assert build.name == "Complete Build"

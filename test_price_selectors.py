@@ -7,10 +7,10 @@ from bs4 import BeautifulSoup
 
 html_file = "/mnt/containers/deal-brain/debug_amazon.com_1fe23618.html"
 
-with open(html_file, 'r', encoding='utf-8') as f:
+with open(html_file, "r", encoding="utf-8") as f:
     html_content = f.read()
 
-soup = BeautifulSoup(html_content, 'html.parser')
+soup = BeautifulSoup(html_content, "html.parser")
 
 print("=" * 80)
 print("TESTING PRICE SELECTOR PRIORITY")
@@ -45,8 +45,8 @@ for label, selector in selectors:
         # Show parent context
         parent = elem.parent
         if parent:
-            parent_classes = parent.get('class', [])
-            parent_id = parent.get('id', '')
+            parent_classes = parent.get("class", [])
+            parent_id = parent.get("id", "")
             print(f"      Parent: {parent.name} class={parent_classes} id={parent_id}")
 
 # Test the specific working selector
@@ -63,10 +63,10 @@ else:
 core_div = soup.find(id="corePriceDisplay_desktop_feature_div")
 if core_div:
     print(f"\n✓ #corePriceDisplay_desktop_feature_div exists")
-    price_to_pay = core_div.find('span', class_='priceToPay')
+    price_to_pay = core_div.find("span", class_="priceToPay")
     if price_to_pay:
         print(f"  ✓ Contains span.priceToPay")
-        offscreen = price_to_pay.find('span', class_='a-offscreen')
+        offscreen = price_to_pay.find("span", class_="a-offscreen")
         if offscreen:
             print(f"    ✓ Contains span.a-offscreen: '{offscreen.get_text(strip=True)}'")
         else:
@@ -75,11 +75,11 @@ if core_div:
         print(f"  ✗ No span.priceToPay found")
 
     # Show all a-offscreen in corePriceDisplay
-    all_offscreen = core_div.find_all('span', class_='a-offscreen')
+    all_offscreen = core_div.find_all("span", class_="a-offscreen")
     print(f"  All a-offscreen in corePriceDisplay ({len(all_offscreen)}):")
     for i, elem in enumerate(all_offscreen):
         text = elem.get_text(strip=True)
-        parent_classes = elem.parent.get('class', []) if elem.parent else []
+        parent_classes = elem.parent.get("class", []) if elem.parent else []
         print(f"    [{i}] '{text}' (parent classes: {parent_classes})")
 
 print("\n" + "=" * 80)

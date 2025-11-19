@@ -25,6 +25,7 @@ class SavedBuild(Base, TimestampMixin):
 
     Soft delete pattern is implemented to maintain audit trail.
     """
+
     __tablename__ = "saved_builds"
     __table_args__ = (
         Index("idx_user_builds", "user_id", "deleted_at"),
@@ -36,7 +37,9 @@ class SavedBuild(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
     # Ownership
-    user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # FK to User table when implemented
+    user_id: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )  # FK to User table when implemented
 
     # Build Metadata
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -45,27 +48,18 @@ class SavedBuild(Base, TimestampMixin):
 
     # Visibility & Sharing
     visibility: Mapped[str] = mapped_column(
-        String(16),
-        nullable=False,
-        default="private",
-        server_default="private"
+        String(16), nullable=False, default="private", server_default="private"
     )
     share_token: Mapped[str] = mapped_column(
-        String(64),
-        unique=True,
-        nullable=False,
-        index=True,
-        default=lambda: uuid.uuid4().hex
+        String(64), unique=True, nullable=False, index=True, default=lambda: uuid.uuid4().hex
     )
 
     # Component References
     cpu_id: Mapped[int | None] = mapped_column(
-        ForeignKey("cpu.id", ondelete="SET NULL"),
-        nullable=True
+        ForeignKey("cpu.id", ondelete="SET NULL"), nullable=True
     )
     gpu_id: Mapped[int | None] = mapped_column(
-        ForeignKey("gpu.id", ondelete="SET NULL"),
-        nullable=True
+        ForeignKey("gpu.id", ondelete="SET NULL"), nullable=True
     )
     ram_spec_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     storage_spec_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -76,17 +70,15 @@ class SavedBuild(Base, TimestampMixin):
     pricing_snapshot: Mapped[dict[str, Any] | None] = mapped_column(
         JSONBType,
         nullable=True,
-        comment="Stores {base_price, adjusted_price, delta_amount, delta_percentage}"
+        comment="Stores {base_price, adjusted_price, delta_amount, delta_percentage}",
     )
     metrics_snapshot: Mapped[dict[str, Any] | None] = mapped_column(
         JSONBType,
         nullable=True,
-        comment="Stores {dollar_per_cpu_mark_multi, dollar_per_cpu_mark_single, composite_score}"
+        comment="Stores {dollar_per_cpu_mark_multi, dollar_per_cpu_mark_single, composite_score}",
     )
     valuation_breakdown: Mapped[dict[str, Any] | None] = mapped_column(
-        JSONBType,
-        nullable=True,
-        comment="Detailed breakdown of applied valuation rules"
+        JSONBType, nullable=True, comment="Detailed breakdown of applied valuation rules"
     )
 
     # Soft Delete

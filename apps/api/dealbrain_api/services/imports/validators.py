@@ -34,14 +34,14 @@ class ImportValidator:
             return
 
         cpu_conflicts = conflicts.get("cpu") or []
-        unresolved = [conflict["name"] for conflict in cpu_conflicts if conflict["name"] not in resolutions]
+        unresolved = [
+            conflict["name"] for conflict in cpu_conflicts if conflict["name"] not in resolutions
+        ]
         if unresolved:
             raise ValueError(f"Unresolved CPU conflicts: {', '.join(unresolved)}")
 
         invalid = [
-            name
-            for name, action in resolutions.items()
-            if action not in {"update", "skip", "keep"}
+            name for name, action in resolutions.items() if action not in {"update", "skip", "keep"}
         ]
         if invalid:
             raise ValueError(f"Invalid resolution actions for: {', '.join(invalid)}")
@@ -85,7 +85,11 @@ class ImportValidator:
             if not name:
                 continue
             incoming[name] = {
-                key: ImportValidator._coerce_value(row.get(mapping.get("column"))) if mapping.get("column") else None
+                key: (
+                    ImportValidator._coerce_value(row.get(mapping.get("column")))
+                    if mapping.get("column")
+                    else None
+                )
                 for key, mapping in fields.items()
             }
 
@@ -157,7 +161,10 @@ class ImportValidator:
 
         return {
             "existing": {field: getattr(cpu, field) for field in tracked_fields},
-            "incoming": {field: ImportValidator._normalize_numeric(incoming.get(field), field) for field in tracked_fields},
+            "incoming": {
+                field: ImportValidator._normalize_numeric(incoming.get(field), field)
+                for field in tracked_fields
+            },
             "fields": diffs,
         }
 
@@ -175,7 +182,14 @@ class ImportValidator:
         """
         if value in (None, ""):
             return None
-        if field in {"cores", "threads", "tdp_w", "cpu_mark_multi", "cpu_mark_single", "release_year"}:
+        if field in {
+            "cores",
+            "threads",
+            "tdp_w",
+            "cpu_mark_multi",
+            "cpu_mark_single",
+            "release_year",
+        }:
             try:
                 return int(float(value))
             except (TypeError, ValueError):

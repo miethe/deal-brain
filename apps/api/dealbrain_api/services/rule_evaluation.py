@@ -24,26 +24,26 @@ logger = get_logger("dealbrain.rules")
 valuation_layer_events = Counter(
     "valuation_layer_contributions_total",
     "Total valuation layer contribution events",
-    ["layer", "ruleset_name"]
+    ["layer", "ruleset_name"],
 )
 
 valuation_layer_delta = Histogram(
     "valuation_layer_delta_usd",
     "Valuation layer delta in USD",
     ["layer", "ruleset_name"],
-    buckets=[0, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]
+    buckets=[0, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
 )
 
 valuation_evaluation_duration = Histogram(
     "valuation_evaluation_duration_seconds",
     "Time taken to evaluate valuation rules",
-    ["ruleset_name"]
+    ["ruleset_name"],
 )
 
 listings_by_layer = Gauge(
     "listings_influenced_by_layer",
     "Number of listings influenced by each valuation layer",
-    ["layer"]
+    ["layer"],
 )
 
 VALUATION_DISABLED_RULESETS_KEY = "valuation_disabled_rulesets"
@@ -57,10 +57,7 @@ class RuleEvaluationService:
         self._cache = {}  # Simple in-memory cache (TODO: use Redis in production)
 
     async def evaluate_listing(
-        self,
-        session: AsyncSession,
-        listing_id: int,
-        ruleset_id: int | None = None
+        self, session: AsyncSession, listing_id: int, ruleset_id: int | None = None
     ) -> dict[str, Any]:
         """
         Evaluate a listing against one or more rulesets.
@@ -175,19 +172,17 @@ class RuleEvaluationService:
                 logger.info("valuation.layer_contribution", **telemetry_event)
 
                 # Update Prometheus metrics
-                valuation_layer_events.labels(
-                    layer=layer_type, ruleset_name=ruleset.name
-                ).inc()
-                valuation_layer_delta.labels(
-                    layer=layer_type, ruleset_name=ruleset.name
-                ).observe(abs(layer_adjustment))
+                valuation_layer_events.labels(layer=layer_type, ruleset_name=ruleset.name).inc()
+                valuation_layer_delta.labels(layer=layer_type, ruleset_name=ruleset.name).observe(
+                    abs(layer_adjustment)
+                )
 
                 matched_rules_by_layer[layer_type] = {
                     "ruleset_id": ruleset.id,
                     "ruleset_name": ruleset.name,
                     "priority": ruleset.priority,
                     "adjustment": layer_adjustment,
-                    "matched_rules": layer_summary["matched_rules"]
+                    "matched_rules": layer_summary["matched_rules"],
                 }
 
             # Add to cumulative results
@@ -214,8 +209,7 @@ class RuleEvaluationService:
 
         # Count total matched rules across all layers
         total_matched_rules = sum(
-            len(layer["matched_rules"])
-            for layer in matched_rules_by_layer.values()
+            len(layer["matched_rules"]) for layer in matched_rules_by_layer.values()
         )
 
         result_payload = {
@@ -232,10 +226,10 @@ class RuleEvaluationService:
                     "id": rs.id,
                     "name": rs.name,
                     "priority": rs.priority,
-                    "layer": self._get_layer_type(rs)
+                    "layer": self._get_layer_type(rs),
                 }
                 for rs in rulesets_to_evaluate
-            ]
+            ],
         }
 
         logger.info(
@@ -249,10 +243,7 @@ class RuleEvaluationService:
         return result_payload
 
     async def evaluate_multiple_listings(
-        self,
-        session: AsyncSession,
-        listing_ids: list[int],
-        ruleset_id: int | None = None
+        self, session: AsyncSession, listing_ids: list[int], ruleset_id: int | None = None
     ) -> list[dict[str, Any]]:
         """
         Evaluate multiple listings against rulesets.
@@ -277,10 +268,7 @@ class RuleEvaluationService:
                     listing_id=listing_id,
                     error=str(e),
                 )
-                results.append({
-                    "listing_id": listing_id,
-                    "error": str(e)
-                })
+                results.append({"listing_id": listing_id, "error": str(e)})
 
         return results
 
@@ -289,7 +277,7 @@ class RuleEvaluationService:
         session: AsyncSession,
         listing_id: int,
         ruleset_id: int | None = None,
-        commit: bool = True
+        commit: bool = True,
     ) -> dict[str, Any]:
         """Evaluate rulesets and update the listing's valuation data.
 
@@ -319,7 +307,7 @@ class RuleEvaluationService:
                 "layers": result["layers"],  # Layer-by-layer breakdown
                 "matched_rules": result["matched_rules"],  # Flattened list for compatibility
                 "rulesets_evaluated": result["rulesets_evaluated"],
-                "evaluated_at": datetime.utcnow().isoformat()
+                "evaluated_at": datetime.utcnow().isoformat(),
             }
 
             if commit:
@@ -329,10 +317,7 @@ class RuleEvaluationService:
         return result
 
     async def apply_ruleset_to_all_listings(
-        self,
-        session: AsyncSession,
-        ruleset_id: int | None = None,
-        batch_size: int = 100
+        self, session: AsyncSession, ruleset_id: int | None = None, batch_size: int = 100
     ) -> dict[str, Any]:
         """
         Apply rulesets to all active listings in batches.
@@ -357,7 +342,7 @@ class RuleEvaluationService:
 
         # Process in batches
         for i in range(0, len(all_listings), batch_size):
-            batch = all_listings[i:i + batch_size]
+            batch = all_listings[i : i + batch_size]
 
             for listing in batch:
                 try:
@@ -367,10 +352,7 @@ class RuleEvaluationService:
                     succeeded += 1
                 except Exception as e:
                     failed += 1
-                    errors.append({
-                        "listing_id": listing.id,
-                        "error": str(e)
-                    })
+                    errors.append({"listing_id": listing.id, "error": str(e)})
 
                 processed += 1
 
@@ -387,21 +369,14 @@ class RuleEvaluationService:
 
     # --- Helper methods ---
 
-    async def _get_ruleset(
-        self,
-        session: AsyncSession,
-        ruleset_id: int
-    ) -> ValuationRuleset | None:
+    async def _get_ruleset(self, session: AsyncSession, ruleset_id: int) -> ValuationRuleset | None:
         """Get ruleset by ID"""
         stmt = select(ValuationRuleset).where(ValuationRuleset.id == ruleset_id)
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def _get_rulesets_for_evaluation(
-        self,
-        session: AsyncSession,
-        context: dict[str, Any],
-        excluded_ids: set[int]
+        self, session: AsyncSession, context: dict[str, Any], excluded_ids: set[int]
     ) -> list[ValuationRuleset]:
         """
         Get all active rulesets that should be evaluated, ordered by priority.
@@ -422,10 +397,7 @@ class RuleEvaluationService:
         stmt = (
             select(ValuationRuleset)
             .where(ValuationRuleset.is_active.is_(True))
-            .order_by(
-                ValuationRuleset.priority.asc(),
-                ValuationRuleset.created_at.asc()
-            )
+            .order_by(ValuationRuleset.priority.asc(), ValuationRuleset.created_at.asc())
         )
         result = await session.execute(stmt)
         all_rulesets = list(result.scalars().all())
@@ -510,9 +482,7 @@ class RuleEvaluationService:
         return condition_obj.evaluate(context)
 
     async def _get_rules_from_ruleset(
-        self,
-        session: AsyncSession,
-        ruleset_id: int
+        self, session: AsyncSession, ruleset_id: int
     ) -> list[dict[str, Any]]:
         """
         Get all rules from a ruleset formatted for evaluation.
@@ -545,35 +515,37 @@ class RuleEvaluationService:
             rules = list(rules_result.scalars().all())
 
             for rule in rules:
-                all_rules.append({
-                    "id": rule.id,
-                    "name": rule.name,
-                    "description": rule.description,
-                    "priority": rule.priority,
-                    "evaluation_order": rule.evaluation_order,
-                    "is_active": rule.is_active,
-                    "conditions": [
-                        {
-                            "field_name": c.field_name,
-                            "field_type": c.field_type,
-                            "operator": c.operator,
-                            "value": c.value_json,
-                            "logical_operator": c.logical_operator,
-                        }
-                        for c in rule.conditions
-                    ],
-                    "actions": [
-                        {
-                            "action_type": a.action_type,
-                            "metric": a.metric,
-                            "value_usd": float(a.value_usd) if a.value_usd else None,
-                            "unit_type": a.unit_type,
-                            "formula": a.formula,
-                            "modifiers": a.modifiers_json,
-                        }
-                        for a in rule.actions
-                    ],
-                })
+                all_rules.append(
+                    {
+                        "id": rule.id,
+                        "name": rule.name,
+                        "description": rule.description,
+                        "priority": rule.priority,
+                        "evaluation_order": rule.evaluation_order,
+                        "is_active": rule.is_active,
+                        "conditions": [
+                            {
+                                "field_name": c.field_name,
+                                "field_type": c.field_type,
+                                "operator": c.operator,
+                                "value": c.value_json,
+                                "logical_operator": c.logical_operator,
+                            }
+                            for c in rule.conditions
+                        ],
+                        "actions": [
+                            {
+                                "action_type": a.action_type,
+                                "metric": a.metric,
+                                "value_usd": float(a.value_usd) if a.value_usd else None,
+                                "unit_type": a.unit_type,
+                                "formula": a.formula,
+                                "modifiers": a.modifiers_json,
+                            }
+                            for a in rule.actions
+                        ],
+                    }
+                )
 
         return all_rules
 

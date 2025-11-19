@@ -41,14 +41,19 @@ import argparse
 
 # Layer path mappings - symbols are assigned based on path prefixes
 LAYER_PATH_MAPPING = {
-    'router': ['app/api/', 'app/api/endpoints/'],
-    'service': ['app/services/'],
-    'repository': ['app/repositories/'],
-    'schema': ['app/schemas/'],
-    'core': [
-        'app/core/', 'app/db/', 'app/models/', 'auth/',
-        'app/middleware/', 'app/cache/', 'app/observability/'
-    ]
+    "router": ["app/api/", "app/api/endpoints/"],
+    "service": ["app/services/"],
+    "repository": ["app/repositories/"],
+    "schema": ["app/schemas/"],
+    "core": [
+        "app/core/",
+        "app/db/",
+        "app/models/",
+        "auth/",
+        "app/middleware/",
+        "app/cache/",
+        "app/observability/",
+    ],
 }
 
 
@@ -72,13 +77,10 @@ def map_symbol_to_layer(module_path: str) -> str:
                 return layer
 
     # Default to core for unmapped paths
-    return 'core'
+    return "core"
 
 
-def validate_split(
-    original_modules: List[Dict],
-    layers: Dict[str, List[Dict]]
-) -> Dict[str, Any]:
+def validate_split(original_modules: List[Dict], layers: Dict[str, List[Dict]]) -> Dict[str, Any]:
     """
     Validate that no symbols were lost during split.
 
@@ -90,16 +92,13 @@ def validate_split(
         Validation results dictionary with status and details
     """
     # Count original symbols
-    original_symbol_count = sum(
-        len(module.get('symbols', []))
-        for module in original_modules
-    )
+    original_symbol_count = sum(len(module.get("symbols", [])) for module in original_modules)
 
     # Count split symbols
     split_symbol_count = 0
     layer_counts = {}
     for layer, modules in layers.items():
-        count = sum(len(module.get('symbols', [])) for module in modules)
+        count = sum(len(module.get("symbols", [])) for module in modules)
         layer_counts[layer] = count
         split_symbol_count += count
 
@@ -108,29 +107,24 @@ def validate_split(
     duplicates = []
     for layer, modules in layers.items():
         for module in modules:
-            for symbol in module.get('symbols', []):
-                key = (symbol['name'], module['path'], symbol['line'])
+            for symbol in module.get("symbols", []):
+                key = (symbol["name"], module["path"], symbol["line"])
                 if key in seen_symbols:
-                    duplicates.append({
-                        'name': symbol['name'],
-                        'path': module['path'],
-                        'line': symbol['line']
-                    })
+                    duplicates.append(
+                        {"name": symbol["name"], "path": module["path"], "line": symbol["line"]}
+                    )
                 seen_symbols.add(key)
 
     # Validation results
-    is_valid = (
-        original_symbol_count == split_symbol_count and
-        len(duplicates) == 0
-    )
+    is_valid = original_symbol_count == split_symbol_count and len(duplicates) == 0
 
     return {
-        'valid': is_valid,
-        'original_count': original_symbol_count,
-        'split_count': split_symbol_count,
-        'layer_counts': layer_counts,
-        'duplicates': duplicates,
-        'symbol_loss': original_symbol_count - split_symbol_count
+        "valid": is_valid,
+        "original_count": original_symbol_count,
+        "split_count": split_symbol_count,
+        "layer_counts": layer_counts,
+        "duplicates": duplicates,
+        "symbol_loss": original_symbol_count - split_symbol_count,
     }
 
 
@@ -145,25 +139,21 @@ def create_layer_file_metadata(layer: str, modules: List[Dict]) -> Dict[str, Any
     Returns:
         Metadata dictionary with version, domain, language, etc.
     """
-    total_symbols = sum(len(module.get('symbols', [])) for module in modules)
+    total_symbols = sum(len(module.get("symbols", [])) for module in modules)
 
     return {
-        'version': '2.0',
-        'domain': 'api',
-        'layer': layer,
-        'language': 'python',
-        'generated': datetime.utcnow().isoformat() + 'Z',
-        'totalModules': len(modules),
-        'totalSymbols': total_symbols,
-        'modules': modules
+        "version": "2.0",
+        "domain": "api",
+        "layer": layer,
+        "language": "python",
+        "generated": datetime.utcnow().isoformat() + "Z",
+        "totalModules": len(modules),
+        "totalSymbols": total_symbols,
+        "modules": modules,
     }
 
 
-def split_api_by_layer(
-    input_path: Path,
-    output_dir: Path,
-    dry_run: bool = False
-) -> Dict[str, Any]:
+def split_api_by_layer(input_path: Path, output_dir: Path, dry_run: bool = False) -> Dict[str, Any]:
     """
     Split symbols-api.json into layer-based files.
 
@@ -178,10 +168,10 @@ def split_api_by_layer(
     print(f"Loading {input_path}...")
 
     # Load original file
-    with open(input_path, 'r', encoding='utf-8') as f:
+    with open(input_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    modules = data.get('modules', [])
+    modules = data.get("modules", [])
     print(f"Loaded {len(modules)} modules with {data.get('totalSymbols', 0)} symbols")
 
     # Group modules by layer
@@ -189,15 +179,14 @@ def split_api_by_layer(
     unmapped_paths = []
 
     for module in modules:
-        module_path = module.get('path', '')
+        module_path = module.get("path", "")
         layer = map_symbol_to_layer(module_path)
 
         # Track unmapped paths (those that went to 'core' by default)
-        if layer == 'core':
+        if layer == "core":
             # Check if it matches any core patterns explicitly
             is_explicitly_core = any(
-                module_path.startswith(prefix)
-                for prefix in LAYER_PATH_MAPPING['core']
+                module_path.startswith(prefix) for prefix in LAYER_PATH_MAPPING["core"]
             )
             if not is_explicitly_core:
                 unmapped_paths.append(module_path)
@@ -208,12 +197,12 @@ def split_api_by_layer(
     print("\nValidating split...")
     validation = validate_split(modules, layers)
 
-    if not validation['valid']:
+    if not validation["valid"]:
         print(f"❌ VALIDATION FAILED!")
         print(f"   Original symbols: {validation['original_count']}")
         print(f"   Split symbols: {validation['split_count']}")
         print(f"   Symbol loss: {validation['symbol_loss']}")
-        if validation['duplicates']:
+        if validation["duplicates"]:
             print(f"   Duplicates found: {len(validation['duplicates'])}")
         return validation
 
@@ -225,9 +214,9 @@ def split_api_by_layer(
     print("-" * 50)
 
     layer_files = {}
-    for layer in ['router', 'service', 'repository', 'schema', 'core']:
+    for layer in ["router", "service", "repository", "schema", "core"]:
         module_count = len(layers[layer])
-        symbol_count = validation['layer_counts'][layer]
+        symbol_count = validation["layer_counts"][layer]
 
         # Estimate file size (rough: 550 bytes per symbol)
         est_size_kb = (symbol_count * 550) // 1024
@@ -235,10 +224,10 @@ def split_api_by_layer(
         print(f"{layer:<15} {module_count:<10} {symbol_count:<10} ~{est_size_kb} KB")
 
         layer_files[layer] = {
-            'filename': f'symbols-api-{layer}s.json',
-            'modules': module_count,
-            'symbols': symbol_count,
-            'size_kb': est_size_kb
+            "filename": f"symbols-api-{layer}s.json",
+            "modules": module_count,
+            "symbols": symbol_count,
+            "size_kb": est_size_kb,
         }
 
     # Show unmapped paths
@@ -254,18 +243,18 @@ def split_api_by_layer(
         print("\nWriting layer files...")
 
         # Backup original file
-        backup_path = output_dir / 'symbols-api.backup.json'
+        backup_path = output_dir / "symbols-api.backup.json"
         if not backup_path.exists():
             print(f"Creating backup: {backup_path}")
-            with open(backup_path, 'w', encoding='utf-8') as f:
+            with open(backup_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
 
         # Write each layer file
         for layer, modules in layers.items():
-            output_file = output_dir / f'symbols-api-{layer}s.json'
+            output_file = output_dir / f"symbols-api-{layer}s.json"
             file_data = create_layer_file_metadata(layer, modules)
 
-            with open(output_file, 'w', encoding='utf-8') as f:
+            with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(file_data, f, indent=2)
 
             file_size = output_file.stat().st_size / 1024
@@ -274,8 +263,7 @@ def split_api_by_layer(
         print(f"\n✅ Split complete! Created {len(layers)} layer files")
         print(f"   Original file: {input_path.stat().st_size / 1024:.1f} KB")
         total_size = sum(
-            (output_dir / f'symbols-api-{layer}s.json').stat().st_size
-            for layer in layers.keys()
+            (output_dir / f"symbols-api-{layer}s.json").stat().st_size for layer in layers.keys()
         )
         print(f"   Total split size: {total_size / 1024:.1f} KB")
         print(f"   Backup saved to: {backup_path}")
@@ -283,11 +271,11 @@ def split_api_by_layer(
         print("\n🔍 DRY RUN - No files written")
 
     return {
-        'success': True,
-        'validation': validation,
-        'layer_files': layer_files,
-        'unmapped_paths': unmapped_paths,
-        'dry_run': dry_run
+        "success": True,
+        "validation": validation,
+        "layer_files": layer_files,
+        "unmapped_paths": unmapped_paths,
+        "dry_run": dry_run,
     }
 
 
@@ -296,27 +284,21 @@ def main():
     parser = argparse.ArgumentParser(
         description="Split symbols-api.json into layer-based files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Show what would happen without writing files'
+        "--dry-run", action="store_true", help="Show what would happen without writing files"
     )
     parser.add_argument(
-        '--validate-only',
-        action='store_true',
-        help='Only validate the split logic, don\'t create files'
+        "--validate-only",
+        action="store_true",
+        help="Only validate the split logic, don't create files",
     )
     parser.add_argument(
-        '--input',
-        type=Path,
-        help='Input file path (default: from config or ai/symbols-api.json)'
+        "--input", type=Path, help="Input file path (default: from config or ai/symbols-api.json)"
     )
     parser.add_argument(
-        '--output-dir',
-        type=Path,
-        help='Output directory (default: from config or ai/)'
+        "--output-dir", type=Path, help="Output directory (default: from config or ai/)"
     )
 
     args = parser.parse_args()
@@ -324,6 +306,7 @@ def main():
     # Try to load configuration for defaults
     try:
         from config import get_config
+
         config = get_config()
 
         # Get paths from config if not provided as arguments
@@ -339,9 +322,9 @@ def main():
 
         # Fallback to default paths
         if args.input is None:
-            args.input = Path('ai/symbols-api.json')
+            args.input = Path("ai/symbols-api.json")
         if args.output_dir is None:
-            args.output_dir = Path('ai')
+            args.output_dir = Path("ai")
 
     # Validate input file exists
     if not args.input.exists():
@@ -355,12 +338,12 @@ def main():
     dry_run = args.dry_run or args.validate_only
     result = split_api_by_layer(args.input, args.output_dir, dry_run=dry_run)
 
-    if not result.get('success'):
+    if not result.get("success"):
         print("\n❌ Split failed - see errors above", file=sys.stderr)
         sys.exit(1)
 
     sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -46,12 +46,14 @@ try:
         update_listing_metrics,
         bulk_update_listing_metrics,
     )
+
     LEGACY_FUNCTIONS_AVAILABLE = True
 except ImportError:
     LEGACY_FUNCTIONS_AVAILABLE = False
 
 try:
     import aiosqlite  # type: ignore  # noqa: F401
+
     AIOSQLITE_AVAILABLE = True
 except ImportError:
     AIOSQLITE_AVAILABLE = False
@@ -96,7 +98,7 @@ class TestCalculateCpuPerformanceMetrics:
             condition="used",
             # Using delta-based approach: base + adjustment = adjusted
             # 799.99 + (-150) = 649.99
-            valuation_breakdown={'total_adjustment': -150.0}
+            valuation_breakdown={"total_adjustment": -150.0},
         )
         listing.cpu = cpu
 
@@ -107,18 +109,14 @@ class TestCalculateCpuPerformanceMetrics:
         assert "dollar_per_cpu_mark_single_adjusted" in metrics
         assert metrics["dollar_per_cpu_mark_single"] == pytest.approx(0.200, rel=0.01)
         # Adjusted: (799.99 + (-150)) / 3985 = 649.99 / 3985 = 0.163
-        assert metrics["dollar_per_cpu_mark_single_adjusted"] == pytest.approx(
-            0.163, rel=0.01
-        )
+        assert metrics["dollar_per_cpu_mark_single_adjusted"] == pytest.approx(0.163, rel=0.01)
 
         # Multi-thread metrics
         assert "dollar_per_cpu_mark_multi" in metrics
         assert "dollar_per_cpu_mark_multi_adjusted" in metrics
         assert metrics["dollar_per_cpu_mark_multi"] == pytest.approx(0.0223, rel=0.01)
         # Adjusted: (799.99 + (-150)) / 35864 = 649.99 / 35864 = 0.0181
-        assert metrics["dollar_per_cpu_mark_multi_adjusted"] == pytest.approx(
-            0.0181, rel=0.01
-        )
+        assert metrics["dollar_per_cpu_mark_multi_adjusted"] == pytest.approx(0.0181, rel=0.01)
 
     def test_calculate_metrics_no_cpu(self):
         """Test graceful handling when CPU not assigned."""
@@ -175,7 +173,7 @@ class TestCalculateCpuPerformanceMetrics:
             title="Test",
             price_usd=800,
             condition="new",
-            valuation_breakdown={'total_adjustment': 0.0}  # Zero adjustment
+            valuation_breakdown={"total_adjustment": 0.0},  # Zero adjustment
         )
         listing.cpu = cpu
 
@@ -185,9 +183,7 @@ class TestCalculateCpuPerformanceMetrics:
         assert metrics["dollar_per_cpu_mark_single"] == 0.2  # 800 / 4000
         assert metrics["dollar_per_cpu_mark_single_adjusted"] == 0.2  # Same
         assert metrics["dollar_per_cpu_mark_multi"] == pytest.approx(0.0267, rel=0.01)
-        assert metrics["dollar_per_cpu_mark_multi_adjusted"] == pytest.approx(
-            0.0267, rel=0.01
-        )
+        assert metrics["dollar_per_cpu_mark_multi_adjusted"] == pytest.approx(0.0267, rel=0.01)
 
 
 class TestCpuMetricsDeltaFormula:
@@ -208,7 +204,7 @@ class TestCpuMetricsDeltaFormula:
             title="Test PC",
             price_usd=500.00,
             condition="used",
-            valuation_breakdown={'total_adjustment': -100.0},  # Component deduction
+            valuation_breakdown={"total_adjustment": -100.0},  # Component deduction
         )
         listing.cpu = cpu
 
@@ -218,12 +214,16 @@ class TestCpuMetricsDeltaFormula:
         # Assert: Adjusted metrics use delta formula
         expected_adjusted_base = 500.00 + (-100.0)  # = 400.00
         expected_single_adjusted = expected_adjusted_base / 1000  # = 0.400
-        expected_multi_adjusted = expected_adjusted_base / 5000   # = 0.080
+        expected_multi_adjusted = expected_adjusted_base / 5000  # = 0.080
 
-        assert metrics['dollar_per_cpu_mark_single'] == pytest.approx(0.500, rel=0.01)
-        assert metrics['dollar_per_cpu_mark_single_adjusted'] == pytest.approx(expected_single_adjusted, rel=0.01)
-        assert metrics['dollar_per_cpu_mark_multi'] == pytest.approx(0.100, rel=0.01)
-        assert metrics['dollar_per_cpu_mark_multi_adjusted'] == pytest.approx(expected_multi_adjusted, rel=0.01)
+        assert metrics["dollar_per_cpu_mark_single"] == pytest.approx(0.500, rel=0.01)
+        assert metrics["dollar_per_cpu_mark_single_adjusted"] == pytest.approx(
+            expected_single_adjusted, rel=0.01
+        )
+        assert metrics["dollar_per_cpu_mark_multi"] == pytest.approx(0.100, rel=0.01)
+        assert metrics["dollar_per_cpu_mark_multi_adjusted"] == pytest.approx(
+            expected_multi_adjusted, rel=0.01
+        )
 
     def test_cpu_metrics_missing_valuation_breakdown(self):
         """Test graceful handling when valuation_breakdown is None."""
@@ -245,10 +245,10 @@ class TestCpuMetricsDeltaFormula:
         metrics = calculate_cpu_performance_metrics(listing)
 
         # Should default adjustment to 0.0, so adjusted = base
-        assert metrics['dollar_per_cpu_mark_single'] == pytest.approx(0.300, rel=0.01)
-        assert metrics['dollar_per_cpu_mark_single_adjusted'] == pytest.approx(0.300, rel=0.01)
-        assert metrics['dollar_per_cpu_mark_multi'] == pytest.approx(0.060, rel=0.01)
-        assert metrics['dollar_per_cpu_mark_multi_adjusted'] == pytest.approx(0.060, rel=0.01)
+        assert metrics["dollar_per_cpu_mark_single"] == pytest.approx(0.300, rel=0.01)
+        assert metrics["dollar_per_cpu_mark_single_adjusted"] == pytest.approx(0.300, rel=0.01)
+        assert metrics["dollar_per_cpu_mark_multi"] == pytest.approx(0.060, rel=0.01)
+        assert metrics["dollar_per_cpu_mark_multi_adjusted"] == pytest.approx(0.060, rel=0.01)
 
     def test_cpu_metrics_multiple_adjustments(self):
         """Test with multiple component adjustments totaling to single delta."""
@@ -264,20 +264,24 @@ class TestCpuMetricsDeltaFormula:
             title="Test PC",
             price_usd=1000.00,
             condition="used",
-            valuation_breakdown={'total_adjustment': -80.0},  # Combined deductions
+            valuation_breakdown={"total_adjustment": -80.0},  # Combined deductions
         )
         listing.cpu = cpu
 
         metrics = calculate_cpu_performance_metrics(listing)
 
         # Base metrics
-        assert metrics['dollar_per_cpu_mark_single'] == pytest.approx(0.250, rel=0.01)
-        assert metrics['dollar_per_cpu_mark_multi'] == pytest.approx(0.050, rel=0.01)
+        assert metrics["dollar_per_cpu_mark_single"] == pytest.approx(0.250, rel=0.01)
+        assert metrics["dollar_per_cpu_mark_multi"] == pytest.approx(0.050, rel=0.01)
 
         # Adjusted metrics: (1000 - 80) / marks
         expected_adjusted_base = 1000.00 - 80.0  # = 920.00
-        assert metrics['dollar_per_cpu_mark_single_adjusted'] == pytest.approx(920.0 / 4000, rel=0.01)
-        assert metrics['dollar_per_cpu_mark_multi_adjusted'] == pytest.approx(920.0 / 20000, rel=0.01)
+        assert metrics["dollar_per_cpu_mark_single_adjusted"] == pytest.approx(
+            920.0 / 4000, rel=0.01
+        )
+        assert metrics["dollar_per_cpu_mark_multi_adjusted"] == pytest.approx(
+            920.0 / 20000, rel=0.01
+        )
 
     def test_cpu_metrics_positive_adjustment(self):
         """Test with positive adjustment (premium/bonus)."""
@@ -292,7 +296,7 @@ class TestCpuMetricsDeltaFormula:
             title="Test PC",
             price_usd=750.00,
             condition="new",
-            valuation_breakdown={'total_adjustment': 150.0},  # Premium added
+            valuation_breakdown={"total_adjustment": 150.0},  # Premium added
         )
         listing.cpu = cpu
 
@@ -300,8 +304,12 @@ class TestCpuMetricsDeltaFormula:
 
         # Adjusted should be higher: (750 + 150) / marks
         expected_adjusted_base = 750.00 + 150.0  # = 900.00
-        assert metrics['dollar_per_cpu_mark_single_adjusted'] == pytest.approx(900.0 / 3000, rel=0.01)
-        assert metrics['dollar_per_cpu_mark_multi_adjusted'] == pytest.approx(900.0 / 15000, rel=0.01)
+        assert metrics["dollar_per_cpu_mark_single_adjusted"] == pytest.approx(
+            900.0 / 3000, rel=0.01
+        )
+        assert metrics["dollar_per_cpu_mark_multi_adjusted"] == pytest.approx(
+            900.0 / 15000, rel=0.01
+        )
 
     def test_cpu_metrics_negative_adjusted_price(self):
         """Test edge case where adjustment exceeds base price."""
@@ -317,7 +325,7 @@ class TestCpuMetricsDeltaFormula:
             title="Test PC",
             price_usd=100.00,
             condition="for_parts",
-            valuation_breakdown={'total_adjustment': -150.0},  # Deduction exceeds base
+            valuation_breakdown={"total_adjustment": -150.0},  # Deduction exceeds base
         )
         listing.cpu = cpu
 
@@ -326,8 +334,12 @@ class TestCpuMetricsDeltaFormula:
         # Should still calculate: (100 + (-150)) / marks = -50 / marks
         # This results in negative metrics, which is mathematically valid
         expected_adjusted_base = 100.00 - 150.0  # = -50.00
-        assert metrics['dollar_per_cpu_mark_single_adjusted'] == pytest.approx(-50.0 / 2000, rel=0.01)
-        assert metrics['dollar_per_cpu_mark_multi_adjusted'] == pytest.approx(-50.0 / 10000, rel=0.01)
+        assert metrics["dollar_per_cpu_mark_single_adjusted"] == pytest.approx(
+            -50.0 / 2000, rel=0.01
+        )
+        assert metrics["dollar_per_cpu_mark_multi_adjusted"] == pytest.approx(
+            -50.0 / 10000, rel=0.01
+        )
 
     def test_cpu_metrics_valuation_breakdown_missing_total_adjustment_key(self):
         """Test when valuation_breakdown exists but lacks 'total_adjustment' key."""
@@ -342,15 +354,19 @@ class TestCpuMetricsDeltaFormula:
             title="Test PC",
             price_usd=1200.00,
             condition="used",
-            valuation_breakdown={'other_key': 'value'},  # Missing total_adjustment
+            valuation_breakdown={"other_key": "value"},  # Missing total_adjustment
         )
         listing.cpu = cpu
 
         metrics = calculate_cpu_performance_metrics(listing)
 
         # Should default to 0.0 adjustment
-        assert metrics['dollar_per_cpu_mark_single_adjusted'] == pytest.approx(1200.0 / 5000, rel=0.01)
-        assert metrics['dollar_per_cpu_mark_multi_adjusted'] == pytest.approx(1200.0 / 25000, rel=0.01)
+        assert metrics["dollar_per_cpu_mark_single_adjusted"] == pytest.approx(
+            1200.0 / 5000, rel=0.01
+        )
+        assert metrics["dollar_per_cpu_mark_multi_adjusted"] == pytest.approx(
+            1200.0 / 25000, rel=0.01
+        )
 
 
 @pytest.mark.asyncio
@@ -369,9 +385,7 @@ class TestUpdateListingMetrics:
         session.add(cpu)
         await session.flush()
 
-        listing = Listing(
-            title="Test", price_usd=800, condition="used", cpu_id=cpu.id
-        )
+        listing = Listing(title="Test", price_usd=800, condition="used", cpu_id=cpu.id)
         session.add(listing)
         await session.commit()
 
@@ -381,9 +395,7 @@ class TestUpdateListingMetrics:
         assert updated.dollar_per_cpu_mark_single == 0.2  # 800 / 4000
         assert updated.dollar_per_cpu_mark_multi == pytest.approx(0.0267, rel=0.01)
         assert updated.dollar_per_cpu_mark_single_adjusted == 0.2
-        assert updated.dollar_per_cpu_mark_multi_adjusted == pytest.approx(
-            0.0267, rel=0.01
-        )
+        assert updated.dollar_per_cpu_mark_multi_adjusted == pytest.approx(0.0267, rel=0.01)
 
     async def test_update_listing_metrics_not_found(self, session: AsyncSession):
         """Test error handling when listing not found."""
@@ -408,15 +420,9 @@ class TestBulkUpdateListingMetrics:
         await session.flush()
 
         # Create multiple listings
-        listing1 = Listing(
-            title="Test 1", price_usd=800, condition="used", cpu_id=cpu.id
-        )
-        listing2 = Listing(
-            title="Test 2", price_usd=600, condition="refurb", cpu_id=cpu.id
-        )
-        listing3 = Listing(
-            title="Test 3", price_usd=1000, condition="new", cpu_id=cpu.id
-        )
+        listing1 = Listing(title="Test 1", price_usd=800, condition="used", cpu_id=cpu.id)
+        listing2 = Listing(title="Test 2", price_usd=600, condition="refurb", cpu_id=cpu.id)
+        listing3 = Listing(title="Test 3", price_usd=1000, condition="new", cpu_id=cpu.id)
         session.add_all([listing1, listing2, listing3])
         await session.commit()
 
@@ -438,22 +444,14 @@ class TestBulkUpdateListingMetrics:
         await session.flush()
 
         # Create listings
-        listing1 = Listing(
-            title="Test 1", price_usd=800, condition="used", cpu_id=cpu.id
-        )
-        listing2 = Listing(
-            title="Test 2", price_usd=600, condition="refurb", cpu_id=cpu.id
-        )
-        listing3 = Listing(
-            title="Test 3", price_usd=1000, condition="new", cpu_id=cpu.id
-        )
+        listing1 = Listing(title="Test 1", price_usd=800, condition="used", cpu_id=cpu.id)
+        listing2 = Listing(title="Test 2", price_usd=600, condition="refurb", cpu_id=cpu.id)
+        listing3 = Listing(title="Test 3", price_usd=1000, condition="new", cpu_id=cpu.id)
         session.add_all([listing1, listing2, listing3])
         await session.commit()
 
         # Update only listing1 and listing2
-        count = await bulk_update_listing_metrics(
-            session, listing_ids=[listing1.id, listing2.id]
-        )
+        count = await bulk_update_listing_metrics(session, listing_ids=[listing1.id, listing2.id])
 
         assert count == 2
 

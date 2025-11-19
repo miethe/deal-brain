@@ -78,9 +78,7 @@ class TestRulesetEndpoints:
     @pytest.mark.asyncio
     async def test_create_ruleset_invalid_data(self, client: AsyncClient):
         """Test POST /api/v1/rulesets - Invalid data returns 422."""
-        response = await client.post(
-            "/api/v1/rulesets", json={"name": "Missing required fields"}
-        )
+        response = await client.post("/api/v1/rulesets", json={"name": "Missing required fields"})
 
         assert response.status_code == 422
 
@@ -98,9 +96,7 @@ class TestRulesetEndpoints:
         assert len(data) > 0
 
     @pytest.mark.asyncio
-    async def test_list_rulesets_active_only(
-        self, client: AsyncClient, sample_ruleset_data: dict
-    ):
+    async def test_list_rulesets_active_only(self, client: AsyncClient, sample_ruleset_data: dict):
         """Test GET /api/v1/rulesets?active_only=true - Filter active rulesets."""
         # Create active ruleset
         await client.post("/api/v1/rulesets", json=sample_ruleset_data)
@@ -215,9 +211,7 @@ class TestRuleGroupEndpoints:
         ruleset_response = await client.post("/api/v1/rulesets", json=sample_ruleset_data)
         ruleset_id = ruleset_response.json()["id"]
 
-        await client.post(
-            f"/api/v1/rulesets/{ruleset_id}/groups", json=sample_rule_group_data
-        )
+        await client.post(f"/api/v1/rulesets/{ruleset_id}/groups", json=sample_rule_group_data)
 
         # List groups
         response = await client.get(f"/api/v1/rulesets/{ruleset_id}/groups")
@@ -272,9 +266,7 @@ class TestRuleEndpoints:
         group_id = group_response.json()["id"]
 
         # Create rule
-        response = await client.post(
-            f"/api/v1/rule-groups/{group_id}/rules", json=sample_rule_data
-        )
+        response = await client.post(f"/api/v1/rule-groups/{group_id}/rules", json=sample_rule_data)
 
         assert response.status_code == 201
         data = response.json()
@@ -480,9 +472,7 @@ class TestPackageEndpoints:
             }
         }
 
-        response = await client.post(
-            f"/api/v1/rulesets/{ruleset_id}/export", json=export_data
-        )
+        response = await client.post(f"/api/v1/rulesets/{ruleset_id}/export", json=export_data)
 
         assert response.status_code == 200
         data = response.json()

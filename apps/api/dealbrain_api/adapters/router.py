@@ -234,9 +234,7 @@ class AdapterRouter:
             except AdapterException as e:
                 # Adapter-specific error (timeout, parse error, etc.)
                 last_error = e
-                logger.warning(
-                    f"{adapter_name} adapter failed: [{e.error_type.value}] {e.message}"
-                )
+                logger.warning(f"{adapter_name} adapter failed: [{e.error_type.value}] {e.message}")
 
                 # Don't retry if item not found or adapter disabled
                 if e.error_type in {AdapterError.ITEM_NOT_FOUND, AdapterError.ADAPTER_DISABLED}:
@@ -348,9 +346,7 @@ class AdapterRouter:
 
         return matching
 
-    def _get_matching_adapters_sorted(
-        self, url: str, domain: str
-    ) -> list[type[BaseAdapter]]:
+    def _get_matching_adapters_sorted(self, url: str, domain: str) -> list[type[BaseAdapter]]:
         """
         Get all matching adapters sorted by priority.
 

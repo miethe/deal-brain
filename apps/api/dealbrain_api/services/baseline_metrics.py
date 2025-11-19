@@ -22,27 +22,19 @@ logger = logging.getLogger(__name__)
 class BaselineMetricsService:
     """Service for calculating and aggregating baseline metrics."""
 
-    async def calculate_layer_influence(
-        self, session: AsyncSession
-    ) -> dict[str, float]:
+    async def calculate_layer_influence(self, session: AsyncSession) -> dict[str, float]:
         """Calculate percentage of listings influenced by each layer.
 
         Returns:
             Dictionary with layer names and percentages
         """
         # Get total active listings count
-        total_stmt = select(func.count(Listing.id)).where(
-            Listing.status == "active"
-        )
+        total_stmt = select(func.count(Listing.id)).where(Listing.status == "active")
         total_result = await session.execute(total_stmt)
         total_listings = total_result.scalar() or 0
 
         if total_listings == 0:
-            return {
-                "baseline": 0.0,
-                "basic": 0.0,
-                "advanced": 0.0
-            }
+            return {"baseline": 0.0, "basic": 0.0, "advanced": 0.0}
 
         # Query listings with valuation_breakdown containing each layer
         layer_counts = {}
@@ -52,7 +44,7 @@ class BaselineMetricsService:
             stmt = select(func.count(Listing.id)).where(
                 and_(
                     Listing.status == "active",
-                    Listing.valuation_breakdown.op("->>")("layers").contains(f'"{layer}"')
+                    Listing.valuation_breakdown.op("->>")("layers").contains(f'"{layer}"'),
                 )
             )
             result = await session.execute(stmt)
@@ -62,10 +54,7 @@ class BaselineMetricsService:
         return layer_counts
 
     async def get_top_rules_by_contribution(
-        self,
-        session: AsyncSession,
-        limit: int = 10,
-        days_back: int = 30
+        self, session: AsyncSession, limit: int = 10, days_back: int = 30
     ) -> list[dict[str, Any]]:
         """Get top rules by absolute contribution amount.
 
@@ -80,7 +69,8 @@ class BaselineMetricsService:
         cutoff_date = datetime.utcnow() - timedelta(days=days_back)
 
         # Aggregate rule contributions from valuation_breakdown JSON
-        stmt = text("""
+        stmt = text(
+            """
             WITH rule_contributions AS (
                 SELECT
                     rule_data->>'rule_id' as rule_id,
@@ -107,30 +97,28 @@ class BaselineMetricsService:
             GROUP BY rule_id, rule_name
             ORDER BY total_adjustment DESC
             LIMIT :limit
-        """)
-
-        result = await session.execute(
-            stmt,
-            {"cutoff_date": cutoff_date, "limit": limit}
+        """
         )
+
+        result = await session.execute(stmt, {"cutoff_date": cutoff_date, "limit": limit})
 
         rules = []
         for row in result:
-            rules.append({
-                "rule_id": row[0],
-                "rule_name": row[1],
-                "affected_listings": row[2],
-                "avg_adjustment_usd": float(row[3]) if row[3] else 0,
-                "total_adjustment_usd": float(row[4]) if row[4] else 0,
-                "max_adjustment_usd": float(row[5]) if row[5] else 0
-            })
+            rules.append(
+                {
+                    "rule_id": row[0],
+                    "rule_name": row[1],
+                    "affected_listings": row[2],
+                    "avg_adjustment_usd": float(row[3]) if row[3] else 0,
+                    "total_adjustment_usd": float(row[4]) if row[4] else 0,
+                    "max_adjustment_usd": float(row[5]) if row[5] else 0,
+                }
+            )
 
         return rules
 
     async def calculate_override_churn(
-        self,
-        session: AsyncSession,
-        days_back: int = 7
+        self, session: AsyncSession, days_back: int = 7
     ) -> dict[str, Any]:
         """Calculate override churn rate over specified period.
 
@@ -160,12 +148,10 @@ class BaselineMetricsService:
             "changed_overrides": 0,
             "churn_rate_percent": 0.0,
             "calculated_at": datetime.utcnow().isoformat(),
-            "note": "EntityFieldValue model not yet implemented - placeholder data"
+            "note": "EntityFieldValue model not yet implemented - placeholder data",
         }
 
-    async def get_baseline_summary(
-        self, session: AsyncSession
-    ) -> dict[str, Any]:
+    async def get_baseline_summary(self, session: AsyncSession) -> dict[str, Any]:
         """Get comprehensive baseline metrics summary.
 
         Returns:
@@ -182,14 +168,16 @@ class BaselineMetricsService:
         churn_30d = await self.calculate_override_churn(session, days_back=30)
 
         # Get active baseline info
-        baseline_stmt = select(ValuationRuleset).where(
-            and_(
-                ValuationRuleset.is_active == True,
-                ValuationRuleset.metadata_json.op("->>")(
-                    "system_baseline"
-                ) == "true"
+        baseline_stmt = (
+            select(ValuationRuleset)
+            .where(
+                and_(
+                    ValuationRuleset.is_active == True,
+                    ValuationRuleset.metadata_json.op("->>")("system_baseline") == "true",
+                )
             )
-        ).order_by(ValuationRuleset.priority.asc())
+            .order_by(ValuationRuleset.priority.asc())
+        )
 
         baseline_result = await session.execute(baseline_stmt)
         baseline_ruleset = baseline_result.scalar_one_or_none()
@@ -202,25 +190,18 @@ class BaselineMetricsService:
                 "version": baseline_ruleset.metadata_json.get("version", "unknown"),
                 "source_hash": baseline_ruleset.metadata_json.get("source_hash", "unknown"),
                 "created_at": baseline_ruleset.created_at.isoformat(),
-                "age_days": (datetime.utcnow() - baseline_ruleset.created_at).days
+                "age_days": (datetime.utcnow() - baseline_ruleset.created_at).days,
             }
 
         return {
             "baseline": baseline_info,
             "layer_influence": layer_influence,
             "top_rules": top_rules[:10],
-            "override_churn": {
-                "7_day": churn_7d,
-                "30_day": churn_30d
-            },
-            "calculated_at": datetime.utcnow().isoformat()
+            "override_churn": {"7_day": churn_7d, "30_day": churn_30d},
+            "calculated_at": datetime.utcnow().isoformat(),
         }
 
-    async def store_metrics_snapshot(
-        self,
-        session: AsyncSession,
-        metrics: dict[str, Any]
-    ) -> None:
+    async def store_metrics_snapshot(self, session: AsyncSession, metrics: dict[str, Any]) -> None:
         """Store metrics snapshot for historical tracking.
 
         Args:

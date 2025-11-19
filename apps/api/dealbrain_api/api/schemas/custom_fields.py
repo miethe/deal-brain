@@ -31,11 +31,13 @@ class CustomFieldListResponse(BaseModel):
 
 class AddFieldOptionRequest(BaseModel):
     """Request to add an option to a dropdown/multi-select field"""
+
     value: str = Field(..., min_length=1, description="Option value to add")
 
 
 class FieldOptionResponse(BaseModel):
     """Response with updated field options"""
+
     field_id: int
     entity: str
     key: str
@@ -50,4 +52,3 @@ __all__ = [
     "AddFieldOptionRequest",
     "FieldOptionResponse",
 ]
-

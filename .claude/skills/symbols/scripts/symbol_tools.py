@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Optional, Literal
 # Load configuration with graceful fallback
 try:
     from config import get_config, ConfigurationError
+
     _config = get_config()
     SYMBOLS_DIR = _config.get_symbols_dir()
 
@@ -56,7 +57,10 @@ try:
 except (ImportError, ConfigurationError) as e:
     # Fallback to minimal generic defaults with helpful error message
     print(f"Warning: Could not load configuration ({e})", file=sys.stderr)
-    print("  Run 'python init_symbols.py' to initialize the symbols system for this project", file=sys.stderr)
+    print(
+        "  Run 'python init_symbols.py' to initialize the symbols system for this project",
+        file=sys.stderr,
+    )
     print("  Falling back to minimal defaults (symbols in 'ai/' directory)", file=sys.stderr)
 
     SYMBOLS_DIR = Path("ai")
@@ -91,10 +95,7 @@ def _normalize_symbol_data(data: Dict[str, Any]) -> List[Dict[str, Any]]:
         for symbol in data["symbols"]:
             path = symbol.get("path", "unknown")
             if path not in modules_dict:
-                modules_dict[path] = {
-                    "path": path,
-                    "symbols": []
-                }
+                modules_dict[path] = {"path": path, "symbols": []}
             # Create symbol without "path" key since it's in module
             symbol_copy = {k: v for k, v in symbol.items() if k != "path"}
             modules_dict[path]["symbols"].append(symbol_copy)
@@ -299,7 +300,7 @@ def load_api_layer(
                     "line": symbol["line"],
                     "file": module["path"],
                     "domain": "API",
-                    "layer": layer.rstrip('s'),  # Remove plural 's'
+                    "layer": layer.rstrip("s"),  # Remove plural 's'
                     "summary": symbol.get("summary", ""),
                 }
             )
@@ -380,18 +381,15 @@ def search_patterns(
                 symbol_layer = symbol.get("layer", "unknown")
                 if layer:
                     # Normalize layer comparison (handle plural forms)
-                    filter_layer = layer.lower().rstrip('s')
-                    symbol_layer_normalized = symbol_layer.lower().rstrip('s')
+                    filter_layer = layer.lower().rstrip("s")
+                    symbol_layer_normalized = symbol_layer.lower().rstrip("s")
 
                     if filter_layer != symbol_layer_normalized:
                         continue
 
                 # Determine priority based on naming conventions
                 detected_priority = "medium"
-                if any(
-                    x in symbol["name"].lower()
-                    for x in ["service", "router", "repository"]
-                ):
+                if any(x in symbol["name"].lower() for x in ["service", "router", "repository"]):
                     detected_priority = "high"
                 elif any(x in symbol["name"].lower() for x in ["util", "helper"]):
                     detected_priority = "low"
@@ -558,6 +556,7 @@ def validate_symbols(domain: Optional[str] = None) -> Dict[str, Any]:
     if not _config_loaded or _config is None:
         try:
             from config import get_config, ConfigurationError
+
             _config = get_config()
             _config_loaded = True
         except ImportError as e:
@@ -630,7 +629,7 @@ def validate_symbols(domain: Optional[str] = None) -> Dict[str, Any]:
             return {
                 "status": "errors",
                 "error": f"Domain '{domain}' not found in configuration. "
-                        f"Available: {', '.join(config.get_domains())}",
+                f"Available: {', '.join(config.get_domains())}",
                 "domains": {},
                 "summary": {
                     "total_symbols": 0,
@@ -721,10 +720,7 @@ def validate_symbols(domain: Optional[str] = None) -> Dict[str, Any]:
     }
 
 
-def _validate_domain_file(
-    file_path: Path,
-    project_root: Path
-) -> Dict[str, Any]:
+def _validate_domain_file(file_path: Path, project_root: Path) -> Dict[str, Any]:
     """
     Internal helper to validate a single domain symbol file.
 
@@ -823,16 +819,10 @@ def _validate_domain_file(
                 )
 
             # Duplicate detection (same name + file + line)
-            symbol_key = (
-                symbol.get("name", ""),
-                module_path,
-                symbol.get("line", 0)
-            )
+            symbol_key = (symbol.get("name", ""), module_path, symbol.get("line", 0))
 
             if symbol_key in seen_symbols:
-                duplicates.append(
-                    f"{symbol_key[0]} at {symbol_key[1]}:{symbol_key[2]}"
-                )
+                duplicates.append(f"{symbol_key[0]} at {symbol_key[1]}:{symbol_key[2]}")
                 report["duplicates"] += 1
             else:
                 seen_symbols.add(symbol_key)
@@ -848,8 +838,7 @@ def _validate_domain_file(
     if missing_sources:
         report["warnings"].append(
             f"Found {len(missing_sources)} stale source references: "
-            f"{', '.join(missing_sources[:3])}"
-            + ("..." if len(missing_sources) > 3 else "")
+            f"{', '.join(missing_sources[:3])}" + ("..." if len(missing_sources) > 3 else "")
         )
 
     return report

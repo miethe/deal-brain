@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # Add parent directory to path for imports
 import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from apps.api.dealbrain_api.db import session_scope
@@ -76,7 +77,9 @@ def get_python_type_name(column_type: Any) -> str:
         return "unknown"
 
 
-def extract_model_fields(model_class: Any, entity_name: str, access_pattern_prefix: str = None) -> dict[str, Any]:
+def extract_model_fields(
+    model_class: Any, entity_name: str, access_pattern_prefix: str = None
+) -> dict[str, Any]:
     """
     Extract all fields from a SQLAlchemy model using inspection.
 
@@ -104,7 +107,7 @@ def extract_model_fields(model_class: Any, entity_name: str, access_pattern_pref
         enum_type = None
         enum_values = None
 
-        if hasattr(column.type, 'enum_class'):
+        if hasattr(column.type, "enum_class"):
             is_enum = True
             enum_class = column.type.enum_class
             enum_type = enum_class.__name__
@@ -133,7 +136,7 @@ def extract_model_fields(model_class: Any, entity_name: str, access_pattern_pref
             field_info["values"] = enum_values
 
         # Add default value if present
-        if column.default is not None and hasattr(column.default, 'arg'):
+        if column.default is not None and hasattr(column.default, "arg"):
             default_val = column.default.arg
             if callable(default_val):
                 # Skip callable defaults
@@ -182,7 +185,6 @@ def generate_field_description(field_name: str, entity_name: str) -> str:
         "series": "Product series or line",
         "model_number": "Product model number",
         "form_factor": "Physical form factor (SFF, mini-ITX, etc.)",
-
         # CPU fields
         "name": f"{entity_name.upper()} model name",
         "socket": "CPU socket type",
@@ -197,11 +199,9 @@ def generate_field_description(field_name: str, entity_name: str) -> str:
         "passmark_slug": "PassMark URL slug identifier",
         "passmark_category": "PassMark category classification",
         "passmark_id": "PassMark ID",
-
         # GPU fields
         "gpu_mark": "PassMark GPU benchmark score",
         "metal_score": "Metal API benchmark score",
-
         # RAM Spec fields
         "label": f"{entity_name} label or identifier",
         "ddr_generation": "DDR generation (DDR3, DDR4, DDR5, etc.)",
@@ -209,17 +209,14 @@ def generate_field_description(field_name: str, entity_name: str) -> str:
         "module_count": "Number of RAM modules",
         "capacity_per_module_gb": "Capacity per module in GB",
         "total_capacity_gb": "Total RAM capacity in GB",
-
         # Storage Profile fields
         "medium": "Storage medium type (NVME, SATA_SSD, HDD, etc.)",
         "interface": "Storage interface (SATA, NVMe, etc.)",
-        "form_factor": "Storage form factor (M.2, 2.5\", etc.)",
+        "form_factor": 'Storage form factor (M.2, 2.5", etc.)',
         "capacity_gb": "Storage capacity in gigabytes",
         "performance_tier": "Performance tier classification",
-
         # Ports Profile fields
         "description": f"{entity_name} description",
-
         # Port fields
         "type": "Port type (USB-A, USB-C, HDMI, etc.)",
         "count": "Number of ports of this type",
@@ -634,8 +631,7 @@ async def generate_formula_reference() -> dict[str, Any]:
 async def main():
     """Main execution function."""
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     logger.info("Generating formula reference schema...")

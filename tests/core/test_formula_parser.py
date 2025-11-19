@@ -205,7 +205,7 @@ class TestFormulaEngine:
 
         context = {
             "cpu": {"cores": 8, "threads": 16},
-            "ram_spec": {"capacity_gb": 16, "ddr_generation": 4}
+            "ram_spec": {"capacity_gb": 16, "ddr_generation": 4},
         }
 
         # The flattened names should work

@@ -4,20 +4,10 @@ from typing import Any
 from fastapi import HTTPException, status
 
 # Valid entity keys for basic-managed groups
-VALID_ENTITY_KEYS = {
-    "Listing",
-    "CPU",
-    "GPU",
-    "RamSpec",
-    "StorageProfile",
-    "PortsProfile"
-}
+VALID_ENTITY_KEYS = {"Listing", "CPU", "GPU", "RamSpec", "StorageProfile", "PortsProfile"}
 
 
-def validate_basic_managed_group(
-    group_metadata: dict[str, Any] | None,
-    operation: str
-) -> None:
+def validate_basic_managed_group(group_metadata: dict[str, Any] | None, operation: str) -> None:
     """Prevent manual edits to basic-managed groups.
 
     Args:
@@ -31,7 +21,7 @@ def validate_basic_managed_group(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Cannot {operation} basic-managed rule groups. "
-                   "These groups are automatically managed by the Basic mode interface."
+            "These groups are automatically managed by the Basic mode interface.",
         )
 
 
@@ -48,14 +38,11 @@ def validate_entity_key(entity_key: str | None) -> None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid entity_key: '{entity_key}'. "
-                   f"Must be one of: {', '.join(sorted(VALID_ENTITY_KEYS))}"
+            f"Must be one of: {', '.join(sorted(VALID_ENTITY_KEYS))}",
         )
 
 
-def validate_modifiers_json(
-    modifiers: dict[str, Any] | None,
-    action_type: str
-) -> None:
+def validate_modifiers_json(modifiers: dict[str, Any] | None, action_type: str) -> None:
     """Validate modifiers match action type.
 
     Args:
@@ -76,13 +63,13 @@ def validate_modifiers_json(
     if has_clamp and not (has_min or has_max):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="When 'clamp' is true, at least one of 'min_usd' or 'max_usd' must be specified"
+            detail="When 'clamp' is true, at least one of 'min_usd' or 'max_usd' must be specified",
         )
 
     if (has_min or has_max) and not has_clamp:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="'clamp' must be true when 'min_usd' or 'max_usd' are specified"
+            detail="'clamp' must be true when 'min_usd' or 'max_usd' are specified",
         )
 
     # Validate min/max values
@@ -92,7 +79,7 @@ def validate_modifiers_json(
         if min_val is not None and max_val is not None and min_val > max_val:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"'min_usd' ({min_val}) cannot be greater than 'max_usd' ({max_val})"
+                detail=f"'min_usd' ({min_val}) cannot be greater than 'max_usd' ({max_val})",
             )
 
     # Validate unit field
@@ -101,7 +88,7 @@ def validate_modifiers_json(
     if unit and unit not in valid_units:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid unit: '{unit}'. Must be one of: {', '.join(sorted(valid_units))}"
+            detail=f"Invalid unit: '{unit}'. Must be one of: {', '.join(sorted(valid_units))}",
         )
 
 
@@ -127,7 +114,7 @@ def merge_metadata_fields(
     existing_metadata: dict[str, Any] | None,
     basic_managed: bool | None = None,
     entity_key: str | None = None,
-    additional_metadata: dict[str, Any] | None = None
+    additional_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Merge basic_managed and entity_key into metadata dictionary.
 

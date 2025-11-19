@@ -86,7 +86,7 @@ CANONICAL_STORAGE_PROFILES: list[dict[str, object]] = [
         "performance_tier": "standard",
     },
     {
-        "label": "SATA SSD · 2.5\" · 512GB",
+        "label": 'SATA SSD · 2.5" · 512GB',
         "medium": StorageMedium.SATA_SSD,
         "interface": "SATA III",
         "form_factor": '2.5"',
@@ -94,7 +94,7 @@ CANONICAL_STORAGE_PROFILES: list[dict[str, object]] = [
         "performance_tier": "standard",
     },
     {
-        "label": "SATA SSD · 2.5\" · 1024GB",
+        "label": 'SATA SSD · 2.5" · 1024GB',
         "medium": StorageMedium.SATA_SSD,
         "interface": "SATA III",
         "form_factor": '2.5"',
@@ -102,7 +102,7 @@ CANONICAL_STORAGE_PROFILES: list[dict[str, object]] = [
         "performance_tier": "standard",
     },
     {
-        "label": "HDD · 3.5\" · 2048GB",
+        "label": 'HDD · 3.5" · 2048GB',
         "medium": StorageMedium.HDD,
         "interface": "SATA III",
         "form_factor": '3.5"',

@@ -102,12 +102,12 @@ def backup_file(filepath: Path, backup_dir: Optional[Path] = None) -> Path:
         Path to backup file
     """
     if backup_dir is None:
-        backup_dir = filepath.parent / '.backups'
+        backup_dir = filepath.parent / ".backups"
 
     backup_dir.mkdir(parents=True, exist_ok=True)
 
     # Generate backup filename with timestamp
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_name = f"{filepath.stem}.{timestamp}{filepath.suffix}"
     backup_path = backup_dir / backup_name
 
@@ -128,19 +128,19 @@ def should_skip_file(filepath: Path) -> bool:
         True if file should be skipped
     """
     # Skip backup directories
-    if '.backups' in filepath.parts or '.backup' in filepath.parts:
+    if ".backups" in filepath.parts or ".backup" in filepath.parts:
         return True
 
     # Skip hidden files
-    if filepath.name.startswith('.'):
+    if filepath.name.startswith("."):
         return True
 
     # Skip README files
-    if filepath.name.upper() == 'README.MD':
+    if filepath.name.upper() == "README.MD":
         return True
 
     # Skip template files
-    if 'template' in filepath.name.lower():
+    if "template" in filepath.name.lower():
         return True
 
     return False
@@ -220,7 +220,7 @@ def migrate_directory(
         file_artifact_type = artifact_type
         if file_artifact_type is None:
             try:
-                content = filepath.read_text(encoding='utf-8')
+                content = filepath.read_text(encoding="utf-8")
                 file_artifact_type = detect_artifact_type(filepath, content)
                 if verbose:
                     print(f"  Detected type: {file_artifact_type}")
@@ -238,7 +238,7 @@ def migrate_directory(
                 filepath,
                 output_path=filepath,  # In-place conversion
                 artifact_type=file_artifact_type,
-                dry_run=dry_run
+                dry_run=dry_run,
             )
 
             if success:
@@ -250,9 +250,7 @@ def migrate_directory(
                 if not dry_run:
                     try:
                         is_valid = validate_artifact_file(
-                            filepath,
-                            file_artifact_type,
-                            verbose=False
+                            filepath, file_artifact_type, verbose=False
                         )
 
                         if is_valid:
@@ -302,11 +300,11 @@ def save_migration_report(stats: MigrationStats, output_path: Optional[Path] = N
         output_path: Output file path (default: migration-report-TIMESTAMP.txt)
     """
     if output_path is None:
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_path = Path(f"migration-report-{timestamp}.txt")
 
     report = stats.format_report()
-    output_path.write_text(report, encoding='utf-8')
+    output_path.write_text(report, encoding="utf-8")
     print(f"\nMigration report saved to: {output_path}")
 
 
@@ -337,63 +335,39 @@ Examples:
 
   # Save migration report
   python migrate_all.py --directory .claude/progress --report migration-report.txt
-        """
+        """,
+    )
+
+    parser.add_argument("--directory", "-d", type=Path, required=True, help="Directory to migrate")
+
+    parser.add_argument(
+        "--artifact-type",
+        "-t",
+        choices=["progress", "context", "bug-fix", "observation"],
+        help="Type of artifacts (auto-detected if not specified)",
     )
 
     parser.add_argument(
-        '--directory',
-        '-d',
-        type=Path,
-        required=True,
-        help='Directory to migrate'
+        "--backup", "-b", action="store_true", help="Create backups before converting"
     )
 
     parser.add_argument(
-        '--artifact-type',
-        '-t',
-        choices=['progress', 'context', 'bug-fix', 'observation'],
-        help='Type of artifacts (auto-detected if not specified)'
+        "--backup-dir", type=Path, help="Custom backup directory (default: .backups)"
     )
 
     parser.add_argument(
-        '--backup',
-        '-b',
-        action='store_true',
-        help='Create backups before converting'
+        "--dry-run", "-n", action="store_true", help="Preview changes without modifying files"
     )
 
     parser.add_argument(
-        '--backup-dir',
-        type=Path,
-        help='Custom backup directory (default: .backups)'
+        "--no-recursive",
+        action="store_true",
+        help="Do not search recursively (only top-level files)",
     )
 
-    parser.add_argument(
-        '--dry-run',
-        '-n',
-        action='store_true',
-        help='Preview changes without modifying files'
-    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Print detailed progress")
 
-    parser.add_argument(
-        '--no-recursive',
-        action='store_true',
-        help='Do not search recursively (only top-level files)'
-    )
-
-    parser.add_argument(
-        '--verbose',
-        '-v',
-        action='store_true',
-        help='Print detailed progress'
-    )
-
-    parser.add_argument(
-        '--report',
-        '-r',
-        type=Path,
-        help='Save migration report to file'
-    )
+    parser.add_argument("--report", "-r", type=Path, help="Save migration report to file")
 
     args = parser.parse_args()
 
@@ -423,5 +397,5 @@ Examples:
         sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

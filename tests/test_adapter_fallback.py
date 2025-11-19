@@ -38,9 +38,7 @@ class TestFallbackChain:
                 images=["https://example.com/image.jpg"],
             )
 
-            with patch.object(
-                JsonLdAdapter, "extract", AsyncMock(return_value=expected_result)
-            ):
+            with patch.object(JsonLdAdapter, "extract", AsyncMock(return_value=expected_result)):
                 router = AdapterRouter()
                 result, adapter_name = await router.extract(url)
 
@@ -70,9 +68,7 @@ class TestFallbackChain:
                 images=[],
             )
 
-            with patch.object(
-                JsonLdAdapter, "extract", AsyncMock(return_value=expected_result)
-            ):
+            with patch.object(JsonLdAdapter, "extract", AsyncMock(return_value=expected_result)):
                 router = AdapterRouter()
 
                 with caplog.at_level("INFO"):
@@ -201,7 +197,9 @@ class TestPriorityOrdering:
             mock_settings.return_value.ingestion.jsonld.enabled = True
 
             with patch.object(EbayAdapter, "extract", AsyncMock(side_effect=track_ebay_attempt)):
-                with patch.object(JsonLdAdapter, "extract", AsyncMock(side_effect=track_jsonld_attempt)):
+                with patch.object(
+                    JsonLdAdapter, "extract", AsyncMock(side_effect=track_jsonld_attempt)
+                ):
                     router = AdapterRouter()
                     await router.extract(url)
 
@@ -270,7 +268,9 @@ class TestErrorPropagation:
                     images=[],
                 )
 
-                with patch.object(JsonLdAdapter, "extract", AsyncMock(return_value=expected_result)):
+                with patch.object(
+                    JsonLdAdapter, "extract", AsyncMock(return_value=expected_result)
+                ):
                     router = AdapterRouter()
                     result, adapter_name = await router.extract(url)
 
@@ -309,7 +309,9 @@ class TestErrorPropagation:
                     images=[],
                 )
 
-                with patch.object(JsonLdAdapter, "extract", AsyncMock(return_value=expected_result)):
+                with patch.object(
+                    JsonLdAdapter, "extract", AsyncMock(return_value=expected_result)
+                ):
                     router = AdapterRouter()
                     result, adapter_name = await router.extract(url)
 

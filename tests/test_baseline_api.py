@@ -19,6 +19,7 @@ from sqlalchemy import select
 
 # --- Fixtures ---
 
+
 @pytest.fixture
 async def async_session():
     """Create async database session for tests"""
@@ -26,6 +27,7 @@ async def async_session():
         await conn.run_sync(Base.metadata.create_all)
 
     from dealbrain_api.db import AsyncSessionLocal
+
     async with AsyncSessionLocal() as session:
         yield session
 
@@ -78,7 +80,7 @@ def sample_baseline_json() -> dict[str, Any]:
                     "dependencies": ["listing.condition"],
                     "notes": "Applied as percentage",
                     "nullable": False,
-                }
+                },
             ],
             "CPU": [
                 {
@@ -94,7 +96,7 @@ def sample_baseline_json() -> dict[str, Any]:
                     "nullable": True,
                 }
             ],
-        }
+        },
     }
 
 
@@ -107,20 +109,22 @@ def modified_baseline_json(sample_baseline_json: dict[str, Any]) -> dict[str, An
     modified["entities"]["Listing"][0]["valuation_buckets"][0]["max_usd"] = 35
 
     # Add new field
-    modified["entities"]["Listing"].append({
-        "id": "warranty_adjustment",
-        "proper_name": "Warranty Adjustment",
-        "description": "Value bonus for extended warranty",
-        "explanation": "Extended warranties add value",
-        "valuation_buckets": [
-            {"label": "Extended", "min_usd": 10, "max_usd": 25, "Formula": None}
-        ],
-        "Formula": None,
-        "unit": "USD",
-        "dependencies": ["listing.warranty"],
-        "notes": "Applied when warranty > 1 year",
-        "nullable": True,
-    })
+    modified["entities"]["Listing"].append(
+        {
+            "id": "warranty_adjustment",
+            "proper_name": "Warranty Adjustment",
+            "description": "Value bonus for extended warranty",
+            "explanation": "Extended warranties add value",
+            "valuation_buckets": [
+                {"label": "Extended", "min_usd": 10, "max_usd": 25, "Formula": None}
+            ],
+            "Formula": None,
+            "unit": "USD",
+            "dependencies": ["listing.warranty"],
+            "notes": "Applied when warranty > 1 year",
+            "nullable": True,
+        }
+    )
 
     # Remove CPU field
     del modified["entities"]["CPU"]
@@ -130,8 +134,7 @@ def modified_baseline_json(sample_baseline_json: dict[str, Any]) -> dict[str, An
 
 @pytest.fixture
 async def loaded_baseline(
-    async_session: AsyncSession,
-    sample_baseline_json: dict[str, Any]
+    async_session: AsyncSession, sample_baseline_json: dict[str, Any]
 ) -> ValuationRuleset:
     """Load baseline into database for testing"""
     service = BaselineLoaderService()
@@ -149,6 +152,7 @@ async def loaded_baseline(
 
 # --- Test Cases ---
 
+
 class TestBaselineMetadata:
     """Tests for GET /api/v1/baseline/meta endpoint"""
 
@@ -159,9 +163,7 @@ class TestBaselineMetadata:
         assert "No active baseline" in response.json()["detail"]
 
     async def test_get_metadata_success(
-        self,
-        client: AsyncClient,
-        loaded_baseline: ValuationRuleset
+        self, client: AsyncClient, loaded_baseline: ValuationRuleset
     ):
         """Should return baseline metadata successfully"""
         response = await client.get("/api/v1/baseline/meta")
@@ -194,16 +196,13 @@ class TestBaselineInstantiate:
             json={
                 "baseline_path": "/nonexistent/baseline.json",
                 "create_adjustments_group": True,
-            }
+            },
         )
         assert response.status_code == 400
         assert "not found" in response.json()["detail"]
 
     async def test_instantiate_success(
-        self,
-        client: AsyncClient,
-        async_session: AsyncSession,
-        tmp_path: Path
+        self, client: AsyncClient, async_session: AsyncSession, tmp_path: Path
     ):
         """Should create new baseline ruleset from file"""
         # Create temporary baseline file
@@ -222,7 +221,7 @@ class TestBaselineInstantiate:
                         "nullable": False,
                     }
                 ]
-            }
+            },
         }
         baseline_file.write_text(json.dumps(baseline_data))
 
@@ -232,7 +231,7 @@ class TestBaselineInstantiate:
                 "baseline_path": str(baseline_file),
                 "create_adjustments_group": True,
                 "actor": "test_user",
-            }
+            },
         )
         assert response.status_code == 200
 
@@ -247,7 +246,7 @@ class TestBaselineInstantiate:
         client: AsyncClient,
         async_session: AsyncSession,
         loaded_baseline: ValuationRuleset,
-        tmp_path: Path
+        tmp_path: Path,
     ):
         """Should return existing ruleset if hash matches (idempotent)"""
         # Get the baseline's source JSON
@@ -266,7 +265,7 @@ class TestBaselineInstantiate:
                         "nullable": False,
                     }
                 ]
-            }
+            },
         }
 
         baseline_file = tmp_path / "existing_baseline.json"
@@ -278,7 +277,7 @@ class TestBaselineInstantiate:
             json={
                 "baseline_path": str(baseline_file),
                 "create_adjustments_group": False,
-            }
+            },
         )
         # Note: This will create a new one because hash is different
         # In real scenario, you'd use exact same hash
@@ -289,14 +288,11 @@ class TestBaselineDiff:
     """Tests for POST /api/v1/baseline/diff endpoint"""
 
     async def test_diff_no_current_baseline(
-        self,
-        client: AsyncClient,
-        sample_baseline_json: dict[str, Any]
+        self, client: AsyncClient, sample_baseline_json: dict[str, Any]
     ):
         """Should work even without current baseline (all fields shown as added)"""
         response = await client.post(
-            "/api/v1/baseline/diff",
-            json={"candidate_json": sample_baseline_json}
+            "/api/v1/baseline/diff", json={"candidate_json": sample_baseline_json}
         )
         assert response.status_code == 200
 
@@ -310,12 +306,11 @@ class TestBaselineDiff:
         self,
         client: AsyncClient,
         loaded_baseline: ValuationRuleset,
-        modified_baseline_json: dict[str, Any]
+        modified_baseline_json: dict[str, Any],
     ):
         """Should detect added, changed, and removed fields"""
         response = await client.post(
-            "/api/v1/baseline/diff",
-            json={"candidate_json": modified_baseline_json}
+            "/api/v1/baseline/diff", json={"candidate_json": modified_baseline_json}
         )
         assert response.status_code == 200
 
@@ -344,12 +339,11 @@ class TestBaselineDiff:
         self,
         client: AsyncClient,
         loaded_baseline: ValuationRuleset,
-        sample_baseline_json: dict[str, Any]
+        sample_baseline_json: dict[str, Any],
     ):
         """Should detect no changes when baseline is identical"""
         response = await client.post(
-            "/api/v1/baseline/diff",
-            json={"candidate_json": sample_baseline_json}
+            "/api/v1/baseline/diff", json={"candidate_json": sample_baseline_json}
         )
         assert response.status_code == 200
 
@@ -368,7 +362,7 @@ class TestBaselineAdopt:
         client: AsyncClient,
         async_session: AsyncSession,
         loaded_baseline: ValuationRuleset,
-        modified_baseline_json: dict[str, Any]
+        modified_baseline_json: dict[str, Any],
     ):
         """Should adopt all changes and create new ruleset version"""
         response = await client.post(
@@ -377,7 +371,7 @@ class TestBaselineAdopt:
                 "candidate_json": modified_baseline_json,
                 "trigger_recalculation": False,
                 "actor": "admin_user",
-            }
+            },
         )
         assert response.status_code == 200
 
@@ -398,9 +392,7 @@ class TestBaselineAdopt:
         assert loaded_baseline.is_active is False
 
         # Verify audit log
-        audit_stmt = select(ValuationRuleAudit).where(
-            ValuationRuleAudit.id == data["audit_log_id"]
-        )
+        audit_stmt = select(ValuationRuleAudit).where(ValuationRuleAudit.id == data["audit_log_id"])
         audit_result = await async_session.execute(audit_stmt)
         audit_entry = audit_result.scalar_one()
         assert audit_entry.action == "baseline_adopted"
@@ -411,7 +403,7 @@ class TestBaselineAdopt:
         client: AsyncClient,
         async_session: AsyncSession,
         loaded_baseline: ValuationRuleset,
-        modified_baseline_json: dict[str, Any]
+        modified_baseline_json: dict[str, Any],
     ):
         """Should adopt only selected changes"""
         # Only adopt the warranty_adjustment field
@@ -421,7 +413,7 @@ class TestBaselineAdopt:
                 "candidate_json": modified_baseline_json,
                 "selected_changes": ["Listing.warranty_adjustment"],
                 "trigger_recalculation": False,
-            }
+            },
         )
         assert response.status_code == 200
 
@@ -436,7 +428,7 @@ class TestBaselineAdopt:
         self,
         client: AsyncClient,
         loaded_baseline: ValuationRuleset,
-        modified_baseline_json: dict[str, Any]
+        modified_baseline_json: dict[str, Any],
     ):
         """Should trigger recalculation when requested"""
         response = await client.post(
@@ -445,7 +437,7 @@ class TestBaselineAdopt:
                 "candidate_json": modified_baseline_json,
                 "trigger_recalculation": True,
                 "actor": "admin_user",
-            }
+            },
         )
         assert response.status_code == 200
 
@@ -457,14 +449,12 @@ class TestBaselineAdopt:
 
 # --- Integration Tests ---
 
+
 class TestBaselineWorkflow:
     """End-to-end baseline workflow tests"""
 
     async def test_full_baseline_lifecycle(
-        self,
-        client: AsyncClient,
-        async_session: AsyncSession,
-        tmp_path: Path
+        self, client: AsyncClient, async_session: AsyncSession, tmp_path: Path
     ):
         """Test complete baseline workflow: instantiate -> diff -> adopt"""
         # Step 1: Create and instantiate initial baseline
@@ -482,15 +472,14 @@ class TestBaselineWorkflow:
                         "nullable": False,
                     }
                 ]
-            }
+            },
         }
 
         baseline_file = tmp_path / "v1_baseline.json"
         baseline_file.write_text(json.dumps(initial_baseline))
 
         instantiate_response = await client.post(
-            "/api/v1/baseline/instantiate",
-            json={"baseline_path": str(baseline_file)}
+            "/api/v1/baseline/instantiate", json={"baseline_path": str(baseline_file)}
         )
         assert instantiate_response.status_code == 200
         v1_data = instantiate_response.json()
@@ -513,7 +502,9 @@ class TestBaselineWorkflow:
                         "proper_name": "Field V1 Updated",  # Changed
                         "description": "Version 1 updated",  # Changed
                         "unit": "USD",
-                        "valuation_buckets": [{"label": "V1", "min_usd": 15, "max_usd": 25}],  # Changed
+                        "valuation_buckets": [
+                            {"label": "V1", "min_usd": 15, "max_usd": 25}
+                        ],  # Changed
                         "nullable": False,
                     },
                     {
@@ -523,15 +514,14 @@ class TestBaselineWorkflow:
                         "unit": "multiplier",
                         "valuation_buckets": [{"label": "V2", "min_usd": 1.0, "max_usd": 1.5}],
                         "nullable": True,
-                    }
+                    },
                 ]
-            }
+            },
         }
 
         # Step 4: Diff v2 against v1
         diff_response = await client.post(
-            "/api/v1/baseline/diff",
-            json={"candidate_json": v2_baseline}
+            "/api/v1/baseline/diff", json={"candidate_json": v2_baseline}
         )
         assert diff_response.status_code == 200
         diff_data = diff_response.json()
@@ -544,7 +534,7 @@ class TestBaselineWorkflow:
             json={
                 "candidate_json": v2_baseline,
                 "actor": "workflow_test",
-            }
+            },
         )
         assert adopt_response.status_code == 200
         adopt_data = adopt_response.json()

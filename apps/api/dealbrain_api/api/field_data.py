@@ -39,7 +39,9 @@ async def list_entities() -> dict[str, list[dict[str, str]]]:
 
 
 @router.get("/{entity}/schema")
-async def entity_schema(entity: str, db: AsyncSession = Depends(session_dependency)) -> dict[str, object]:
+async def entity_schema(
+    entity: str, db: AsyncSession = Depends(session_dependency)
+) -> dict[str, object]:
     registry = get_registry()
     try:
         return await registry.schema_for(db, entity)

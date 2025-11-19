@@ -97,10 +97,15 @@ class ImportSessionService:
         await db.flush()
         await db.refresh(import_session)
 
-        self._record_audit(db, import_session, event="session_created", payload={
-            "filename": filename,
-            "sheet_count": len(workbook),
-        })
+        self._record_audit(
+            db,
+            import_session,
+            event="session_created",
+            payload={
+                "filename": filename,
+                "sheet_count": len(workbook),
+            },
+        )
 
         # Check for declared entity mismatches
         mismatches = [
@@ -171,7 +176,12 @@ class ImportSessionService:
         merged_mappings = SchemaMapper.merge_mappings(import_session.mappings_json, mappings)
         import_session.mappings_json = merged_mappings
         await self.refresh_preview(db, import_session)
-        self._record_audit(db, import_session, event="mappings_updated", payload={"entities": list(mappings.keys())})
+        self._record_audit(
+            db,
+            import_session,
+            event="mappings_updated",
+            payload={"entities": list(mappings.keys())},
+        )
         return import_session
 
     async def compute_conflicts(
@@ -191,7 +201,9 @@ class ImportSessionService:
         """
         workbook = WorkbookParser.load_workbook(Path(import_session.upload_path))
         conflicts: dict[str, Any] = {}
-        if cpu_conflicts := await ImportValidator.detect_cpu_conflicts(db, workbook, import_session.mappings_json):
+        if cpu_conflicts := await ImportValidator.detect_cpu_conflicts(
+            db, workbook, import_session.mappings_json
+        ):
             conflicts["cpu"] = cpu_conflicts
         import_session.conflicts_json = conflicts
         await db.flush()
@@ -229,7 +241,9 @@ class ImportSessionService:
 
         # Auto-create missing CPUs if needed
         auto_created_cpus: list[str] = []
-        listing_mapping = import_session.mappings_json.get("listing") if import_session.mappings_json else None
+        listing_mapping = (
+            import_session.mappings_json.get("listing") if import_session.mappings_json else None
+        )
         if listing_mapping:
             dataframe = workbook.get(listing_mapping.get("sheet"))
             if dataframe is not None:

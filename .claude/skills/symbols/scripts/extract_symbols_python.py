@@ -56,6 +56,7 @@ import argparse
 @dataclass
 class Symbol:
     """Represents a single extracted symbol (Schema v2.0)."""
+
     name: str
     kind: str
     path: str
@@ -81,7 +82,7 @@ class PythonSymbolExtractor(ast.NodeVisitor):
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """Extract class definitions."""
         # Skip private classes if configured
-        if node.name.startswith('_'):
+        if node.name.startswith("_"):
             return
 
         # Build class signature
@@ -103,7 +104,7 @@ class PythonSymbolExtractor(ast.NodeVisitor):
             signature=signature,
             summary=summary,
             layer="unknown",  # Will be set by categorize_file
-            docstring=docstring if docstring else None
+            docstring=docstring if docstring else None,
         )
         self.symbols.append(symbol)
 
@@ -116,7 +117,7 @@ class PythonSymbolExtractor(ast.NodeVisitor):
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """Extract function and method definitions."""
         # Skip private functions/methods if configured
-        if node.name.startswith('_') and not node.name.startswith('__'):
+        if node.name.startswith("_") and not node.name.startswith("__"):
             return
 
         # Determine if this is a method or function
@@ -143,7 +144,7 @@ class PythonSymbolExtractor(ast.NodeVisitor):
             summary=summary,
             layer="unknown",  # Will be set by categorize_file
             parent=parent,
-            docstring=docstring if docstring else None
+            docstring=docstring if docstring else None,
         )
         self.symbols.append(symbol)
 
@@ -153,7 +154,7 @@ class PythonSymbolExtractor(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         """Extract async function and method definitions."""
         # Skip private functions/methods if configured
-        if node.name.startswith('_') and not node.name.startswith('__'):
+        if node.name.startswith("_") and not node.name.startswith("__"):
             return
 
         # Determine if this is an async method or function
@@ -180,11 +181,13 @@ class PythonSymbolExtractor(ast.NodeVisitor):
             summary=summary,
             layer="unknown",  # Will be set by categorize_file
             parent=parent,
-            docstring=docstring if docstring else None
+            docstring=docstring if docstring else None,
         )
         self.symbols.append(symbol)
 
-    def _build_signature(self, node: ast.FunctionDef | ast.AsyncFunctionDef, is_async: bool = False) -> str:
+    def _build_signature(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef, is_async: bool = False
+    ) -> str:
         """Build function/method signature string."""
         # Get function arguments
         args = []
@@ -239,7 +242,7 @@ class PythonSymbolExtractor(ast.NodeVisitor):
             return ""
 
         # Get first line or first 100 characters
-        first_line = docstring.split('\n')[0].strip()
+        first_line = docstring.split("\n")[0].strip()
         if len(first_line) > 100:
             return first_line[:97] + "..."
         return first_line
@@ -249,10 +252,10 @@ def is_test_file(file_path: Path) -> bool:
     """Check if a file is a test file."""
     parts = file_path.parts
     return (
-        'test' in parts or
-        'tests' in parts or
-        file_path.name.startswith('test_') or
-        file_path.name.endswith('_test.py')
+        "test" in parts
+        or "tests" in parts
+        or file_path.name.startswith("test_")
+        or file_path.name.endswith("_test.py")
     )
 
 
@@ -274,51 +277,53 @@ def categorize_file(file_path: Path) -> tuple[str, str]:
         return ("test", "test")
 
     # Routers/API endpoints
-    if any(p in parts for p in ['routes', 'routers', 'api']) and ('router' in name or 'endpoint' in name):
+    if any(p in parts for p in ["routes", "routers", "api"]) and (
+        "router" in name or "endpoint" in name
+    ):
         return ("router", "business_logic")
 
     # Services
-    if 'services' in parts or 'service' in name:
+    if "services" in parts or "service" in name:
         return ("service", "business_logic")
 
     # Repositories
-    if 'repositories' in parts or 'repository' in name or 'repo' in name:
+    if "repositories" in parts or "repository" in name or "repo" in name:
         return ("repository", "business_logic")
 
     # Schemas/DTOs
-    if 'schemas' in parts or 'schema' in name or 'dto' in name:
+    if "schemas" in parts or "schema" in name or "dto" in name:
         return ("schema", "business_logic")
 
     # Models (ORM definitions)
-    if 'models' in parts or 'model' in name:
+    if "models" in parts or "model" in name:
         return ("model", "business_logic")
 
     # Middleware
-    if 'middleware' in parts or 'middleware' in name:
+    if "middleware" in parts or "middleware" in name:
         return ("middleware", "business_logic")
 
     # Auth
-    if 'auth' in parts or 'auth' in name:
+    if "auth" in parts or "auth" in name:
         return ("auth", "business_logic")
 
     # Observability (logging, tracing, monitoring)
-    if any(p in parts for p in ['observability', 'logging', 'tracing', 'monitoring']):
+    if any(p in parts for p in ["observability", "logging", "tracing", "monitoring"]):
         return ("observability", "business_logic")
 
     # Migrations
-    if 'migrations' in parts or 'alembic' in parts or name.startswith('migration_'):
+    if "migrations" in parts or "alembic" in parts or name.startswith("migration_"):
         return ("core", "migration")
 
     # Scripts
-    if 'scripts' in parts or file_path.parent.name == 'scripts':
+    if "scripts" in parts or file_path.parent.name == "scripts":
         return ("core", "script")
 
     # Config files
-    if 'config' in name or name in ['settings.py', 'constants.py', '__init__.py']:
+    if "config" in name or name in ["settings.py", "constants.py", "__init__.py"]:
         return ("core", "config")
 
     # Core (database, cache, utilities)
-    if any(p in parts for p in ['core', 'db', 'cache', 'utils', 'helpers']):
+    if any(p in parts for p in ["core", "db", "cache", "utils", "helpers"]):
         return ("core", "business_logic")
 
     # Default: core business logic
@@ -328,7 +333,7 @@ def categorize_file(file_path: Path) -> tuple[str, str]:
 def extract_symbols_from_file(file_path: Path, base_path: Path) -> List[Symbol]:
     """Extract symbols from a single Python file."""
     try:
-        source_code = file_path.read_text(encoding='utf-8')
+        source_code = file_path.read_text(encoding="utf-8")
 
         # Parse the AST
         tree = ast.parse(source_code, filename=str(file_path))
@@ -359,19 +364,17 @@ def extract_symbols_from_file(file_path: Path, base_path: Path) -> List[Symbol]:
 
 
 def extract_symbols_from_directory(
-    directory: Path,
-    exclude_tests: bool = False,
-    exclude_private: bool = False
+    directory: Path, exclude_tests: bool = False, exclude_private: bool = False
 ) -> List[Symbol]:
     """Extract symbols from all Python files in a directory."""
     symbols: List[Symbol] = []
 
     # Find all Python files
-    python_files = directory.rglob('*.py')
+    python_files = directory.rglob("*.py")
 
     for file_path in python_files:
         # Skip __pycache__ and other special directories
-        if '__pycache__' in file_path.parts or '.venv' in file_path.parts:
+        if "__pycache__" in file_path.parts or ".venv" in file_path.parts:
             continue
 
         # Skip test files if requested
@@ -384,8 +387,7 @@ def extract_symbols_from_directory(
         # Filter private symbols if requested
         if exclude_private:
             file_symbols = [
-                s for s in file_symbols
-                if not s.name.startswith('_') or s.name.startswith('__')
+                s for s in file_symbols if not s.name.startswith("_") or s.name.startswith("__")
             ]
 
         symbols.extend(file_symbols)
@@ -426,32 +428,19 @@ def main():
     parser = argparse.ArgumentParser(
         description="Extract symbols from Python files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
+    )
+    parser.add_argument("path", help="Path to Python file or directory to extract symbols from")
+    parser.add_argument("--output", "-o", help="Output JSON file path (default: stdout)")
+    parser.add_argument(
+        "--exclude-tests", action="store_true", help="Exclude test files from extraction"
     )
     parser.add_argument(
-        'path',
-        help='Path to Python file or directory to extract symbols from'
+        "--exclude-private",
+        action="store_true",
+        help="Exclude private methods and functions (starting with _)",
     )
-    parser.add_argument(
-        '--output',
-        '-o',
-        help='Output JSON file path (default: stdout)'
-    )
-    parser.add_argument(
-        '--exclude-tests',
-        action='store_true',
-        help='Exclude test files from extraction'
-    )
-    parser.add_argument(
-        '--exclude-private',
-        action='store_true',
-        help='Exclude private methods and functions (starting with _)'
-    )
-    parser.add_argument(
-        '--pretty',
-        action='store_true',
-        help='Pretty-print JSON output'
-    )
+    parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output")
 
     args = parser.parse_args()
 
@@ -463,27 +452,25 @@ def main():
 
     # Extract symbols
     if path.is_file():
-        if not path.suffix == '.py':
+        if not path.suffix == ".py":
             print(f"Error: File is not a Python file: {path}", file=sys.stderr)
             sys.exit(1)
         symbols = extract_symbols_from_file(path, path.parent)
     else:
         symbols = extract_symbols_from_directory(
-            path,
-            exclude_tests=args.exclude_tests,
-            exclude_private=args.exclude_private
+            path, exclude_tests=args.exclude_tests, exclude_private=args.exclude_private
         )
 
     # Convert to output format
     output = symbols_to_dict(symbols)
 
     # Output results
-    json_kwargs = {'indent': 2} if args.pretty else {}
+    json_kwargs = {"indent": 2} if args.pretty else {}
     json_output = json.dumps(output, **json_kwargs)
 
     if args.output:
         output_path = Path(args.output)
-        output_path.write_text(json_output, encoding='utf-8')
+        output_path.write_text(json_output, encoding="utf-8")
         print(f"Extracted {len(symbols)} symbols to {output_path}", file=sys.stderr)
     else:
         print(json_output)
@@ -498,5 +485,5 @@ def main():
             print(f"# {kind}: {count}", file=sys.stderr)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -27,6 +27,7 @@ router = APIRouter(prefix="/api/v1/baseline", tags=["baseline"])
 
 # --- Baseline Metadata Endpoint ---
 
+
 @router.get("/meta", response_model=BaselineMetadataResponse | None)
 async def get_baseline_metadata(
     session: AsyncSession = Depends(get_session),
@@ -44,8 +45,7 @@ async def get_baseline_metadata(
 
     if metadata is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No active baseline ruleset found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="No active baseline ruleset found"
         )
 
     return metadata
@@ -64,6 +64,7 @@ async def get_baseline_metadata_alias(
 
 
 # --- Baseline Instantiation Endpoint ---
+
 
 @router.post("/instantiate", response_model=BaselineInstantiateResponse)
 async def instantiate_baseline(
@@ -90,7 +91,7 @@ async def instantiate_baseline(
     if not baseline_path.exists():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Baseline file not found: {request.baseline_path}"
+            detail=f"Baseline file not found: {request.baseline_path}",
         )
 
     # Load baseline (idempotent)
@@ -124,6 +125,7 @@ async def instantiate_baseline(
 
 
 # --- Baseline Diff Endpoint ---
+
 
 @router.post("/diff", response_model=BaselineDiffResponse)
 async def diff_baseline(
@@ -159,6 +161,7 @@ async def diff_baseline(
 
 
 # --- Baseline Adopt Endpoint ---
+
 
 @router.post("/adopt", response_model=BaselineAdoptResponse)
 async def adopt_baseline(
@@ -223,6 +226,7 @@ async def adopt_baseline(
 
 # --- Baseline Hydration Endpoint ---
 
+
 @router.post("/rulesets/{ruleset_id}/hydrate", response_model=HydrateBaselineResponse)
 async def hydrate_baseline_rules(
     ruleset_id: int,
@@ -258,17 +262,14 @@ async def hydrate_baseline_rules(
 
     if not ruleset:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Ruleset {ruleset_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Ruleset {ruleset_id} not found"
         )
 
     # Hydrate rules
     service = BaselineHydrationService()
     try:
         hydration_result = await service.hydrate_baseline_rules(
-            session=session,
-            ruleset_id=ruleset_id,
-            actor=request.actor or "system"
+            session=session, ruleset_id=ruleset_id, actor=request.actor or "system"
         )
 
         return HydrateBaselineResponse(
@@ -294,6 +295,7 @@ async def hydrate_baseline_rules(
 
 
 # --- Field Override Endpoints (Stub implementations) ---
+
 
 @router.get("/overrides/{entity_key}")
 async def get_entity_overrides(
@@ -382,6 +384,7 @@ async def delete_entity_overrides(
 
 # --- Preview Impact Endpoint (Stub) ---
 
+
 @router.get("/preview")
 async def preview_impact(
     entity_key: str | None = None,
@@ -418,6 +421,7 @@ async def preview_impact(
 
 # --- Export Endpoint (Stub) ---
 
+
 @router.get("/export")
 async def export_baseline(
     session: AsyncSession = Depends(get_session),
@@ -435,14 +439,14 @@ async def export_baseline(
 
     if metadata is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No active baseline to export"
+            status_code=status.HTTP_404_NOT_FOUND, detail="No active baseline to export"
         )
 
     return metadata
 
 
 # --- Validate Endpoint (Stub) ---
+
 
 @router.post("/validate")
 async def validate_baseline(

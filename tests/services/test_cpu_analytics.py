@@ -39,6 +39,7 @@ pytestmark = pytest.mark.asyncio
 
 
 if pytest_asyncio:
+
     @pytest_asyncio.fixture
     async def db_session():
         """Create async database session for tests."""
@@ -117,7 +118,7 @@ class TestCalculatePriceTargets:
 
         # Assert
         assert result.sample_size == 10
-        assert result.confidence == 'high'
+        assert result.confidence == "high"
         assert result.good is not None
         assert result.great is not None
         assert result.fair is not None
@@ -153,7 +154,7 @@ class TestCalculatePriceTargets:
 
         # Assert
         assert result.sample_size == 7
-        assert result.confidence == 'medium'
+        assert result.confidence == "medium"
         assert result.good is not None
         assert result.great is not None
         assert result.fair is not None
@@ -181,7 +182,7 @@ class TestCalculatePriceTargets:
 
         # Assert
         assert result.sample_size == 3
-        assert result.confidence == 'low'
+        assert result.confidence == "low"
         assert result.good is not None
         assert result.great is not None
         assert result.fair is not None
@@ -205,7 +206,7 @@ class TestCalculatePriceTargets:
 
         # Assert
         assert result.sample_size == 1
-        assert result.confidence == 'insufficient'
+        assert result.confidence == "insufficient"
         assert result.good is None
         assert result.great is None
         assert result.fair is None
@@ -221,7 +222,7 @@ class TestCalculatePriceTargets:
 
         # Assert
         assert result.sample_size == 0
-        assert result.confidence == 'insufficient'
+        assert result.confidence == "insufficient"
         assert result.good is None
         assert result.great is None
         assert result.fair is None
@@ -261,7 +262,7 @@ class TestCalculatePriceTargets:
 
         # Assert - should only count active listings
         assert result.sample_size == 10
-        assert result.confidence == 'high'
+        assert result.confidence == "high"
         # Good price should be close to 303.3 (mean of active listings), not influenced by inactive
         assert pytest.approx(result.good, abs=5) == 303.3
 
@@ -297,7 +298,7 @@ class TestCalculatePriceTargets:
 
         # Assert - should only count listings with prices
         assert result.sample_size == 10
-        assert result.confidence == 'high'
+        assert result.confidence == "high"
 
     async def test_ignores_zero_prices(self, db_session: AsyncSession, sample_cpu: Cpu):
         """Test that listings with zero adjusted prices are excluded."""
@@ -331,7 +332,7 @@ class TestCalculatePriceTargets:
 
         # Assert - should exclude zero prices
         assert result.sample_size == 10
-        assert result.confidence == 'high'
+        assert result.confidence == "high"
 
     async def test_handles_outliers(self, db_session: AsyncSession, sample_cpu: Cpu):
         """Test that outliers don't break calculation but do affect stddev."""
@@ -356,7 +357,7 @@ class TestCalculatePriceTargets:
 
         # Assert - calculation completes successfully
         assert result.sample_size == 12
-        assert result.confidence == 'high'
+        assert result.confidence == "high"
         assert result.good is not None
         # Stddev should be large due to outliers
         assert result.stddev > 50
@@ -391,7 +392,7 @@ class TestCalculatePriceTargets:
 
         # Assert
         assert result.sample_size == 0
-        assert result.confidence == 'insufficient'
+        assert result.confidence == "insufficient"
         assert result.good is None
         assert result.great is None
         assert result.fair is None
@@ -400,7 +401,9 @@ class TestCalculatePriceTargets:
 class TestCalculatePerformanceValue:
     """Test performance value calculation ($/PassMark metrics)."""
 
-    @pytest.mark.skip(reason="SQLite doesn't support aggregate in WHERE clause - requires PostgreSQL")
+    @pytest.mark.skip(
+        reason="SQLite doesn't support aggregate in WHERE clause - requires PostgreSQL"
+    )
     async def test_valid_cpu_with_benchmarks_and_listings(
         self, db_session: AsyncSession, sample_cpu: Cpu
     ):
@@ -488,7 +491,9 @@ class TestCalculatePerformanceValue:
         assert result.rating is None
         assert result.updated_at is not None
 
-    @pytest.mark.skip(reason="SQLite doesn't support aggregate in WHERE clause - requires PostgreSQL")
+    @pytest.mark.skip(
+        reason="SQLite doesn't support aggregate in WHERE clause - requires PostgreSQL"
+    )
     async def test_percentile_calculation_single_cpu(
         self, db_session: AsyncSession, sample_cpu: Cpu
     ):
@@ -514,7 +519,9 @@ class TestCalculatePerformanceValue:
         # Note: The actual percentile depends on the query logic, but should be calculable
         assert 0 <= result.percentile <= 100
 
-    @pytest.mark.skip(reason="SQLite doesn't support aggregate in WHERE clause - requires PostgreSQL")
+    @pytest.mark.skip(
+        reason="SQLite doesn't support aggregate in WHERE clause - requires PostgreSQL"
+    )
     async def test_percentile_calculation_multiple_cpus(self, db_session: AsyncSession):
         """Test percentile ranking across multiple CPUs."""
         # Create 3 CPUs with different performance values
@@ -548,8 +555,8 @@ class TestCalculatePerformanceValue:
             for price in [300, 310, 290]:
                 listing = Listing(
                     cpu_id=cpu.id,
-                price_usd=float(price),
-                adjusted_price_usd=Decimal(str(price)),
+                    price_usd=float(price),
+                    adjusted_price_usd=Decimal(str(price)),
                     status=ListingStatus.ACTIVE.value,
                     title="Test Listing",
                     marketplace="ebay",
@@ -565,7 +572,9 @@ class TestCalculatePerformanceValue:
         assert result.percentile is not None
         assert 0 <= result.percentile <= 100
 
-    @pytest.mark.skip(reason="SQLite doesn't support aggregate in WHERE clause - requires PostgreSQL")
+    @pytest.mark.skip(
+        reason="SQLite doesn't support aggregate in WHERE clause - requires PostgreSQL"
+    )
     async def test_rating_excellent_0_25_percentile(self, db_session: AsyncSession):
         """Test that 0-25th percentile gets 'excellent' rating."""
         # Create CPU with great value (low $/mark)
@@ -597,9 +606,11 @@ class TestCalculatePerformanceValue:
 
         # Note: Rating depends on percentile calculation
         assert result.rating is not None
-        assert result.rating in ['excellent', 'good', 'fair', 'poor']
+        assert result.rating in ["excellent", "good", "fair", "poor"]
 
-    @pytest.mark.skip(reason="SQLite doesn't support aggregate in WHERE clause - requires PostgreSQL")
+    @pytest.mark.skip(
+        reason="SQLite doesn't support aggregate in WHERE clause - requires PostgreSQL"
+    )
     async def test_ignores_inactive_listings_for_avg_price(
         self, db_session: AsyncSession, sample_cpu: Cpu
     ):
@@ -641,10 +652,10 @@ class TestCalculatePerformanceValue:
 class TestUpdateCPUAnalytics:
     """Test updating all analytics fields for a CPU."""
 
-    @pytest.mark.skip(reason="SQLite doesn't support aggregate in WHERE clause - requires PostgreSQL")
-    async def test_update_cpu_analytics_success(
-        self, db_session: AsyncSession, sample_cpu: Cpu
-    ):
+    @pytest.mark.skip(
+        reason="SQLite doesn't support aggregate in WHERE clause - requires PostgreSQL"
+    )
+    async def test_update_cpu_analytics_success(self, db_session: AsyncSession, sample_cpu: Cpu):
         """Test successful update of CPU analytics fields."""
         # Create listings
         for price in [350, 360, 340, 355, 365, 345, 370, 330, 375, 338]:
@@ -670,7 +681,7 @@ class TestUpdateCPUAnalytics:
         assert sample_cpu.price_target_great is not None
         assert sample_cpu.price_target_fair is not None
         assert sample_cpu.price_target_sample_size == 10
-        assert sample_cpu.price_target_confidence == 'high'
+        assert sample_cpu.price_target_confidence == "high"
         assert sample_cpu.price_target_stddev is not None
         assert sample_cpu.price_target_updated_at is not None
 
@@ -712,7 +723,7 @@ class TestUpdateCPUAnalytics:
 
         # Assert price targets updated (has listings)
         assert cpu_without_benchmarks.price_target_good is not None
-        assert cpu_without_benchmarks.price_target_confidence == 'low'
+        assert cpu_without_benchmarks.price_target_confidence == "low"
 
         # Assert performance values are null (no benchmarks)
         assert cpu_without_benchmarks.dollar_per_mark_single is None
@@ -720,9 +731,7 @@ class TestUpdateCPUAnalytics:
         assert cpu_without_benchmarks.performance_value_percentile is None
         assert cpu_without_benchmarks.performance_value_rating is None
 
-    async def test_update_preserves_existing_data(
-        self, db_session: AsyncSession, sample_cpu: Cpu
-    ):
+    async def test_update_preserves_existing_data(self, db_session: AsyncSession, sample_cpu: Cpu):
         """Test that update doesn't corrupt existing CPU data."""
         # Store original values
         original_name = sample_cpu.name
@@ -788,9 +797,9 @@ class TestRecalculateAllCPUMetrics:
         summary = await CPUAnalyticsService.recalculate_all_cpu_metrics(db_session)
 
         # Assert
-        assert summary['total'] == 3
-        assert summary['success'] == 3
-        assert summary['errors'] == 0
+        assert summary["total"] == 3
+        assert summary["success"] == 3
+        assert summary["errors"] == 0
 
         # Verify all CPUs updated
         for cpu in cpus:
@@ -804,9 +813,9 @@ class TestRecalculateAllCPUMetrics:
         summary = await CPUAnalyticsService.recalculate_all_cpu_metrics(db_session)
 
         # Assert
-        assert summary['total'] == 0
-        assert summary['success'] == 0
-        assert summary['errors'] == 0
+        assert summary["total"] == 0
+        assert summary["success"] == 0
+        assert summary["errors"] == 0
 
     async def test_recalculate_continues_on_error(self, db_session: AsyncSession):
         """Test that recalculation continues even if individual CPUs fail."""
@@ -845,9 +854,9 @@ class TestRecalculateAllCPUMetrics:
         summary = await CPUAnalyticsService.recalculate_all_cpu_metrics(db_session)
 
         # Assert - both should succeed (service handles missing benchmarks gracefully)
-        assert summary['total'] == 2
-        assert summary['success'] == 2
-        assert summary['errors'] == 0
+        assert summary["total"] == 2
+        assert summary["success"] == 2
+        assert summary["errors"] == 0
 
     async def test_recalculate_performance(self, db_session: AsyncSession):
         """Test that batch recalculation completes in reasonable time."""
@@ -887,9 +896,9 @@ class TestRecalculateAllCPUMetrics:
         duration = (datetime.utcnow() - start).total_seconds()
 
         # Assert
-        assert summary['total'] == 20
-        assert summary['success'] == 20
-        assert summary['errors'] == 0
+        assert summary["total"] == 20
+        assert summary["success"] == 20
+        assert summary["errors"] == 0
         # Should complete in reasonable time (< 10 seconds for 20 CPUs)
         assert duration < 10.0
 

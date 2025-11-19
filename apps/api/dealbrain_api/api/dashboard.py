@@ -22,17 +22,18 @@ async def dashboard(
     under_budget = await _fetch_under_budget(session, budget)
     return {
         "best_value": ListingRead.model_validate(top_value).model_dump() if top_value else None,
-        "best_perf_per_watt": ListingRead.model_validate(top_perf_watt).model_dump() if top_perf_watt else None,
-        "best_under_budget": [ListingRead.model_validate(item).model_dump() for item in under_budget],
+        "best_perf_per_watt": (
+            ListingRead.model_validate(top_perf_watt).model_dump() if top_perf_watt else None
+        ),
+        "best_under_budget": [
+            ListingRead.model_validate(item).model_dump() for item in under_budget
+        ],
     }
 
 
 async def _fetch_listing(session: AsyncSession, column, ordering):
     result = await session.execute(
-        select(Listing)
-        .where(column.is_not(None))
-        .order_by(ordering(column))
-        .limit(1)
+        select(Listing).where(column.is_not(None)).order_by(ordering(column)).limit(1)
     )
     return result.scalars().first()
 
@@ -46,4 +47,3 @@ async def _fetch_under_budget(session: AsyncSession, budget: float):
         .limit(5)
     )
     return result.scalars().unique().all()
-

@@ -72,7 +72,7 @@ async def sample_cpu(session: AsyncSession):
         name="Intel Core i7-12700K",
         manufacturer="Intel",
         cpu_mark_single=3985,
-        cpu_mark_multi=35864
+        cpu_mark_multi=35864,
     )
     session.add(cpu)
     await session.flush()
@@ -82,10 +82,7 @@ async def sample_cpu(session: AsyncSession):
 @pytest_asyncio.fixture
 async def sample_gpu(session: AsyncSession):
     """Create sample GPU for testing."""
-    gpu = Gpu(
-        name="NVIDIA RTX 3080",
-        manufacturer="NVIDIA"
-    )
+    gpu = Gpu(name="NVIDIA RTX 3080", manufacturer="NVIDIA")
     session.add(gpu)
     await session.flush()
     return gpu
@@ -100,7 +97,7 @@ class TestCreate:
         data = {
             "name": "Budget Gaming PC",
             "visibility": "private",
-            "share_token": uuid.uuid4().hex
+            "share_token": uuid.uuid4().hex,
         }
 
         build = await repository.create(data)
@@ -115,11 +112,7 @@ class TestCreate:
         assert build.deleted_at is None
 
     async def test_create_complete_build(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession,
-        sample_cpu: Cpu,
-        sample_gpu: Gpu
+        self, repository: BuilderRepository, session: AsyncSession, sample_cpu: Cpu, sample_gpu: Gpu
     ):
         """Test creating build with all optional fields."""
         data = {
@@ -139,17 +132,17 @@ class TestCreate:
                 "base_price": 2500.0,
                 "adjusted_price": 2400.0,
                 "delta_amount": -100.0,
-                "delta_percentage": -4.0
+                "delta_percentage": -4.0,
             },
             "metrics_snapshot": {
                 "dollar_per_cpu_mark_multi": 6.7,
                 "dollar_per_cpu_mark_single": 9.5,
-                "composite_score": 92.3
+                "composite_score": 92.3,
             },
             "valuation_breakdown": {
                 "rules_applied": ["BULK_DISCOUNT", "EXCELLENT_CONDITION"],
-                "total_adjustment": -100.0
-            }
+                "total_adjustment": -100.0,
+            },
         }
 
         build = await repository.create(data)
@@ -171,10 +164,7 @@ class TestCreate:
     async def test_create_missing_required_fields(self, repository: BuilderRepository):
         """Test error when required fields are missing."""
         # Missing 'name'
-        data = {
-            "visibility": "private",
-            "share_token": uuid.uuid4().hex
-        }
+        data = {"visibility": "private", "share_token": uuid.uuid4().hex}
 
         with pytest.raises(ValueError, match="Missing required fields: name"):
             await repository.create(data)
@@ -191,11 +181,7 @@ class TestGetById:
     """Test BuilderRepository.get_by_id() method."""
 
     async def test_get_existing_build(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession,
-        sample_cpu: Cpu,
-        sample_gpu: Gpu
+        self, repository: BuilderRepository, session: AsyncSession, sample_cpu: Cpu, sample_gpu: Gpu
     ):
         """Test retrieving existing build by ID."""
         # Create build
@@ -204,7 +190,7 @@ class TestGetById:
             visibility="public",
             share_token=uuid.uuid4().hex,
             cpu_id=sample_cpu.id,
-            gpu_id=sample_gpu.id
+            gpu_id=sample_gpu.id,
         )
         session.add(build)
         await session.commit()
@@ -227,17 +213,11 @@ class TestGetById:
         assert retrieved is None
 
     async def test_get_deleted_build_returns_none(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test that soft-deleted builds are not returned."""
         # Create and delete build
-        build = SavedBuild(
-            name="Deleted Build",
-            visibility="public",
-            share_token=uuid.uuid4().hex
-        )
+        build = SavedBuild(name="Deleted Build", visibility="public", share_token=uuid.uuid4().hex)
         build.soft_delete()
         session.add(build)
         await session.commit()
@@ -247,17 +227,12 @@ class TestGetById:
         assert retrieved is None
 
     async def test_get_private_build_access_control(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test access control for private builds."""
         # Create private build owned by user 1
         build = SavedBuild(
-            user_id=1,
-            name="Private Build",
-            visibility="private",
-            share_token=uuid.uuid4().hex
+            user_id=1, name="Private Build", visibility="private", share_token=uuid.uuid4().hex
         )
         session.add(build)
         await session.commit()
@@ -272,17 +247,12 @@ class TestGetById:
         assert retrieved is None
 
     async def test_get_public_build_no_access_control(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test that public builds are accessible to anyone."""
         # Create public build
         build = SavedBuild(
-            user_id=1,
-            name="Public Build",
-            visibility="public",
-            share_token=uuid.uuid4().hex
+            user_id=1, name="Public Build", visibility="public", share_token=uuid.uuid4().hex
         )
         session.add(build)
         await session.commit()
@@ -301,18 +271,12 @@ class TestGetByShareToken:
     """Test BuilderRepository.get_by_share_token() method."""
 
     async def test_get_public_build_by_token(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession,
-        sample_cpu: Cpu
+        self, repository: BuilderRepository, session: AsyncSession, sample_cpu: Cpu
     ):
         """Test getting public build by share token."""
         share_token = uuid.uuid4().hex
         build = SavedBuild(
-            name="Public Build",
-            visibility="public",
-            share_token=share_token,
-            cpu_id=sample_cpu.id
+            name="Public Build", visibility="public", share_token=share_token, cpu_id=sample_cpu.id
         )
         session.add(build)
         await session.commit()
@@ -326,17 +290,11 @@ class TestGetByShareToken:
         assert retrieved.cpu is not None
 
     async def test_get_unlisted_build_by_token(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test getting unlisted build by share token."""
         share_token = uuid.uuid4().hex
-        build = SavedBuild(
-            name="Unlisted Build",
-            visibility="unlisted",
-            share_token=share_token
-        )
+        build = SavedBuild(name="Unlisted Build", visibility="unlisted", share_token=share_token)
         session.add(build)
         await session.commit()
 
@@ -346,17 +304,12 @@ class TestGetByShareToken:
         assert retrieved.visibility == "unlisted"
 
     async def test_get_private_build_by_token_returns_none(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test that private builds cannot be accessed via share token."""
         share_token = uuid.uuid4().hex
         build = SavedBuild(
-            user_id=1,
-            name="Private Build",
-            visibility="private",
-            share_token=share_token
+            user_id=1, name="Private Build", visibility="private", share_token=share_token
         )
         session.add(build)
         await session.commit()
@@ -371,17 +324,11 @@ class TestGetByShareToken:
         assert retrieved is None
 
     async def test_get_deleted_build_by_token_returns_none(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test that deleted builds cannot be accessed via share token."""
         share_token = uuid.uuid4().hex
-        build = SavedBuild(
-            name="Deleted Build",
-            visibility="public",
-            share_token=share_token
-        )
+        build = SavedBuild(name="Deleted Build", visibility="public", share_token=share_token)
         build.soft_delete()
         session.add(build)
         await session.commit()
@@ -395,11 +342,7 @@ class TestListByUser:
     """Test BuilderRepository.list_by_user() method."""
 
     async def test_list_user_builds(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession,
-        sample_cpu: Cpu,
-        sample_gpu: Gpu
+        self, repository: BuilderRepository, session: AsyncSession, sample_cpu: Cpu, sample_gpu: Gpu
     ):
         """Test listing builds for a user."""
         # Create multiple builds for user 1
@@ -410,7 +353,7 @@ class TestListByUser:
                 visibility="private",
                 share_token=uuid.uuid4().hex,
                 cpu_id=sample_cpu.id if i % 2 == 0 else None,
-                gpu_id=sample_gpu.id if i % 2 == 1 else None
+                gpu_id=sample_gpu.id if i % 2 == 1 else None,
             )
             for i in range(5)
         ]
@@ -426,11 +369,7 @@ class TestListByUser:
             assert retrieved[i].created_at >= retrieved[i + 1].created_at
 
     async def test_list_user_builds_with_eager_loading(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession,
-        sample_cpu: Cpu,
-        sample_gpu: Gpu
+        self, repository: BuilderRepository, session: AsyncSession, sample_cpu: Cpu, sample_gpu: Gpu
     ):
         """Test that list operation uses eager loading (no N+1 queries)."""
         # Create builds with CPU and GPU
@@ -441,7 +380,7 @@ class TestListByUser:
                 visibility="private",
                 share_token=uuid.uuid4().hex,
                 cpu_id=sample_cpu.id,
-                gpu_id=sample_gpu.id
+                gpu_id=sample_gpu.id,
             )
             for i in range(3)
         ]
@@ -459,18 +398,13 @@ class TestListByUser:
             assert build.gpu.name == "NVIDIA RTX 3080"
 
     async def test_list_user_builds_pagination(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test pagination for user builds list."""
         # Create 15 builds
         builds = [
             SavedBuild(
-                user_id=1,
-                name=f"Build {i}",
-                visibility="private",
-                share_token=uuid.uuid4().hex
+                user_id=1, name=f"Build {i}", visibility="private", share_token=uuid.uuid4().hex
             )
             for i in range(15)
         ]
@@ -498,18 +432,13 @@ class TestListByUser:
         assert len(page1_ids & page3_ids) == 0
 
     async def test_list_excludes_deleted_builds(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test that soft-deleted builds are excluded from list."""
         # Create active builds
         active_builds = [
             SavedBuild(
-                user_id=1,
-                name=f"Active {i}",
-                visibility="private",
-                share_token=uuid.uuid4().hex
+                user_id=1, name=f"Active {i}", visibility="private", share_token=uuid.uuid4().hex
             )
             for i in range(3)
         ]
@@ -518,10 +447,7 @@ class TestListByUser:
         # Create deleted builds
         deleted_builds = [
             SavedBuild(
-                user_id=1,
-                name=f"Deleted {i}",
-                visibility="private",
-                share_token=uuid.uuid4().hex
+                user_id=1, name=f"Deleted {i}", visibility="private", share_token=uuid.uuid4().hex
             )
             for i in range(2)
         ]
@@ -537,17 +463,12 @@ class TestListByUser:
         assert all("Active" in b.name for b in retrieved)
 
     async def test_list_empty_for_user_with_no_builds(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test listing builds for user with no builds."""
         # Create builds for user 1
         build = SavedBuild(
-            user_id=1,
-            name="User 1 Build",
-            visibility="private",
-            share_token=uuid.uuid4().hex
+            user_id=1, name="User 1 Build", visibility="private", share_token=uuid.uuid4().hex
         )
         session.add(build)
         await session.commit()
@@ -561,11 +482,7 @@ class TestListByUser:
 class TestUpdate:
     """Test BuilderRepository.update() method."""
 
-    async def test_update_build_fields(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
-    ):
+    async def test_update_build_fields(self, repository: BuilderRepository, session: AsyncSession):
         """Test updating allowed build fields."""
         # Create build
         build = SavedBuild(
@@ -574,7 +491,7 @@ class TestUpdate:
             description="Original description",
             tags=["original"],
             visibility="private",
-            share_token=uuid.uuid4().hex
+            share_token=uuid.uuid4().hex,
         )
         session.add(build)
         await session.commit()
@@ -586,7 +503,7 @@ class TestUpdate:
             "name": "Updated Name",
             "description": "Updated description",
             "tags": ["updated", "modified"],
-            "visibility": "public"
+            "visibility": "public",
         }
         updated = await repository.update(build.id, update_data, user_id=1)
         await session.commit()
@@ -598,19 +515,12 @@ class TestUpdate:
         assert updated.updated_at > original_updated_at
 
     async def test_update_component_ids(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession,
-        sample_cpu: Cpu,
-        sample_gpu: Gpu
+        self, repository: BuilderRepository, session: AsyncSession, sample_cpu: Cpu, sample_gpu: Gpu
     ):
         """Test updating component IDs."""
         # Create build without components
         build = SavedBuild(
-            user_id=1,
-            name="Build",
-            visibility="private",
-            share_token=uuid.uuid4().hex
+            user_id=1, name="Build", visibility="private", share_token=uuid.uuid4().hex
         )
         session.add(build)
         await session.commit()
@@ -620,7 +530,7 @@ class TestUpdate:
             "cpu_id": sample_cpu.id,
             "gpu_id": sample_gpu.id,
             "ram_spec_id": 1,
-            "storage_spec_id": 2
+            "storage_spec_id": 2,
         }
         updated = await repository.update(build.id, update_data, user_id=1)
         await session.commit()
@@ -630,18 +540,11 @@ class TestUpdate:
         assert updated.ram_spec_id == 1
         assert updated.storage_spec_id == 2
 
-    async def test_update_snapshots(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
-    ):
+    async def test_update_snapshots(self, repository: BuilderRepository, session: AsyncSession):
         """Test updating snapshot fields."""
         # Create build
         build = SavedBuild(
-            user_id=1,
-            name="Build",
-            visibility="private",
-            share_token=uuid.uuid4().hex
+            user_id=1, name="Build", visibility="private", share_token=uuid.uuid4().hex
         )
         session.add(build)
         await session.commit()
@@ -650,7 +553,7 @@ class TestUpdate:
         update_data = {
             "pricing_snapshot": {"base_price": 1000.0, "adjusted_price": 950.0},
             "metrics_snapshot": {"composite_score": 85.5},
-            "valuation_breakdown": {"rules_applied": ["DISCOUNT"]}
+            "valuation_breakdown": {"rules_applied": ["DISCOUNT"]},
         }
         updated = await repository.update(build.id, update_data, user_id=1)
         await session.commit()
@@ -660,18 +563,13 @@ class TestUpdate:
         assert updated.valuation_breakdown["rules_applied"] == ["DISCOUNT"]
 
     async def test_update_protected_fields_ignored(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test that protected fields are ignored during update."""
         # Create build
         original_token = uuid.uuid4().hex
         build = SavedBuild(
-            user_id=1,
-            name="Build",
-            visibility="private",
-            share_token=original_token
+            user_id=1, name="Build", visibility="private", share_token=original_token
         )
         session.add(build)
         await session.commit()
@@ -686,7 +584,7 @@ class TestUpdate:
             "share_token": "hacked_token",
             "created_at": datetime(2020, 1, 1),
             "deleted_at": datetime.utcnow(),
-            "name": "Updated Name"  # This should work
+            "name": "Updated Name",  # This should work
         }
         updated = await repository.update(build.id, update_data, user_id=1)
         await session.commit()
@@ -701,17 +599,12 @@ class TestUpdate:
         assert updated.name == "Updated Name"
 
     async def test_update_access_denied_for_non_owner(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test that non-owners cannot update builds."""
         # Create build owned by user 1
         build = SavedBuild(
-            user_id=1,
-            name="User 1 Build",
-            visibility="private",
-            share_token=uuid.uuid4().hex
+            user_id=1, name="User 1 Build", visibility="private", share_token=uuid.uuid4().hex
         )
         session.add(build)
         await session.commit()
@@ -723,9 +616,7 @@ class TestUpdate:
             await repository.update(build.id, update_data, user_id=2)
 
     async def test_update_nonexistent_build(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test error when updating non-existent build."""
         update_data = {"name": "New Name"}
@@ -738,18 +629,11 @@ class TestUpdate:
 class TestSoftDelete:
     """Test BuilderRepository.soft_delete() method."""
 
-    async def test_soft_delete_build(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
-    ):
+    async def test_soft_delete_build(self, repository: BuilderRepository, session: AsyncSession):
         """Test soft deleting a build."""
         # Create build
         build = SavedBuild(
-            user_id=1,
-            name="Build to Delete",
-            visibility="private",
-            share_token=uuid.uuid4().hex
+            user_id=1, name="Build to Delete", visibility="private", share_token=uuid.uuid4().hex
         )
         session.add(build)
         await session.commit()
@@ -768,25 +652,19 @@ class TestSoftDelete:
 
         # Verify build still exists in database with deleted_at set (bypass soft delete filter)
         from sqlalchemy import select
-        result = await session.execute(
-            select(SavedBuild).where(SavedBuild.id == build_id)
-        )
+
+        result = await session.execute(select(SavedBuild).where(SavedBuild.id == build_id))
         deleted_build = result.scalar_one_or_none()
         assert deleted_build is not None
         assert deleted_build.deleted_at is not None
 
     async def test_soft_delete_access_denied(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test that non-owners cannot delete builds."""
         # Create build owned by user 1
         build = SavedBuild(
-            user_id=1,
-            name="User 1 Build",
-            visibility="private",
-            share_token=uuid.uuid4().hex
+            user_id=1, name="User 1 Build", visibility="private", share_token=uuid.uuid4().hex
         )
         session.add(build)
         await session.commit()
@@ -796,27 +674,20 @@ class TestSoftDelete:
             await repository.soft_delete(build.id, user_id=2)
 
     async def test_soft_delete_nonexistent_build(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test error when deleting non-existent build."""
         with pytest.raises(ValueError, match="not found or access denied"):
             await repository.soft_delete(99999, user_id=1)
 
     async def test_soft_deleted_not_in_user_list(
-        self,
-        repository: BuilderRepository,
-        session: AsyncSession
+        self, repository: BuilderRepository, session: AsyncSession
     ):
         """Test that soft-deleted builds don't appear in list_by_user."""
         # Create builds
         builds = [
             SavedBuild(
-                user_id=1,
-                name=f"Build {i}",
-                visibility="private",
-                share_token=uuid.uuid4().hex
+                user_id=1, name=f"Build {i}", visibility="private", share_token=uuid.uuid4().hex
             )
             for i in range(3)
         ]

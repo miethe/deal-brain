@@ -12,6 +12,7 @@ from . import (
     custom_fields,
     dashboard,
     entities,
+    events,
     field_data,
     fields,
     health,
@@ -50,5 +51,6 @@ router.include_router(settings.router)
 router.include_router(shares.router)
 router.include_router(user_shares.router)
 router.include_router(telemetry.router)
+router.include_router(events.router)
 
 __all__ = ["router"]

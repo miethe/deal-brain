@@ -53,7 +53,8 @@ def analyze_results(results: dict) -> dict:
                     "scenario": result["scenario"],
                     "p95_ms": result["p95_ms"],
                     "target_ms": result["target_ms"],
-                    "margin_pct": ((result["target_ms"] - result["p95_ms"]) / result["target_ms"]) * 100,
+                    "margin_pct": ((result["target_ms"] - result["p95_ms"]) / result["target_ms"])
+                    * 100,
                 }
             )
         else:
@@ -157,7 +158,9 @@ def print_analysis(analysis: dict):
         for test in analysis["passed_tests"]:
             margin = test["target_ms"] - test["p95_ms"]
             margin_pct = (margin / test["target_ms"]) * 100
-            print(f"  {test['scenario']:50s} P95: {test['p95_ms']:7.1f}ms (margin: {margin_pct:5.1f}%)")
+            print(
+                f"  {test['scenario']:50s} P95: {test['p95_ms']:7.1f}ms (margin: {margin_pct:5.1f}%)"
+            )
 
     print("\n" + "=" * 80)
 

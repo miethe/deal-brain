@@ -101,16 +101,12 @@ class TemplateValidator:
         # Check projectName placeholder
         project_name = template.get("projectName", "")
         if "{{" not in project_name and project_name != "{{PROJECT_NAME}}":
-            errors.append(
-                "  [projectName] Should use {{PROJECT_NAME}} placeholder in template"
-            )
+            errors.append("  [projectName] Should use {{PROJECT_NAME}} placeholder in template")
 
         # Check symbolsDir placeholder
         symbols_dir = template.get("symbolsDir", "")
         if "{{" not in symbols_dir and symbols_dir != "{{SYMBOLS_DIR}}":
-            errors.append(
-                "  [symbolsDir] Should use {{SYMBOLS_DIR}} placeholder in template"
-            )
+            errors.append("  [symbolsDir] Should use {{SYMBOLS_DIR}} placeholder in template")
 
         return errors
 
@@ -129,17 +125,13 @@ class TemplateValidator:
         domains = template.get("domains", {})
         for domain_name, domain_config in domains.items():
             if not domain_config.get("description"):
-                errors.append(
-                    f"  [domains.{domain_name}] Missing description"
-                )
+                errors.append(f"  [domains.{domain_name}] Missing description")
 
         # Check that all API layers have descriptions
         api_layers = template.get("apiLayers", {})
         for layer_name, layer_config in api_layers.items():
             if not layer_config.get("description"):
-                errors.append(
-                    f"  [apiLayers.{layer_name}] Missing description"
-                )
+                errors.append(f"  [apiLayers.{layer_name}] Missing description")
 
         # Check extraction configuration
         extraction = template.get("extraction", {})

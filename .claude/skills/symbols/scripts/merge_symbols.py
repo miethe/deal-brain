@@ -77,6 +77,7 @@ class SymbolMerger:
         if self._config is None:
             try:
                 from config import get_config
+
                 self._config = get_config()
             except Exception:
                 pass  # Will use fallback paths
@@ -96,16 +97,20 @@ class SymbolMerger:
                 try:
                     test_file = self._config.get_test_file(domain)
                     if test_file:
-                        self.DOMAIN_FILES[f"{domain}-tests"] = str(test_file.relative_to(self.project_root))
+                        self.DOMAIN_FILES[f"{domain}-tests"] = str(
+                            test_file.relative_to(self.project_root)
+                        )
                 except Exception:
                     pass
         else:
             # Minimal generic fallback - only basic domains
             print("Warning: Configuration not loaded, using minimal defaults", file=sys.stderr)
-            print("  Run 'python init_symbols.py' to initialize the symbols system", file=sys.stderr)
+            print(
+                "  Run 'python init_symbols.py' to initialize the symbols system", file=sys.stderr
+            )
             self.DOMAIN_FILES = {
-                'api': 'ai/symbols-api.json',
-                'ui': 'ai/symbols-ui.json',
+                "api": "ai/symbols-api.json",
+                "ui": "ai/symbols-ui.json",
             }
 
     def merge(
@@ -113,7 +118,7 @@ class SymbolMerger:
         domain: str,
         extracted_symbols: List[Dict[str, Any]],
         validate: bool = True,
-        backup: bool = True
+        backup: bool = True,
     ) -> Tuple[int, int, int]:
         """
         Merge extracted symbols into domain file.
@@ -167,18 +172,20 @@ class SymbolMerger:
     def _load_existing(self, domain_file: Path) -> Dict[str, Any]:
         """Load existing symbol file or create new structure."""
         if not domain_file.exists():
-            print(f"Warning: Domain file does not exist, creating new: {domain_file}", file=sys.stderr)
+            print(
+                f"Warning: Domain file does not exist, creating new: {domain_file}", file=sys.stderr
+            )
             return {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
-                "generatedAt": datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
+                "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 "sourceDirectory": "",
                 "totalFiles": 0,
                 "totalSymbols": 0,
-                "domains": {}
+                "domains": {},
             }
 
         try:
-            with open(domain_file, 'r', encoding='utf-8') as f:
+            with open(domain_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         except json.JSONDecodeError as e:
             print(f"Error: Invalid JSON in {domain_file}: {e}", file=sys.stderr)
@@ -186,16 +193,14 @@ class SymbolMerger:
 
     def _create_backup(self, domain_file: Path) -> None:
         """Create a timestamped backup of the domain file."""
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_file = domain_file.with_suffix(f'.backup_{timestamp}.json')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_file = domain_file.with_suffix(f".backup_{timestamp}.json")
 
         shutil.copy2(domain_file, backup_file)
         print(f"Created backup: {backup_file}", file=sys.stderr)
 
     def _merge_symbols(
-        self,
-        existing_data: Dict[str, Any],
-        extracted_symbols: List[Dict[str, Any]]
+        self, existing_data: Dict[str, Any], extracted_symbols: List[Dict[str, Any]]
     ) -> Tuple[int, int]:
         """
         Merge extracted symbols into existing data structure.
@@ -212,7 +217,7 @@ class SymbolMerger:
         # Group extracted symbols by file path
         symbols_by_path: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         for symbol in extracted_symbols:
-            symbols_by_path[symbol['path']].append(symbol)
+            symbols_by_path[symbol["path"]].append(symbol)
 
         # Process each file
         for file_path, file_symbols in symbols_by_path.items():
@@ -220,7 +225,7 @@ class SymbolMerger:
             module_entry = self._find_or_create_module(existing_data, file_path)
 
             for symbol in file_symbols:
-                key = (file_path, symbol['name'])
+                key = (file_path, symbol["name"])
 
                 if key in existing_index:
                     # Update existing symbol
@@ -230,61 +235,52 @@ class SymbolMerger:
                         updated += 1
                 else:
                     # Add new symbol
-                    module_entry['symbols'].append(symbol)
+                    module_entry["symbols"].append(symbol)
                     added += 1
 
         return added, updated
 
     def _build_symbol_index(
-        self,
-        existing_data: Dict[str, Any]
+        self, existing_data: Dict[str, Any]
     ) -> Dict[Tuple[str, str], Dict[str, Any]]:
         """Build index of existing symbols by (path, name) for fast lookup."""
         index: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
-        domains = existing_data.get('domains', {})
+        domains = existing_data.get("domains", {})
         for domain_data in domains.values():
-            modules = domain_data.get('modules', [])
+            modules = domain_data.get("modules", [])
             for module in modules:
-                path = module.get('path', '')
-                for symbol in module.get('symbols', []):
-                    key = (path, symbol['name'])
+                path = module.get("path", "")
+                for symbol in module.get("symbols", []):
+                    key = (path, symbol["name"])
                     index[key] = symbol
 
         return index
 
     def _find_or_create_module(
-        self,
-        existing_data: Dict[str, Any],
-        file_path: str
+        self, existing_data: Dict[str, Any], file_path: str
     ) -> Dict[str, Any]:
         """Find existing module entry or create new one."""
         # Determine domain from path
         domain_name = self._determine_domain_from_path(file_path)
 
         # Ensure domain exists
-        if 'domains' not in existing_data:
-            existing_data['domains'] = {}
+        if "domains" not in existing_data:
+            existing_data["domains"] = {}
 
-        if domain_name not in existing_data['domains']:
-            existing_data['domains'][domain_name] = {
-                'count': 0,
-                'modules': []
-            }
+        if domain_name not in existing_data["domains"]:
+            existing_data["domains"][domain_name] = {"count": 0, "modules": []}
 
-        domain = existing_data['domains'][domain_name]
+        domain = existing_data["domains"][domain_name]
 
         # Find existing module
-        for module in domain['modules']:
-            if module['path'] == file_path:
+        for module in domain["modules"]:
+            if module["path"] == file_path:
                 return module
 
         # Create new module
-        new_module = {
-            'path': file_path,
-            'symbols': []
-        }
-        domain['modules'].append(new_module)
+        new_module = {"path": file_path, "symbols": []}
+        domain["modules"].append(new_module)
 
         return new_module
 
@@ -293,32 +289,28 @@ class SymbolMerger:
         path_lower = file_path.lower()
 
         # API/Backend patterns
-        if any(p in path_lower for p in ['api/', 'routes/', 'services/', 'repositories/']):
-            return 'routes' if 'routes/' in path_lower or 'api/' in path_lower else 'services'
+        if any(p in path_lower for p in ["api/", "routes/", "services/", "repositories/"]):
+            return "routes" if "routes/" in path_lower or "api/" in path_lower else "services"
 
         # UI/Frontend patterns
-        if any(p in path_lower for p in ['components/', 'hooks/', 'pages/', 'app/']):
-            return 'components' if 'components/' in path_lower else 'ui'
+        if any(p in path_lower for p in ["components/", "hooks/", "pages/", "app/"]):
+            return "components" if "components/" in path_lower else "ui"
 
         # Utilities
-        if any(p in path_lower for p in ['utils/', 'helpers/', 'lib/']):
-            return 'utils'
+        if any(p in path_lower for p in ["utils/", "helpers/", "lib/"]):
+            return "utils"
 
         # Types/Schemas
-        if any(p in path_lower for p in ['types/', 'schemas/', 'interfaces/']):
-            return 'types'
+        if any(p in path_lower for p in ["types/", "schemas/", "interfaces/"]):
+            return "types"
 
         # Default
-        return 'other'
+        return "other"
 
-    def _symbol_changed(
-        self,
-        existing: Dict[str, Any],
-        new: Dict[str, Any]
-    ) -> bool:
+    def _symbol_changed(self, existing: Dict[str, Any], new: Dict[str, Any]) -> bool:
         """Check if a symbol has changed."""
         # Compare key fields
-        fields_to_compare = ['kind', 'line', 'signature', 'summary']
+        fields_to_compare = ["kind", "line", "signature", "summary"]
 
         for field in fields_to_compare:
             if existing.get(field) != new.get(field):
@@ -326,11 +318,7 @@ class SymbolMerger:
 
         return False
 
-    def _update_symbol(
-        self,
-        existing: Dict[str, Any],
-        new: Dict[str, Any]
-    ) -> None:
+    def _update_symbol(self, existing: Dict[str, Any], new: Dict[str, Any]) -> None:
         """Update existing symbol with new data."""
         # Update all fields from new symbol
         for key, value in new.items():
@@ -339,12 +327,12 @@ class SymbolMerger:
     def _get_all_symbols(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Get all symbols from data structure."""
         symbols = []
-        domains = data.get('domains', {})
+        domains = data.get("domains", {})
 
         for domain_data in domains.values():
-            modules = domain_data.get('modules', [])
+            modules = domain_data.get("modules", [])
             for module in modules:
-                symbols.extend(module.get('symbols', []))
+                symbols.extend(module.get("symbols", []))
 
         return symbols
 
@@ -354,13 +342,13 @@ class SymbolMerger:
         seen: Set[Tuple[str, str]] = set()
         duplicates: List[Tuple[str, str]] = []
 
-        domains = data.get('domains', {})
+        domains = data.get("domains", {})
         for domain_data in domains.values():
-            modules = domain_data.get('modules', [])
+            modules = domain_data.get("modules", [])
             for module in modules:
-                path = module.get('path', '')
-                for symbol in module.get('symbols', []):
-                    key = (path, symbol['name'])
+                path = module.get("path", "")
+                for symbol in module.get("symbols", []):
+                    key = (path, symbol["name"])
                     if key in seen:
                         duplicates.append(key)
                     seen.add(key)
@@ -371,13 +359,13 @@ class SymbolMerger:
                 print(f"  - {name} in {path}", file=sys.stderr)
 
         # Validate required fields
-        required_fields = ['name', 'kind', 'path', 'line']
+        required_fields = ["name", "kind", "path", "line"]
         invalid_symbols = []
 
         for symbol in self._get_all_symbols(data):
             missing = [f for f in required_fields if f not in symbol]
             if missing:
-                invalid_symbols.append((symbol.get('name', 'unknown'), missing))
+                invalid_symbols.append((symbol.get("name", "unknown"), missing))
 
         if invalid_symbols:
             print("Warning: Found symbols with missing fields:", file=sys.stderr)
@@ -386,33 +374,30 @@ class SymbolMerger:
 
     def _update_metadata(self, data: Dict[str, Any]) -> None:
         """Update metadata fields in symbol data."""
-        data['generatedAt'] = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+        data["generatedAt"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
         # Count total symbols
         total_symbols = len(self._get_all_symbols(data))
-        data['totalSymbols'] = total_symbols
+        data["totalSymbols"] = total_symbols
 
         # Count files
         total_files = 0
-        domains = data.get('domains', {})
+        domains = data.get("domains", {})
         for domain_data in domains.values():
-            modules = domain_data.get('modules', [])
+            modules = domain_data.get("modules", [])
             total_files += len(modules)
             # Update domain count
-            domain_symbols = sum(
-                len(m.get('symbols', []))
-                for m in modules
-            )
-            domain_data['count'] = domain_symbols
+            domain_symbols = sum(len(m.get("symbols", [])) for m in modules)
+            domain_data["count"] = domain_symbols
 
-        data['totalFiles'] = total_files
+        data["totalFiles"] = total_files
 
     def _write_symbols(self, domain_file: Path, data: Dict[str, Any]) -> None:
         """Write symbols to domain file."""
         # Ensure directory exists
         domain_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(domain_file, 'w', encoding='utf-8') as f:
+        with open(domain_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
         print(f"Updated {domain_file}", file=sys.stderr)
@@ -421,14 +406,14 @@ class SymbolMerger:
 def load_extracted_symbols(input_file: Path) -> List[Dict[str, Any]]:
     """Load extracted symbols from JSON file."""
     try:
-        with open(input_file, 'r', encoding='utf-8') as f:
+        with open(input_file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        if 'symbols' not in data:
+        if "symbols" not in data:
             print(f"Error: Input file missing 'symbols' key", file=sys.stderr)
             sys.exit(1)
 
-        return data['symbols']
+        return data["symbols"]
 
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON in input file: {e}", file=sys.stderr)
@@ -444,7 +429,7 @@ def find_project_root() -> Path:
 
     # Search up to 5 levels
     for _ in range(5):
-        if (current / 'ai').exists():
+        if (current / "ai").exists():
             return current
         current = current.parent
 
@@ -457,34 +442,20 @@ def main():
     parser = argparse.ArgumentParser(
         description="Merge extracted symbols into existing symbol graphs",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
     parser.add_argument(
-        '--domain',
+        "--domain",
         required=True,
-        choices=['ui', 'api', 'shared', 'ui-tests', 'api-tests', 'shared-tests'],
-        help='Target domain for symbol merge'
+        choices=["ui", "api", "shared", "ui-tests", "api-tests", "shared-tests"],
+        help="Target domain for symbol merge",
     )
     parser.add_argument(
-        '--input',
-        '-i',
-        required=True,
-        help='Input JSON file with extracted symbols'
+        "--input", "-i", required=True, help="Input JSON file with extracted symbols"
     )
-    parser.add_argument(
-        '--validate',
-        action='store_true',
-        help='Validate symbols after merge'
-    )
-    parser.add_argument(
-        '--backup',
-        action='store_true',
-        help='Create backup before writing'
-    )
-    parser.add_argument(
-        '--project-root',
-        help='Project root directory (default: auto-detect)'
-    )
+    parser.add_argument("--validate", action="store_true", help="Validate symbols after merge")
+    parser.add_argument("--backup", action="store_true", help="Create backup before writing")
+    parser.add_argument("--project-root", help="Project root directory (default: auto-detect)")
 
     args = parser.parse_args()
 
@@ -510,7 +481,7 @@ def main():
             domain=args.domain,
             extracted_symbols=extracted_symbols,
             validate=args.validate,
-            backup=args.backup
+            backup=args.backup,
         )
 
         # Print summary
@@ -526,16 +497,17 @@ def main():
             "domain": args.domain,
             "added": added,
             "updated": updated,
-            "total": total
+            "total": total,
         }
         print(json.dumps(result))
 
     except Exception as e:
         print(f"Error during merge: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

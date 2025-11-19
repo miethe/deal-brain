@@ -72,13 +72,17 @@ class CreateUserShareRequest(BaseModel):
 
     recipient_id: int = Field(..., description="User ID of recipient")
     listing_id: int = Field(..., description="Listing ID to share")
-    message: Optional[str] = Field(None, max_length=500, description="Optional message to recipient")
+    message: Optional[str] = Field(
+        None, max_length=500, description="Optional message to recipient"
+    )
 
 
 class ImportShareRequest(BaseModel):
     """Request body for importing a shared deal."""
 
-    collection_id: Optional[int] = Field(None, description="Collection ID (uses default if not provided)")
+    collection_id: Optional[int] = Field(
+        None, description="Collection ID (uses default if not provided)"
+    )
 
 
 # ==================== Endpoints ====================
@@ -159,7 +163,7 @@ async def create_user_share(
                 recipient_id=payload.recipient_id,
                 listing_id=payload.listing_id,
                 message=payload.message,
-                ttl_days=30
+                ttl_days=30,
             )
 
             span.set_attribute("share_id", share.id)
@@ -185,24 +189,18 @@ async def create_user_share(
                 imported_at=share.imported_at,
                 is_expired=share.is_expired(),
                 is_viewed=share.is_viewed(),
-                is_imported=share.is_imported()
+                is_imported=share.is_imported(),
             )
 
         except ValueError as e:
             # Recipient or listing not found
             logger.warning(f"Invalid share creation: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
         except PermissionError as e:
             # Rate limit exceeded
             logger.warning(f"Rate limit exceeded for user {current_user.user_id}: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @router.get(
@@ -221,7 +219,9 @@ async def list_received_shares(
     session: AsyncSession = Depends(session_dependency),
     skip: int = Query(0, ge=0, description="Number of shares to skip (pagination)"),
     limit: int = Query(20, ge=1, le=100, description="Maximum number of shares to return"),
-    filter: str = Query("unviewed", regex="^(unviewed|all)$", description="Filter: 'unviewed' or 'all'"),
+    filter: str = Query(
+        "unviewed", regex="^(unviewed|all)$", description="Filter: 'unviewed' or 'all'"
+    ),
 ) -> list[UserShareRead]:
     """List shares received by current user.
 
@@ -280,7 +280,7 @@ async def list_received_shares(
             include_expired=include_expired,
             include_imported=include_imported,
             limit=limit,
-            offset=skip
+            offset=skip,
         )
 
         span.set_attribute("result_count", len(shares))
@@ -305,7 +305,7 @@ async def list_received_shares(
                 imported_at=share.imported_at,
                 is_expired=share.is_expired(),
                 is_viewed=share.is_viewed(),
-                is_imported=share.is_imported()
+                is_imported=share.is_imported(),
             )
             for share in shares
         ]
@@ -374,24 +374,17 @@ async def preview_user_share(
 
         if not share:
             logger.info(f"Share not found for token {share_token[:8]}...")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Share not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Share not found")
 
         if share.is_expired():
             logger.info(f"Share expired for token {share_token[:8]}...")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Share has expired"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Share has expired")
 
         # Mark as viewed if current user is the recipient
         if current_user and current_user.user_id == share.recipient_id:
             try:
                 await sharing_service.mark_share_as_viewed(
-                    share_id=share.id,
-                    user_id=current_user.user_id
+                    share_id=share.id, user_id=current_user.user_id
                 )
                 span.set_attribute("marked_viewed", True)
                 logger.info(f"Marked share {share.id} as viewed by user {current_user.user_id}")
@@ -420,7 +413,7 @@ async def preview_user_share(
             imported_at=share.imported_at,
             is_expired=share.is_expired(),
             is_viewed=share.is_viewed(),
-            is_imported=share.is_imported()
+            is_imported=share.is_imported(),
         )
 
 
@@ -493,7 +486,7 @@ async def import_shared_deal(
             item, collection = await integration_service.import_shared_deal(
                 share_token=share_token,
                 user_id=current_user.user_id,
-                collection_id=payload.collection_id
+                collection_id=payload.collection_id,
             )
 
             span.set_attribute("item_id", item.id)
@@ -515,30 +508,21 @@ async def import_shared_deal(
                 notes=item.notes,
                 position=item.position,
                 added_at=item.added_at,
-                updated_at=item.updated_at
+                updated_at=item.updated_at,
             )
 
         except ValueError as e:
             # Share not found, expired, or duplicate
             logger.warning(f"Failed to import share: {e}")
             if "already exists" in str(e).lower():
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=str(e)
-                )
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
             else:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=str(e)
-                )
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
         except PermissionError as e:
             # User is not the recipient
             logger.warning(f"Permission denied for import: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
 __all__ = ["router"]

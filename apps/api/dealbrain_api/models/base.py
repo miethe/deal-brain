@@ -18,6 +18,7 @@ class StringArray(TypeDecorator):
     This allows models to use list[str] columns that work seamlessly across
     PostgreSQL (production) and SQLite (testing) environments.
     """
+
     impl = Text
     cache_ok = True
 
@@ -57,6 +58,7 @@ class JSONBType(TypeDecorator):
     This allows models to use dict columns that work seamlessly across
     PostgreSQL (production) and SQLite (testing) environments.
     """
+
     impl = JSON
     cache_ok = True
 
@@ -70,7 +72,8 @@ class JSONBType(TypeDecorator):
 
 class TimestampMixin:
     """Mixin to add created_at and updated_at timestamps to models."""
-    created_at: Mapped[datetime] = mapped_column(
-        default=func.now(), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        default=func.now(), onupdate=func.now(), nullable=False)
+        default=func.now(), onupdate=func.now(), nullable=False
+    )

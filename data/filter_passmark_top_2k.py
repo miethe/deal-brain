@@ -51,7 +51,9 @@ def filter_by_rank(data: List[Dict[str, Any]], max_rank: int = 2500) -> List[Dic
     Returns:
         Filtered list of CPU entries with rank <= max_rank
     """
-    return [entry for entry in data if isinstance(entry.get("rank"), int) and entry["rank"] <= max_rank]
+    return [
+        entry for entry in data if isinstance(entry.get("rank"), int) and entry["rank"] <= max_rank
+    ]
 
 
 def save_filtered_data(output_path: Path, filtered_data: Dict[str, Any]) -> None:
@@ -132,9 +134,7 @@ def main() -> int:
         filtered_count = len(filtered_entries)
 
         # Prepare output structure (preserve original structure)
-        filtered_data = {
-            "data": filtered_entries
-        }
+        filtered_data = {"data": filtered_entries}
 
         # Save results
         print(f"Saving filtered data to: {output_path}")

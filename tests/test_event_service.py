@@ -786,17 +786,13 @@ class TestPriceThresholdEdgeCases:
         listing.vendor_item_id = None
 
         # Test exactly $1 change
-        emitted = service.check_and_emit_price_change(
-            listing, Decimal("100.00"), Decimal("99.00")
-        )
+        emitted = service.check_and_emit_price_change(listing, Decimal("100.00"), Decimal("99.00"))
         assert emitted is True
 
         service.clear_events()
 
         # Test $0.99 change (should not emit)
-        emitted = service.check_and_emit_price_change(
-            listing, Decimal("100.00"), Decimal("99.01")
-        )
+        emitted = service.check_and_emit_price_change(listing, Decimal("100.00"), Decimal("99.01"))
         assert emitted is False
 
     def test_event_service_integration_percent_boundary(self, monkeypatch):
@@ -817,15 +813,11 @@ class TestPriceThresholdEdgeCases:
         listing.vendor_item_id = None
 
         # Test exactly 2% change ($100 → $98)
-        emitted = service.check_and_emit_price_change(
-            listing, Decimal("100.00"), Decimal("98.00")
-        )
+        emitted = service.check_and_emit_price_change(listing, Decimal("100.00"), Decimal("98.00"))
         assert emitted is True
 
         service.clear_events()
 
         # Test 1.9% change ($100 → $98.10) - should not emit
-        emitted = service.check_and_emit_price_change(
-            listing, Decimal("100.00"), Decimal("98.10")
-        )
+        emitted = service.check_and_emit_price_change(listing, Decimal("100.00"), Decimal("98.10"))
         assert emitted is False

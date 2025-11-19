@@ -49,7 +49,7 @@ class BaselineAuditService:
             result="success" if success else "failure",
             error_message=error,
             payload=payload or {},
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         session.add(audit_log)
@@ -89,10 +89,10 @@ class BaselineAuditService:
             payload={
                 "candidate_hash": candidate_hash,
                 "current_hash": current_hash,
-                **(payload or {})
+                **(payload or {}),
             },
             result="success",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         session.add(audit_log)
@@ -145,10 +145,10 @@ class BaselineAuditService:
                 "new_version": new_version,
                 "old_hash": old_hash,
                 "new_hash": new_hash,
-                **(payload or {})
+                **(payload or {}),
             },
             result="success",
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         session.add(audit_log)
@@ -194,14 +194,10 @@ class BaselineAuditService:
             actor_name=actor,
             entity_key=entity_key,
             field_name=field_name,
-            payload={
-                "old_value": old_value,
-                "new_value": new_value,
-                "operation": operation
-            },
+            payload={"old_value": old_value, "new_value": new_value, "operation": operation},
             result="success" if success else "failure",
             error_message=error,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         session.add(audit_log)
@@ -248,7 +244,7 @@ class BaselineAuditService:
             payload=payload or {},
             result="success" if success else "failure",
             error_message=error,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
         session.add(audit_log)
@@ -281,9 +277,7 @@ class BaselineAuditService:
         """
         from sqlalchemy import select, and_
 
-        stmt = select(BaselineAuditLog).order_by(
-            BaselineAuditLog.timestamp.desc()
-        ).limit(limit)
+        stmt = select(BaselineAuditLog).order_by(BaselineAuditLog.timestamp.desc()).limit(limit)
 
         conditions = []
         if operation_type:

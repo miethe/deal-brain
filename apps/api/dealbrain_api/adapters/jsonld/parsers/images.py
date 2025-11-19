@@ -86,9 +86,7 @@ class ImageParser:
                     dynamic_str = (
                         dynamic_attr
                         if isinstance(dynamic_attr, str)
-                        else str(dynamic_attr)
-                        if dynamic_attr
-                        else "{}"
+                        else str(dynamic_attr) if dynamic_attr else "{}"
                     )
                     dynamic_data = json.loads(dynamic_str)
                     # Keys are image URLs, values are dimensions

@@ -83,7 +83,9 @@ class PreviewBuilder:
             "rows": rows,
             "missing_required_fields": required_missing,
             "total_rows": int(dataframe.shape[0]),
-            "mapped_field_count": sum(1 for field in schema.fields if field_mappings.get(field.key, {}).get("column")),
+            "mapped_field_count": sum(
+                1 for field in schema.fields if field_mappings.get(field.key, {}).get("column")
+            ),
         }
 
     @staticmethod
@@ -106,7 +108,9 @@ class PreviewBuilder:
             Enriched preview data with component matches
         """
         listing_preview = preview.get("listing")
-        mapping = import_session.mappings_json.get("listing") if import_session.mappings_json else None
+        mapping = (
+            import_session.mappings_json.get("listing") if import_session.mappings_json else None
+        )
         if not listing_preview or not mapping:
             return preview
 

@@ -11,6 +11,7 @@ Revises: 6d065f2ece00
 Create Date: 2025-11-18 13:13:53.132106
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -18,8 +19,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '5dc4b78ba7c1'
-down_revision: Union[str, Sequence[str], None] = '6d065f2ece00'
+revision: str = "5dc4b78ba7c1"
+down_revision: Union[str, Sequence[str], None] = "6d065f2ece00"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -32,10 +33,7 @@ def upgrade() -> None:
     it with the value from added_at for existing rows.
     """
     # Add created_at column, initially nullable
-    op.add_column(
-        'collection_item',
-        sa.Column('created_at', sa.DateTime(), nullable=True)
-    )
+    op.add_column("collection_item", sa.Column("created_at", sa.DateTime(), nullable=True))
 
     # Populate created_at with added_at values for existing rows
     op.execute(
@@ -47,14 +45,9 @@ def upgrade() -> None:
     )
 
     # Make created_at non-nullable now that it's populated
-    op.alter_column(
-        'collection_item',
-        'created_at',
-        nullable=False,
-        server_default=sa.func.now()
-    )
+    op.alter_column("collection_item", "created_at", nullable=False, server_default=sa.func.now())
 
 
 def downgrade() -> None:
     """Remove created_at column from collection_item table."""
-    op.drop_column('collection_item', 'created_at')
+    op.drop_column("collection_item", "created_at")

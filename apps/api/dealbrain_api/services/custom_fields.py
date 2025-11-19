@@ -139,7 +139,9 @@ class CustomFieldService:
             )
         )
         if existing:
-            raise ValueError(f"Custom field '{normalized_key}' already exists for entity '{entity}'")
+            raise ValueError(
+                f"Custom field '{normalized_key}' already exists for entity '{entity}'"
+            )
 
         record = CustomFieldDefinition(
             entity=entity,
@@ -169,7 +171,9 @@ class CustomFieldService:
             actor=actor or created_by,
             payload={"after": snapshot},
         )
-        self._emit_event("field_definition.created", {"field_id": record.id, "entity": record.entity})
+        self._emit_event(
+            "field_definition.created", {"field_id": record.id, "entity": record.entity}
+        )
         return record
 
     async def update_field(
@@ -199,7 +203,9 @@ class CustomFieldService:
 
         if record.is_locked:
             if data_type is not None and data_type.lower() != record.data_type:
-                raise ValueError(f"Locked field '{record.key}' - type cannot be changed to maintain data integrity")
+                raise ValueError(
+                    f"Locked field '{record.key}' - type cannot be changed to maintain data integrity"
+                )
             if is_locked is not None and is_locked is False:
                 raise ValueError(f"Locked field '{record.key}' cannot be unlocked")
 
@@ -254,7 +260,10 @@ class CustomFieldService:
             removed_options = set(previous_options) - set(current_options)
 
         for option in sorted(removed_options):
-            def _matches(value: Any, *, option_value: str = option, value_kind: str = previous_type) -> bool:
+
+            def _matches(
+                value: Any, *, option_value: str = option, value_kind: str = previous_type
+            ) -> bool:
                 if value is None:
                     return False
                 if value_kind == "multi_select":
@@ -404,7 +413,12 @@ class CustomFieldService:
         await db.flush()
         self._emit_event(
             "field_definition.deleted",
-            {"field_id": field_id, "entity": record.entity, "hard": hard_delete, "usage": usage.counts},
+            {
+                "field_id": field_id,
+                "entity": record.entity,
+                "hard": hard_delete,
+                "usage": usage.counts,
+            },
         )
         return usage
 
@@ -417,14 +431,18 @@ class CustomFieldService:
         counts: dict[str, int] = {}
         if model is None:
             logger.debug("No usage mapping registered for entity '%s'", field.entity)
-            return FieldUsageSummary(field_id=field.id, entity=field.entity, key=field.key, counts=counts)
+            return FieldUsageSummary(
+                field_id=field.id, entity=field.entity, key=field.key, counts=counts
+            )
 
         column = getattr(model, "attributes_json", None)
         if column is not None:
             stmt = select(func.count()).select_from(model).where(column[field.key].isnot(None))
             result = await db.scalar(stmt)
             counts[field.entity] = int(result or 0)
-        return FieldUsageSummary(field_id=field.id, entity=field.entity, key=field.key, counts=counts)
+        return FieldUsageSummary(
+            field_id=field.id, entity=field.entity, key=field.key, counts=counts
+        )
 
     async def list_usage(
         self,
@@ -509,7 +527,9 @@ class CustomFieldService:
     def _validate_field_type(self, data_type: str) -> None:
         if data_type not in self.allowed_types:
             supported = ", ".join(self.allowed_types)
-            raise ValueError(f"Unsupported custom field type '{data_type}'. Supported types: {supported}")
+            raise ValueError(
+                f"Unsupported custom field type '{data_type}'. Supported types: {supported}"
+            )
 
     def _normalize_options(self, data_type: str, options: list[str] | None) -> list[str] | None:
         if data_type in {"enum", "multi_select"}:
@@ -560,7 +580,9 @@ class CustomFieldService:
 
         if "allowed_values" in validation:
             values = validation["allowed_values"]
-            if not isinstance(values, list) or not all(isinstance(item, (str, int, float, bool)) for item in values):
+            if not isinstance(values, list) or not all(
+                isinstance(item, (str, int, float, bool)) for item in values
+            ):
                 raise ValueError("Validation 'allowed_values' must be a list of primitive values")
             normalized["allowed_values"] = [value for value in values]
 

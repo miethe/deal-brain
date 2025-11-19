@@ -22,8 +22,7 @@ class PackageMetadata(BaseModel):
     description: str = Field(..., description="Package description")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     compatibility: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Compatibility requirements"
+        default_factory=dict, description="Compatibility requirements"
     )
     tags: List[str] = Field(default_factory=list)
 
@@ -137,8 +136,7 @@ class RulesetPackage(BaseModel):
     rules: List[RuleExport]
     custom_field_definitions: List[CustomFieldDefinition] = Field(default_factory=list)
     examples: List[Dict[str, Any]] = Field(
-        default_factory=list,
-        description="Example listings or test cases"
+        default_factory=list, description="Example listings or test cases"
     )
 
     def to_json(self, indent: int = 2) -> str:
@@ -162,9 +160,7 @@ class RulesetPackage(BaseModel):
             return cls.parse_raw(f.read())
 
     def validate_compatibility(
-        self,
-        app_version: str,
-        available_fields: List[str]
+        self, app_version: str, available_fields: List[str]
     ) -> Dict[str, Any]:
         """
         Validate package compatibility with current system.
@@ -174,11 +170,7 @@ class RulesetPackage(BaseModel):
         - missing_fields: List[str]
         - warnings: List[str]
         """
-        result = {
-            "compatible": True,
-            "missing_fields": [],
-            "warnings": []
-        }
+        result = {"compatible": True, "missing_fields": [], "warnings": []}
 
         # Check app version compatibility
         min_version = self.metadata.compatibility.get("min_app_version")
@@ -193,9 +185,7 @@ class RulesetPackage(BaseModel):
         missing = set(required_fields) - set(available_fields)
         if missing:
             result["missing_fields"] = list(missing)
-            result["warnings"].append(
-                f"Missing required custom fields: {', '.join(missing)}"
-            )
+            result["warnings"].append(f"Missing required custom fields: {', '.join(missing)}")
 
         return result
 
@@ -222,10 +212,7 @@ class RulesetPackage(BaseModel):
         - custom_fields: List of required custom field names
         - referenced_entities: List of entity types referenced
         """
-        dependencies = {
-            "custom_fields": [],
-            "referenced_entities": set()
-        }
+        dependencies = {"custom_fields": [], "referenced_entities": set()}
 
         # Extract custom fields from conditions
         for rule in self.rules:
@@ -266,10 +253,12 @@ class RulesetPackage(BaseModel):
         ]
 
         if self.custom_field_definitions:
-            lines.extend([
-                "## Required Custom Fields",
-                "",
-            ])
+            lines.extend(
+                [
+                    "## Required Custom Fields",
+                    "",
+                ]
+            )
             for field in self.custom_field_definitions:
                 lines.append(
                     f"- `{field.field_name}` ({field.field_type}): "
@@ -278,21 +267,25 @@ class RulesetPackage(BaseModel):
             lines.append("")
 
         if self.metadata.compatibility:
-            lines.extend([
-                "## Compatibility",
-                "",
-            ])
+            lines.extend(
+                [
+                    "## Compatibility",
+                    "",
+                ]
+            )
             for key, value in self.metadata.compatibility.items():
                 lines.append(f"- **{key}:** {value}")
             lines.append("")
 
         if self.examples:
-            lines.extend([
-                "## Examples",
-                "",
-                f"This package includes {len(self.examples)} example(s) for testing.",
-                "",
-            ])
+            lines.extend(
+                [
+                    "## Examples",
+                    "",
+                    f"This package includes {len(self.examples)} example(s) for testing.",
+                    "",
+                ]
+            )
 
         return "\n".join(lines)
 
@@ -340,7 +333,7 @@ class PackageBuilder:
             rule_groups=self.rule_groups,
             rules=self.rules,
             custom_field_definitions=self.custom_fields,
-            examples=self.examples
+            examples=self.examples,
         )
 
 
@@ -351,7 +344,7 @@ def create_package_metadata(
     description: str,
     min_app_version: Optional[str] = None,
     required_custom_fields: Optional[List[str]] = None,
-    tags: Optional[List[str]] = None
+    tags: Optional[List[str]] = None,
 ) -> PackageMetadata:
     """Helper to create package metadata."""
     compatibility = {}
@@ -366,5 +359,5 @@ def create_package_metadata(
         author=author,
         description=description,
         compatibility=compatibility,
-        tags=tags or []
+        tags=tags or [],
     )

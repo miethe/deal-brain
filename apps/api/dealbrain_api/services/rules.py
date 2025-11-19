@@ -111,17 +111,13 @@ class RulesService:
             rule_id=None,
             action="ruleset_created",
             actor=created_by,
-            changes={"ruleset_id": ruleset.id, "name": name}
+            changes={"ruleset_id": ruleset.id, "name": name},
         )
 
         self._enqueue_recalc(ruleset.id, "ruleset_created")
         return ruleset
 
-    async def get_ruleset(
-        self,
-        session: AsyncSession,
-        ruleset_id: int
-    ) -> ValuationRuleset | None:
+    async def get_ruleset(self, session: AsyncSession, ruleset_id: int) -> ValuationRuleset | None:
         """Get ruleset by ID with all related data"""
         stmt = (
             select(ValuationRuleset)
@@ -132,11 +128,7 @@ class RulesService:
         return result.scalar_one_or_none()
 
     async def list_rulesets(
-        self,
-        session: AsyncSession,
-        active_only: bool = False,
-        skip: int = 0,
-        limit: int = 100
+        self, session: AsyncSession, active_only: bool = False, skip: int = 0, limit: int = 100
     ) -> list[ValuationRuleset]:
         """List all rulesets"""
         stmt = select(ValuationRuleset)
@@ -161,7 +153,7 @@ class RulesService:
         session: AsyncSession,
         ruleset_id: int,
         updates: dict[str, Any] | BaseModel,
-        updated_by: str | None = None
+        updated_by: str | None = None,
     ) -> ValuationRuleset | None:
         """Update ruleset"""
         ruleset = await self.get_ruleset(session, ruleset_id)
@@ -198,17 +190,14 @@ class RulesService:
             rule_id=None,
             action="ruleset_updated",
             actor=updated_by,
-            changes={"ruleset_id": ruleset_id, "updates": updates}
+            changes={"ruleset_id": ruleset_id, "updates": updates},
         )
 
         self._enqueue_recalc(ruleset_id, "ruleset_updated")
         return ruleset
 
     async def delete_ruleset(
-        self,
-        session: AsyncSession,
-        ruleset_id: int,
-        deleted_by: str | None = None
+        self, session: AsyncSession, ruleset_id: int, deleted_by: str | None = None
     ) -> bool:
         """Delete ruleset (cascades to groups and rules)"""
         ruleset = await self.get_ruleset(session, ruleset_id)
@@ -221,7 +210,7 @@ class RulesService:
             rule_id=None,
             action="ruleset_deleted",
             actor=deleted_by,
-            changes={"ruleset_id": ruleset_id, "name": ruleset.name}
+            changes={"ruleset_id": ruleset_id, "name": ruleset.name},
         )
 
         await session.delete(ruleset)
@@ -286,9 +275,7 @@ class RulesService:
         return group
 
     async def get_rule_group(
-        self,
-        session: AsyncSession,
-        group_id: int
+        self, session: AsyncSession, group_id: int
     ) -> ValuationRuleGroup | None:
         """Get rule group by ID"""
         stmt = (
@@ -335,10 +322,7 @@ class RulesService:
         return group
 
     async def list_rule_groups(
-        self,
-        session: AsyncSession,
-        ruleset_id: int | None = None,
-        category: str | None = None
+        self, session: AsyncSession, ruleset_id: int | None = None, category: str | None = None
     ) -> list[ValuationRuleGroup]:
         """List rule groups"""
         stmt = select(ValuationRuleGroup)
@@ -428,17 +412,13 @@ class RulesService:
             rule_id=rule.id,
             action="rule_created",
             actor=created_by,
-            changes={"rule_name": name, "group_id": group_id}
+            changes={"rule_name": name, "group_id": group_id},
         )
 
         self._enqueue_recalc(ruleset_id, "rule_created")
         return rule
 
-    async def get_rule(
-        self,
-        session: AsyncSession,
-        rule_id: int
-    ) -> ValuationRuleV2 | None:
+    async def get_rule(self, session: AsyncSession, rule_id: int) -> ValuationRuleV2 | None:
         """Get rule by ID with all related data"""
         stmt = (
             select(ValuationRuleV2)
@@ -458,7 +438,7 @@ class RulesService:
         group_id: int | None = None,
         active_only: bool = False,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
     ) -> list[ValuationRuleV2]:
         """List rules"""
         stmt = select(ValuationRuleV2)
@@ -483,7 +463,7 @@ class RulesService:
         rule_id: int,
         updates: dict[str, Any],
         updated_by: str | None = None,
-        change_summary: str | None = None
+        change_summary: str | None = None,
     ) -> ValuationRuleV2 | None:
         """Update rule and create version snapshot"""
         rule = await self.get_rule(session, rule_id)
@@ -554,21 +534,14 @@ class RulesService:
 
         # Audit
         await self._audit_action(
-            session,
-            rule_id=rule.id,
-            action="rule_updated",
-            actor=updated_by,
-            changes=updates
+            session, rule_id=rule.id, action="rule_updated", actor=updated_by, changes=updates
         )
 
         self._enqueue_recalc(ruleset_id, "rule_updated")
         return rule
 
     async def delete_rule(
-        self,
-        session: AsyncSession,
-        rule_id: int,
-        deleted_by: str | None = None
+        self, session: AsyncSession, rule_id: int, deleted_by: str | None = None
     ) -> bool:
         """Delete rule"""
         rule = await self.get_rule(session, rule_id)
@@ -583,7 +556,7 @@ class RulesService:
             rule_id=rule.id,
             action="rule_deleted",
             actor=deleted_by,
-            changes={"rule_name": rule.name}
+            changes={"rule_name": rule.name},
         )
 
         await session.delete(rule)
@@ -608,7 +581,7 @@ class RulesService:
         session: AsyncSession,
         rule: ValuationRuleV2,
         changed_by: str | None,
-        change_summary: str | None
+        change_summary: str | None,
     ) -> ValuationRuleVersion:
         """Create version snapshot of rule"""
         snapshot = {
@@ -660,7 +633,7 @@ class RulesService:
         action: str,
         actor: str | None,
         changes: dict[str, Any] | None = None,
-        impact: dict[str, Any] | None = None
+        impact: dict[str, Any] | None = None,
     ) -> ValuationRuleAudit:
         """Create audit log entry"""
         audit = ValuationRuleAudit(
@@ -676,10 +649,7 @@ class RulesService:
         return audit
 
     async def get_audit_log(
-        self,
-        session: AsyncSession,
-        rule_id: int | None = None,
-        limit: int = 100
+        self, session: AsyncSession, rule_id: int | None = None, limit: int = 100
     ) -> list[ValuationRuleAudit]:
         """Get audit log entries"""
         stmt = select(ValuationRuleAudit)

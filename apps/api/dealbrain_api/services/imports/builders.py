@@ -57,7 +57,9 @@ class SeedBuilder:
         if cpu_mapping:
             dataframe = workbook.get(cpu_mapping.get("sheet"))
             if dataframe is not None:
-                seed.cpus = SeedBuilder.build_cpus(dataframe, cpu_mapping.get("fields", {}), conflict_resolutions)
+                seed.cpus = SeedBuilder.build_cpus(
+                    dataframe, cpu_mapping.get("fields", {}), conflict_resolutions
+                )
 
         # Build GPUs
         gpu_mapping = mappings.get("gpu") if mappings else None
@@ -71,14 +73,18 @@ class SeedBuilder:
         if rules_mapping:
             dataframe = workbook.get(rules_mapping.get("sheet"))
             if dataframe is not None:
-                seed.valuation_rules = SeedBuilder.build_rules(dataframe, rules_mapping.get("fields", {}))
+                seed.valuation_rules = SeedBuilder.build_rules(
+                    dataframe, rules_mapping.get("fields", {})
+                )
 
         # Build ports profiles
         ports_mapping = mappings.get("ports_profile") if mappings else None
         if ports_mapping:
             dataframe = workbook.get(ports_mapping.get("sheet"))
             if dataframe is not None:
-                seed.ports_profiles = SeedBuilder.build_ports_profiles(dataframe, ports_mapping.get("fields", {}))
+                seed.ports_profiles = SeedBuilder.build_ports_profiles(
+                    dataframe, ports_mapping.get("fields", {})
+                )
 
         # Build listings
         listing_mapping = mappings.get("listing") if mappings else None
@@ -134,16 +140,37 @@ class SeedBuilder:
 
             cpu = CpuCreate(
                 name=name,
-                manufacturer=ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "manufacturer")) or "Unknown",
-                socket=ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "socket")),
-                cores=ValueExtractor.to_int(ValueExtractor.extract_value(row, field_mappings, "cores")),
-                threads=ValueExtractor.to_int(ValueExtractor.extract_value(row, field_mappings, "threads")),
-                tdp_w=ValueExtractor.to_int(ValueExtractor.extract_value(row, field_mappings, "tdp_w")),
-                igpu_model=ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "igpu_model")),
-                cpu_mark_multi=ValueExtractor.to_int(ValueExtractor.extract_value(row, field_mappings, "cpu_mark_multi")),
-                cpu_mark_single=ValueExtractor.to_int(ValueExtractor.extract_value(row, field_mappings, "cpu_mark_single")),
-                release_year=ValueExtractor.to_int(ValueExtractor.extract_value(row, field_mappings, "release_year")),
-                notes=ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "notes")),
+                manufacturer=ValueExtractor.to_str(
+                    ValueExtractor.extract_value(row, field_mappings, "manufacturer")
+                )
+                or "Unknown",
+                socket=ValueExtractor.to_str(
+                    ValueExtractor.extract_value(row, field_mappings, "socket")
+                ),
+                cores=ValueExtractor.to_int(
+                    ValueExtractor.extract_value(row, field_mappings, "cores")
+                ),
+                threads=ValueExtractor.to_int(
+                    ValueExtractor.extract_value(row, field_mappings, "threads")
+                ),
+                tdp_w=ValueExtractor.to_int(
+                    ValueExtractor.extract_value(row, field_mappings, "tdp_w")
+                ),
+                igpu_model=ValueExtractor.to_str(
+                    ValueExtractor.extract_value(row, field_mappings, "igpu_model")
+                ),
+                cpu_mark_multi=ValueExtractor.to_int(
+                    ValueExtractor.extract_value(row, field_mappings, "cpu_mark_multi")
+                ),
+                cpu_mark_single=ValueExtractor.to_int(
+                    ValueExtractor.extract_value(row, field_mappings, "cpu_mark_single")
+                ),
+                release_year=ValueExtractor.to_int(
+                    ValueExtractor.extract_value(row, field_mappings, "release_year")
+                ),
+                notes=ValueExtractor.to_str(
+                    ValueExtractor.extract_value(row, field_mappings, "notes")
+                ),
             )
             cpus.append(cpu)
 
@@ -176,10 +203,19 @@ class SeedBuilder:
 
             gpu = GpuCreate(
                 name=name,
-                manufacturer=ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "manufacturer")) or "Unknown",
-                gpu_mark=ValueExtractor.to_int(ValueExtractor.extract_value(row, field_mappings, "gpu_mark")),
-                metal_score=ValueExtractor.to_int(ValueExtractor.extract_value(row, field_mappings, "metal_score")),
-                notes=ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "notes")),
+                manufacturer=ValueExtractor.to_str(
+                    ValueExtractor.extract_value(row, field_mappings, "manufacturer")
+                )
+                or "Unknown",
+                gpu_mark=ValueExtractor.to_int(
+                    ValueExtractor.extract_value(row, field_mappings, "gpu_mark")
+                ),
+                metal_score=ValueExtractor.to_int(
+                    ValueExtractor.extract_value(row, field_mappings, "metal_score")
+                ),
+                notes=ValueExtractor.to_str(
+                    ValueExtractor.extract_value(row, field_mappings, "notes")
+                ),
             )
             gpus.append(gpu)
 
@@ -220,12 +256,25 @@ class SeedBuilder:
                 ValuationRuleCreate(
                     name=name,
                     component_type=ValueParser.parse_component_type(component_value),
-                    metric=ValueParser.parse_metric(ValueExtractor.extract_value(row, field_mappings, "metric")),
+                    metric=ValueParser.parse_metric(
+                        ValueExtractor.extract_value(row, field_mappings, "metric")
+                    ),
                     unit_value_usd=unit_value,
-                    condition_new=ValueExtractor.to_float(ValueExtractor.extract_value(row, field_mappings, "condition_new")) or 1.0,
-                    condition_refurb=ValueExtractor.to_float(ValueExtractor.extract_value(row, field_mappings, "condition_refurb")) or 0.75,
-                    condition_used=ValueExtractor.to_float(ValueExtractor.extract_value(row, field_mappings, "condition_used")) or 0.6,
-                    notes=ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "notes")),
+                    condition_new=ValueExtractor.to_float(
+                        ValueExtractor.extract_value(row, field_mappings, "condition_new")
+                    )
+                    or 1.0,
+                    condition_refurb=ValueExtractor.to_float(
+                        ValueExtractor.extract_value(row, field_mappings, "condition_refurb")
+                    )
+                    or 0.75,
+                    condition_used=ValueExtractor.to_float(
+                        ValueExtractor.extract_value(row, field_mappings, "condition_used")
+                    )
+                    or 0.6,
+                    notes=ValueExtractor.to_str(
+                        ValueExtractor.extract_value(row, field_mappings, "notes")
+                    ),
                 )
             )
 
@@ -259,8 +308,13 @@ class SeedBuilder:
             profiles.append(
                 PortsProfileCreate(
                     name=name,
-                    description=ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "description")),
-                    ports=ValueParser.parse_ports_blob(ValueExtractor.extract_value(row, field_mappings, "ports")) or None,
+                    description=ValueExtractor.to_str(
+                        ValueExtractor.extract_value(row, field_mappings, "description")
+                    ),
+                    ports=ValueParser.parse_ports_blob(
+                        ValueExtractor.extract_value(row, field_mappings, "ports")
+                    )
+                    or None,
                 )
             )
 
@@ -298,7 +352,9 @@ class SeedBuilder:
         cpu_column = field_mappings.get("cpu_name", {}).get("column")
         match_lookup: dict[int, dict[str, Any]] = {}
         if cpu_column:
-            matches = CpuMatcher.match_components(dataframe, cpu_column, list(cpu_lookup.keys()), limit=None)
+            matches = CpuMatcher.match_components(
+                dataframe, cpu_column, list(cpu_lookup.keys()), limit=None
+            )
             match_lookup = {match["row_index"]: match for match in matches}
 
         listings: list[ListingCreate] = []
@@ -310,7 +366,9 @@ class SeedBuilder:
                 continue
 
             price_value = ValueExtractor.to_float(row.get(price_column)) or 0.0
-            condition_value = ValueParser.parse_condition(ValueExtractor.extract_value(row, field_mappings, "condition"))
+            condition_value = ValueParser.parse_condition(
+                ValueExtractor.extract_value(row, field_mappings, "condition")
+            )
 
             override = component_overrides.get(index, {})
             match_data = match_lookup.get(index)
@@ -318,7 +376,9 @@ class SeedBuilder:
             cpu_id = cpu_lookup.get(normalize_text(cpu_assignment)) if cpu_assignment else None
 
             gpu_assignment = ValueExtractor.to_str(
-                override.get("gpu_match") if override else ValueExtractor.extract_value(row, field_mappings, "gpu_name")
+                override.get("gpu_match")
+                if override
+                else ValueExtractor.extract_value(row, field_mappings, "gpu_name")
             )
             gpu_id = gpu_lookup.get(normalize_text(gpu_assignment)) if gpu_assignment else None
 
@@ -329,19 +389,39 @@ class SeedBuilder:
                 cpu_id=cpu_id,
                 gpu_id=gpu_id,
                 ports_profile_id=None,
-                ram_gb=ValueExtractor.to_int(ValueExtractor.extract_value(row, field_mappings, "ram_gb")) or 0,
-                ram_notes=ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "ram_notes")),
-                primary_storage_gb=ValueParser.parse_storage_capacity(ValueExtractor.extract_value(row, field_mappings, "primary_storage_gb")),
-                primary_storage_type=ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "primary_storage_type")),
-                secondary_storage_gb=ValueParser.parse_storage_capacity(ValueExtractor.extract_value(row, field_mappings, "secondary_storage_gb")) or None,
-                secondary_storage_type=ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "secondary_storage_type")),
-                os_license=ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "os_license")),
-                notes=ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "notes")),
+                ram_gb=ValueExtractor.to_int(
+                    ValueExtractor.extract_value(row, field_mappings, "ram_gb")
+                )
+                or 0,
+                ram_notes=ValueExtractor.to_str(
+                    ValueExtractor.extract_value(row, field_mappings, "ram_notes")
+                ),
+                primary_storage_gb=ValueParser.parse_storage_capacity(
+                    ValueExtractor.extract_value(row, field_mappings, "primary_storage_gb")
+                ),
+                primary_storage_type=ValueExtractor.to_str(
+                    ValueExtractor.extract_value(row, field_mappings, "primary_storage_type")
+                ),
+                secondary_storage_gb=ValueParser.parse_storage_capacity(
+                    ValueExtractor.extract_value(row, field_mappings, "secondary_storage_gb")
+                )
+                or None,
+                secondary_storage_type=ValueExtractor.to_str(
+                    ValueExtractor.extract_value(row, field_mappings, "secondary_storage_type")
+                ),
+                os_license=ValueExtractor.to_str(
+                    ValueExtractor.extract_value(row, field_mappings, "os_license")
+                ),
+                notes=ValueExtractor.to_str(
+                    ValueExtractor.extract_value(row, field_mappings, "notes")
+                ),
                 components=None,
             )
 
             components: list[ListingComponentCreate] = []
-            gpu_name_raw = ValueExtractor.to_str(ValueExtractor.extract_value(row, field_mappings, "gpu_name"))
+            gpu_name_raw = ValueExtractor.to_str(
+                ValueExtractor.extract_value(row, field_mappings, "gpu_name")
+            )
             if gpu_name_raw and not gpu_id:
                 components.append(
                     ListingComponentCreate(

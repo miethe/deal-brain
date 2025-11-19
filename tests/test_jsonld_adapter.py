@@ -1052,7 +1052,10 @@ class TestJsonLdAdapterMetaTagFallback:
         assert result.price == Decimal("599.99")
         assert result.currency == "USD"
         assert result.images == ["https://example.com/product.jpg"]
-        assert result.description == "Powerful mini PC with AMD Ryzen 9 6900HX processor, 16GB DDR5 RAM, and 512GB NVMe SSD"
+        assert (
+            result.description
+            == "Powerful mini PC with AMD Ryzen 9 6900HX processor, 16GB DDR5 RAM, and 512GB NVMe SSD"
+        )
         assert result.seller == "Amazon"
 
         # Verify extracted specs from title and description
@@ -1087,7 +1090,10 @@ class TestJsonLdAdapterMetaTagFallback:
         assert result.title == "Gaming Desktop Intel Core i7-12700K 32GB 1TB"
         assert result.price == Decimal("899.99")
         assert result.images == ["https://example.com/pc.jpg"]
-        assert result.description == "High-performance gaming PC with Intel Core i7-12700K, 32GB DDR4, 1TB SSD"
+        assert (
+            result.description
+            == "High-performance gaming PC with Intel Core i7-12700K, 32GB DDR4, 1TB SSD"
+        )
 
         # Verify extracted specs
         assert result.cpu_model is not None
@@ -1417,7 +1423,9 @@ class TestJsonLdAdapterHtmlElementFallback:
         assert result.currency == "USD"  # Default
         assert result.condition == "new"  # Default
         assert len(result.images) == 1
-        assert result.images[0] == "https://example.com/product-hires.jpg"  # data-old-hires priority
+        assert (
+            result.images[0] == "https://example.com/product-hires.jpg"
+        )  # data-old-hires priority
 
         # Verify extracted specs
         assert result.cpu_model is not None

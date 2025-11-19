@@ -72,4 +72,3 @@ def downgrade() -> None:
 
     op.drop_index("ix_custom_field_definition_entity", table_name="custom_field_definition")
     op.drop_table("custom_field_definition")
-

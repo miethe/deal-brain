@@ -23,7 +23,8 @@ def upgrade():
     """Add database comment documenting the modifiers_json schema structure."""
 
     # Add comprehensive schema documentation as a database comment
-    op.execute("""
+    op.execute(
+        """
         COMMENT ON COLUMN valuation_rule_action.modifiers_json IS
         'Action multipliers configuration (JSONB). Supports two formats:
 
@@ -56,13 +57,16 @@ def upgrade():
         are applied sequentially in the order defined.
 
         Empty object {} is valid and indicates no multipliers are applied.'
-    """)
+    """
+    )
 
 
 def downgrade():
     """Remove the database comment."""
 
     # Remove the column comment
-    op.execute("""
+    op.execute(
+        """
         COMMENT ON COLUMN valuation_rule_action.modifiers_json IS NULL
-    """)
+    """
+    )

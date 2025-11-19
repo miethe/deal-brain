@@ -41,10 +41,10 @@ router = APIRouter(prefix="/v1/builder", tags=["builder"])
 
 def normalize_user_id(user_id: Optional[int]) -> int:
     """Normalize user_id: None -> 0 for consistency across operations.
-    
+
     Args:
         user_id: Optional user ID from auth middleware
-        
+
     Returns:
         0 if user_id is None, otherwise the original user_id
     """
@@ -110,8 +110,7 @@ async def calculate_build(
 
         # Calculate metrics
         metrics_data = await service.calculate_build_metrics(
-            components.cpu_id,
-            valuation_data["adjusted_price"]
+            components.cpu_id, valuation_data["adjusted_price"]
         )
 
         # Build response
@@ -146,15 +145,12 @@ async def calculate_build(
 
     except ValueError as e:
         logger.warning("calculate_build.validation_error", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error("calculate_build.error", error=str(e), exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Calculation failed: {str(e)}"
+            detail=f"Calculation failed: {str(e)}",
         )
 
 
@@ -250,16 +246,12 @@ async def save_build(
     except ValueError as e:
         await session.rollback()
         logger.warning("save_build.validation_error", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         await session.rollback()
         logger.error("save_build.error", error=str(e), exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Save failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Save failed: {str(e)}"
         )
 
 
@@ -324,8 +316,7 @@ async def list_builds(
 
         if limit > 100:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Limit cannot exceed 100"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Limit cannot exceed 100"
             )
 
         service = BuilderService(session)
@@ -354,8 +345,7 @@ async def list_builds(
     except Exception as e:
         logger.error("list_builds.error", error=str(e), exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"List failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"List failed: {str(e)}"
         )
 
 
@@ -422,10 +412,7 @@ async def get_build(
 
         if not build:
             logger.warning("get_build.not_found", build_id=build_id)
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Build not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Build not found")
 
         logger.info("get_build.success", build_id=build_id, name=build.name)
 
@@ -436,8 +423,7 @@ async def get_build(
     except Exception as e:
         logger.error("get_build.error", build_id=build_id, error=str(e), exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Get failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Get failed: {str(e)}"
         )
 
 
@@ -503,17 +489,12 @@ async def update_build(
         # Update build (repository handles access control)
         try:
             build = await service.repository.update(
-                build_id,
-                request.model_dump(exclude_unset=True),
-                normalize_user_id(user_id)
+                build_id, request.model_dump(exclude_unset=True), normalize_user_id(user_id)
             )
         except ValueError as e:
             # Access denied or not found
             logger.warning("update_build.access_denied", build_id=build_id, error=str(e))
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
         # Commit transaction
         await session.commit()
@@ -530,8 +511,7 @@ async def update_build(
         await session.rollback()
         logger.error("update_build.error", build_id=build_id, error=str(e), exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Update failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Update failed: {str(e)}"
         )
 
 
@@ -591,10 +571,7 @@ async def delete_build(
             await service.repository.soft_delete(build_id, normalize_user_id(user_id))
         except ValueError as e:
             logger.warning("delete_build.access_denied", build_id=build_id, error=str(e))
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
         # Commit transaction
         await session.commit()
@@ -610,8 +587,7 @@ async def delete_build(
         await session.rollback()
         logger.error("delete_build.error", build_id=build_id, error=str(e), exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Delete failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Delete failed: {str(e)}"
         )
 
 
@@ -671,10 +647,7 @@ async def get_shared_build(
 
         if not build:
             logger.warning("get_shared_build.not_found", share_token=share_token[:8])
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Build not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Build not found")
 
         logger.info("get_shared_build.success", build_id=build.id, share_token=share_token[:8])
 
@@ -685,8 +658,7 @@ async def get_shared_build(
     except Exception as e:
         logger.error("get_shared_build.error", error=str(e), exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Get failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Get failed: {str(e)}"
         )
 
 
@@ -764,9 +736,7 @@ async def compare_to_listings(
         service = BuilderService(session)
 
         # Find similar listings
-        comparisons = await service.compare_build_to_listings(
-            cpu_id, ram_gb, storage_gb, limit
-        )
+        comparisons = await service.compare_build_to_listings(cpu_id, ram_gb, storage_gb, limit)
 
         # Convert to response models
         listing_responses = [
@@ -788,15 +758,11 @@ async def compare_to_listings(
 
     except ValueError as e:
         logger.warning("compare_to_listings.validation_error", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error("compare_to_listings.error", error=str(e), exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Comparison failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Comparison failed: {str(e)}"
         )
 
 
