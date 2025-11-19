@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.sharing import Collection, CollectionItem, ListingShare, UserShare
 from ..repositories.collection_repository import CollectionRepository
 from ..repositories.share_repository import ShareRepository
+from .notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,7 @@ class SharingService:
         self.session = session
         self.share_repo = ShareRepository(session)
         self.collection_repo = CollectionRepository(session)
+        self.notification_service = NotificationService(session)
 
     # ==================== ListingShare Methods ====================
 
@@ -265,8 +267,44 @@ class SharingService:
             f"to user {recipient_id} for listing {listing_id}"
         )
 
-        # TODO: Trigger notification (async task)
-        # This will be implemented in Phase 5 with the notification system
+        # Create in-app notification for recipient
+        try:
+            sender_display_name = sender.display_name or sender.username
+            listing_name = listing.name if hasattr(listing, 'name') else f"Listing #{listing.id}"
+
+            await self.notification_service.create_share_received_notification(
+                recipient_id=recipient_id,
+                sender_name=sender_display_name,
+                listing_name=listing_name,
+                share_id=share.id
+            )
+            await self.session.commit()
+
+            logger.info(
+                f"Created notification for user {recipient_id} "
+                f"about share {share.id}"
+            )
+        except Exception as e:
+            # Log error but don't fail share creation
+            logger.error(
+                f"Failed to create notification for share {share.id}: {e}",
+                exc_info=True
+            )
+
+        # Trigger async email notification task
+        try:
+            from ..tasks.notifications import send_share_notification_email
+            send_share_notification_email.delay(share.id)
+
+            logger.info(
+                f"Queued email notification task for share {share.id}"
+            )
+        except Exception as e:
+            # Log error but don't fail share creation
+            logger.error(
+                f"Failed to queue email notification for share {share.id}: {e}",
+                exc_info=True
+            )
 
         return share
 

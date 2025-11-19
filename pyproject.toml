@@ -61,6 +61,7 @@ types-requests = "^2.31.0.20240218"
 playwright = "^1.41.2"
 pytest-playwright = "^0.4.2"
 pre-commit = "^3.6.2"
+colorama = "^0.4.6"
 
 [tool.poetry.scripts]
 dealbrain-api = "dealbrain_api.main:run"

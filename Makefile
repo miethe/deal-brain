@@ -1,7 +1,7 @@
-.PHONY: help setup up down api web lint format test migrate seed
+.PHONY: help setup up down api web lint format test migrate seed seed-test security-audit load-test
 
 help:
-	@echo "Available targets: setup, up, down, api, web, lint, format, test, migrate, seed"
+	@echo "Available targets: setup, up, down, api, web, lint, format, test, migrate, seed, seed-test, security-audit, load-test"
 
 setup:
 	poetry install
@@ -36,4 +36,13 @@ migrate:
 
 seed:
 	poetry run python -m dealbrain_api.seeds
+
+seed-test:
+	poetry run python scripts/seed_test_data.py
+
+security-audit:
+	poetry run python scripts/security_audit.py
+
+load-test:
+	poetry run python scripts/load_test.py
 

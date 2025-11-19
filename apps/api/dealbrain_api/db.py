@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import logging
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Callable
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -15,6 +16,8 @@ from sqlalchemy.orm import DeclarativeBase
 
 from .settings import get_settings
 
+logger = logging.getLogger(__name__)
+
 
 class Base(DeclarativeBase):
     pass
@@ -22,11 +25,12 @@ class Base(DeclarativeBase):
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
+_query_profiling_enabled: bool = False
 
 
 def get_engine() -> AsyncEngine:
     """Return a singleton async engine."""
-    global _engine
+    global _engine, _query_profiling_enabled
     if _engine is None:
         settings = get_settings()
         _engine = create_async_engine(
@@ -39,6 +43,20 @@ def get_engine() -> AsyncEngine:
                 "statement_cache_size": 0,  # Disable statement cache
             },
         )
+
+        # Enable query profiling for development/staging environments
+        if not _query_profiling_enabled and settings.environment in ("development", "staging"):
+            try:
+                from .observability.query_profiling import setup_query_profiling
+
+                # Get sync engine for event listeners
+                sync_engine = _engine.sync_engine
+                setup_query_profiling(sync_engine, slow_query_threshold_ms=500)
+                _query_profiling_enabled = True
+                logger.info("Query profiling enabled for slow query detection")
+            except Exception as e:
+                logger.warning(f"Failed to enable query profiling: {e}")
+
     return _engine
 
 

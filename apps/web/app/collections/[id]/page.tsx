@@ -29,8 +29,13 @@ export default function CollectionWorkspacePage() {
   const router = useRouter();
   const collectionId = params.id as string;
 
-  // View mode state
-  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  // View mode state - default to cards on mobile
+  const [viewMode, setViewMode] = useState<"table" | "cards">(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth < 768 ? "cards" : "table";
+    }
+    return "table";
+  });
 
   // Selected item for details panel
   const [selectedItem, setSelectedItem] = useState<CollectionItem | null>(null);

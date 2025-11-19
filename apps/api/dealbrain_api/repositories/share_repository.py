@@ -9,7 +9,6 @@ This module provides the data access layer for deal sharing features including:
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from sqlalchemy import and_, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,8 +43,8 @@ class ShareRepository:
     async def create_listing_share(
         self,
         listing_id: int,
-        created_by: Optional[int] = None,
-        expires_at: Optional[datetime] = None
+        created_by: int | None = None,
+        expires_at: datetime | None = None
     ) -> ListingShare:
         """Create a new public listing share.
 
@@ -81,7 +80,7 @@ class ShareRepository:
 
         return share
 
-    async def get_listing_share_by_token(self, token: str) -> Optional[ListingShare]:
+    async def get_listing_share_by_token(self, token: str) -> ListingShare | None:
         """Get listing share by token, including expired shares.
 
         This method retrieves shares regardless of expiry status.
@@ -93,10 +92,21 @@ class ShareRepository:
         Returns:
             ListingShare instance if found, None otherwise
         """
+        # Eager load listing with all relationships to prevent N+1 queries
+        listing_loader = joinedload(ListingShare.listing)
+        listing_loader.joinedload("cpu")
+        listing_loader.joinedload("gpu")
+        listing_loader.joinedload("ports_profile")
+        listing_loader.joinedload("active_profile")
+        listing_loader.joinedload("ruleset")
+        listing_loader.joinedload("ram_spec")
+        listing_loader.joinedload("primary_storage_profile")
+        listing_loader.joinedload("secondary_storage_profile")
+
         stmt = (
             select(ListingShare)
             .options(
-                joinedload(ListingShare.listing),
+                listing_loader,
                 joinedload(ListingShare.creator)
             )
             .where(ListingShare.share_token == token)
@@ -105,7 +115,7 @@ class ShareRepository:
         result = await self.session.execute(stmt)
         return result.unique().scalar_one_or_none()
 
-    async def get_active_listing_share_by_token(self, token: str) -> Optional[ListingShare]:
+    async def get_active_listing_share_by_token(self, token: str) -> ListingShare | None:
         """Get listing share by token, only if not expired.
 
         Validates expiry and returns None for expired shares.
@@ -116,10 +126,21 @@ class ShareRepository:
         Returns:
             ListingShare instance if found and active, None if expired or not found
         """
+        # Eager load listing with all relationships to prevent N+1 queries
+        listing_loader = joinedload(ListingShare.listing)
+        listing_loader.joinedload("cpu")
+        listing_loader.joinedload("gpu")
+        listing_loader.joinedload("ports_profile")
+        listing_loader.joinedload("active_profile")
+        listing_loader.joinedload("ruleset")
+        listing_loader.joinedload("ram_spec")
+        listing_loader.joinedload("primary_storage_profile")
+        listing_loader.joinedload("secondary_storage_profile")
+
         stmt = (
             select(ListingShare)
             .options(
-                joinedload(ListingShare.listing),
+                listing_loader,
                 joinedload(ListingShare.creator)
             )
             .where(
@@ -185,7 +206,7 @@ class ShareRepository:
         sender_id: int,
         recipient_id: int,
         listing_id: int,
-        message: Optional[str] = None,
+        message: str | None = None,
         expires_in_days: int = 30
     ) -> UserShare:
         """Create a new user-to-user share.
@@ -225,7 +246,7 @@ class ShareRepository:
 
         return share
 
-    async def get_user_share_by_token(self, token: str) -> Optional[UserShare]:
+    async def get_user_share_by_token(self, token: str) -> UserShare | None:
         """Get user share by token.
 
         Retrieves share with eager loading of sender, recipient, and listing.
@@ -236,12 +257,23 @@ class ShareRepository:
         Returns:
             UserShare instance if found, None otherwise
         """
+        # Eager load listing with all relationships to prevent N+1 queries
+        listing_loader = joinedload(UserShare.listing)
+        listing_loader.joinedload("cpu")
+        listing_loader.joinedload("gpu")
+        listing_loader.joinedload("ports_profile")
+        listing_loader.joinedload("active_profile")
+        listing_loader.joinedload("ruleset")
+        listing_loader.joinedload("ram_spec")
+        listing_loader.joinedload("primary_storage_profile")
+        listing_loader.joinedload("secondary_storage_profile")
+
         stmt = (
             select(UserShare)
             .options(
                 joinedload(UserShare.sender),
                 joinedload(UserShare.recipient),
-                joinedload(UserShare.listing)
+                listing_loader
             )
             .where(UserShare.share_token == token)
         )
@@ -249,7 +281,7 @@ class ShareRepository:
         result = await self.session.execute(stmt)
         return result.unique().scalar_one_or_none()
 
-    async def get_user_share_by_id(self, share_id: int) -> Optional[UserShare]:
+    async def get_user_share_by_id(self, share_id: int) -> UserShare | None:
         """Get user share by ID.
 
         Retrieves share with eager loading of sender, recipient, and listing.
@@ -260,12 +292,23 @@ class ShareRepository:
         Returns:
             UserShare instance if found, None otherwise
         """
+        # Eager load listing with all relationships to prevent N+1 queries
+        listing_loader = joinedload(UserShare.listing)
+        listing_loader.joinedload("cpu")
+        listing_loader.joinedload("gpu")
+        listing_loader.joinedload("ports_profile")
+        listing_loader.joinedload("active_profile")
+        listing_loader.joinedload("ruleset")
+        listing_loader.joinedload("ram_spec")
+        listing_loader.joinedload("primary_storage_profile")
+        listing_loader.joinedload("secondary_storage_profile")
+
         stmt = (
             select(UserShare)
             .options(
                 joinedload(UserShare.sender),
                 joinedload(UserShare.recipient),
-                joinedload(UserShare.listing)
+                listing_loader
             )
             .where(UserShare.id == share_id)
         )
@@ -303,11 +346,22 @@ class ShareRepository:
         if not include_imported:
             conditions.append(UserShare.imported_at.is_(None))
 
+        # Eager load listing with all relationships to prevent N+1 queries
+        listing_loader = joinedload(UserShare.listing)
+        listing_loader.joinedload("cpu")
+        listing_loader.joinedload("gpu")
+        listing_loader.joinedload("ports_profile")
+        listing_loader.joinedload("active_profile")
+        listing_loader.joinedload("ruleset")
+        listing_loader.joinedload("ram_spec")
+        listing_loader.joinedload("primary_storage_profile")
+        listing_loader.joinedload("secondary_storage_profile")
+
         stmt = (
             select(UserShare)
             .options(
                 joinedload(UserShare.sender),
-                joinedload(UserShare.listing)
+                listing_loader
             )
             .where(and_(*conditions))
             .order_by(UserShare.shared_at.desc())
@@ -334,11 +388,22 @@ class ShareRepository:
         Returns:
             List of UserShare instances ordered by shared_at (newest first)
         """
+        # Eager load listing with all relationships to prevent N+1 queries
+        listing_loader = joinedload(UserShare.listing)
+        listing_loader.joinedload("cpu")
+        listing_loader.joinedload("gpu")
+        listing_loader.joinedload("ports_profile")
+        listing_loader.joinedload("active_profile")
+        listing_loader.joinedload("ruleset")
+        listing_loader.joinedload("ram_spec")
+        listing_loader.joinedload("primary_storage_profile")
+        listing_loader.joinedload("secondary_storage_profile")
+
         stmt = (
             select(UserShare)
             .options(
                 joinedload(UserShare.recipient),
-                joinedload(UserShare.listing)
+                listing_loader
             )
             .where(UserShare.sender_id == user_id)
             .order_by(UserShare.shared_at.desc())
