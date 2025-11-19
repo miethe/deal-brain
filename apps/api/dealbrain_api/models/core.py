@@ -40,7 +40,7 @@ from .settings import (
     CustomFieldAuditLog,
     CustomFieldDefinition,
 )
-from .sharing import Collection, CollectionItem, ListingShare, User, UserShare
+from .sharing import Collection, CollectionItem, CollectionShareToken, ListingShare, User, UserShare
 
 __all__ = [
     # Base
@@ -87,4 +87,5 @@ __all__ = [
     "UserShare",
     "Collection",
     "CollectionItem",
+    "CollectionShareToken",
 ]

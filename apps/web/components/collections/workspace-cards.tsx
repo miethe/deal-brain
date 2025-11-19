@@ -1,12 +1,21 @@
 "use client";
 
-import { Expand, Trash2, Share2 } from "lucide-react";
+import { Expand, Trash2, Share2, MoreVertical, Image as ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useConfirmation } from "@/components/ui/confirmation-dialog";
 import { useRemoveCollectionItem } from "@/hooks/use-collections";
+import { CardDownloadModal } from "@/components/listings/card-download-modal";
 import type { CollectionItem, CollectionItemStatus } from "@/types/collections";
+import type { ListingDetail } from "@/types/listing-detail";
 
 interface WorkspaceCardsProps {
   collectionId: number | string;
@@ -200,13 +209,37 @@ export function WorkspaceCards({
                   <Expand className="h-4 w-4 mr-1" />
                   Notes
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleRemoveItem(item.id, listing.title)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" aria-label="More actions">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <CardDownloadModal
+                      listing={{
+                        ...listing,
+                        cpu: listing.cpu || undefined,
+                        gpu: listing.gpu || undefined,
+                        ports_profile: listing.ports_profile || undefined,
+                      } as ListingDetail}
+                      trigger={
+                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                          <ImageIcon className="h-4 w-4 mr-2" />
+                          Download Card
+                        </DropdownMenuItem>
+                      }
+                    />
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => handleRemoveItem(item.id, listing.title)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Remove
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </CardFooter>
             </Card>
           );

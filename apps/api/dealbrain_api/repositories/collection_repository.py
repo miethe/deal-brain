@@ -9,11 +9,11 @@ This module provides the data access layer for deal collections including:
 
 from __future__ import annotations
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from ..models.sharing import Collection, CollectionItem
+from ..models.sharing import Collection, CollectionItem, CollectionShareToken
 
 
 class CollectionRepository:
@@ -482,3 +482,436 @@ class CollectionRepository:
 
         # Return 0 if collection is empty, otherwise max + 1
         return 0 if max_position is None else max_position + 1
+
+    # ==================== Visibility & Discovery Methods (Phase 2a) ====================
+
+    async def get_by_id_and_visibility(
+        self,
+        collection_id: int,
+        visibility: str,
+        user_id: int | None = None,
+        load_items: bool = False
+    ) -> Collection | None:
+        """Get collection by ID with visibility filtering and optional ownership check.
+
+        Access control rules:
+        - Public collections: accessible to anyone
+        - Unlisted collections: accessible to anyone (but not discoverable)
+        - Private collections: only accessible to owner (requires user_id match)
+
+        Args:
+            collection_id: Collection ID to retrieve
+            visibility: Required visibility level ('private', 'unlisted', 'public')
+            user_id: Optional user ID for ownership validation
+            load_items: If True, eager load collection items and listings
+
+        Returns:
+            Collection instance if found and accessible, None otherwise
+        """
+        # Build query with optional eager loading
+        options = [joinedload(Collection.user)]
+
+        if load_items:
+            # Eager load collection items with all listing relationships
+            items_loader = selectinload(Collection.items)
+            listing_loader = items_loader.joinedload(CollectionItem.listing)
+
+            # Load all Listing relationships in one go
+            listing_loader.joinedload("cpu")
+            listing_loader.joinedload("gpu")
+            listing_loader.joinedload("ports_profile")
+            listing_loader.joinedload("active_profile")
+            listing_loader.joinedload("ruleset")
+            listing_loader.joinedload("ram_spec")
+            listing_loader.joinedload("primary_storage_profile")
+            listing_loader.joinedload("secondary_storage_profile")
+
+            options.append(items_loader)
+
+        stmt = (
+            select(Collection)
+            .options(*options)
+            .where(
+                and_(
+                    Collection.id == collection_id,
+                    Collection.visibility == visibility
+                )
+            )
+        )
+
+        result = await self.session.execute(stmt)
+        collection = result.unique().scalar_one_or_none()
+
+        if not collection:
+            return None
+
+        # Apply ownership check for private collections
+        if visibility == "private" and user_id is not None and collection.user_id != user_id:
+            return None  # Access denied
+
+        return collection
+
+    async def list_public(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        load_items: bool = False
+    ) -> list[Collection]:
+        """List all public collections with pagination.
+
+        Args:
+            limit: Maximum number of collections to return (default: 50)
+            offset: Number of collections to skip for pagination
+            load_items: If True, eager load collection items with all relationships
+
+        Returns:
+            List of public Collection instances ordered by created_at (newest first)
+        """
+        # Build query with optional eager loading
+        options = [joinedload(Collection.user)]
+
+        if load_items:
+            # Eager load collection items with all listing relationships
+            items_loader = selectinload(Collection.items)
+            listing_loader = items_loader.joinedload(CollectionItem.listing)
+
+            # Load all Listing relationships in one go
+            listing_loader.joinedload("cpu")
+            listing_loader.joinedload("gpu")
+            listing_loader.joinedload("ports_profile")
+            listing_loader.joinedload("active_profile")
+            listing_loader.joinedload("ruleset")
+            listing_loader.joinedload("ram_spec")
+            listing_loader.joinedload("primary_storage_profile")
+            listing_loader.joinedload("secondary_storage_profile")
+
+            options.append(items_loader)
+
+        stmt = (
+            select(Collection)
+            .options(*options)
+            .where(Collection.visibility == "public")
+            .order_by(Collection.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        result = await self.session.execute(stmt)
+        return list(result.unique().scalars().all())
+
+    async def list_by_visibility(
+        self,
+        visibility: str,
+        limit: int = 50,
+        offset: int = 0,
+        load_items: bool = False
+    ) -> list[Collection]:
+        """List collections filtered by visibility status with pagination.
+
+        Args:
+            visibility: Visibility level to filter by ('private', 'unlisted', 'public')
+            limit: Maximum number of collections to return (default: 50)
+            offset: Number of collections to skip for pagination
+            load_items: If True, eager load collection items with all relationships
+
+        Returns:
+            List of Collection instances matching visibility, ordered by created_at (newest first)
+        """
+        # Build query with optional eager loading
+        options = [joinedload(Collection.user)]
+
+        if load_items:
+            # Eager load collection items with all listing relationships
+            items_loader = selectinload(Collection.items)
+            listing_loader = items_loader.joinedload(CollectionItem.listing)
+
+            # Load all Listing relationships in one go
+            listing_loader.joinedload("cpu")
+            listing_loader.joinedload("gpu")
+            listing_loader.joinedload("ports_profile")
+            listing_loader.joinedload("active_profile")
+            listing_loader.joinedload("ruleset")
+            listing_loader.joinedload("ram_spec")
+            listing_loader.joinedload("primary_storage_profile")
+            listing_loader.joinedload("secondary_storage_profile")
+
+            options.append(items_loader)
+
+        stmt = (
+            select(Collection)
+            .options(*options)
+            .where(Collection.visibility == visibility)
+            .order_by(Collection.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        result = await self.session.execute(stmt)
+        return list(result.unique().scalars().all())
+
+    async def count_public_collections(self) -> int:
+        """Count total number of public collections.
+
+        Useful for displaying stats and calculating pagination metadata.
+
+        Returns:
+            Total count of public collections
+        """
+        stmt = select(func.count(Collection.id)).where(
+            Collection.visibility == "public"
+        )
+
+        result = await self.session.execute(stmt)
+        return result.scalar_one()
+
+    async def discover_collections(
+        self,
+        search_query: str | None = None,
+        sort_by: str = "recent",
+        limit: int = 50,
+        offset: int = 0,
+        load_items: bool = False
+    ) -> list[Collection]:
+        """Discover public collections with filtering, search, and sorting.
+
+        Main discovery endpoint for browsing public collections. Supports:
+        - Full-text search on name and description
+        - Sorting by recency (created_at) or popularity (total view_count)
+        - Pagination with limit and offset
+        - Optional eager loading of collection items
+
+        Uses database indexes for efficient queries:
+        - idx_collection_visibility for visibility filtering
+        - idx_collection_share_token_collection_id for view count aggregation
+
+        Args:
+            search_query: Optional text search on collection name and description
+            sort_by: Sort order - 'recent' (default) or 'popular' (by view count)
+            limit: Maximum number of collections to return (default: 50)
+            offset: Number of collections to skip for pagination
+            load_items: If True, eager load collection items with all relationships
+
+        Returns:
+            List of public Collection instances matching search criteria
+        """
+        # Build base query with eager loading
+        options = [joinedload(Collection.user)]
+
+        if load_items:
+            # Eager load collection items with all listing relationships
+            items_loader = selectinload(Collection.items)
+            listing_loader = items_loader.joinedload(CollectionItem.listing)
+
+            # Load all Listing relationships in one go
+            listing_loader.joinedload("cpu")
+            listing_loader.joinedload("gpu")
+            listing_loader.joinedload("ports_profile")
+            listing_loader.joinedload("active_profile")
+            listing_loader.joinedload("ruleset")
+            listing_loader.joinedload("ram_spec")
+            listing_loader.joinedload("primary_storage_profile")
+            listing_loader.joinedload("secondary_storage_profile")
+
+            options.append(items_loader)
+
+        # For popularity sorting, we need to aggregate view counts from share tokens
+        if sort_by == "popular":
+            # Subquery to get total view count per collection
+            view_count_subquery = (
+                select(
+                    CollectionShareToken.collection_id,
+                    func.sum(CollectionShareToken.view_count).label("total_views")
+                )
+                .group_by(CollectionShareToken.collection_id)
+                .subquery()
+            )
+
+            # Main query with left join to get view counts (collections without tokens get 0)
+            stmt = (
+                select(Collection)
+                .outerjoin(
+                    view_count_subquery,
+                    Collection.id == view_count_subquery.c.collection_id
+                )
+                .options(*options)
+                .where(Collection.visibility == "public")
+            )
+
+            # Add search filter if provided
+            if search_query:
+                search_pattern = f"%{search_query}%"
+                stmt = stmt.where(
+                    or_(
+                        Collection.name.ilike(search_pattern),
+                        Collection.description.ilike(search_pattern)
+                    )
+                )
+
+            # Order by total views (nulls last for collections with no shares)
+            stmt = stmt.order_by(
+                case(
+                    (view_count_subquery.c.total_views.is_(None), 0),
+                    else_=view_count_subquery.c.total_views
+                ).desc(),
+                Collection.created_at.desc()  # Secondary sort by recency
+            )
+
+        else:  # sort_by == "recent" (default)
+            # Simple query ordered by created_at
+            stmt = (
+                select(Collection)
+                .options(*options)
+                .where(Collection.visibility == "public")
+            )
+
+            # Add search filter if provided
+            if search_query:
+                search_pattern = f"%{search_query}%"
+                stmt = stmt.where(
+                    or_(
+                        Collection.name.ilike(search_pattern),
+                        Collection.description.ilike(search_pattern)
+                    )
+                )
+
+            stmt = stmt.order_by(Collection.created_at.desc())
+
+        # Apply pagination
+        stmt = stmt.limit(limit).offset(offset)
+
+        result = await self.session.execute(stmt)
+        return list(result.unique().scalars().all())
+
+    # ==================== Authorization & Access Control (RLS) ====================
+
+    def can_access_collection(
+        self,
+        collection: Collection,
+        user_id: int | None = None
+    ) -> bool:
+        """Check if user can access a collection based on visibility and ownership.
+
+        Row Level Security (RLS) rules:
+        - Public collections: accessible to everyone (authenticated or not)
+        - Unlisted collections: accessible to everyone who has the link
+        - Private collections: only accessible to owner
+
+        Args:
+            collection: Collection instance to check access for
+            user_id: Optional authenticated user ID
+
+        Returns:
+            True if user can access collection, False otherwise
+        """
+        # Public and unlisted collections are accessible to everyone
+        if collection.visibility in ("public", "unlisted"):
+            return True
+
+        # Private collections require authentication and ownership
+        if collection.visibility == "private":
+            if user_id is None:
+                return False  # Not authenticated
+            return collection.user_id == user_id
+
+        # Unknown visibility - deny access
+        return False
+
+    async def validate_collection_access(
+        self,
+        collection_id: int,
+        user_id: int | None = None,
+        require_ownership: bool = False
+    ) -> Collection | None:
+        """Validate access to a collection with optional ownership requirement.
+
+        Combines fetching and access validation in a single method. Useful for
+        API endpoints that need to verify access before performing operations.
+
+        Args:
+            collection_id: Collection ID to validate access for
+            user_id: Optional authenticated user ID
+            require_ownership: If True, only allow access to collection owner
+
+        Returns:
+            Collection instance if access is allowed, None otherwise
+        """
+        # Fetch collection
+        stmt = (
+            select(Collection)
+            .options(joinedload(Collection.user))
+            .where(Collection.id == collection_id)
+        )
+
+        result = await self.session.execute(stmt)
+        collection = result.unique().scalar_one_or_none()
+
+        if not collection:
+            return None  # Not found
+
+        # Check ownership requirement
+        if require_ownership:
+            if user_id is None or collection.user_id != user_id:
+                return None  # Access denied
+
+        # Check general access permissions
+        if not self.can_access_collection(collection, user_id):
+            return None  # Access denied
+
+        return collection
+
+    async def get_collection_with_access_check(
+        self,
+        collection_id: int,
+        user_id: int | None = None,
+        load_items: bool = False
+    ) -> Collection | None:
+        """Get collection with RLS access validation.
+
+        Combines the functionality of get_collection_by_id with explicit
+        access control checks. Enforces visibility-based access rules.
+
+        Args:
+            collection_id: Collection ID to retrieve
+            user_id: Optional authenticated user ID
+            load_items: If True, eager load collection items and listings
+
+        Returns:
+            Collection instance if found and accessible, None otherwise
+        """
+        # Build query with optional eager loading
+        options = [joinedload(Collection.user)]
+
+        if load_items:
+            # Eager load collection items with all listing relationships
+            items_loader = selectinload(Collection.items)
+            listing_loader = items_loader.joinedload(CollectionItem.listing)
+
+            # Load all Listing relationships in one go
+            listing_loader.joinedload("cpu")
+            listing_loader.joinedload("gpu")
+            listing_loader.joinedload("ports_profile")
+            listing_loader.joinedload("active_profile")
+            listing_loader.joinedload("ruleset")
+            listing_loader.joinedload("ram_spec")
+            listing_loader.joinedload("primary_storage_profile")
+            listing_loader.joinedload("secondary_storage_profile")
+
+            options.append(items_loader)
+
+        stmt = (
+            select(Collection)
+            .options(*options)
+            .where(Collection.id == collection_id)
+        )
+
+        result = await self.session.execute(stmt)
+        collection = result.unique().scalar_one_or_none()
+
+        if not collection:
+            return None  # Not found
+
+        # Apply RLS access validation
+        if not self.can_access_collection(collection, user_id):
+            return None  # Access denied
+
+        return collection

@@ -3,9 +3,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
-import { Lock, Users, Globe } from "lucide-react";
+import { Lock, Users, Globe, Eye, Share2 } from "lucide-react";
 import type { Collection } from "@/types/collections";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface CollectionCardProps {
   collection: Collection;
@@ -13,13 +14,13 @@ interface CollectionCardProps {
 
 const visibilityIcons = {
   private: Lock,
-  shared: Users,
+  unlisted: Users,
   public: Globe,
 };
 
 const visibilityLabels = {
   private: "Private",
-  shared: "Shared",
+  unlisted: "Unlisted",
   public: "Public",
 };
 
@@ -28,6 +29,9 @@ export function CollectionCard({ collection }: CollectionCardProps) {
   const relativeTime = formatDistanceToNow(new Date(collection.created_at), {
     addSuffix: true,
   });
+
+  const isShared = collection.visibility !== "private";
+  const hasViews = collection.view_count !== undefined && collection.view_count > 0;
 
   return (
     <Link href={`/collections/${collection.id}`}>
@@ -46,13 +50,39 @@ export function CollectionCard({ collection }: CollectionCardProps) {
             </CardDescription>
           )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-2">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
               {collection.item_count} {collection.item_count === 1 ? "item" : "items"}
             </span>
             <span className="text-xs">{relativeTime}</span>
           </div>
+
+          {/* Share Stats */}
+          {(isShared || hasViews) && (
+            <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1 border-t">
+              {isShared && (
+                <div
+                  className={cn(
+                    "flex items-center gap-1",
+                    collection.visibility === "public" && "text-green-600 dark:text-green-400",
+                    collection.visibility === "unlisted" && "text-blue-600 dark:text-blue-400"
+                  )}
+                >
+                  <Share2 className="w-3 h-3" />
+                  <span className="font-medium">Shared</span>
+                </div>
+              )}
+              {hasViews && (
+                <div className="flex items-center gap-1">
+                  <Eye className="w-3 h-3" />
+                  <span>
+                    {collection.view_count} {collection.view_count === 1 ? "view" : "views"}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </Link>

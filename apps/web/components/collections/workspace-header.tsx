@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Settings, Grid3x3, List, Loader2 } from "lucide-react";
+import { Download, Settings, Grid3x3, List, Loader2, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,6 +12,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { API_URL } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { VisibilityBadge } from "./visibility-badge";
+import { ShareModal } from "./share-modal";
 import type { CollectionWithItems } from "@/types/collections";
 
 interface WorkspaceHeaderProps {
@@ -38,8 +40,9 @@ export function WorkspaceHeader({
   const { toast } = useToast();
   const [isEditingName, setIsEditingName] = useState(false);
   const [name, setName] = useState(collection.name);
-
   const [isExporting, setIsExporting] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [currentCollection, setCurrentCollection] = useState(collection);
 
   const handleExport = async (format: "csv" | "json") => {
     try {
@@ -104,33 +107,36 @@ export function WorkspaceHeader({
       {/* Title and Actions Row */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex-1 min-w-0">
-          {isEditingName ? (
-            <div className="flex items-center gap-2">
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onBlur={handleNameSave}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleNameSave();
-                  } else if (e.key === "Escape") {
-                    setName(collection.name);
-                    setIsEditingName(false);
-                  }
-                }}
-                className="text-2xl font-semibold h-auto py-1"
-                autoFocus
-              />
-            </div>
-          ) : (
-            <h1
-              className="text-2xl sm:text-3xl font-bold cursor-pointer hover:text-muted-foreground transition-colors"
-              onClick={() => setIsEditingName(true)}
-              title="Click to edit"
-            >
-              {collection.name}
-            </h1>
-          )}
+          <div className="flex items-center gap-3">
+            {isEditingName ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={handleNameSave}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleNameSave();
+                    } else if (e.key === "Escape") {
+                      setName(collection.name);
+                      setIsEditingName(false);
+                    }
+                  }}
+                  className="text-2xl font-semibold h-auto py-1"
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <h1
+                className="text-2xl sm:text-3xl font-bold cursor-pointer hover:text-muted-foreground transition-colors"
+                onClick={() => setIsEditingName(true)}
+                title="Click to edit"
+              >
+                {collection.name}
+              </h1>
+            )}
+            <VisibilityBadge visibility={currentCollection.visibility} />
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
             {collection.item_count} {collection.item_count === 1 ? "item" : "items"}
           </p>
@@ -142,6 +148,17 @@ export function WorkspaceHeader({
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Share Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowShareModal(true)}
+            className="min-h-[44px]"
+          >
+            <Share2 className="h-4 w-4 mr-2" />
+            Share
+          </Button>
+
           {/* Export Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -208,6 +225,16 @@ export function WorkspaceHeader({
           </div>
         </div>
       </div>
+
+      {/* Share Modal */}
+      <ShareModal
+        collection={currentCollection}
+        open={showShareModal}
+        onOpenChange={setShowShareModal}
+        onVisibilityChange={(updatedCollection) => {
+          setCurrentCollection(updatedCollection);
+        }}
+      />
     </div>
   );
 }

@@ -6,7 +6,42 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential libpq-dev \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        # Playwright system dependencies for Chromium
+        libnss3 \
+        libxss1 \
+        libasound2 \
+        libatk-bridge2.0-0 \
+        libgtk-3-0 \
+        libdrm2 \
+        libgbm1 \
+        libxkbcommon0 \
+        libatspi2.0-0 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxfixes3 \
+        libxrandr2 \
+        libpango-1.0-0 \
+        libcairo2 \
+        libasound2 \
+        libcups2 \
+        libdbus-1-3 \
+        libexpat1 \
+        libfontconfig1 \
+        libgcc1 \
+        libglib2.0-0 \
+        libnspr4 \
+        libuuid1 \
+        libx11-6 \
+        libx11-xcb1 \
+        libxcb1 \
+        libxext6 \
+        libxrender1 \
+        ca-certificates \
+        fonts-liberation \
+        wget \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml README.md ./
@@ -16,6 +51,9 @@ COPY data ./data
 
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir .
+
+# Install Playwright browsers (Chromium only for card image generation)
+RUN playwright install chromium
 
 EXPOSE 8000
 

@@ -4,7 +4,7 @@
 
 import type { ListingRecord } from "./listings";
 
-export type CollectionVisibility = "private" | "shared" | "public";
+export type CollectionVisibility = "private" | "unlisted" | "public";
 
 export type CollectionItemStatus = "undecided" | "shortlisted" | "rejected" | "bought";
 
@@ -16,6 +16,10 @@ export interface Collection {
   item_count: number;
   created_at: string;
   updated_at: string;
+  // Sharing metadata
+  share_url?: string;
+  view_count?: number;
+  owner_name?: string;
 }
 
 export interface CollectionItem {
@@ -51,4 +55,26 @@ export interface UpdateCollectionItemPayload {
   status?: CollectionItemStatus;
   notes?: string;
   position?: number;
+}
+
+export interface UpdateCollectionVisibilityPayload {
+  visibility: CollectionVisibility;
+}
+
+export interface DiscoverCollectionsParams {
+  search?: string;
+  owner_filter?: string;
+  sort?: "recent" | "popular";
+  limit?: number;
+  offset?: number;
+}
+
+export interface DiscoverCollectionsResponse {
+  collections: Collection[];
+  total: number;
+}
+
+export interface CopyCollectionPayload {
+  source_collection_id: number;
+  name?: string;
 }

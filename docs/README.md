@@ -27,11 +27,15 @@ Welcome to the Deal Brain documentation hub. This is your master index for all p
 3. Review [Frontend Architecture](reports/codebase_analysis/04-frontend-architecture.md)
 4. Look at [Design System & Guidelines](design/design-guidance.md)
 
-### I want to import data
+### I want to import/export data
 
 - **Excel Workbooks**: See [Import Guide](user-guide/guides/import-guide.md)
 - **Marketplace URLs**: See [URL Ingestion Setup](configuration/url-ingestion.md)
 - **Bulk Imports**: Read [Importer Usage Guide](user-guide/guides/importer-usage-guide.md)
+- **Export Listings & Collections**: See [Export/Import User Guide](guides/export-import-user-guide.md)
+- **Export/Import API**: See [Export/Import API Reference](api/export-import-api.md)
+- **Export Format Details**: See [Export Format Reference](schemas/export-format-reference.md)
+- **Troubleshooting**: See [Export/Import Troubleshooting](guides/export-import-troubleshooting.md)
 
 ### I want to understand valuation rules
 
@@ -110,6 +114,9 @@ Welcome to the Deal Brain documentation hub. This is your master index for all p
 
 | Document | Purpose | Status |
 |----------|---------|--------|
+| [Export/Import API Reference](api/export-import-api.md) | Complete REST API for export/import operations | ✅ Complete |
+| [Export Format Reference](schemas/export-format-reference.md) | v1.0.0 schema details, field specifications, validation | ✅ Complete |
+| [Export/Import Troubleshooting](guides/export-import-troubleshooting.md) | Common issues, error messages, debugging tips | ✅ Complete |
 | [URL Ingestion Configuration](configuration/url-ingestion.md) | Configure URL ingestion settings | ✅ Complete |
 | [Event Service Usage](technical/api/event-service-usage-examples.md) | Event service API examples | ✅ Complete |
 | [Normalizer Service Usage](technical/api/normalizer_service_usage.md) | Data normalization API guide | ✅ Complete |
@@ -213,6 +220,8 @@ Areas where documentation should be expanded or created:
 | Task | Primary Docs | Secondary Docs |
 |------|-------------|----------------|
 | Set up local environment | [Setup](technical/setup.md), [Install Deps](technical/INSTALL_DEPS.md) | [CLAUDE.md](/mnt/containers/deal-brain/CLAUDE.md) |
+| Export listing or collection | [Export/Import API](api/export-import-api.md) | [Export Format Ref](schemas/export-format-reference.md) |
+| Import exported data | [Export/Import API](api/export-import-api.md) | [Troubleshooting](guides/export-import-troubleshooting.md) |
 | Import Excel workbook | [Import Guide](user-guide/guides/import-guide.md) | [Importer Usage](user-guide/guides/importer-usage-guide.md) |
 | Import from marketplace URL | [URL Config](configuration/url-ingestion.md) | [URL Ingestion Architecture](architecture/URL_INGESTION_ARCHITECTURE.md) |
 | Create valuation rules | [Valuation Rules Guide](user-guide/guides/valuation-rules.md), [Formula Reference](user-guide/valuation-rules/FORMULA_REFERENCE.md) | [ADR-Basic Valuation](architecture/adr/ADR-basic-valuation.md) |
@@ -388,9 +397,9 @@ See [CLAUDE.md](/mnt/containers/deal-brain/CLAUDE.md) for complete command refer
 
 ### Future Documentation Needs
 
+- [x] Create troubleshooting guide (common issues and solutions) - ✅ Export/Import Troubleshooting added
 - [ ] Expand backend API endpoint reference (detailed request/response examples)
 - [ ] Add more integration examples (marketplace-specific workflows)
-- [ ] Create troubleshooting guide (common issues and solutions)
 - [ ] Add migration guides (upgrading, schema changes)
 - [ ] Expand testing section (test patterns, coverage reports)
 - [ ] Add performance profiling guide
@@ -422,11 +431,12 @@ If you find missing or incomplete documentation:
 ## Document Index by File Count
 
 - **Design Documentation**: 16 comprehensive design documents
-- **User Guides**: 11 feature and workflow guides
+- **User Guides**: 12 feature and workflow guides (added export/import)
 - **Architecture & ADRs**: 8 architectural decision records and overviews
+- **API Documentation**: 13 API, integration, and schema documents (added export/import API + schema reference + troubleshooting)
 - **Technical Documentation**: 10 backend, API, and testing documents
 - **Analysis Reports**: 11 in-depth codebase analysis documents
-- **Total**: 226 documentation files across all project documentation
+- **Total**: ~230 documentation files across all project documentation
 
 ---
 
