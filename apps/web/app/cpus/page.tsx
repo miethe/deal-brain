@@ -7,6 +7,7 @@ import { useCPUs } from "@/hooks/use-cpus";
 import { useCPUUrlSync } from "@/hooks/use-cpu-url-sync";
 import { Plus, Upload } from "lucide-react";
 import { CatalogTab } from "./_components/catalog-tab";
+import { CPUDataTable } from "@/components/catalog/cpu-data-table";
 
 /**
  * CPU Catalog Main Page
@@ -111,26 +112,12 @@ export default function CPUsPage() {
           />
         </TabsContent>
 
-        {/* Data Tab - Legacy table view for power users */}
+        {/* Data Tab - Table view for power users */}
         <TabsContent value="data" className="space-y-4">
-          {/* Placeholder for Data table view */}
-          <div className="rounded-lg border border-dashed border-muted-foreground/25 p-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              CPU Data Table
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground/75">
-              Legacy table view with advanced filtering (to be implemented later)
-            </p>
-
-            {/* Data preview */}
-            {!isLoading && cpus && cpus.length > 0 && (
-              <div className="mt-4 space-y-1">
-                <p className="text-xs text-muted-foreground">
-                  {cpus.length} rows ready for table display
-                </p>
-              </div>
-            )}
-          </div>
+          <CPUDataTable
+            cpus={cpus || []}
+            isLoading={isLoading}
+          />
         </TabsContent>
       </Tabs>
     </div>
