@@ -46,6 +46,9 @@ export interface UseCPUsOptions {
  * // Basic usage
  * const { data: cpus, isLoading, error } = useCPUs();
  *
+ * // Legacy boolean signature is still supported
+ * const { data: cpusWithAnalytics } = useCPUs(true);
+ *
  * // With sorting
  * const { data: cpus } = useCPUs({
  *   sort_by: 'listings_count',
@@ -65,13 +68,18 @@ export interface UseCPUsOptions {
  * return <CPUTable cpus={cpus} />;
  * ```
  */
-export function useCPUs(options: UseCPUsOptions = {}) {
+export function useCPUs(optionsOrIncludeAnalytics?: boolean | UseCPUsOptions) {
+  const normalizedOptions: UseCPUsOptions =
+    typeof optionsOrIncludeAnalytics === 'boolean' || optionsOrIncludeAnalytics === undefined
+      ? { include_analytics: optionsOrIncludeAnalytics ?? true }
+      : optionsOrIncludeAnalytics;
+
   const {
     include_analytics = true,
     sort_by = 'name',
     sort_order = 'asc',
     only_with_listings = false,
-  } = options;
+  } = normalizedOptions;
 
   return useQuery({
     queryKey: ['cpus', { include_analytics, sort_by, sort_order, only_with_listings }],
