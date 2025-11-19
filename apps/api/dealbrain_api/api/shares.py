@@ -9,7 +9,6 @@ This module provides REST API endpoints for public shareable deal pages (FR-A1):
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from dealbrain_core.schemas.sharing import PublicListingShareRead
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -17,31 +16,34 @@ from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import session_dependency
+from ..services.caching_service import CachingService
 from ..services.sharing_service import SharingService
 
 router = APIRouter(prefix="/v1/deals", tags=["shares"])
 tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
 
+# Cache TTL for public shares (24 hours)
+SHARE_CACHE_TTL_SECONDS = 86400
 
-async def get_redis_client():
-    """Get Redis client for caching.
 
-    TODO: Implement Redis client initialization.
-    For now, returns None to allow endpoints to work without caching.
+async def get_caching_service() -> CachingService:
+    """Get caching service for Redis operations.
+
+    Returns:
+        CachingService instance with graceful fallback if Redis unavailable
     """
-    # TODO: Initialize Redis client from settings.redis_url
-    # from redis.asyncio import Redis
-    # settings = get_settings()
-    # return await Redis.from_url(settings.redis_url)
-    return None
+    return CachingService()
 
 
 @router.get(
     "/{listing_id}/{share_token}",
     response_model=PublicListingShareRead,
     summary="View public shared deal",
-    description="View a publicly shared deal without authentication. Increments view count and supports caching for link preview crawlers.",
+    description=(
+        "View a publicly shared deal without authentication. "
+        "Increments view count and supports caching for link preview crawlers."
+    ),
     responses={
         200: {"description": "Shared deal found and valid"},
         404: {"description": "Share not found or expired"},
@@ -52,7 +54,7 @@ async def get_public_shared_deal(
     listing_id: int,
     share_token: str,
     session: AsyncSession = Depends(session_dependency),
-    redis_client: Any = Depends(get_redis_client),
+    caching_service: CachingService = Depends(get_caching_service),
 ) -> PublicListingShareRead:
     """View public shared deal.
 
@@ -66,7 +68,7 @@ async def get_public_shared_deal(
         listing_id: ID of the listing
         share_token: Unique share token
         session: Database session (injected)
-        redis_client: Redis client for caching (injected)
+        caching_service: Redis caching service (injected)
 
     Returns:
         PublicListingShareRead with listing data
@@ -89,20 +91,17 @@ async def get_public_shared_deal(
         span.set_attribute("listing_id", listing_id)
         span.set_attribute("share_token", share_token[:8])
 
-        # Check Redis cache first (if available)
-        cache_key = f"listing_share:{listing_id}:{share_token}"
+        # Build cache key
+        cache_key = f"share:listing:{listing_id}:{share_token}"
 
-        if redis_client:
-            try:
-                cached_data = await redis_client.get(cache_key)
-                if cached_data:
-                    logger.debug(f"Cache hit for share {share_token[:8]}...")
-                    span.set_attribute("cache_hit", True)
-                    # TODO: Deserialize cached data and return
-                    # For now, fall through to database query
-            except Exception as e:
-                logger.warning(f"Redis cache error: {e}")
-                # Continue without cache on error
+        # Check Redis cache first (if available)
+        cached_response = await caching_service.get(cache_key, PublicListingShareRead)
+        if cached_response:
+            logger.debug(f"Cache hit for share {share_token[:8]}...")
+            span.set_attribute("cache_hit", True)
+            return cached_response
+
+        span.set_attribute("cache_hit", False)
 
         # Initialize sharing service
         sharing_service = SharingService(session)
@@ -142,19 +141,17 @@ async def get_public_shared_deal(
             is_expired=share.is_expired(),
         )
 
-        # Cache response for 24 hours (if Redis available)
-        if redis_client:
-            try:
-                # TODO: Serialize and cache response
-                # await redis_client.setex(
-                #     cache_key,
-                #     86400,  # 24 hours
-                #     response_data.model_dump_json()
-                # )
-                logger.debug(f"Cached response for share {share_token[:8]}...")
-            except Exception as e:
-                logger.warning(f"Failed to cache response: {e}")
-                # Continue without caching on error
+        # Cache response for 24 hours (graceful fallback if Redis unavailable)
+        cache_success = await caching_service.set(
+            cache_key,
+            response_data,
+            ttl_seconds=SHARE_CACHE_TTL_SECONDS
+        )
+        if cache_success:
+            logger.debug(f"Cached response for share {share_token[:8]}... (TTL: 24h)")
+            span.set_attribute("cached", True)
+        else:
+            span.set_attribute("cached", False)
 
         logger.info(
             f"Shared deal viewed: listing_id={listing_id}, "
@@ -163,11 +160,6 @@ async def get_public_shared_deal(
         )
 
         return response_data
-
-
-# TODO: Add cache invalidation endpoint for when listings are updated
-# @router.delete("/{listing_id}/{share_token}/cache")
-# async def invalidate_share_cache(...)
 
 
 __all__ = ["router"]

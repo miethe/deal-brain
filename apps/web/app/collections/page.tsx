@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Compass, Upload } from "lucide-react";
+import Link from "next/link";
 import { useCollections } from "@/hooks/use-collections";
 import { CollectionCard } from "@/components/collections/collection-card";
 import { CollectionsEmptyState } from "@/components/collections/collections-empty-state";
 import { NewCollectionForm } from "@/components/collections/new-collection-form";
+import { JsonImportButton } from "@/components/import-export/json-import-button";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Collection } from "@/types/collections";
 
 export default function CollectionsPage() {
@@ -14,6 +17,7 @@ export default function CollectionsPage() {
   const [limit] = useState(20);
   const [offset, setOffset] = useState(0);
   const [allCollections, setAllCollections] = useState<Collection[]>([]);
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useCollections({ limit, offset });
 
@@ -51,10 +55,26 @@ export default function CollectionsPage() {
             Organize and curate your favorite listings.
           </p>
         </div>
-        <Button onClick={() => setNewCollectionOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          New collection
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/collections/discover">
+              <Compass className="w-4 h-4 mr-2" />
+              Discover
+            </Link>
+          </Button>
+          <JsonImportButton
+            importType="collection"
+            variant="outline"
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ["collections"] });
+              setOffset(0); // Reset to first page
+            }}
+          />
+          <Button onClick={() => setNewCollectionOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            New collection
+          </Button>
+        </div>
       </div>
 
       {/* Loading state */}

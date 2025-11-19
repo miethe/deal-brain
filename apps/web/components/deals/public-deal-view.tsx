@@ -7,6 +7,7 @@ import { SummaryCard } from "@/components/listings/summary-card";
 import { SummaryCardsGrid } from "@/components/listings/summary-cards-grid";
 import { ValuationTooltip } from "@/components/listings/valuation-tooltip";
 import { ValuationBreakdownModal } from "@/components/listings/valuation-breakdown-modal";
+import { CollectionSelectorModal } from "@/components/collections/collection-selector-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,8 +32,10 @@ interface PublicDealViewProps {
 export function PublicDealView({ share, listing }: PublicDealViewProps) {
   const router = useRouter();
   const [breakdownModalOpen, setBreakdownModalOpen] = useState(false);
-  // TODO: Replace with actual auth check when implementing Phase 5
-  const isAuthenticated = false;
+  const [collectionSelectorOpen, setCollectionSelectorOpen] = useState(false);
+  // TODO: Replace with actual auth check when implementing proper authentication
+  // For now, assume authenticated if window exists (client-side)
+  const isAuthenticated = typeof window !== "undefined";
 
   const formatCurrency = (value: number | null | undefined) =>
     value == null
@@ -55,9 +58,14 @@ export function PublicDealView({ share, listing }: PublicDealViewProps) {
       const returnUrl = encodeURIComponent(`/deals/${listing.id}/${share.share_token}`);
       router.push(`/auth/signup?return=${returnUrl}`);
     } else {
-      // TODO: Open collection selector dialog
-      console.log("Add to collection");
+      // Open collection selector modal
+      setCollectionSelectorOpen(true);
     }
+  };
+
+  const handleCollectionSuccess = () => {
+    // Optional: Show success message or redirect to collection
+    setCollectionSelectorOpen(false);
   };
 
   // CPU summary
@@ -88,15 +96,15 @@ export function PublicDealView({ share, listing }: PublicDealViewProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold">Deal Brain</h1>
-            <Badge variant="outline" className="text-xs">
+        <div className="container mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <h1 className="text-lg sm:text-xl font-semibold truncate">Deal Brain</h1>
+            <Badge variant="outline" className="text-xs hidden sm:inline-flex">
               Shared Deal
             </Badge>
           </div>
           {isExpired && (
-            <Badge variant="destructive" className="text-xs">
+            <Badge variant="destructive" className="text-xs flex-shrink-0">
               Expired
             </Badge>
           )}
@@ -116,17 +124,17 @@ export function PublicDealView({ share, listing }: PublicDealViewProps) {
         )}
 
         {/* Hero Section - Product Image and Summary */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
           {/* Left side: Product Image */}
-          <div className="flex items-start justify-center lg:justify-start">
-            <ProductImage listing={listing} className="h-64 w-full sm:h-80 lg:h-96" />
+          <div className="flex items-start justify-center md:justify-start">
+            <ProductImage listing={listing} className="h-48 w-full sm:h-64 md:h-80 lg:h-96" />
           </div>
 
           {/* Right side: Summary Cards */}
           <div className="space-y-4">
             {/* Title and basic info */}
             <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{listing.title}</h1>
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">{listing.title}</h1>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="capitalize">
                   {listing.condition}
@@ -225,12 +233,14 @@ export function PublicDealView({ share, listing }: PublicDealViewProps) {
             {/* Add to Collection CTA */}
             <Button
               size="lg"
-              className="w-full"
+              className="w-full min-h-[44px] sm:min-h-[48px]"
               onClick={handleAddToCollection}
               disabled={isExpired}
             >
               <Heart className="mr-2 h-5 w-5" />
-              {isAuthenticated ? "Add to Collection" : "Sign Up to Save This Deal"}
+              <span className="text-sm sm:text-base">
+                {isAuthenticated ? "Add to Collection" : "Sign Up to Save This Deal"}
+              </span>
             </Button>
 
             {!isAuthenticated && (
@@ -397,9 +407,16 @@ export function PublicDealView({ share, listing }: PublicDealViewProps) {
                   ? "Save it to your collection and get notified about similar deals"
                   : "Create a free Deal Brain account to save deals, build collections, and get personalized recommendations"}
               </p>
-              <Button size="lg" onClick={handleAddToCollection} disabled={isExpired}>
+              <Button
+                size="lg"
+                onClick={handleAddToCollection}
+                disabled={isExpired}
+                className="min-h-[44px] sm:min-h-[48px]"
+              >
                 <Heart className="mr-2 h-5 w-5" />
-                {isAuthenticated ? "Add to Collection" : "Create Free Account"}
+                <span className="text-sm sm:text-base">
+                  {isAuthenticated ? "Add to Collection" : "Create Free Account"}
+                </span>
               </Button>
             </div>
           </CardContent>
@@ -413,6 +430,14 @@ export function PublicDealView({ share, listing }: PublicDealViewProps) {
         listingId={listing.id}
         listingTitle={listing.title}
         thumbnailUrl={listing.thumbnail_url}
+      />
+
+      {/* Collection Selector Modal */}
+      <CollectionSelectorModal
+        listingId={listing.id}
+        isOpen={collectionSelectorOpen}
+        onClose={() => setCollectionSelectorOpen(false)}
+        onSuccess={handleCollectionSuccess}
       />
     </div>
   );

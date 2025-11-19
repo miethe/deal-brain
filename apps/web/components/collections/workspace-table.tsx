@@ -9,7 +9,7 @@ import {
   useReactTable,
   flexRender,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, ChevronsUpDown, Expand, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown, Expand, Trash2, Share2, MoreVertical, Image as ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,9 +21,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useConfirmation } from "@/components/ui/confirmation-dialog";
 import { useRemoveCollectionItem } from "@/hooks/use-collections";
+import { CardDownloadModal } from "@/components/listings/card-download-modal";
 import type { CollectionItem, CollectionItemStatus } from "@/types/collections";
+import type { ListingDetail } from "@/types/listing-detail";
 
 interface WorkspaceTableProps {
   collectionId: number | string;
@@ -128,15 +137,31 @@ export function WorkspaceTable({
         header: "Name",
         cell: ({ row }) => {
           const listing = row.original.listing;
+          const item = row.original;
+          const isShared = item.share_id && item.shared_by_name;
+
           return (
             <div className="space-y-1">
-              <div className="font-medium">{listing.title}</div>
+              <div className="flex items-center gap-2">
+                <div className="font-medium">{listing.title}</div>
+                {isShared && (
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Share2 className="h-3 w-3" />
+                    Shared
+                  </Badge>
+                )}
+              </div>
               <div className="text-xs text-muted-foreground">
                 {listing.cpu_name && <span>{listing.cpu_name}</span>}
                 {listing.gpu_name && (
                   <span className="ml-2">• {listing.gpu_name}</span>
                 )}
               </div>
+              {isShared && item.shared_by_name && (
+                <div className="text-xs text-muted-foreground italic">
+                  Shared by {item.shared_by_name}
+                </div>
+              )}
             </div>
           );
         },
@@ -290,6 +315,14 @@ export function WorkspaceTable({
         header: "Actions",
         cell: ({ row }) => {
           const item = row.original;
+          // Convert CollectionItem listing to ListingDetail format
+          const listingDetail: ListingDetail = {
+            ...item.listing,
+            cpu: item.listing.cpu || undefined,
+            gpu: item.listing.gpu || undefined,
+            ports_profile: item.listing.ports_profile || undefined,
+          };
+
           return (
             <div className="flex items-center gap-2">
               <Button
@@ -300,16 +333,34 @@ export function WorkspaceTable({
               >
                 <Expand className="h-4 w-4" />
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  handleRemoveItem(item.id, item.listing.title)
-                }
-                aria-label="Remove from collection"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" aria-label="More actions">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <CardDownloadModal
+                    listing={listingDetail}
+                    trigger={
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <ImageIcon className="h-4 w-4 mr-2" />
+                        Download Card
+                      </DropdownMenuItem>
+                    }
+                  />
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() =>
+                      handleRemoveItem(item.id, item.listing.title)
+                    }
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Remove
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           );
         },

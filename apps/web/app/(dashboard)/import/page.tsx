@@ -12,7 +12,8 @@ import { ImporterWorkspace } from '@/components/import/importer-workspace';
 import { PartialImportModal } from '@/components/imports/PartialImportModal';
 import { ListingRecord } from '@/types/listings';
 import { telemetry } from '@/lib/telemetry';
-import { Globe, FileSpreadsheet, Link, Upload } from 'lucide-react';
+import { Globe, FileSpreadsheet, Link, Upload, FileJson } from 'lucide-react';
+import { JsonImportDropzone } from '@/components/import-export/json-import-button';
 
 export default function ImportPage() {
   const router = useRouter();
@@ -93,7 +94,7 @@ export default function ImportPage() {
 
       {/* Import Method Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="url" className="gap-2">
             <Globe className="h-4 w-4" />
             URL Import
@@ -101,6 +102,10 @@ export default function ImportPage() {
           <TabsTrigger value="file" className="gap-2">
             <FileSpreadsheet className="h-4 w-4" />
             File Import
+          </TabsTrigger>
+          <TabsTrigger value="json" className="gap-2">
+            <FileJson className="h-4 w-4" />
+            JSON Import
           </TabsTrigger>
         </TabsList>
 
@@ -177,6 +182,40 @@ export default function ImportPage() {
 
           {/* Importer Workspace */}
           <ImporterWorkspace />
+        </TabsContent>
+
+        {/* JSON Import Tab */}
+        <TabsContent value="json" className="space-y-6 mt-6">
+          {/* Method Overview */}
+          <ImportMethodCard
+            icon={<FileJson className="h-5 w-5" />}
+            title="Import from JSON Export"
+            description="Import previously exported listings or collections from JSON files. Supports duplicate detection with merge or skip options to avoid creating duplicate entries."
+            bestFor={[
+              'Restoring exported data',
+              'Migrating between environments',
+              'Sharing individual listings or collections',
+              'Backup restoration',
+            ]}
+            supports="JSON files exported from Deal Brain"
+            workflow={[
+              'Select or drag and drop a JSON file',
+              'Review import preview and duplicates',
+              'Choose merge, skip, or create new',
+              'Confirm import',
+            ]}
+          />
+
+          {/* JSON Import Dropzone */}
+          <JsonImportDropzone
+            importType="listing"
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ['listings'] });
+              telemetry.info('frontend.import.json.success', {
+                type: 'listing',
+              });
+            }}
+          />
         </TabsContent>
       </Tabs>
 

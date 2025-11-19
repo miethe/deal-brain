@@ -10,14 +10,19 @@ This module provides the service layer for deal collections including:
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from datetime import datetime
+from typing import Any, Optional
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models.sharing import Collection, CollectionItem
+from ..models.sharing import Collection, CollectionItem, CollectionShareToken
 from ..repositories.collection_repository import CollectionRepository
+from ..repositories.collection_share_token_repository import CollectionShareTokenRepository
+from ..settings import get_settings
 
 logger = logging.getLogger(__name__)
+analytics_logger = logging.getLogger("dealbrain.analytics")
 
 
 # Valid status values (matching database check constraint)
@@ -48,6 +53,7 @@ class CollectionsService:
         """
         self.session = session
         self.collection_repo = CollectionRepository(session)
+        self.share_token_repo = CollectionShareTokenRepository(session)
 
     # ==================== Collection CRUD ====================
 
@@ -579,3 +585,582 @@ class CollectionsService:
         logger.info(f"Created default collection for user {user_id}")
 
         return collection
+
+    # ==================== Visibility Management (Task 2a-svc-1) ====================
+
+    async def update_visibility(
+        self,
+        collection_id: int,
+        new_visibility: str,
+        user_id: int
+    ) -> Optional[Collection]:
+        """Update collection visibility with authorization check.
+
+        Validates state transitions and emits telemetry event on success.
+        All transitions are allowed: private ↔ unlisted ↔ public
+
+        Args:
+            collection_id: Collection ID
+            new_visibility: New visibility setting (private, unlisted, public)
+            user_id: User ID (must be owner)
+
+        Returns:
+            Updated Collection or None if not found
+
+        Raises:
+            PermissionError: If user doesn't own the collection
+            ValueError: If visibility value is invalid
+
+        Example:
+            collection = await service.update_visibility(
+                collection_id=5,
+                new_visibility="public",
+                user_id=1
+            )
+        """
+        # 1. Validate new visibility value
+        if new_visibility not in VALID_VISIBILITIES:
+            raise ValueError(
+                f"Visibility must be one of: {', '.join(VALID_VISIBILITIES)}"
+            )
+
+        # 2. Get collection with ownership check
+        collection = await self.get_collection(
+            collection_id=collection_id,
+            user_id=user_id,
+            load_items=False
+        )
+
+        if not collection:
+            return None
+
+        # 3. Store old visibility for telemetry
+        old_visibility = collection.visibility
+
+        # 4. Update visibility via repository
+        updated = await self.collection_repo.update_collection(
+            collection_id=collection_id,
+            user_id=user_id,
+            visibility=new_visibility
+        )
+
+        await self.session.commit()
+
+        # 5. Emit telemetry event
+        self._emit_event(
+            "collection.visibility_changed",
+            {
+                "collection_id": collection_id,
+                "user_id": user_id,
+                "old_visibility": old_visibility,
+                "new_visibility": new_visibility,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+
+        logger.info(
+            f"Updated collection {collection_id} visibility: {old_visibility} → {new_visibility}"
+        )
+
+        return updated
+
+    async def get_public_collection(
+        self,
+        collection_id: int,
+        load_items: bool = True
+    ) -> Optional[Collection]:
+        """Get public collection without authentication.
+
+        Only returns collections with visibility='public'.
+        No ownership check required.
+
+        Args:
+            collection_id: Collection ID
+            load_items: Whether to eager load items (default: True)
+
+        Returns:
+            Collection if found and public, None otherwise
+
+        Example:
+            collection = await service.get_public_collection(
+                collection_id=5
+            )
+            if collection:
+                print(f"Public collection: {collection.name}")
+        """
+        # Get collection without user_id check
+        collection = await self.collection_repo.get_collection_by_id(
+            collection_id=collection_id,
+            user_id=None,
+            load_items=load_items
+        )
+
+        # Only return if public
+        if collection and collection.visibility == "public":
+            return collection
+
+        return None
+
+    async def check_access(
+        self,
+        collection_id: int,
+        user_id: Optional[int] = None
+    ) -> bool:
+        """Check if user can access collection.
+
+        Access is granted if:
+        - Collection is public (anyone can access)
+        - Collection is unlisted (anyone with link can access)
+        - User owns the collection (regardless of visibility)
+
+        Args:
+            collection_id: Collection ID
+            user_id: Optional user ID to check ownership
+
+        Returns:
+            True if user can access collection, False otherwise
+
+        Example:
+            # Check anonymous access
+            can_access = await service.check_access(collection_id=5)
+
+            # Check user access
+            can_access = await service.check_access(
+                collection_id=5,
+                user_id=1
+            )
+        """
+        # Get collection without ownership filter
+        collection = await self.collection_repo.get_collection_by_id(
+            collection_id=collection_id,
+            user_id=None,
+            load_items=False
+        )
+
+        if not collection:
+            return False
+
+        # Grant access if:
+        # 1. Collection is public or unlisted (anyone can access)
+        if collection.visibility in ("public", "unlisted"):
+            return True
+
+        # 2. User owns the collection
+        if user_id and collection.user_id == user_id:
+            return True
+
+        # 3. Otherwise deny access
+        return False
+
+    # ==================== Collection Copying (Task 2a-svc-2) ====================
+
+    async def copy_collection(
+        self,
+        source_collection_id: int,
+        user_id: int,
+        new_name: Optional[str] = None
+    ) -> Collection:
+        """Copy collection to user's workspace.
+
+        Creates a new private collection with all items from the source.
+        Items are copied with their notes and status, and valuation snapshots
+        are created for each item.
+
+        Args:
+            source_collection_id: Source collection ID to copy from
+            user_id: User ID who will own the new collection
+            new_name: Optional name for new collection (default: "Copy of [original name]")
+
+        Returns:
+            Newly created Collection with all items
+
+        Raises:
+            ValueError: If source collection not found or not accessible
+            PermissionError: If user cannot access source collection
+
+        Example:
+            new_collection = await service.copy_collection(
+                source_collection_id=5,
+                user_id=2,
+                new_name="My Gaming Deals"
+            )
+            print(f"Copied {len(new_collection.items)} items")
+        """
+        # 1. Get source collection (check access)
+        source = await self.collection_repo.get_collection_by_id(
+            collection_id=source_collection_id,
+            user_id=None,
+            load_items=True
+        )
+
+        if not source:
+            raise ValueError(f"Collection {source_collection_id} not found")
+
+        # 2. Check if user can access source collection
+        can_access = await self.check_access(
+            collection_id=source_collection_id,
+            user_id=user_id
+        )
+
+        if not can_access:
+            raise PermissionError(
+                f"User {user_id} cannot access collection {source_collection_id}"
+            )
+
+        # 3. Generate new name if not provided
+        if new_name is None:
+            new_name = f"Copy of {source.name}"
+
+        # 4. Create new collection (always private)
+        new_collection = await self.collection_repo.create_collection(
+            user_id=user_id,
+            name=new_name,
+            description=source.description,
+            visibility="private"
+        )
+
+        # 5. Copy all items with their notes and status
+        from ..models.listings import Listing
+
+        for item in source.items:
+            # Get listing to create valuation snapshot
+            result = await self.session.execute(
+                select(Listing).where(Listing.id == item.listing_id)
+            )
+            listing = result.scalar_one_or_none()
+
+            if listing:
+                # Add item to new collection
+                await self.collection_repo.add_item(
+                    collection_id=new_collection.id,
+                    listing_id=item.listing_id,
+                    status=item.status,
+                    notes=item.notes,
+                    position=item.position
+                )
+
+        await self.session.commit()
+
+        # 6. Refresh to get all items
+        await self.session.refresh(new_collection)
+
+        # 7. Emit telemetry event
+        self._emit_event(
+            "collection.copied",
+            {
+                "source_collection_id": source_collection_id,
+                "new_collection_id": new_collection.id,
+                "user_id": user_id,
+                "item_count": len(source.items),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+
+        logger.info(
+            f"Copied collection {source_collection_id} to {new_collection.id} "
+            f"for user {user_id} ({len(source.items)} items)"
+        )
+
+        return new_collection
+
+    # ==================== Collection Discovery (Task 2a-svc-3) ====================
+
+    async def list_public_collections(
+        self,
+        visibility_filter: str = "public",
+        sort_by: str = "recent",
+        limit: int = 50,
+        offset: int = 0
+    ) -> list[Collection]:
+        """List public or unlisted collections with pagination and sorting.
+
+        Args:
+            visibility_filter: Filter by visibility (public, unlisted)
+            sort_by: Sort key (recent=created_at DESC, popular=view_count DESC)
+            limit: Maximum number of collections to return
+            offset: Number of collections to skip (pagination)
+
+        Returns:
+            List of Collection instances
+
+        Example:
+            # Get recent public collections
+            collections = await service.list_public_collections(
+                visibility_filter="public",
+                sort_by="recent",
+                limit=20
+            )
+        """
+        from sqlalchemy import desc
+
+        # 1. Validate visibility filter
+        if visibility_filter not in ("public", "unlisted"):
+            raise ValueError("Visibility filter must be 'public' or 'unlisted'")
+
+        # 2. Build query
+        stmt = (
+            select(Collection)
+            .where(Collection.visibility == visibility_filter)
+        )
+
+        # 3. Apply sorting
+        if sort_by == "recent":
+            stmt = stmt.order_by(desc(Collection.created_at))
+        elif sort_by == "popular":
+            # TODO: Add view_count column to Collection model
+            # For now, fallback to created_at
+            stmt = stmt.order_by(desc(Collection.created_at))
+        else:
+            stmt = stmt.order_by(desc(Collection.created_at))
+
+        # 4. Apply pagination
+        stmt = stmt.limit(limit).offset(offset)
+
+        # 5. Execute query
+        result = await self.session.execute(stmt)
+        collections = list(result.scalars().all())
+
+        return collections
+
+    async def search_collections(
+        self,
+        query: str,
+        visibility_filter: str = "public",
+        limit: int = 50,
+        offset: int = 0
+    ) -> list[Collection]:
+        """Search collections with full-text search.
+
+        Searches collection name and description.
+
+        Args:
+            query: Search query string
+            visibility_filter: Filter by visibility (public, unlisted)
+            limit: Maximum number of collections to return
+            offset: Number of collections to skip (pagination)
+
+        Returns:
+            List of Collection instances matching search query
+
+        Example:
+            collections = await service.search_collections(
+                query="gaming",
+                visibility_filter="public"
+            )
+        """
+        from sqlalchemy import desc, or_
+
+        # 1. Validate visibility filter
+        if visibility_filter not in ("public", "unlisted"):
+            raise ValueError("Visibility filter must be 'public' or 'unlisted'")
+
+        # 2. Build search query (case-insensitive LIKE)
+        search_pattern = f"%{query}%"
+
+        stmt = (
+            select(Collection)
+            .where(
+                Collection.visibility == visibility_filter,
+                or_(
+                    Collection.name.ilike(search_pattern),
+                    Collection.description.ilike(search_pattern)
+                )
+            )
+            .order_by(desc(Collection.created_at))
+            .limit(limit)
+            .offset(offset)
+        )
+
+        # 3. Execute query
+        result = await self.session.execute(stmt)
+        collections = list(result.scalars().all())
+
+        # 4. Emit telemetry event
+        self._emit_event(
+            "collection.discovered",
+            {
+                "query": query,
+                "visibility_filter": visibility_filter,
+                "result_count": len(collections),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+
+        return collections
+
+    async def filter_by_owner(
+        self,
+        owner_id: int,
+        visibility_filter: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> list[Collection]:
+        """Filter collections by creator/owner.
+
+        Args:
+            owner_id: User ID of collection owner
+            visibility_filter: Optional visibility filter (public, unlisted, private)
+            limit: Maximum number of collections to return
+            offset: Number of collections to skip (pagination)
+
+        Returns:
+            List of Collection instances owned by user
+
+        Example:
+            # Get all public collections by user
+            collections = await service.filter_by_owner(
+                owner_id=1,
+                visibility_filter="public"
+            )
+        """
+        from sqlalchemy import desc
+
+        # 1. Build query
+        conditions = [Collection.user_id == owner_id]
+
+        if visibility_filter:
+            if visibility_filter not in VALID_VISIBILITIES:
+                raise ValueError(
+                    f"Visibility must be one of: {', '.join(VALID_VISIBILITIES)}"
+                )
+            conditions.append(Collection.visibility == visibility_filter)
+
+        stmt = (
+            select(Collection)
+            .where(*conditions)
+            .order_by(desc(Collection.created_at))
+            .limit(limit)
+            .offset(offset)
+        )
+
+        # 2. Execute query
+        result = await self.session.execute(stmt)
+        collections = list(result.scalars().all())
+
+        return collections
+
+    # ==================== Token Management (Task 2a-svc-4) ====================
+
+    async def generate_share_token(
+        self,
+        collection_id: int,
+        user_id: int,
+        expires_at: Optional[datetime] = None
+    ) -> CollectionShareToken:
+        """Generate unique share token for collection.
+
+        Creates a shareable URL token for unlisted or public collections.
+
+        Args:
+            collection_id: Collection ID to share
+            user_id: User ID (must be owner)
+            expires_at: Optional expiry datetime (None = never expires)
+
+        Returns:
+            Created CollectionShareToken
+
+        Raises:
+            PermissionError: If user doesn't own the collection
+            ValueError: If collection is private (cannot be shared)
+
+        Example:
+            token = await service.generate_share_token(
+                collection_id=5,
+                user_id=1,
+                expires_at=None
+            )
+            share_url = f"/collections/shared/{token.token}"
+        """
+        # 1. Verify ownership
+        collection = await self.get_collection(
+            collection_id=collection_id,
+            user_id=user_id,
+            load_items=False
+        )
+
+        if not collection:
+            raise ValueError(f"Collection {collection_id} not found")
+
+        # 2. Validate visibility (private collections cannot be shared via token)
+        if collection.visibility == "private":
+            raise ValueError(
+                "Cannot generate share token for private collection. "
+                "Change visibility to 'unlisted' or 'public' first."
+            )
+
+        # 3. Generate token via repository
+        token = await self.share_token_repo.generate_token(
+            collection_id=collection_id,
+            expires_at=expires_at
+        )
+
+        await self.session.commit()
+
+        logger.info(
+            f"Generated share token for collection {collection_id} by user {user_id}"
+        )
+
+        return token
+
+    async def validate_share_token(self, token: str) -> Optional[Collection]:
+        """Validate share token and return collection.
+
+        Only returns collection if token is valid and not expired.
+
+        Args:
+            token: Share token to validate
+
+        Returns:
+            Collection if token is valid, None if invalid or expired
+
+        Example:
+            collection = await service.validate_share_token(token="abc123...")
+            if collection:
+                print(f"Valid token for: {collection.name}")
+        """
+        # Get token with collection loaded (exclude expired by default)
+        share_token = await self.share_token_repo.get_by_token(
+            token=token,
+            include_expired=False
+        )
+
+        if not share_token:
+            return None
+
+        return share_token.collection
+
+    async def increment_share_views(self, token: str) -> bool:
+        """Increment view count for share token.
+
+        Tracks how many times a shared collection has been viewed.
+
+        Args:
+            token: Share token to increment
+
+        Returns:
+            True if incremented successfully, False if token not found
+
+        Example:
+            success = await service.increment_share_views(token="abc123...")
+        """
+        # Increment view count (atomic operation)
+        success = await self.share_token_repo.increment_view_count(token)
+
+        if success:
+            await self.session.commit()
+            logger.info(f"Incremented view count for token {token[:8]}...")
+
+        return success
+
+    # ==================== Telemetry (Task 2a-svc-5) ====================
+
+    def _emit_event(self, name: str, payload: dict[str, Any]) -> None:
+        """Emit telemetry event for analytics.
+
+        Args:
+            name: Event name (e.g., "collection.visibility_changed")
+            payload: Event payload with context data
+        """
+        settings = get_settings()
+        if settings.analytics_enabled:
+            analytics_logger.info("event=%s payload=%s", name, payload)

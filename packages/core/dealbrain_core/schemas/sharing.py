@@ -103,6 +103,18 @@ class CollectionUpdate(DealBrainModel):
     visibility: CollectionVisibility | None = None
 
 
+class CollectionVisibilityUpdate(DealBrainModel):
+    """Schema for updating collection visibility only."""
+
+    visibility: CollectionVisibility = Field(..., description="New visibility setting")
+
+
+class CollectionCopyRequest(DealBrainModel):
+    """Schema for copying a collection."""
+
+    name: str | None = Field(None, min_length=1, max_length=100, description="Optional name for the copied collection")
+
+
 class CollectionRead(CollectionBase):
     """Schema for collection responses."""
 
@@ -112,6 +124,20 @@ class CollectionRead(CollectionBase):
     updated_at: datetime
     item_count: int = 0
     items: list[CollectionItemRead] | None = None
+
+
+class PublicCollectionRead(DealBrainModel):
+    """Schema for public collection view (read-only, no auth required)."""
+
+    id: int
+    name: str
+    description: str | None
+    visibility: CollectionVisibility
+    created_at: datetime
+    updated_at: datetime
+    item_count: int = 0
+    items: list[CollectionItemRead] | None = None
+    owner_username: str | None = None  # Optional owner display name
 
 
 # ==================== Collection Item Schemas ====================
@@ -149,8 +175,9 @@ class CollectionItemRead(CollectionItemBase):
     updated_at: datetime
 
 
-# Forward reference resolution for CollectionRead.items
+# Forward reference resolution for CollectionRead.items and PublicCollectionRead.items
 CollectionRead.model_rebuild()
+PublicCollectionRead.model_rebuild()
 
 
 __all__ = [
@@ -167,7 +194,10 @@ __all__ = [
     "CollectionBase",
     "CollectionCreate",
     "CollectionUpdate",
+    "CollectionVisibilityUpdate",
+    "CollectionCopyRequest",
     "CollectionRead",
+    "PublicCollectionRead",
     # Collection Item
     "CollectionItemBase",
     "CollectionItemCreate",

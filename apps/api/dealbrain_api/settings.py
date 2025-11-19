@@ -100,6 +100,55 @@ class IngestionSettings(BaseModel):
     )
 
 
+class EmailSettings(BaseModel):
+    """Configuration for email notifications."""
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable email notifications. If false, emails won't be sent.",
+    )
+    smtp_host: str = Field(
+        default="localhost",
+        description="SMTP server hostname",
+    )
+    smtp_port: int = Field(
+        default=587,
+        ge=1,
+        le=65535,
+        description="SMTP server port (587 for TLS, 465 for SSL, 25 for unencrypted)",
+    )
+    smtp_user: str | None = Field(
+        default=None,
+        description="SMTP username for authentication",
+    )
+    smtp_password: str | None = Field(
+        default=None,
+        description="SMTP password for authentication",
+    )
+    smtp_tls: bool = Field(
+        default=True,
+        description="Use TLS for SMTP connection",
+    )
+    smtp_ssl: bool = Field(
+        default=False,
+        description="Use SSL for SMTP connection (mutually exclusive with TLS)",
+    )
+    from_email: str = Field(
+        default="noreply@dealbrain.local",
+        description="From email address for notifications",
+    )
+    from_name: str = Field(
+        default="Deal Brain",
+        description="From name for email notifications",
+    )
+    timeout_seconds: int = Field(
+        default=10,
+        ge=1,
+        le=60,
+        description="SMTP connection timeout in seconds",
+    )
+
+
 class TelemetrySettings(BaseModel):
     """Configuration for application telemetry."""
 
@@ -130,6 +179,66 @@ class TelemetrySettings(BaseModel):
     suppress_uvicorn_access: bool = Field(
         default=True,
         description="Disable Uvicorn's default access logs when true.",
+    )
+
+
+class PlaywrightSettings(BaseModel):
+    """Configuration for Playwright headless browser."""
+
+    enabled: bool = Field(
+        default=True,
+        description="Enable Playwright for card image generation. If false, feature will be disabled.",
+    )
+    max_concurrent_browsers: int = Field(
+        default=2,
+        ge=1,
+        le=10,
+        description="Maximum number of concurrent browser instances (default 2 to conserve memory)",
+    )
+    browser_timeout_ms: int = Field(
+        default=30000,
+        ge=5000,
+        le=120000,
+        description="Browser operation timeout in milliseconds (default 30s)",
+    )
+    headless: bool = Field(
+        default=True,
+        description="Run browsers in headless mode (required for Docker)",
+    )
+
+
+class S3Settings(BaseModel):
+    """Configuration for S3 card image caching."""
+
+    enabled: bool = Field(
+        default=False,
+        description="Enable S3 storage for card images. If false, images won't be cached.",
+    )
+    bucket_name: str = Field(
+        default="dealbrain-card-images",
+        description="S3 bucket name for card image storage",
+    )
+    region: str = Field(
+        default="us-east-1",
+        description="AWS region for S3 bucket",
+    )
+    access_key_id: str | None = Field(
+        default=None,
+        description="AWS access key ID (optional, prefer IAM roles)",
+    )
+    secret_access_key: str | None = Field(
+        default=None,
+        description="AWS secret access key (optional, prefer IAM roles)",
+    )
+    cache_ttl_seconds: int = Field(
+        default=2592000,  # 30 days
+        ge=86400,  # 1 day minimum
+        le=31536000,  # 1 year maximum
+        description="Time-to-live for cached card images in seconds (default 30 days)",
+    )
+    endpoint_url: str | None = Field(
+        default=None,
+        description="Custom S3 endpoint URL (for LocalStack or MinIO in development)",
     )
 
 
@@ -166,10 +275,28 @@ class Settings(BaseSettings):
         description="Telemetry/logging configuration.",
     )
 
+    # Email settings
+    email: EmailSettings = Field(
+        default_factory=EmailSettings,
+        description="Email notification configuration",
+    )
+
     # URL Ingestion settings
     ingestion: IngestionSettings = Field(
         default_factory=IngestionSettings,
         description="URL ingestion configuration",
+    )
+
+    # Playwright settings for card image generation
+    playwright: PlaywrightSettings = Field(
+        default_factory=PlaywrightSettings,
+        description="Playwright headless browser configuration",
+    )
+
+    # S3 settings for card image caching
+    s3: S3Settings = Field(
+        default_factory=S3Settings,
+        description="S3 card image caching configuration",
     )
 
     # Environment variable overrides for adapter API keys
@@ -182,12 +309,40 @@ class Settings(BaseSettings):
         description="Amazon API key (loaded from AMAZON_API_KEY env var)",
     )
 
+    # AWS credentials (override S3 settings if provided)
+    aws_access_key_id: str | None = Field(
+        default=None,
+        description="AWS access key ID (loaded from AWS_ACCESS_KEY_ID env var)",
+    )
+    aws_secret_access_key: str | None = Field(
+        default=None,
+        description="AWS secret access key (loaded from AWS_SECRET_ACCESS_KEY env var)",
+    )
+    aws_region: str | None = Field(
+        default=None,
+        description="AWS region (loaded from AWS_REGION env var)",
+    )
+    aws_s3_bucket_name: str | None = Field(
+        default=None,
+        description="S3 bucket name (loaded from AWS_S3_BUCKET_NAME env var)",
+    )
+
     def model_post_init(self, __context) -> None:
         """Post-initialization hook to inject API keys into adapter configs."""
         if self.ebay_api_key:
             self.ingestion.ebay.api_key = self.ebay_api_key
         if self.amazon_api_key:
             self.ingestion.amazon.api_key = self.amazon_api_key
+
+        # Override S3 settings with environment variables if provided
+        if self.aws_access_key_id:
+            self.s3.access_key_id = self.aws_access_key_id
+        if self.aws_secret_access_key:
+            self.s3.secret_access_key = self.aws_secret_access_key
+        if self.aws_region:
+            self.s3.region = self.aws_region
+        if self.aws_s3_bucket_name:
+            self.s3.bucket_name = self.aws_s3_bucket_name
 
 
 @lru_cache(maxsize=1)
@@ -198,8 +353,11 @@ def get_settings() -> Settings:
 
 __all__ = [
     "AdapterConfig",
+    "EmailSettings",
     "IngestionSettings",
     "TelemetrySettings",
+    "PlaywrightSettings",
+    "S3Settings",
     "Settings",
     "get_settings",
 ]

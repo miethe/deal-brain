@@ -19,6 +19,10 @@ import type {
   CollectionsListResponse,
   CreateCollectionPayload,
   UpdateCollectionItemPayload,
+  UpdateCollectionVisibilityPayload,
+  DiscoverCollectionsParams,
+  DiscoverCollectionsResponse,
+  CopyCollectionPayload,
 } from "@/types/collections";
 
 // ============================================================================
@@ -61,6 +65,32 @@ export function useCollection(collectionId: number | string) {
     queryFn: () =>
       apiFetch<CollectionWithItems>(`/v1/collections/${collectionId}`),
     staleTime: 2 * 60 * 1000, // 2 minutes - workspace data changes more frequently
+  });
+}
+
+/**
+ * Discover public collections with search and filters
+ *
+ * @param params - Search and filter parameters
+ * @returns Query result with discovered collections
+ */
+export function useDiscoverCollections(params: DiscoverCollectionsParams = {}) {
+  const { search, owner_filter, sort = "recent", limit = 20, offset = 0 } = params;
+
+  const queryParams = new URLSearchParams();
+  if (search) queryParams.set("search", search);
+  if (owner_filter) queryParams.set("owner_filter", owner_filter);
+  queryParams.set("sort", sort);
+  queryParams.set("limit", String(limit));
+  queryParams.set("offset", String(offset));
+
+  return useQuery({
+    queryKey: ["collections", "discover", params],
+    queryFn: () =>
+      apiFetch<DiscoverCollectionsResponse>(
+        `/v1/collections/discover?${queryParams.toString()}`
+      ),
+    staleTime: 1 * 60 * 1000, // 1 minute - discovery data changes more frequently
   });
 }
 
@@ -205,6 +235,100 @@ export function useRemoveCollectionItem(
       });
 
       options?.onSuccess?.();
+    },
+  });
+}
+
+interface UseUpdateCollectionVisibilityOptions {
+  collectionId: number | string;
+  onSuccess?: (collection: Collection) => void;
+}
+
+/**
+ * Update collection visibility setting
+ *
+ * Automatically invalidates collection cache and shows toast notification
+ */
+export function useUpdateCollectionVisibility(
+  options: UseUpdateCollectionVisibilityOptions
+) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { collectionId } = options;
+
+  return useMutation({
+    mutationFn: async (data: UpdateCollectionVisibilityPayload) => {
+      return apiFetch<Collection>(
+        `/v1/collections/${collectionId}/visibility`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(data),
+        }
+      );
+    },
+    onError: (err) => {
+      const errorMessage =
+        err instanceof ApiError ? err.message : "Failed to update visibility";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+    onSuccess: (collection) => {
+      // Invalidate queries to refresh
+      queryClient.invalidateQueries({ queryKey: ["collections", collectionId] });
+      queryClient.invalidateQueries({ queryKey: ["collections"] });
+
+      toast({
+        title: "Visibility updated",
+        description: `Collection is now ${collection.visibility}.`,
+      });
+
+      options?.onSuccess?.(collection);
+    },
+  });
+}
+
+interface UseCopyCollectionOptions {
+  onSuccess?: (collection: Collection) => void;
+}
+
+/**
+ * Copy a collection to current user's workspace
+ *
+ * Automatically invalidates collections cache and shows toast notification
+ */
+export function useCopyCollection(options?: UseCopyCollectionOptions) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: CopyCollectionPayload) => {
+      return apiFetch<Collection>("/v1/collections/copy", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
+    onError: (err) => {
+      const errorMessage =
+        err instanceof ApiError ? err.message : "Failed to copy collection";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+    onSuccess: (collection) => {
+      // Invalidate all collections queries to refresh the list
+      queryClient.invalidateQueries({ queryKey: ["collections"] });
+
+      toast({
+        title: "Collection copied",
+        description: `"${collection.name}" has been copied to your workspace.`,
+      });
+
+      options?.onSuccess?.(collection);
     },
   });
 }
