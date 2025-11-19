@@ -8,7 +8,7 @@ from typing import Sequence
 from dealbrain_core.enums import ListingStatus
 from dealbrain_core.schemas.cpu import CPUStatistics, CPUWithAnalytics
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
-from sqlalchemy import and_, distinct, func, select
+from sqlalchemy import and_, case, desc, distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import session_dependency
@@ -41,10 +41,15 @@ router = APIRouter(prefix="/v1/cpus", tags=["cpus"])
 
     - **Market Data**: Count of active listings for each CPU
 
+    **Sorting Support:**
+    - Sort by any CPU field: name, manufacturer, cores, threads, tdp_w, cpu_mark_multi, cpu_mark_single, release_year, listings_count
+    - Ascending or descending order
+    - Default: name (ascending)
+
     **Performance Notes:**
     - Analytics fields are pre-computed and stored in the CPU table for fast queries
-    - No performance penalty when `include_analytics=true` (default)
-    - Results are sorted alphabetically by CPU name
+    - Listing counts computed with efficient LEFT JOIN (no N+1 queries)
+    - Optimized for large catalogs with indexed sorting columns
 
     **Use Cases:**
     - CPU catalog browsing with price intelligence
@@ -54,6 +59,9 @@ router = APIRouter(prefix="/v1/cpus", tags=["cpus"])
 
     **Query Parameters:**
     - `include_analytics`: Set to `false` to exclude price targets and performance metrics (returns base CPU data only)
+    - `sort_by`: Field to sort by (default: "name")
+    - `sort_order`: Sort direction "asc" or "desc" (default: "asc")
+    - `only_with_listings`: Set to `true` to show only CPUs with active listings (default: false)
     """,
     response_description="List of CPUs with embedded analytics (price targets, performance value, active listings count)",
     responses={
@@ -149,41 +157,112 @@ async def list_cpus(
     include_analytics: bool = Query(
         default=True, description="Include price targets and performance metrics"
     ),
+    sort_by: str = Query(
+        default="name",
+        description="Field to sort by (name, manufacturer, cores, threads, tdp_w, cpu_mark_multi, cpu_mark_single, release_year, listings_count)",
+    ),
+    sort_order: str = Query(
+        default="asc",
+        description="Sort direction: 'asc' (ascending) or 'desc' (descending)",
+        regex="^(asc|desc)$",
+    ),
+    only_with_listings: bool = Query(
+        default=False,
+        description="Show only CPUs with active listings",
+    ),
 ) -> Sequence[CPUWithAnalytics]:
-    """List all CPUs with optional analytics data.
+    """List all CPUs with optional analytics data, sorting, and filtering.
 
-    Analytics fields are pre-computed and stored in CPU table,
-    so this query is fast even with analytics enabled.
+    Uses efficient LEFT JOIN to count listings in a single query (no N+1 problem).
+    Supports sorting by any CPU field or by listing count.
 
     Args:
         session: Async database session for queries
         include_analytics: Whether to include price targets and performance metrics (default: True)
+        sort_by: Field to sort by (default: "name")
+        sort_order: Sort direction "asc" or "desc" (default: "asc")
+        only_with_listings: Show only CPUs with active listings (default: False)
 
     Returns:
         List of CPUs with embedded analytics (price targets, performance value, listings count)
 
     Raises:
+        HTTPException(400): Invalid sort_by field
         HTTPException(500): Error listing CPUs from database
     """
     try:
-        # Query all CPUs ordered by name
-        stmt = select(Cpu).order_by(Cpu.name)
-        result = await session.execute(stmt)
-        cpus = result.scalars().all()
+        # Validate sort_by field
+        valid_sort_fields = {
+            "name",
+            "manufacturer",
+            "socket",
+            "cores",
+            "threads",
+            "tdp_w",
+            "cpu_mark_multi",
+            "cpu_mark_single",
+            "igpu_mark",
+            "release_year",
+            "listings_count",
+        }
+        if sort_by not in valid_sort_fields:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid sort_by field '{sort_by}'. Valid fields: {', '.join(sorted(valid_sort_fields))}",
+            )
 
-        cpu_with_analytics_list = []
-
-        for cpu in cpus:
-            # Count active listings for this CPU
-            count_stmt = select(func.count(Listing.id)).where(
+        # Build efficient query with LEFT JOIN to count listings
+        # This avoids N+1 queries by computing all listing counts in a single query
+        listings_count_subquery = (
+            select(
+                Listing.cpu_id,
+                func.count(Listing.id).label("listings_count"),
+            )
+            .where(
                 and_(
-                    Listing.cpu_id == cpu.id,
+                    Listing.cpu_id.isnot(None),
                     Listing.status == ListingStatus.ACTIVE.value,
                 )
             )
-            count_result = await session.execute(count_stmt)
-            listings_count = count_result.scalar() or 0
+            .group_by(Listing.cpu_id)
+            .subquery()
+        )
 
+        # Main query with LEFT JOIN to include CPUs with zero listings
+        stmt = select(
+            Cpu,
+            func.coalesce(listings_count_subquery.c.listings_count, 0).label("listings_count"),
+        ).outerjoin(
+            listings_count_subquery,
+            Cpu.id == listings_count_subquery.c.cpu_id,
+        )
+
+        # Apply filter for only_with_listings
+        if only_with_listings:
+            stmt = stmt.where(
+                func.coalesce(listings_count_subquery.c.listings_count, 0) > 0
+            )
+
+        # Apply sorting
+        if sort_by == "listings_count":
+            # Sort by computed listings_count
+            order_column = func.coalesce(listings_count_subquery.c.listings_count, 0)
+        else:
+            # Sort by CPU table column
+            order_column = getattr(Cpu, sort_by)
+
+        if sort_order == "desc":
+            stmt = stmt.order_by(desc(order_column))
+        else:
+            stmt = stmt.order_by(order_column)
+
+        # Execute query
+        result = await session.execute(stmt)
+        rows = result.all()
+
+        cpu_with_analytics_list = []
+
+        for cpu, listings_count in rows:
             # Build CPUWithAnalytics response
             cpu_dict = {
                 "id": cpu.id,
@@ -249,10 +328,13 @@ async def list_cpus(
             cpu_with_analytics_list.append(CPUWithAnalytics(**cpu_dict))
 
         logger.info(
-            f"Listed {len(cpu_with_analytics_list)} CPUs with analytics={include_analytics}"
+            f"Listed {len(cpu_with_analytics_list)} CPUs with analytics={include_analytics}, "
+            f"sort_by={sort_by}, sort_order={sort_order}, only_with_listings={only_with_listings}"
         )
         return cpu_with_analytics_list
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error listing CPUs: {e}", exc_info=True)
         raise HTTPException(

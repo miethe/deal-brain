@@ -2,7 +2,7 @@
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { useCPUCatalogStore } from "@/stores/cpu-catalog-store";
+import { useCPUCatalogStore, useSort, useFilters } from "@/stores/cpu-catalog-store";
 import { useCPUs } from "@/hooks/use-cpus";
 import { useCPUUrlSync } from "@/hooks/use-cpu-url-sync";
 import { Plus, Upload } from "lucide-react";
@@ -12,19 +12,29 @@ import { CatalogTab } from "./_components/catalog-tab";
  * CPU Catalog Main Page
  *
  * Dual-tab interface for browsing CPU catalog:
- * - Catalog Tab: Grid/List/Master-Detail views with filters (FE-003, FE-004, FE-005)
+ * - Catalog Tab: Grid/List/Master-Detail views with filters and sorting (FE-003, FE-004, FE-005)
  * - Data Tab: Legacy table view for power users
  *
  * Features:
  * - React Query integration for data fetching with analytics
- * - Zustand store for view state and tab persistence
+ * - Zustand store for view state, tab persistence, sort, and filters
  * - URL sync for shareable state (FE-007)
+ * - Server-side sorting and filtering for performance
  * - Loading and error states
  * - Accessible, responsive layout
  */
 export default function CPUsPage() {
-  // Fetch CPUs with analytics data (price targets, performance values)
-  const { data: cpus, isLoading, error } = useCPUs(true);
+  // Get sort and filter state
+  const { sort } = useSort();
+  const { filters } = useFilters();
+
+  // Fetch CPUs with analytics data, sorting, and filtering
+  const { data: cpus, isLoading, error } = useCPUs({
+    include_analytics: true,
+    sort_by: sort.sortBy,
+    sort_order: sort.sortOrder,
+    only_with_listings: filters.activeListingsOnly,
+  });
 
   // Store state management
   const activeTab = useCPUCatalogStore((state) => state.activeTab);

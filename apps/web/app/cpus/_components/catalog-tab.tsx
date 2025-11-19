@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { CPUFilters } from './cpu-filters'
+import { CPUSortControls } from './cpu-sort-controls'
 import { ViewSwitcher } from './view-switcher'
 import { GridView } from './grid-view'
 import { ListView } from './list-view'
@@ -19,14 +20,15 @@ interface CatalogTabProps {
 /**
  * CPU Catalog Tab Component
  *
- * Main container for CPU catalog views with filters and view mode switching.
+ * Main container for CPU catalog views with filters, sorting, and view mode switching.
  * Integrates:
  * - CPUFilters component for search and filtering
+ * - CPUSortControls for sorting configuration
  * - ViewSwitcher for toggling between Grid/List/Master-Detail
  * - Active view component (Grid, List, or Master-Detail)
  *
  * Features:
- * - Client-side filtering via cpu-filters
+ * - Server-side filtering and sorting via API
  * - View mode persistence via cpu-catalog-store
  * - Error boundary for graceful error handling
  * - Responsive layout
@@ -42,8 +44,9 @@ export const CatalogTab = React.memo(function CatalogTab({
       {/* Filters */}
       <CPUFilters />
 
-      {/* View Switcher */}
-      <div className="flex items-center justify-end">
+      {/* Sort Controls and View Switcher */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
+        <CPUSortControls />
         <ViewSwitcher />
       </div>
 

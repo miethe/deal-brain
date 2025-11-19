@@ -2,7 +2,7 @@
  * React Query hooks for CPU API integration
  *
  * Provides hooks for:
- * - Fetching all CPUs with optional analytics data
+ * - Fetching all CPUs with optional analytics data, sorting, and filtering
  * - Fetching detailed CPU information with market data
  * - Fetching CPU statistics for filter options
  *
@@ -13,36 +13,81 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/utils';
 import type { CPURecord, CPUDetail, CPUStatistics } from '@/types/cpus';
 
+export interface UseCPUsOptions {
+  include_analytics?: boolean;
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
+  only_with_listings?: boolean;
+}
+
 /**
- * Fetch all CPUs with optional analytics data
+ * Fetch all CPUs with optional analytics data, sorting, and filtering
  *
  * Analytics includes:
  * - Price targets (good, great, fair) with confidence levels
  * - Performance value metrics ($/PassMark ratios and percentile rankings)
  * - Active listings count per CPU
  *
+ * Sorting support:
+ * - Sort by: name, manufacturer, cores, threads, tdp_w, cpu_mark_multi, cpu_mark_single, release_year, listings_count
+ * - Sort order: asc (ascending) or desc (descending)
+ *
+ * Filtering support:
+ * - only_with_listings: Show only CPUs with active listings
+ *
  * @param include_analytics - Whether to include price targets and performance values (default: true)
+ * @param sort_by - Field to sort by (default: "name")
+ * @param sort_order - Sort direction "asc" or "desc" (default: "asc")
+ * @param only_with_listings - Show only CPUs with active listings (default: false)
  * @returns Query result with CPU records array
  *
  * @example
  * ```tsx
- * const { data: cpus, isLoading, error } = useCPUs(true);
+ * // Basic usage
+ * const { data: cpus, isLoading, error } = useCPUs();
+ *
+ * // With sorting
+ * const { data: cpus } = useCPUs({
+ *   sort_by: 'listings_count',
+ *   sort_order: 'desc',
+ * });
+ *
+ * // With filters
+ * const { data: cpus } = useCPUs({
+ *   only_with_listings: true,
+ *   sort_by: 'cpu_mark_multi',
+ *   sort_order: 'desc',
+ * });
  *
  * if (isLoading) return <LoadingSpinner />;
  * if (error) return <ErrorMessage error={error} />;
  *
- * return (
- *   <CPUTable cpus={cpus} />
- * );
+ * return <CPUTable cpus={cpus} />;
  * ```
  */
-export function useCPUs(include_analytics: boolean = true) {
+export function useCPUs(options: UseCPUsOptions = {}) {
+  const {
+    include_analytics = true,
+    sort_by = 'name',
+    sort_order = 'asc',
+    only_with_listings = false,
+  } = options;
+
   return useQuery({
-    queryKey: ['cpus', include_analytics ? 'with-analytics' : 'basic'],
+    queryKey: ['cpus', { include_analytics, sort_by, sort_order, only_with_listings }],
     queryFn: () => {
       const params = new URLSearchParams();
       if (include_analytics) {
         params.set('include_analytics', 'true');
+      }
+      if (sort_by) {
+        params.set('sort_by', sort_by);
+      }
+      if (sort_order) {
+        params.set('sort_order', sort_order);
+      }
+      if (only_with_listings) {
+        params.set('only_with_listings', 'true');
       }
       return apiFetch<CPURecord[]>(`/v1/cpus?${params}`);
     },
