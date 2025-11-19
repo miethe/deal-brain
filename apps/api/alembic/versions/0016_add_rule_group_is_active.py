@@ -4,6 +4,7 @@ Revision ID: 0016
 Revises: 0015
 Create Date: 2025-10-09 09:00:00.000000
 """
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -33,4 +34,3 @@ def upgrade():
 def downgrade():
     op.drop_index("ix_valuation_rule_group_is_active", table_name="valuation_rule_group")
     op.drop_column("valuation_rule_group", "is_active")
-

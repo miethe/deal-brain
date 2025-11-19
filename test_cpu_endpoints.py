@@ -9,17 +9,26 @@ from pathlib import Path
 api_path = Path(__file__).parent / "apps" / "api"
 sys.path.insert(0, str(api_path))
 
+
 def test_imports():
     """Test that all imports work correctly."""
     print("Testing imports...")
 
     try:
-        from dealbrain_api.api.cpus import router, list_cpus, get_cpu_detail, get_cpu_statistics, trigger_metric_recalculation
+        from dealbrain_api.api.cpus import (
+            router,
+            list_cpus,
+            get_cpu_detail,
+            get_cpu_statistics,
+            trigger_metric_recalculation,
+        )
+
         print("✓ All imports successful")
         return True
     except ImportError as e:
         print(f"✗ Import error: {e}")
         return False
+
 
 def test_router_structure():
     """Test router structure and endpoints."""
@@ -45,12 +54,18 @@ def test_router_structure():
         print(f"✗ Router error: {e}")
         return False
 
+
 def test_endpoint_signatures():
     """Test endpoint function signatures."""
     print("\nTesting endpoint signatures...")
 
     try:
-        from dealbrain_api.api.cpus import list_cpus, get_cpu_detail, get_cpu_statistics, trigger_metric_recalculation
+        from dealbrain_api.api.cpus import (
+            list_cpus,
+            get_cpu_detail,
+            get_cpu_statistics,
+            trigger_metric_recalculation,
+        )
 
         # Check list_cpus
         sig = inspect.signature(list_cpus)
@@ -73,8 +88,10 @@ def test_endpoint_signatures():
     except Exception as e:
         print(f"✗ Signature error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
+
 
 def main():
     """Run all tests."""
@@ -103,6 +120,7 @@ def main():
     else:
         print("\n✗ Some tests failed")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

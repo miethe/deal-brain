@@ -9,10 +9,10 @@ import json
 
 html_file = "/mnt/containers/deal-brain/debug_amazon.com_1fe23618.html"
 
-with open(html_file, 'r', encoding='utf-8') as f:
+with open(html_file, "r", encoding="utf-8") as f:
     html_content = f.read()
 
-soup = BeautifulSoup(html_content, 'html.parser')
+soup = BeautifulSoup(html_content, "html.parser")
 
 print("=" * 80)
 print("AMAZON PRODUCT HTML ANALYSIS")
@@ -39,35 +39,37 @@ if core_price:
     print("✓ Found #corePriceDisplay_desktop_feature_div")
 
     # Look for priceToPay
-    price_to_pay = core_price.find('span', class_='priceToPay')
+    price_to_pay = core_price.find("span", class_="priceToPay")
     if price_to_pay:
-        offscreen = price_to_pay.find('span', class_='a-offscreen')
+        offscreen = price_to_pay.find("span", class_="a-offscreen")
         if offscreen:
             price_text = offscreen.get_text(strip=True)
             print(f"  ✓ Found span.priceToPay > span.a-offscreen: {price_text}")
-            print(f"    Selector: #corePriceDisplay_desktop_feature_div span.priceToPay span.a-offscreen")
+            print(
+                f"    Selector: #corePriceDisplay_desktop_feature_div span.priceToPay span.a-offscreen"
+            )
             print(f"    Alternative: span.priceToPay span.a-offscreen")
 
     # Check for savings percentage
-    savings = core_price.find('span', class_='savingsPercentage')
+    savings = core_price.find("span", class_="savingsPercentage")
     if savings:
         print(f"  ✓ Found savings: {savings.get_text(strip=True)}")
 
 # Method 2: Check tp_price_block_total_price_ww
 tp_price = soup.find(id="tp_price_block_total_price_ww")
 if tp_price:
-    offscreen = tp_price.find('span', class_='a-offscreen')
+    offscreen = tp_price.find("span", class_="a-offscreen")
     if offscreen:
         price_text = offscreen.get_text(strip=True)
         print(f"✓ Found #tp_price_block_total_price_ww span.a-offscreen: {price_text}")
         print(f"  Selector: #tp_price_block_total_price_ww span.a-offscreen")
 
 # Method 3: Generic a-price searches
-all_prices = soup.find_all('span', class_='a-offscreen')
+all_prices = soup.find_all("span", class_="a-offscreen")
 prices_found = []
 for price_elem in all_prices:
     text = price_elem.get_text(strip=True)
-    if '$' in text and text not in prices_found:
+    if "$" in text and text not in prices_found:
         prices_found.append(text)
 
 print(f"\n  All a-offscreen prices found: {prices_found[:10]}")
@@ -75,11 +77,11 @@ print(f"\n  All a-offscreen prices found: {prices_found[:10]}")
 # 3. LIST PRICE ($419 from screenshot context, not $699)
 print("\n3. LIST PRICE (Crossed Out)")
 print("-" * 80)
-basis_price = soup.find('span', class_='basisPrice')
+basis_price = soup.find("span", class_="basisPrice")
 if basis_price:
-    price_elem = basis_price.find('span', class_='a-price')
+    price_elem = basis_price.find("span", class_="a-price")
     if price_elem:
-        offscreen = price_elem.find('span', class_='a-offscreen')
+        offscreen = price_elem.find("span", class_="a-offscreen")
         if offscreen:
             list_price = offscreen.get_text(strip=True)
             print(f"✓ Found span.basisPrice span.a-price span.a-offscreen: {list_price}")
@@ -95,16 +97,16 @@ if byline:
     print(f"  Selector: #bylineInfo")
 
     # Extract just "Beelink" from "Visit the Beelink Store"
-    match = re.search(r'Visit the (.+?) Store', brand_text)
+    match = re.search(r"Visit the (.+?) Store", brand_text)
     if match:
         print(f"  Extracted brand: {match.group(1)}")
 
 # Check product details table
-prod_details = soup.find('table', class_='prodDetTable')
+prod_details = soup.find("table", class_="prodDetTable")
 if prod_details:
-    brand_row = prod_details.find('th', string=re.compile(r'Brand', re.I))
+    brand_row = prod_details.find("th", string=re.compile(r"Brand", re.I))
     if brand_row:
-        brand_td = brand_row.find_next_sibling('td')
+        brand_td = brand_row.find_next_sibling("td")
         if brand_td:
             print(f"✓ Found in prodDetTable: {brand_td.get_text(strip=True)}")
             print(f"  Selector: table.prodDetTable th:contains('Brand') + td")
@@ -119,16 +121,16 @@ if prod_details:
 
     # Extract key specs
     specs = {}
-    for row in prod_details.find_all('tr'):
-        th = row.find('th')
-        td = row.find('td')
+    for row in prod_details.find_all("tr"):
+        th = row.find("th")
+        td = row.find("td")
         if th and td:
             key = th.get_text(strip=True)
             value = td.get_text(strip=True)
             specs[key] = value
 
     # Print relevant specs
-    relevant_keys = ['Processor', 'RAM', 'Hard Drive', 'Brand', 'Series', 'Item model number']
+    relevant_keys = ["Processor", "RAM", "Hard Drive", "Brand", "Series", "Item model number"]
     for key in relevant_keys:
         if key in specs:
             print(f"  • {key}: {specs[key]}")
@@ -138,18 +140,18 @@ print("\n6. PRODUCT IMAGES")
 print("-" * 80)
 img_wrapper = soup.find(id="imgTagWrapperId")
 if img_wrapper:
-    img = img_wrapper.find('img')
+    img = img_wrapper.find("img")
     if img:
         print(f"✓ Found main image in #imgTagWrapperId")
 
         # Check for high-res image
-        if img.get('data-old-hires'):
+        if img.get("data-old-hires"):
             print(f"  • data-old-hires: {img['data-old-hires'][:80]}...")
 
-        if img.get('data-a-dynamic-image'):
+        if img.get("data-a-dynamic-image"):
             print(f"  • data-a-dynamic-image found (JSON with multiple sizes)")
             try:
-                dynamic = json.loads(img['data-a-dynamic-image'])
+                dynamic = json.loads(img["data-a-dynamic-image"])
                 urls = list(dynamic.keys())
                 print(f"  • Available image URLs: {len(urls)}")
                 if urls:
@@ -157,15 +159,15 @@ if img_wrapper:
             except:
                 pass
 
-        if img.get('src'):
+        if img.get("src"):
             print(f"  • src: {img['src'][:80]}...")
 
 # 7. ASIN
 print("\n7. ASIN")
 print("-" * 80)
-asin_elem = soup.find('th', string=re.compile(r'ASIN', re.I))
+asin_elem = soup.find("th", string=re.compile(r"ASIN", re.I))
 if asin_elem:
-    asin_td = asin_elem.find_next_sibling('td')
+    asin_td = asin_elem.find_next_sibling("td")
     if asin_td:
         print(f"✓ Found ASIN: {asin_td.get_text(strip=True)}")
         print(f"  Selector: Look for 'ASIN' in product details table")

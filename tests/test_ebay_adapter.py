@@ -348,7 +348,10 @@ class TestApiFetching:
 
             result = await adapter._fetch_item("123456789012")
 
-            assert result["title"] == "Gaming PC Intel Core i7-12700K 16GB RAM 512GB SSD Windows 11 Pro"
+            assert (
+                result["title"]
+                == "Gaming PC Intel Core i7-12700K 16GB RAM 512GB SSD Windows 11 Pro"
+            )
             assert result["itemId"] == "v1|123456789012|0"
 
     @pytest.mark.asyncio
@@ -474,7 +477,9 @@ class TestExtractEndToEnd:
             result = await adapter.extract(url)
 
             assert isinstance(result, type(result))  # Check it's a NormalizedListingSchema
-            assert result.title == "Gaming PC Intel Core i7-12700K 16GB RAM 512GB SSD Windows 11 Pro"
+            assert (
+                result.title == "Gaming PC Intel Core i7-12700K 16GB RAM 512GB SSD Windows 11 Pro"
+            )
             assert result.price == Decimal("599.99")
             assert result.cpu_model == "Intel Core i7-12700K"
             assert result.ram_gb == 16

@@ -43,8 +43,8 @@ class ShareRepository:
     async def create_listing_share(
         self,
         listing_id: int,
-        created_by: int | None = None,
-        expires_at: datetime | None = None
+        created_by: Optional[int] = None,
+        expires_at: Optional[datetime] = None,
     ) -> ListingShare:
         """Create a new public listing share.
 
@@ -68,7 +68,7 @@ class ShareRepository:
             created_by=created_by,
             share_token=share_token,
             expires_at=expires_at,
-            view_count=0
+            view_count=0,
         )
 
         # Add to session and flush to get ID
@@ -148,8 +148,8 @@ class ShareRepository:
                     ListingShare.share_token == token,
                     or_(
                         ListingShare.expires_at.is_(None),  # Never expires
-                        ListingShare.expires_at > datetime.utcnow()  # Not expired
-                    )
+                        ListingShare.expires_at > datetime.utcnow(),  # Not expired
+                    ),
                 )
             )
         )
@@ -190,7 +190,7 @@ class ShareRepository:
             .where(
                 and_(
                     ListingShare.expires_at.isnot(None),
-                    ListingShare.expires_at <= datetime.utcnow()
+                    ListingShare.expires_at <= datetime.utcnow(),
                 )
             )
             .limit(limit)
@@ -206,8 +206,8 @@ class ShareRepository:
         sender_id: int,
         recipient_id: int,
         listing_id: int,
-        message: str | None = None,
-        expires_in_days: int = 30
+        message: Optional[str] = None,
+        expires_in_days: int = 30,
     ) -> UserShare:
         """Create a new user-to-user share.
 
@@ -234,7 +234,7 @@ class ShareRepository:
             listing_id=listing_id,
             share_token=share_token,
             message=message,
-            expires_at=expires_at
+            expires_at=expires_at,
         )
 
         # Add to session and flush to get ID
@@ -322,7 +322,7 @@ class ShareRepository:
         include_expired: bool = False,
         include_imported: bool = False,
         limit: int = 50,
-        offset: int = 0
+        offset: int = 0,
     ) -> list[UserShare]:
         """Get shares received by user with filtering.
 
@@ -373,10 +373,7 @@ class ShareRepository:
         return list(result.unique().scalars().all())
 
     async def get_user_sent_shares(
-        self,
-        user_id: int,
-        limit: int = 50,
-        offset: int = 0
+        self, user_id: int, limit: int = 50, offset: int = 0
     ) -> list[UserShare]:
         """Get shares sent by user.
 
@@ -427,7 +424,7 @@ class ShareRepository:
             .where(
                 and_(
                     UserShare.id == share_id,
-                    UserShare.viewed_at.is_(None)  # Only update if not already viewed
+                    UserShare.viewed_at.is_(None),  # Only update if not already viewed
                 )
             )
             .values(viewed_at=datetime.utcnow())
@@ -449,7 +446,7 @@ class ShareRepository:
             .where(
                 and_(
                     UserShare.id == share_id,
-                    UserShare.imported_at.is_(None)  # Only update if not already imported
+                    UserShare.imported_at.is_(None),  # Only update if not already imported
                 )
             )
             .values(imported_at=datetime.utcnow())
@@ -469,11 +466,7 @@ class ShareRepository:
         Returns:
             List of expired UserShare instances
         """
-        stmt = (
-            select(UserShare)
-            .where(UserShare.expires_at <= datetime.utcnow())
-            .limit(limit)
-        )
+        stmt = select(UserShare).where(UserShare.expires_at <= datetime.utcnow()).limit(limit)
 
         result = await self.session.execute(stmt)
         return list(result.scalars().all())

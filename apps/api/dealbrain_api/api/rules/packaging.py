@@ -14,10 +14,7 @@ from ...schemas.rules import (
     PackageInstallResponse,
 )
 from ...services.ruleset_packaging import RulesetPackagingService
-from dealbrain_core.rules.packaging import (
-    RulesetPackage,
-    create_package_metadata
-)
+from dealbrain_core.rules.packaging import RulesetPackage, create_package_metadata
 
 
 router = APIRouter()
@@ -40,7 +37,7 @@ async def export_ruleset_package(
         description=request.description or "",
         min_app_version=request.min_app_version,
         required_custom_fields=request.required_custom_fields,
-        tags=request.tags or []
+        tags=request.tags or [],
     )
 
     try:
@@ -49,15 +46,11 @@ async def export_ruleset_package(
             session=session,
             ruleset_id=ruleset_id,
             metadata=metadata,
-            include_examples=request.include_examples or False
+            include_examples=request.include_examples or False,
         )
 
         # Create temp file
-        with tempfile.NamedTemporaryFile(
-            mode='w',
-            suffix='.dbrs',
-            delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".dbrs", delete=False) as tmp:
             tmp.write(package.to_json())
             tmp_path = Path(tmp.name)
 
@@ -65,7 +58,7 @@ async def export_ruleset_package(
         return FileResponse(
             path=str(tmp_path),
             filename=f"{request.name.replace(' ', '_')}_v{request.version}.dbrs",
-            media_type="application/json"
+            media_type="application/json",
         )
 
     except ValueError as e:
@@ -87,14 +80,11 @@ async def install_ruleset_package(
     try:
         # Read package file
         content = await file.read()
-        package = RulesetPackage.from_json(content.decode('utf-8'))
+        package = RulesetPackage.from_json(content.decode("utf-8"))
 
         # Install package
         results = await service.install_package(
-            session=session,
-            package=package,
-            actor=actor,
-            merge_strategy=merge_strategy
+            session=session, package=package, actor=actor, merge_strategy=merge_strategy
         )
 
         return PackageInstallResponse(
@@ -104,7 +94,7 @@ async def install_ruleset_package(
             rulesets_updated=results["rulesets_updated"],
             rule_groups_created=results["rule_groups_created"],
             rules_created=results["rules_created"],
-            warnings=results.get("warnings", [])
+            warnings=results.get("warnings", []),
         )
 
     except ValueError as e:
@@ -129,15 +119,12 @@ async def preview_package_export(
         description=request.description or "",
         min_app_version=request.min_app_version,
         required_custom_fields=request.required_custom_fields,
-        tags=request.tags or []
+        tags=request.tags or [],
     )
 
     try:
         package = await service.export_ruleset_to_package(
-            session=session,
-            ruleset_id=ruleset_id,
-            metadata=metadata,
-            include_examples=False
+            session=session, ruleset_id=ruleset_id, metadata=metadata, include_examples=False
         )
 
         dependencies = package.get_dependencies()
@@ -151,7 +138,7 @@ async def preview_package_export(
             custom_fields_count=len(package.custom_field_definitions),
             dependencies=dependencies,
             estimated_size_kb=len(package.to_json()) / 1024,
-            readme=package.generate_readme()
+            readme=package.generate_readme(),
         )
 
     except ValueError as e:

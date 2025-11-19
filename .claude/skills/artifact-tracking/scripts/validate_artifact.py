@@ -40,7 +40,7 @@ def load_schema(artifact_type: str, schema_dir: Optional[Path] = None) -> Dict[s
     if schema_dir is None:
         # Default to ../schemas relative to this script
         script_dir = Path(__file__).parent
-        schema_dir = script_dir.parent / 'schemas'
+        schema_dir = script_dir.parent / "schemas"
 
     schema_filename = f"{artifact_type}.schema.yaml"
     schema_path = schema_dir / schema_filename
@@ -48,7 +48,7 @@ def load_schema(artifact_type: str, schema_dir: Optional[Path] = None) -> Dict[s
     if not schema_path.exists():
         raise FileNotFoundError(f"Schema not found: {schema_path}")
 
-    with open(schema_path, 'r', encoding='utf-8') as f:
+    with open(schema_path, "r", encoding="utf-8") as f:
         schema = yaml.safe_load(f)
 
     return schema
@@ -67,11 +67,11 @@ def extract_frontmatter(file_content: str) -> Optional[str]:
     import re
 
     # Check if content starts with frontmatter delimiter
-    if not file_content.strip().startswith('---'):
+    if not file_content.strip().startswith("---"):
         return None
 
     # Find the closing delimiter
-    match = re.match(r'^---\n(.*?)\n---', file_content, re.DOTALL)
+    match = re.match(r"^---\n(.*?)\n---", file_content, re.DOTALL)
     if match:
         return match.group(1)
 
@@ -135,7 +135,7 @@ def format_validation_report(
     is_valid: bool,
     errors: list[str],
     metadata: Optional[Dict[str, Any]] = None,
-    verbose: bool = False
+    verbose: bool = False,
 ) -> str:
     """
     Format a human-readable validation report.
@@ -170,15 +170,17 @@ def format_validation_report(
             lines.append(f"  Title: {metadata.get('title', 'N/A')}")
             lines.append(f"  PRD: {metadata.get('prd', 'N/A')}")
 
-            if 'phase' in metadata:
+            if "phase" in metadata:
                 lines.append(f"  Phase: {metadata.get('phase', 'N/A')}")
 
             lines.append(f"  Status: {metadata.get('status', 'N/A')}")
 
-            if artifact_type == 'progress':
+            if artifact_type == "progress":
                 lines.append(f"  Progress: {metadata.get('overall_progress', 0)}%")
-                lines.append(f"  Tasks: {metadata.get('total_tasks', 0)} total, "
-                           f"{metadata.get('completed_tasks', 0)} completed")
+                lines.append(
+                    f"  Tasks: {metadata.get('total_tasks', 0)} total, "
+                    f"{metadata.get('completed_tasks', 0)} completed"
+                )
 
     else:
         lines.append(f"\n✗ Validation failed with {len(errors)} error(s):")
@@ -211,7 +213,7 @@ def validate_artifact_file(
     filepath: Union[Path, str, StringIO],
     artifact_type: Optional[str] = None,
     schema_dir: Optional[Path] = None,
-    verbose: bool = False
+    verbose: bool = False,
 ) -> bool:
     """
     Validate an artifact file against its schema.
@@ -235,7 +237,7 @@ def validate_artifact_file(
             if not filepath.exists():
                 print(f"Error: File not found: {filepath}", file=sys.stderr)
                 return False
-            content = filepath.read_text(encoding='utf-8')
+            content = filepath.read_text(encoding="utf-8")
             filepath_display = str(filepath)
 
         # Extract frontmatter
@@ -258,10 +260,12 @@ def validate_artifact_file(
 
         # Auto-detect artifact type if not provided
         if artifact_type is None:
-            artifact_type = metadata.get('type')
+            artifact_type = metadata.get("type")
             if artifact_type is None:
-                print(f"Error: No 'type' field in frontmatter and no --artifact-type specified",
-                      file=sys.stderr)
+                print(
+                    f"Error: No 'type' field in frontmatter and no --artifact-type specified",
+                    file=sys.stderr,
+                )
                 return False
 
         # Load schema
@@ -280,12 +284,7 @@ def validate_artifact_file(
         # Print report if verbose or if validation failed
         if verbose or not is_valid:
             report = format_validation_report(
-                filepath_display,
-                artifact_type,
-                is_valid,
-                errors,
-                metadata,
-                verbose
+                filepath_display, artifact_type, is_valid, errors, metadata, verbose
             )
             print(report)
 
@@ -294,6 +293,7 @@ def validate_artifact_file(
     except Exception as e:
         print(f"Error validating {filepath}: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -316,48 +316,38 @@ Examples:
 
   # Custom schema directory
   python validate_artifact.py artifact.md --schema-dir /path/to/schemas
-        """
+        """,
+    )
+
+    parser.add_argument("artifact", type=Path, help="Path to artifact file to validate")
+
+    parser.add_argument(
+        "--artifact-type",
+        "-t",
+        choices=["progress", "context", "bug-fix", "observation"],
+        help="Type of artifact (auto-detected from frontmatter if not specified)",
     )
 
     parser.add_argument(
-        'artifact',
+        "--schema-dir",
+        "-s",
         type=Path,
-        help='Path to artifact file to validate'
+        help="Directory containing schema files (default: ../schemas)",
     )
 
     parser.add_argument(
-        '--artifact-type',
-        '-t',
-        choices=['progress', 'context', 'bug-fix', 'observation'],
-        help='Type of artifact (auto-detected from frontmatter if not specified)'
-    )
-
-    parser.add_argument(
-        '--schema-dir',
-        '-s',
-        type=Path,
-        help='Directory containing schema files (default: ../schemas)'
-    )
-
-    parser.add_argument(
-        '--verbose',
-        '-v',
-        action='store_true',
-        help='Print detailed validation report'
+        "--verbose", "-v", action="store_true", help="Print detailed validation report"
     )
 
     args = parser.parse_args()
 
     # Validate artifact
     is_valid = validate_artifact_file(
-        args.artifact,
-        args.artifact_type,
-        args.schema_dir,
-        args.verbose
+        args.artifact, args.artifact_type, args.schema_dir, args.verbose
     )
 
     sys.exit(0 if is_valid else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

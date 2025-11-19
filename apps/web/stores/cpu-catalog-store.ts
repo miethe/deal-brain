@@ -8,12 +8,16 @@ import { persist } from 'zustand/middleware';
  * - Active view mode (grid, list, master-detail)
  * - Active tab (catalog, data)
  * - Filter state (search, manufacturer, socket, cores, TDP, performance)
+ * - Sort state (sort_by, sort_order)
  * - Compare selections for Master-Detail view
  * - Dialog states for details and quick edit
  */
 
 export type ViewMode = 'grid' | 'list' | 'master-detail';
 export type TabMode = 'catalog' | 'data';
+export type SortField = 'name' | 'manufacturer' | 'cores' | 'threads' | 'tdp_w' |
+                        'cpu_mark_multi' | 'cpu_mark_single' | 'release_year' | 'listings_count';
+export type SortOrder = 'asc' | 'desc';
 
 export interface CPUFilterState {
   searchQuery: string;                    // Search CPU name
@@ -26,6 +30,11 @@ export interface CPUFilterState {
   minPassMark: number | null;             // Minimum PassMark score
   performanceRating: string | null;       // 'excellent' | 'good' | 'fair' | null
   activeListingsOnly: boolean;            // Show only CPUs with active listings (default: true)
+}
+
+export interface CPUSortState {
+  sortBy: SortField;                      // Field to sort by
+  sortOrder: SortOrder;                   // Sort direction
 }
 
 export interface CPUCatalogState {
@@ -41,6 +50,10 @@ export interface CPUCatalogState {
   filters: CPUFilterState;
   setFilters: (filters: Partial<CPUFilterState>) => void;
   clearFilters: () => void;
+
+  // Sort
+  sort: CPUSortState;
+  setSort: (sort: Partial<CPUSortState>) => void;
 
   // Compare selections (for Master-Detail view)
   compareSelections: number[]; // CPU IDs
@@ -76,6 +89,11 @@ const DEFAULT_FILTERS: CPUFilterState = {
   activeListingsOnly: true,
 };
 
+const DEFAULT_SORT: CPUSortState = {
+  sortBy: 'name',
+  sortOrder: 'asc',
+};
+
 export const useCPUCatalogStore = create<CPUCatalogState>()(
   persist(
     (set) => ({
@@ -94,6 +112,13 @@ export const useCPUCatalogStore = create<CPUCatalogState>()(
           filters: { ...state.filters, ...partialFilters },
         })),
       clearFilters: () => set({ filters: DEFAULT_FILTERS }),
+
+      // Sort
+      sort: DEFAULT_SORT,
+      setSort: (partialSort) =>
+        set((state) => ({
+          sort: { ...state.sort, ...partialSort },
+        })),
 
       // Compare selections
       compareSelections: [],
@@ -131,6 +156,7 @@ export const useCPUCatalogStore = create<CPUCatalogState>()(
         activeView: state.activeView,
         activeTab: state.activeTab,
         filters: state.filters,
+        sort: state.sort,
       }),
     }
   )
@@ -145,6 +171,16 @@ export const useFilters = () => {
   const clearFilters = useCPUCatalogStore((state) => state.clearFilters);
 
   return { filters, setFilters, clearFilters };
+};
+
+/**
+ * Custom hook for accessing sort state
+ */
+export const useSort = () => {
+  const sort = useCPUCatalogStore((state) => state.sort);
+  const setSort = useCPUCatalogStore((state) => state.setSort);
+
+  return { sort, setSort };
 };
 
 /**

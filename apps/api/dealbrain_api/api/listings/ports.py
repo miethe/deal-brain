@@ -4,6 +4,7 @@ Ports management endpoints for listings.
 Handles listing port profiles and port data.
 Extracted from monolithic listings.py for better modularity and maintainability.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -23,7 +24,7 @@ logger = get_logger("dealbrain.api.listings.ports")
 async def update_listing_ports(
     listing_id: int,
     request: UpdatePortsRequest,
-    session: AsyncSession = Depends(session_dependency)
+    session: AsyncSession = Depends(session_dependency),
 ):
     """Create or update ports for a listing.
 
@@ -49,27 +50,24 @@ async def update_listing_ports(
         logger.error(f"Database connection error in update_listing_ports (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in update_listing_ports (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in update_listing_ports (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )
 
 
 @router.get("/{listing_id}/ports", response_model=PortsResponse)
-async def get_listing_ports(
-    listing_id: int,
-    session: AsyncSession = Depends(session_dependency)
-):
+async def get_listing_ports(listing_id: int, session: AsyncSession = Depends(session_dependency)):
     """Get ports for a listing.
 
     Args:
@@ -86,17 +84,17 @@ async def get_listing_ports(
         logger.error(f"Database connection error in get_listing_ports (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in get_listing_ports (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in get_listing_ports (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )

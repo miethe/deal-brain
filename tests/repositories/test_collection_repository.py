@@ -65,11 +65,7 @@ async def repository(session: AsyncSession):
 @pytest_asyncio.fixture
 async def sample_user(session: AsyncSession):
     """Create sample user for testing."""
-    user = User(
-        username="testuser",
-        email="test@example.com",
-        display_name="Test User"
-    )
+    user = User(username="testuser", email="test@example.com", display_name="Test User")
     session.add(user)
     await session.flush()
     return user
@@ -78,11 +74,7 @@ async def sample_user(session: AsyncSession):
 @pytest_asyncio.fixture
 async def sample_listing(session: AsyncSession):
     """Create sample listing for testing."""
-    listing = Listing(
-        name="Test PC Build",
-        base_price=1000.0,
-        adjusted_price=950.0
-    )
+    listing = Listing(name="Test PC Build", base_price=1000.0, adjusted_price=950.0)
     session.add(listing)
     await session.flush()
     return listing
@@ -93,15 +85,11 @@ class TestCreateCollection:
     """Test CollectionRepository.create_collection() method."""
 
     async def test_create_minimal_collection(
-        self,
-        repository: CollectionRepository,
-        session: AsyncSession,
-        sample_user: User
+        self, repository: CollectionRepository, session: AsyncSession, sample_user: User
     ):
         """Test creating collection with minimal fields."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="My Collection"
+            user_id=sample_user.id, name="My Collection"
         )
         await session.commit()
 
@@ -114,17 +102,14 @@ class TestCreateCollection:
         assert collection.updated_at is not None
 
     async def test_create_collection_with_all_fields(
-        self,
-        repository: CollectionRepository,
-        session: AsyncSession,
-        sample_user: User
+        self, repository: CollectionRepository, session: AsyncSession, sample_user: User
     ):
         """Test creating collection with all optional fields."""
         collection = await repository.create_collection(
             user_id=sample_user.id,
             name="Public Collection",
             description="A collection of great deals",
-            visibility="public"
+            visibility="public",
         )
         await session.commit()
 
@@ -138,15 +123,11 @@ class TestGetCollectionById:
     """Test CollectionRepository.get_collection_by_id() method."""
 
     async def test_get_existing_collection(
-        self,
-        repository: CollectionRepository,
-        session: AsyncSession,
-        sample_user: User
+        self, repository: CollectionRepository, session: AsyncSession, sample_user: User
     ):
         """Test retrieving existing collection by ID."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
@@ -159,10 +140,7 @@ class TestGetCollectionById:
         assert retrieved.user is not None
         assert retrieved.user.id == sample_user.id
 
-    async def test_get_collection_nonexistent(
-        self,
-        repository: CollectionRepository
-    ):
+    async def test_get_collection_nonexistent(self, repository: CollectionRepository):
         """Test getting collection that doesn't exist."""
         retrieved = await repository.get_collection_by_id(99999)
         assert retrieved is None
@@ -172,58 +150,43 @@ class TestGetCollectionById:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test getting collection with eager-loaded items."""
         # Create collection
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
         # Add items
         for i in range(3):
-            await repository.add_item(
-                collection_id=collection.id,
-                listing_id=sample_listing.id
-            )
+            await repository.add_item(collection_id=collection.id, listing_id=sample_listing.id)
         await session.commit()
 
         # Get with items loaded
-        retrieved = await repository.get_collection_by_id(
-            collection.id,
-            load_items=True
-        )
+        retrieved = await repository.get_collection_by_id(collection.id, load_items=True)
 
         assert retrieved is not None
         assert len(retrieved.items) == 3
 
     async def test_get_collection_access_control(
-        self,
-        repository: CollectionRepository,
-        session: AsyncSession,
-        sample_user: User
+        self, repository: CollectionRepository, session: AsyncSession, sample_user: User
     ):
         """Test access control for private collections."""
         # Create collection owned by user 1
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Private Collection"
+            user_id=sample_user.id, name="Private Collection"
         )
         await session.commit()
 
         # Owner can access
-        retrieved = await repository.get_collection_by_id(
-            collection.id,
-            user_id=sample_user.id
-        )
+        retrieved = await repository.get_collection_by_id(collection.id, user_id=sample_user.id)
         assert retrieved is not None
 
         # Non-owner cannot access
         retrieved = await repository.get_collection_by_id(
-            collection.id,
-            user_id=999  # Different user
+            collection.id, user_id=999  # Different user
         )
         assert retrieved is None
 
@@ -233,39 +196,30 @@ class TestUpdateCollection:
     """Test CollectionRepository.update_collection() method."""
 
     async def test_update_collection_name(
-        self,
-        repository: CollectionRepository,
-        session: AsyncSession,
-        sample_user: User
+        self, repository: CollectionRepository, session: AsyncSession, sample_user: User
     ):
         """Test updating collection name."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Original Name"
+            user_id=sample_user.id, name="Original Name"
         )
         await session.commit()
 
         updated = await repository.update_collection(
-            collection_id=collection.id,
-            user_id=sample_user.id,
-            name="Updated Name"
+            collection_id=collection.id, user_id=sample_user.id, name="Updated Name"
         )
         await session.commit()
 
         assert updated.name == "Updated Name"
 
     async def test_update_collection_all_fields(
-        self,
-        repository: CollectionRepository,
-        session: AsyncSession,
-        sample_user: User
+        self, repository: CollectionRepository, session: AsyncSession, sample_user: User
     ):
         """Test updating all collection fields."""
         collection = await repository.create_collection(
             user_id=sample_user.id,
             name="Original Name",
             description="Original description",
-            visibility="private"
+            visibility="private",
         )
         await session.commit()
 
@@ -274,7 +228,7 @@ class TestUpdateCollection:
             user_id=sample_user.id,
             name="Updated Name",
             description="Updated description",
-            visibility="public"
+            visibility="public",
         )
         await session.commit()
 
@@ -283,37 +237,24 @@ class TestUpdateCollection:
         assert updated.visibility == "public"
 
     async def test_update_collection_access_denied(
-        self,
-        repository: CollectionRepository,
-        session: AsyncSession,
-        sample_user: User
+        self, repository: CollectionRepository, session: AsyncSession, sample_user: User
     ):
         """Test that non-owners cannot update collections."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="User 1 Collection"
+            user_id=sample_user.id, name="User 1 Collection"
         )
         await session.commit()
 
         # User 2 attempts to update
         with pytest.raises(ValueError, match="not found or access denied"):
             await repository.update_collection(
-                collection_id=collection.id,
-                user_id=999,  # Different user
-                name="Hacked Name"
+                collection_id=collection.id, user_id=999, name="Hacked Name"  # Different user
             )
 
-    async def test_update_nonexistent_collection(
-        self,
-        repository: CollectionRepository
-    ):
+    async def test_update_nonexistent_collection(self, repository: CollectionRepository):
         """Test error when updating non-existent collection."""
         with pytest.raises(ValueError, match="not found or access denied"):
-            await repository.update_collection(
-                collection_id=99999,
-                user_id=1,
-                name="New Name"
-            )
+            await repository.update_collection(collection_id=99999, user_id=1, name="New Name")
 
 
 @pytest.mark.asyncio
@@ -321,15 +262,11 @@ class TestDeleteCollection:
     """Test CollectionRepository.delete_collection() method."""
 
     async def test_delete_collection(
-        self,
-        repository: CollectionRepository,
-        session: AsyncSession,
-        sample_user: User
+        self, repository: CollectionRepository, session: AsyncSession, sample_user: User
     ):
         """Test deleting collection."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Collection to Delete"
+            user_id=sample_user.id, name="Collection to Delete"
         )
         await session.commit()
 
@@ -350,22 +287,18 @@ class TestDeleteCollection:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test that deleting collection also deletes items."""
         # Create collection
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Collection to Delete"
+            user_id=sample_user.id, name="Collection to Delete"
         )
         await session.commit()
 
         # Add items
         for i in range(3):
-            await repository.add_item(
-                collection_id=collection.id,
-                listing_id=sample_listing.id
-            )
+            await repository.add_item(collection_id=collection.id, listing_id=sample_listing.id)
         await session.commit()
 
         # Delete collection
@@ -377,15 +310,11 @@ class TestDeleteCollection:
         assert len(items) == 0
 
     async def test_delete_collection_access_denied(
-        self,
-        repository: CollectionRepository,
-        session: AsyncSession,
-        sample_user: User
+        self, repository: CollectionRepository, session: AsyncSession, sample_user: User
     ):
         """Test that non-owners cannot delete collections."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="User 1 Collection"
+            user_id=sample_user.id, name="User 1 Collection"
         )
         await session.commit()
 
@@ -399,18 +328,12 @@ class TestFindUserCollections:
     """Test CollectionRepository.find_user_collections() method."""
 
     async def test_find_user_collections(
-        self,
-        repository: CollectionRepository,
-        session: AsyncSession,
-        sample_user: User
+        self, repository: CollectionRepository, session: AsyncSession, sample_user: User
     ):
         """Test finding collections for a user."""
         # Create multiple collections
         for i in range(5):
-            await repository.create_collection(
-                user_id=sample_user.id,
-                name=f"Collection {i}"
-            )
+            await repository.create_collection(user_id=sample_user.id, name=f"Collection {i}")
         await session.commit()
 
         # Find collections
@@ -422,18 +345,12 @@ class TestFindUserCollections:
             assert collections[i].created_at >= collections[i + 1].created_at
 
     async def test_find_user_collections_with_pagination(
-        self,
-        repository: CollectionRepository,
-        session: AsyncSession,
-        sample_user: User
+        self, repository: CollectionRepository, session: AsyncSession, sample_user: User
     ):
         """Test pagination for user collections."""
         # Create 10 collections
         for i in range(10):
-            await repository.create_collection(
-                user_id=sample_user.id,
-                name=f"Collection {i}"
-            )
+            await repository.create_collection(user_id=sample_user.id, name=f"Collection {i}")
         await session.commit()
 
         # Get first page
@@ -450,10 +367,7 @@ class TestFindUserCollections:
         assert len(page1_ids & page2_ids) == 0
 
     async def test_find_user_collections_empty(
-        self,
-        repository: CollectionRepository,
-        session: AsyncSession,
-        sample_user: User
+        self, repository: CollectionRepository, session: AsyncSession, sample_user: User
     ):
         """Test finding collections for user with no collections."""
         collections = await repository.find_user_collections(sample_user.id)
@@ -469,19 +383,15 @@ class TestAddItem:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test adding item to collection."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
-        item = await repository.add_item(
-            collection_id=collection.id,
-            listing_id=sample_listing.id
-        )
+        item = await repository.add_item(collection_id=collection.id, listing_id=sample_listing.id)
         await session.commit()
 
         assert item.id is not None
@@ -496,12 +406,11 @@ class TestAddItem:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test adding item with all optional fields."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
@@ -510,7 +419,7 @@ class TestAddItem:
             listing_id=sample_listing.id,
             status="shortlisted",
             notes="Great deal!",
-            position=5
+            position=5,
         )
         await session.commit()
 
@@ -523,40 +432,32 @@ class TestAddItem:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test that duplicate items are prevented."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
         # Add item
-        await repository.add_item(
-            collection_id=collection.id,
-            listing_id=sample_listing.id
-        )
+        await repository.add_item(collection_id=collection.id, listing_id=sample_listing.id)
         await session.commit()
 
         # Attempt to add duplicate
         with pytest.raises(ValueError, match="already exists in collection"):
-            await repository.add_item(
-                collection_id=collection.id,
-                listing_id=sample_listing.id
-            )
+            await repository.add_item(collection_id=collection.id, listing_id=sample_listing.id)
 
     async def test_add_item_auto_position(
         self,
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test automatic position assignment."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
@@ -585,22 +486,18 @@ class TestUpdateItem:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test updating item status."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
         item = await repository.add_item(collection.id, sample_listing.id)
         await session.commit()
 
-        updated = await repository.update_item(
-            item_id=item.id,
-            status="shortlisted"
-        )
+        updated = await repository.update_item(item_id=item.id, status="shortlisted")
         await session.commit()
 
         assert updated.status == "shortlisted"
@@ -610,22 +507,18 @@ class TestUpdateItem:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test updating item notes."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
         item = await repository.add_item(collection.id, sample_listing.id)
         await session.commit()
 
-        updated = await repository.update_item(
-            item_id=item.id,
-            notes="This is a great deal!"
-        )
+        updated = await repository.update_item(item_id=item.id, notes="This is a great deal!")
         await session.commit()
 
         assert updated.notes == "This is a great deal!"
@@ -635,35 +528,25 @@ class TestUpdateItem:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test updating item position."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
         item = await repository.add_item(collection.id, sample_listing.id)
         await session.commit()
 
-        updated = await repository.update_item(
-            item_id=item.id,
-            position=10
-        )
+        updated = await repository.update_item(item_id=item.id, position=10)
         await session.commit()
 
         assert updated.position == 10
 
-    async def test_update_nonexistent_item(
-        self,
-        repository: CollectionRepository
-    ):
+    async def test_update_nonexistent_item(self, repository: CollectionRepository):
         """Test updating non-existent item."""
-        updated = await repository.update_item(
-            item_id=99999,
-            status="shortlisted"
-        )
+        updated = await repository.update_item(item_id=99999, status="shortlisted")
         assert updated is None
 
 
@@ -676,12 +559,11 @@ class TestRemoveItem:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test removing item from collection."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
@@ -698,14 +580,12 @@ class TestRemoveItem:
 
         # Verify item is deleted
         from sqlalchemy import select
+
         stmt = select(CollectionItem).where(CollectionItem.id == item_id)
         result = await session.execute(stmt)
         assert result.scalar_one_or_none() is None
 
-    async def test_remove_nonexistent_item(
-        self,
-        repository: CollectionRepository
-    ):
+    async def test_remove_nonexistent_item(self, repository: CollectionRepository):
         """Test removing non-existent item."""
         result = await repository.remove_item(99999)
         assert result is False
@@ -720,12 +600,11 @@ class TestGetCollectionItems:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test getting all items in collection."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
@@ -737,7 +616,7 @@ class TestGetCollectionItems:
                 listing = Listing(
                     name=f"PC Build {i+2}",
                     base_price=1000.0 + i * 100,
-                    adjusted_price=950.0 + i * 100
+                    adjusted_price=950.0 + i * 100,
                 )
                 session.add(listing)
                 await session.flush()
@@ -758,12 +637,11 @@ class TestGetCollectionItems:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test eager loading of listings."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
@@ -771,10 +649,7 @@ class TestGetCollectionItems:
         await session.commit()
 
         # Get items with listings loaded
-        items = await repository.get_collection_items(
-            collection.id,
-            load_listings=True
-        )
+        items = await repository.get_collection_items(collection.id, load_listings=True)
 
         assert len(items) == 1
         # Verify eager loading worked
@@ -791,12 +666,11 @@ class TestCheckItemExists:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test checking if item exists returns True."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
@@ -811,12 +685,11 @@ class TestCheckItemExists:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test checking if item exists returns False."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
@@ -829,15 +702,11 @@ class TestGetNextPosition:
     """Test CollectionRepository.get_next_position() method."""
 
     async def test_get_next_position_empty_collection(
-        self,
-        repository: CollectionRepository,
-        session: AsyncSession,
-        sample_user: User
+        self, repository: CollectionRepository, session: AsyncSession, sample_user: User
     ):
         """Test getting next position for empty collection."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
@@ -849,12 +718,11 @@ class TestGetNextPosition:
         repository: CollectionRepository,
         session: AsyncSession,
         sample_user: User,
-        sample_listing: Listing
+        sample_listing: Listing,
     ):
         """Test getting next position with existing items."""
         collection = await repository.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
         await session.commit()
 
@@ -866,7 +734,7 @@ class TestGetNextPosition:
                 listing = Listing(
                     name=f"PC Build {i+2}",
                     base_price=1000.0 + i * 100,
-                    adjusted_price=950.0 + i * 100
+                    adjusted_price=950.0 + i * 100,
                 )
                 session.add(listing)
                 await session.flush()

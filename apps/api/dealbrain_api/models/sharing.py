@@ -31,32 +31,28 @@ class User(Base, TimestampMixin):
     This is a basic user model to support collections and sharing features.
     Full authentication (passwords, OAuth, sessions) will be added in later phases.
     """
+
     __tablename__ = "user"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
-    email: Mapped[Optional[str]] = mapped_column(String(320), unique=True, nullable=True, index=True)
+    email: Mapped[Optional[str]] = mapped_column(
+        String(320), unique=True, nullable=True, index=True
+    )
     display_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Relationships
     collections: Mapped[list[Collection]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-        lazy="selectin"
+        back_populates="user", cascade="all, delete-orphan", lazy="selectin"
     )
     created_shares: Mapped[list[ListingShare]] = relationship(
-        back_populates="creator",
-        lazy="selectin"
+        back_populates="creator", lazy="selectin"
     )
     sent_shares: Mapped[list[UserShare]] = relationship(
-        foreign_keys="UserShare.sender_id",
-        back_populates="sender",
-        lazy="selectin"
+        foreign_keys="UserShare.sender_id", back_populates="sender", lazy="selectin"
     )
     received_shares: Mapped[list[UserShare]] = relationship(
-        foreign_keys="UserShare.recipient_id",
-        back_populates="recipient",
-        lazy="selectin"
+        foreign_keys="UserShare.recipient_id", back_populates="recipient", lazy="selectin"
     )
 
     def __repr__(self) -> str:
@@ -70,23 +66,17 @@ class ListingShare(Base):
     previewed by anyone without authentication. Includes view tracking and
     optional expiry.
     """
+
     __tablename__ = "listing_share"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     listing_id: Mapped[int] = mapped_column(
-        ForeignKey("listing.id", ondelete="CASCADE"),
-        nullable=False
+        ForeignKey("listing.id", ondelete="CASCADE"), nullable=False
     )
     created_by: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("user.id", ondelete="SET NULL"),
-        nullable=True
+        ForeignKey("user.id", ondelete="SET NULL"), nullable=True
     )
-    share_token: Mapped[str] = mapped_column(
-        String(64),
-        unique=True,
-        nullable=False,
-        index=True
-    )
+    share_token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     view_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
     expires_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
@@ -138,27 +128,20 @@ class UserShare(Base):
     Allows users to share deals directly with other users, including an optional
     message. Tracks when the share was viewed and imported to a collection.
     """
+
     __tablename__ = "user_share"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     sender_id: Mapped[int] = mapped_column(
-        ForeignKey("user.id", ondelete="CASCADE"),
-        nullable=False
+        ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
     recipient_id: Mapped[int] = mapped_column(
-        ForeignKey("user.id", ondelete="CASCADE"),
-        nullable=False
+        ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
     listing_id: Mapped[int] = mapped_column(
-        ForeignKey("listing.id", ondelete="CASCADE"),
-        nullable=False
+        ForeignKey("listing.id", ondelete="CASCADE"), nullable=False
     )
-    share_token: Mapped[str] = mapped_column(
-        String(64),
-        unique=True,
-        nullable=False,
-        index=True
-    )
+    share_token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     shared_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(nullable=False)
@@ -168,14 +151,10 @@ class UserShare(Base):
 
     # Relationships
     sender: Mapped[User] = relationship(
-        foreign_keys=[sender_id],
-        back_populates="sent_shares",
-        lazy="joined"
+        foreign_keys=[sender_id], back_populates="sent_shares", lazy="joined"
     )
     recipient: Mapped[User] = relationship(
-        foreign_keys=[recipient_id],
-        back_populates="received_shares",
-        lazy="joined"
+        foreign_keys=[recipient_id], back_populates="received_shares", lazy="joined"
     )
     listing: Mapped[Listing] = relationship(back_populates="user_shares", lazy="joined")
 
@@ -255,6 +234,7 @@ class Collection(Base, TimestampMixin):
     and visibility controls. Collections can be private, unlisted (shareable
     via link), or public.
     """
+
     __tablename__ = "collection"
     __table_args__ = (
         # Composite index for user's collections filtered by visibility
@@ -274,9 +254,7 @@ class Collection(Base, TimestampMixin):
     # Relationships
     user: Mapped[User] = relationship(back_populates="collections", lazy="joined")
     items: Mapped[list[CollectionItem]] = relationship(
-        back_populates="collection",
-        cascade="all, delete-orphan",
-        lazy="selectin"
+        back_populates="collection", cascade="all, delete-orphan", lazy="selectin"
     )
     share_tokens: Mapped[list["CollectionShareToken"]] = relationship(
         back_populates="collection",
@@ -316,16 +294,15 @@ class CollectionItem(Base, TimestampMixin):
     - User notes
     - Position-based ordering for drag-and-drop support
     """
+
     __tablename__ = "collection_item"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     collection_id: Mapped[int] = mapped_column(
-        ForeignKey("collection.id", ondelete="CASCADE"),
-        nullable=False
+        ForeignKey("collection.id", ondelete="CASCADE"), nullable=False
     )
     listing_id: Mapped[int] = mapped_column(
-        ForeignKey("listing.id", ondelete="CASCADE"),
-        nullable=False
+        ForeignKey("listing.id", ondelete="CASCADE"), nullable=False
     )
     status: Mapped[str] = mapped_column(String(20), default="undecided", nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

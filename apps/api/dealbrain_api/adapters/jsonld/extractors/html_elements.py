@@ -278,9 +278,7 @@ class HtmlElementExtractor:
 
         return title
 
-    def _extract_price(
-        self, soup: BeautifulSoup, title: str, url: str, html: str
-    ) -> float | None:
+    def _extract_price(self, soup: BeautifulSoup, title: str, url: str, html: str) -> float | None:
         """
         Extract price from HTML using multiple strategies.
 
@@ -331,7 +329,9 @@ class HtmlElementExtractor:
                 )
             if offscreen_price:
                 price_str = offscreen_price.get_text(strip=True)
-                logger.debug(f"  [Price]   Found element, text='{price_str}' (length={len(price_str)})")
+                logger.debug(
+                    f"  [Price]   Found element, text='{price_str}' (length={len(price_str)})"
+                )
                 if price_str:
                     price = self._parse_price(price_str)
                     if price:
@@ -345,11 +345,15 @@ class HtmlElementExtractor:
 
         # Priority 2a: tp_price_block (Amazon 2024-2025 pattern)
         if not price:
-            logger.debug("  [Price] Testing Priority 2a: #tp_price_block_total_price_ww span.a-offscreen")
+            logger.debug(
+                "  [Price] Testing Priority 2a: #tp_price_block_total_price_ww span.a-offscreen"
+            )
             tp_price = soup.select_one("#tp_price_block_total_price_ww span.a-offscreen")
             if tp_price:
                 price_str = tp_price.get_text(strip=True)
-                logger.debug(f"  [Price]   Found element, text='{price_str}' (length={len(price_str)})")
+                logger.debug(
+                    f"  [Price]   Found element, text='{price_str}' (length={len(price_str)})"
+                )
                 if price_str:
                     price = self._parse_price(price_str)
                     if price:
@@ -367,7 +371,9 @@ class HtmlElementExtractor:
             offscreen_price = soup.select_one("span.a-price > span.a-offscreen")
             if offscreen_price:
                 price_str = offscreen_price.get_text(strip=True)
-                logger.debug(f"  [Price]   Found element, text='{price_str}' (length={len(price_str)})")
+                logger.debug(
+                    f"  [Price]   Found element, text='{price_str}' (length={len(price_str)})"
+                )
                 if price_str:
                     price = self._parse_price(price_str)
                     if price:
@@ -397,7 +403,9 @@ class HtmlElementExtractor:
         price = None
 
         # Priority 3a: Generic a-price offscreen with intermediate wrapper
-        logger.debug("  [Price] Testing Priority 3a: span.a-price span.a-price-whole span.a-offscreen")
+        logger.debug(
+            "  [Price] Testing Priority 3a: span.a-price span.a-price-whole span.a-offscreen"
+        )
         element = soup.select_one("span.a-price span.a-price-whole span.a-offscreen")
         if element:
             price_str = element.get_text(strip=True)

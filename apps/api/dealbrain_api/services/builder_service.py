@@ -114,11 +114,13 @@ class BuilderService:
         if cpu.cpu_mark_multi and cpu.cpu_mark_multi > 0:
             # Rough estimation using CPU_PRICE_PER_MARK per PassMark point
             cpu_price = Decimal(str(cpu.cpu_mark_multi)) * CPU_PRICE_PER_MARK
-        component_breakdown.append({
-            "type": "CPU",
-            "name": cpu.name,
-            "price": float(cpu_price),
-        })
+        component_breakdown.append(
+            {
+                "type": "CPU",
+                "name": cpu.name,
+                "price": float(cpu_price),
+            }
+        )
         base_price += cpu_price
 
         # GPU price estimation (if present)
@@ -127,11 +129,13 @@ class BuilderService:
             if gpu.gpu_mark and gpu.gpu_mark > 0:
                 # Rough estimation using GPU_PRICE_PER_MARK per GPU Mark point
                 gpu_price = Decimal(str(gpu.gpu_mark)) * GPU_PRICE_PER_MARK
-            component_breakdown.append({
-                "type": "GPU",
-                "name": gpu.name,
-                "price": float(gpu_price),
-            })
+            component_breakdown.append(
+                {
+                    "type": "GPU",
+                    "name": gpu.name,
+                    "price": float(gpu_price),
+                }
+            )
             base_price += gpu_price
 
         # For Phase 3, we'll use a simple valuation model
@@ -165,9 +169,7 @@ class BuilderService:
             "breakdown": breakdown,
         }
 
-    async def calculate_build_metrics(
-        self, cpu_id: int, adjusted_price: Decimal
-    ) -> Dict[str, Any]:
+    async def calculate_build_metrics(self, cpu_id: int, adjusted_price: Decimal) -> Dict[str, Any]:
         """Calculate performance metrics for a build.
 
         Fetches CPU benchmark data and calculates price-per-performance metrics
@@ -206,14 +208,10 @@ class BuilderService:
         dollar_per_cpu_mark_single = None
 
         if cpu_mark_multi and cpu_mark_multi > 0:
-            dollar_per_cpu_mark_multi = dollar_per_metric(
-                price_float, float(cpu_mark_multi)
-            )
+            dollar_per_cpu_mark_multi = dollar_per_metric(price_float, float(cpu_mark_multi))
 
         if cpu_mark_single and cpu_mark_single > 0:
-            dollar_per_cpu_mark_single = dollar_per_metric(
-                price_float, float(cpu_mark_single)
-            )
+            dollar_per_cpu_mark_single = dollar_per_metric(price_float, float(cpu_mark_single))
 
         # Composite score calculation (simplified for Phase 3)
         # In Phase 4, this will use the full scoring profile system
@@ -288,8 +286,7 @@ class BuilderService:
         visibility = request.get("visibility", "private")
         if visibility not in ["private", "public", "unlisted"]:
             raise ValueError(
-                f"Invalid visibility: {visibility}. "
-                "Must be 'private', 'public', or 'unlisted'"
+                f"Invalid visibility: {visibility}. " "Must be 'private', 'public', or 'unlisted'"
             )
 
         components = request.get("components", {})
@@ -502,15 +499,17 @@ class BuilderService:
             elif adjusted_price > price * Decimal("1.10"):
                 deal_quality = "premium"
 
-            comparisons.append({
-                "listing_id": listing.id,
-                "name": listing.title,
-                "price": price,
-                "adjusted_price": adjusted_price,
-                "deal_quality": deal_quality,
-                "price_difference": price_difference,
-                "similarity_score": similarity_score,
-            })
+            comparisons.append(
+                {
+                    "listing_id": listing.id,
+                    "name": listing.title,
+                    "price": price,
+                    "adjusted_price": adjusted_price,
+                    "deal_quality": deal_quality,
+                    "price_difference": price_difference,
+                    "similarity_score": similarity_score,
+                }
+            )
 
         # Sort by similarity score (highest first)
         comparisons.sort(key=lambda x: x["similarity_score"], reverse=True)

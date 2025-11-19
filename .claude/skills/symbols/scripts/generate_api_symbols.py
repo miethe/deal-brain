@@ -24,11 +24,7 @@ from typing import Dict, List, Any
 # Add parent directory to path to import extract_symbols_python
 sys.path.insert(0, str(Path(__file__).parent))
 
-from extract_symbols_python import (
-    extract_symbols_from_directory,
-    Symbol,
-    categorize_file
-)
+from extract_symbols_python import extract_symbols_from_directory, Symbol, categorize_file
 
 
 def separate_symbols_by_category(symbols: List[Symbol]) -> Dict[str, List[Symbol]]:
@@ -38,31 +34,23 @@ def separate_symbols_by_category(symbols: List[Symbol]) -> Dict[str, List[Symbol
     Returns:
         Dict with keys: 'business_logic', 'test', 'script'
     """
-    categorized = {
-        'business_logic': [],
-        'test': [],
-        'script': []
-    }
+    categorized = {"business_logic": [], "test": [], "script": []}
 
     for symbol in symbols:
         category = symbol.file_category
 
-        if category == 'test':
-            categorized['test'].append(symbol)
-        elif category in ['script', 'migration', 'config']:
-            categorized['script'].append(symbol)
+        if category == "test":
+            categorized["test"].append(symbol)
+        elif category in ["script", "migration", "config"]:
+            categorized["script"].append(symbol)
         else:
             # router, service, repository, schema, business_logic
-            categorized['business_logic'].append(symbol)
+            categorized["business_logic"].append(symbol)
 
     return categorized
 
 
-def symbols_to_output_format(
-    symbols: List[Symbol],
-    domain: str,
-    category: str
-) -> Dict[str, Any]:
+def symbols_to_output_format(symbols: List[Symbol], domain: str, category: str) -> Dict[str, Any]:
     """Convert symbols to output format grouped by file path."""
     # Group symbols by file path
     modules = defaultdict(list)
@@ -93,10 +81,7 @@ def symbols_to_output_format(
     # Build output structure
     module_list = []
     for path, syms in sorted(modules.items()):
-        module_list.append({
-            "path": path,
-            "symbols": syms
-        })
+        module_list.append({"path": path, "symbols": syms})
 
     return {
         "version": "1.0",
@@ -105,7 +90,7 @@ def symbols_to_output_format(
         "language": "python",
         "totalModules": len(module_list),
         "totalSymbols": len(symbols),
-        "modules": module_list
+        "modules": module_list,
     }
 
 
@@ -114,12 +99,16 @@ def main():
     # Try to load configuration
     try:
         from config import get_config
+
         config = get_config()
 
         # Get extraction directories from config
         extraction_dirs = config.get_extraction_directories("python")
         if not extraction_dirs:
-            print("Warning: No Python extraction directories configured, using default", file=sys.stderr)
+            print(
+                "Warning: No Python extraction directories configured, using default",
+                file=sys.stderr,
+            )
             extraction_dirs = None
 
         # Get output directory from config
@@ -153,9 +142,7 @@ def main():
 
         # Extract all symbols (including tests)
         dir_symbols = extract_symbols_from_directory(
-            api_dir,
-            exclude_tests=False,
-            exclude_private=False
+            api_dir, exclude_tests=False, exclude_private=False
         )
         all_symbols.extend(dir_symbols)
 
@@ -177,9 +164,9 @@ def main():
 
     # Generate artifact files
     artifacts = {
-        'symbols-api.json': ('api', 'business_logic', categorized['business_logic']),
-        'symbols-api-tests.json': ('api', 'test', categorized['test']),
-        'symbols-api-scripts.json': ('api', 'script', categorized['script']),
+        "symbols-api.json": ("api", "business_logic", categorized["business_logic"]),
+        "symbols-api-tests.json": ("api", "test", categorized["test"]),
+        "symbols-api-scripts.json": ("api", "script", categorized["script"]),
     }
 
     for filename, (domain, category, symbols) in artifacts.items():
@@ -190,14 +177,16 @@ def main():
         output_file = output_dir / filename
         output_data = symbols_to_output_format(symbols, domain, category)
 
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             json.dump(output_data, f, indent=2)
 
         file_size = output_file.stat().st_size / 1024
-        print(f"✓ Generated {filename} ({file_size:.1f}KB, {len(symbols)} symbols)", file=sys.stderr)
+        print(
+            f"✓ Generated {filename} ({file_size:.1f}KB, {len(symbols)} symbols)", file=sys.stderr
+        )
 
     print("\nSymbol extraction complete!", file=sys.stderr)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

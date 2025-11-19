@@ -1,4 +1,3 @@
-
 """Drop all tables and custom enums from the app's database."""
 
 import sys
@@ -12,7 +11,7 @@ from sqlalchemy import create_engine, MetaData, text
 
 # Ensure apps/api is in sys.path for module resolution
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-API_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
+API_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 if API_DIR not in sys.path:
     sys.path.insert(0, API_DIR)
 
@@ -22,17 +21,21 @@ except ImportError:
     # Fallback for direct script execution
     from apps.api.dealbrain_api.settings import get_settings
 
+
 def drop_all_tables(engine):
     meta = MetaData()
     meta.reflect(bind=engine)
     meta.drop_all(bind=engine)
     print("All tables dropped.")
 
+
 def drop_all_enums(engine):
     # Only works for PostgreSQL
     with engine.connect() as conn:
         # Use PL/pgSQL block to properly drop all enums with proper quoting
-        conn.execute(text("""
+        conn.execute(
+            text(
+                """
             DO $$
             DECLARE
                 r RECORD;
@@ -48,9 +51,12 @@ def drop_all_enums(engine):
                     EXECUTE 'DROP TYPE IF EXISTS ' || quote_ident(r.nspname) || '.' || quote_ident(r.typname) || ' CASCADE';
                 END LOOP;
             END $$;
-        """))
+        """
+            )
+        )
         conn.commit()
         print("All enum types dropped.")
+
 
 def main():
     settings = get_settings()
@@ -64,6 +70,7 @@ def main():
     print("Dropping all enums...")
     drop_all_enums(engine)
     print("Done.")
+
 
 if __name__ == "__main__":
     main()

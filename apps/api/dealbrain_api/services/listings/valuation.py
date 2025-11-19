@@ -26,6 +26,7 @@ VALUATION_DISABLED_RULESETS_KEY = "valuation_disabled_rulesets"
 
 def _format_rule_evaluation_breakdown(summary: dict[str, Any]) -> dict[str, Any]:
     """Normalize rule evaluation summary for storage on the listing record."""
+
     def _as_float(value: Any) -> float:
         try:
             return float(value) if value is not None else 0.0
@@ -269,10 +270,9 @@ async def apply_listing_metrics(session: AsyncSession, listing: Listing) -> None
         "listing.metrics.computed",
         listing_id=listing.id,
         adjusted_price=float(listing.adjusted_price_usd or 0.0),
-        score_composite=
-        float(listing.score_composite or 0.0)
-        if listing.score_composite is not None
-        else None,
+        score_composite=(
+            float(listing.score_composite or 0.0) if listing.score_composite is not None else None
+        ),
         ruleset_id=listing.ruleset_id,
     )
 

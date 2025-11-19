@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from typing import Iterable, Sequence
 
 from dealbrain_core.enums import ListingStatus
 from sqlalchemy import select
 
 from ..db import dispose_engine, session_scope
+from ..events import EventType, publish_event
 from ..models import Listing
 from ..services.listings import apply_listing_metrics
 from ..telemetry import bind_request_context, clear_context, get_logger, new_request_id
@@ -90,6 +92,17 @@ async def _recalculate_listings_async(
         failed=counters["failed"],
         ruleset_id=ruleset_id,
     )
+
+    # Publish SSE event for recalculated listings (if any succeeded)
+    if counters["succeeded"] > 0 and listing_ids:
+        await publish_event(
+            EventType.VALUATION_RECALCULATED,
+            {
+                "listing_ids": list(listing_ids),
+                "timestamp": datetime.utcnow().isoformat(),
+            },
+        )
+
     return counters
 
 

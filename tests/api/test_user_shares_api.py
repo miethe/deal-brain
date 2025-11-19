@@ -85,11 +85,7 @@ def client(app):
 @pytest_asyncio.fixture
 async def sender_user(db_session):
     """Create a sender user."""
-    user = User(
-        username="sender",
-        email="sender@example.com",
-        display_name="Sender User"
-    )
+    user = User(username="sender", email="sender@example.com", display_name="Sender User")
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
@@ -99,11 +95,7 @@ async def sender_user(db_session):
 @pytest_asyncio.fixture
 async def recipient_user(db_session):
     """Create a recipient user."""
-    user = User(
-        username="recipient",
-        email="recipient@example.com",
-        display_name="Recipient User"
-    )
+    user = User(username="recipient", email="recipient@example.com", display_name="Recipient User")
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
@@ -113,11 +105,7 @@ async def recipient_user(db_session):
 @pytest_asyncio.fixture
 async def other_user(db_session):
     """Create another user for authorization tests."""
-    user = User(
-        username="other",
-        email="other@example.com",
-        display_name="Other User"
-    )
+    user = User(username="other", email="other@example.com", display_name="Other User")
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
@@ -127,11 +115,7 @@ async def other_user(db_session):
 @pytest_asyncio.fixture
 async def test_listing(db_session):
     """Create a test listing."""
-    listing = Listing(
-        title="Gaming PC Deal",
-        price_usd=799.99,
-        quality="complete"
-    )
+    listing = Listing(title="Gaming PC Deal", price_usd=799.99, quality="complete")
     db_session.add(listing)
     await db_session.commit()
     await db_session.refresh(listing)
@@ -141,11 +125,7 @@ async def test_listing(db_session):
 @pytest_asyncio.fixture
 async def another_listing(db_session):
     """Create another test listing."""
-    listing = Listing(
-        title="Office PC Deal",
-        price_usd=499.99,
-        quality="complete"
-    )
+    listing = Listing(title="Office PC Deal", price_usd=499.99, quality="complete")
     db_session.add(listing)
     await db_session.commit()
     await db_session.refresh(listing)
@@ -159,7 +139,7 @@ async def default_collection(db_session, recipient_user):
         user_id=recipient_user.id,
         name="My Deals",
         description="Default collection",
-        visibility="private"
+        visibility="private",
     )
     db_session.add(collection)
     await db_session.commit()
@@ -174,7 +154,7 @@ async def custom_collection(db_session, recipient_user):
         user_id=recipient_user.id,
         name="Gaming Deals",
         description="Gaming PC deals",
-        visibility="private"
+        visibility="private",
     )
     db_session.add(collection)
     await db_session.commit()
@@ -191,7 +171,7 @@ async def active_user_share(db_session, sender_user, recipient_user, test_listin
         listing_id=test_listing.id,
         share_token=UserShare.generate_token(),
         message="Check out this deal!",
-        expires_at=datetime.utcnow() + timedelta(days=30)
+        expires_at=datetime.utcnow() + timedelta(days=30),
     )
     db_session.add(share)
     await db_session.commit()
@@ -209,7 +189,7 @@ async def viewed_share(db_session, sender_user, recipient_user, test_listing):
         share_token=UserShare.generate_token(),
         message="Another deal",
         expires_at=datetime.utcnow() + timedelta(days=30),
-        viewed_at=datetime.utcnow()
+        viewed_at=datetime.utcnow(),
     )
     db_session.add(share)
     await db_session.commit()
@@ -226,7 +206,7 @@ async def expired_share(db_session, sender_user, recipient_user, test_listing):
         listing_id=test_listing.id,
         share_token=UserShare.generate_token(),
         message="Expired deal",
-        expires_at=datetime.utcnow() - timedelta(days=1)
+        expires_at=datetime.utcnow() - timedelta(days=1),
     )
     db_session.add(share)
     await db_session.commit()
@@ -252,12 +232,14 @@ def test_create_user_share_success(app, client, sender_user, recipient_user, tes
     from dealbrain_api.api.user_shares import get_current_user
 
     # Override auth to use sender
-    app.dependency_overrides[get_current_user] = mock_current_user(sender_user.id, sender_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        sender_user.id, sender_user.username
+    )
 
     payload = {
         "recipient_id": recipient_user.id,
         "listing_id": test_listing.id,
-        "message": "Check this out!"
+        "message": "Check this out!",
     }
 
     response = client.post("/v1/user-shares", json=payload)
@@ -279,12 +261,11 @@ def test_create_user_share_without_message(app, client, sender_user, recipient_u
     """Test POST /user-shares - Message is optional."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(sender_user.id, sender_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        sender_user.id, sender_user.username
+    )
 
-    payload = {
-        "recipient_id": recipient_user.id,
-        "listing_id": test_listing.id
-    }
+    payload = {"recipient_id": recipient_user.id, "listing_id": test_listing.id}
 
     response = client.post("/v1/user-shares", json=payload)
 
@@ -297,12 +278,14 @@ def test_create_user_share_recipient_not_found(app, client, sender_user, test_li
     """Test POST /user-shares - Invalid recipient_id returns 400."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(sender_user.id, sender_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        sender_user.id, sender_user.username
+    )
 
     payload = {
         "recipient_id": 99999,  # Nonexistent user
         "listing_id": test_listing.id,
-        "message": "Test"
+        "message": "Test",
     }
 
     response = client.post("/v1/user-shares", json=payload)
@@ -316,12 +299,14 @@ def test_create_user_share_listing_not_found(app, client, sender_user, recipient
     """Test POST /user-shares - Invalid listing_id returns 400."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(sender_user.id, sender_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        sender_user.id, sender_user.username
+    )
 
     payload = {
         "recipient_id": recipient_user.id,
         "listing_id": 99999,  # Nonexistent listing
-        "message": "Test"
+        "message": "Test",
     }
 
     response = client.post("/v1/user-shares", json=payload)
@@ -335,13 +320,11 @@ def test_create_user_share_rate_limit(app, client, sender_user, recipient_user, 
     """Test POST /user-shares - Rate limit enforced (10 shares/hour)."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(sender_user.id, sender_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        sender_user.id, sender_user.username
+    )
 
-    payload = {
-        "recipient_id": recipient_user.id,
-        "listing_id": test_listing.id,
-        "message": "Test"
-    }
+    payload = {"recipient_id": recipient_user.id, "listing_id": test_listing.id, "message": "Test"}
 
     # Create 10 shares (should succeed)
     for i in range(10):
@@ -355,16 +338,17 @@ def test_create_user_share_rate_limit(app, client, sender_user, recipient_user, 
     assert "rate limit" in data["detail"].lower() or "exceeded" in data["detail"].lower()
 
 
-def test_create_user_share_generates_unique_token(app, client, sender_user, recipient_user, test_listing):
+def test_create_user_share_generates_unique_token(
+    app, client, sender_user, recipient_user, test_listing
+):
     """Test POST /user-shares - Each share gets unique token."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(sender_user.id, sender_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        sender_user.id, sender_user.username
+    )
 
-    payload = {
-        "recipient_id": recipient_user.id,
-        "listing_id": test_listing.id
-    }
+    payload = {"recipient_id": recipient_user.id, "listing_id": test_listing.id}
 
     # Create 5 shares
     tokens = []
@@ -381,13 +365,11 @@ def test_create_user_share_response_schema(app, client, sender_user, recipient_u
     """Test POST /user-shares - Response matches UserShareRead schema."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(sender_user.id, sender_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        sender_user.id, sender_user.username
+    )
 
-    payload = {
-        "recipient_id": recipient_user.id,
-        "listing_id": test_listing.id,
-        "message": "Test"
-    }
+    payload = {"recipient_id": recipient_user.id, "listing_id": test_listing.id, "message": "Test"}
 
     response = client.post("/v1/user-shares", json=payload)
 
@@ -396,9 +378,19 @@ def test_create_user_share_response_schema(app, client, sender_user, recipient_u
 
     # Verify all required fields
     required_fields = [
-        "id", "sender_id", "recipient_id", "listing_id", "share_token",
-        "message", "shared_at", "expires_at", "viewed_at", "imported_at",
-        "is_expired", "is_viewed", "is_imported"
+        "id",
+        "sender_id",
+        "recipient_id",
+        "listing_id",
+        "share_token",
+        "message",
+        "shared_at",
+        "expires_at",
+        "viewed_at",
+        "imported_at",
+        "is_expired",
+        "is_viewed",
+        "is_imported",
     ]
     for field in required_fields:
         assert field in data
@@ -411,7 +403,9 @@ def test_list_user_shares_empty(app, client, recipient_user):
     """Test GET /user-shares - Empty inbox."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     response = client.get("/v1/user-shares")
 
@@ -422,7 +416,9 @@ def test_list_user_shares_empty(app, client, recipient_user):
 
 
 @pytest.mark.asyncio
-async def test_list_user_shares_pagination(app, client, sender_user, recipient_user, test_listing, db_session):
+async def test_list_user_shares_pagination(
+    app, client, sender_user, recipient_user, test_listing, db_session
+):
     """Test GET /user-shares - Pagination works correctly."""
     from dealbrain_api.api.user_shares import get_current_user
 
@@ -433,12 +429,14 @@ async def test_list_user_shares_pagination(app, client, sender_user, recipient_u
             recipient_id=recipient_user.id,
             listing_id=test_listing.id,
             share_token=f"token_{i:02d}_" + UserShare.generate_token()[:50],
-            expires_at=datetime.utcnow() + timedelta(days=30)
+            expires_at=datetime.utcnow() + timedelta(days=30),
         )
         db_session.add(share)
     await db_session.commit()
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     # Get first page (limit 10)
     response = client.get("/v1/user-shares?limit=10&skip=0")
@@ -458,11 +456,15 @@ async def test_list_user_shares_pagination(app, client, sender_user, recipient_u
     assert len(page1_ids & page2_ids) == 0
 
 
-def test_list_user_shares_filter_unviewed(app, client, recipient_user, active_user_share, viewed_share):
+def test_list_user_shares_filter_unviewed(
+    app, client, recipient_user, active_user_share, viewed_share
+):
     """Test GET /user-shares - Filter=unviewed shows only unviewed."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     response = client.get("/v1/user-shares?filter=unviewed")
 
@@ -477,7 +479,9 @@ def test_list_user_shares_filter_all(app, client, recipient_user, active_user_sh
     """Test GET /user-shares - Filter=all shows all shares."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     response = client.get("/v1/user-shares?filter=all")
 
@@ -486,11 +490,15 @@ def test_list_user_shares_filter_all(app, client, recipient_user, active_user_sh
     assert len(data) >= 2  # At least active and viewed
 
 
-def test_list_user_shares_excludes_expired(app, client, recipient_user, active_user_share, expired_share):
+def test_list_user_shares_excludes_expired(
+    app, client, recipient_user, active_user_share, expired_share
+):
     """Test GET /user-shares - Expired shares excluded by default."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     response = client.get("/v1/user-shares?filter=unviewed")
 
@@ -503,7 +511,9 @@ def test_list_user_shares_excludes_expired(app, client, recipient_user, active_u
 
 
 @pytest.mark.asyncio
-async def test_list_user_shares_ordered_by_date(app, client, sender_user, recipient_user, test_listing, db_session):
+async def test_list_user_shares_ordered_by_date(
+    app, client, sender_user, recipient_user, test_listing, db_session
+):
     """Test GET /user-shares - Shares ordered by shared_at DESC (newest first)."""
     from dealbrain_api.api.user_shares import get_current_user
 
@@ -514,7 +524,7 @@ async def test_list_user_shares_ordered_by_date(app, client, sender_user, recipi
         listing_id=test_listing.id,
         share_token=UserShare.generate_token(),
         shared_at=datetime.utcnow() - timedelta(hours=2),
-        expires_at=datetime.utcnow() + timedelta(days=30)
+        expires_at=datetime.utcnow() + timedelta(days=30),
     )
     share2 = UserShare(
         sender_id=sender_user.id,
@@ -522,7 +532,7 @@ async def test_list_user_shares_ordered_by_date(app, client, sender_user, recipi
         listing_id=test_listing.id,
         share_token=UserShare.generate_token(),
         shared_at=datetime.utcnow() - timedelta(hours=1),
-        expires_at=datetime.utcnow() + timedelta(days=30)
+        expires_at=datetime.utcnow() + timedelta(days=30),
     )
     share3 = UserShare(
         sender_id=sender_user.id,
@@ -530,12 +540,14 @@ async def test_list_user_shares_ordered_by_date(app, client, sender_user, recipi
         listing_id=test_listing.id,
         share_token=UserShare.generate_token(),
         shared_at=datetime.utcnow(),
-        expires_at=datetime.utcnow() + timedelta(days=30)
+        expires_at=datetime.utcnow() + timedelta(days=30),
     )
     db_session.add_all([share1, share2, share3])
     await db_session.commit()
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     response = client.get("/v1/user-shares?filter=all")
 
@@ -583,7 +595,9 @@ def test_preview_user_share_marks_viewed(app, client, active_user_share, recipie
     """Test GET /user-shares/{token} - Marks as viewed when recipient views."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     # Initial state: not viewed
     assert active_user_share.viewed_at is None
@@ -612,7 +626,9 @@ def test_preview_user_share_wrong_user_no_mark(app, client, active_user_share, o
     from dealbrain_api.api.user_shares import get_current_user
 
     # Authenticate as other_user (not recipient)
-    app.dependency_overrides[get_current_user] = mock_current_user(other_user.id, other_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        other_user.id, other_user.username
+    )
 
     response = client.get(f"/v1/user-shares/{active_user_share.share_token}")
 
@@ -625,11 +641,15 @@ def test_preview_user_share_wrong_user_no_mark(app, client, active_user_share, o
 # ==================== POST /user-shares/{token}/import Tests ====================
 
 
-def test_import_user_share_success(app, client, active_user_share, recipient_user, custom_collection):
+def test_import_user_share_success(
+    app, client, active_user_share, recipient_user, custom_collection
+):
     """Test POST /user-shares/{token}/import - Imports to specified collection."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     payload = {"collection_id": custom_collection.id}
 
@@ -644,11 +664,15 @@ def test_import_user_share_success(app, client, active_user_share, recipient_use
     assert "Check out this deal!" in data["notes"]
 
 
-def test_import_user_share_default_collection(app, client, active_user_share, recipient_user, default_collection):
+def test_import_user_share_default_collection(
+    app, client, active_user_share, recipient_user, default_collection
+):
     """Test POST /user-shares/{token}/import - Uses default collection if not specified."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     # Don't specify collection_id
     payload = {}
@@ -663,17 +687,21 @@ def test_import_user_share_default_collection(app, client, active_user_share, re
 
 
 @pytest.mark.asyncio
-async def test_import_user_share_duplicate(app, client, active_user_share, recipient_user, custom_collection, db_session):
+async def test_import_user_share_duplicate(
+    app, client, active_user_share, recipient_user, custom_collection, db_session
+):
     """Test POST /user-shares/{token}/import - Returns 409 if already in collection."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     # Add listing to collection first
     item = CollectionItem(
         collection_id=custom_collection.id,
         listing_id=active_user_share.listing_id,
-        status="undecided"
+        status="undecided",
     )
     db_session.add(item)
     await db_session.commit()
@@ -687,12 +715,16 @@ async def test_import_user_share_duplicate(app, client, active_user_share, recip
     assert "already exists" in data["detail"].lower()
 
 
-def test_import_user_share_wrong_recipient(app, client, active_user_share, other_user, custom_collection):
+def test_import_user_share_wrong_recipient(
+    app, client, active_user_share, other_user, custom_collection
+):
     """Test POST /user-shares/{token}/import - Returns 403 if not recipient."""
     from dealbrain_api.api.user_shares import get_current_user
 
     # Authenticate as other_user (not recipient)
-    app.dependency_overrides[get_current_user] = mock_current_user(other_user.id, other_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        other_user.id, other_user.username
+    )
 
     payload = {"collection_id": custom_collection.id}
 
@@ -703,11 +735,15 @@ def test_import_user_share_wrong_recipient(app, client, active_user_share, other
     assert "permission" in data["detail"].lower() or "not the recipient" in data["detail"].lower()
 
 
-def test_import_user_share_marks_imported(app, client, active_user_share, recipient_user, custom_collection, db_session):
+def test_import_user_share_marks_imported(
+    app, client, active_user_share, recipient_user, custom_collection, db_session
+):
     """Test POST /user-shares/{token}/import - Marks share as imported."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     # Initial state: not imported
     assert active_user_share.imported_at is None
@@ -728,7 +764,9 @@ def test_import_user_share_invalid_token(app, client, recipient_user):
     """Test POST /user-shares/{token}/import - Invalid token returns 400."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     payload = {}
 
@@ -743,7 +781,9 @@ def test_import_user_share_expired_token(app, client, expired_share, recipient_u
     """Test POST /user-shares/{token}/import - Expired token returns 400."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     payload = {}
 
@@ -757,16 +797,20 @@ def test_import_user_share_expired_token(app, client, expired_share, recipient_u
 # ==================== Edge Cases ====================
 
 
-def test_create_user_share_message_length_validation(app, client, sender_user, recipient_user, test_listing):
+def test_create_user_share_message_length_validation(
+    app, client, sender_user, recipient_user, test_listing
+):
     """Test POST /user-shares - Message length enforced (max 500 chars)."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(sender_user.id, sender_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        sender_user.id, sender_user.username
+    )
 
     payload = {
         "recipient_id": recipient_user.id,
         "listing_id": test_listing.id,
-        "message": "x" * 501  # Over 500 chars
+        "message": "x" * 501,  # Over 500 chars
     }
 
     response = client.post("/v1/user-shares", json=payload)
@@ -779,7 +823,9 @@ def test_list_user_shares_limit_validation(app, client, recipient_user):
     """Test GET /user-shares - Limit must be 1-100."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     # Limit too high
     response = client.get("/v1/user-shares?limit=101")
@@ -798,7 +844,9 @@ def test_list_user_shares_filter_validation(app, client, recipient_user):
     """Test GET /user-shares - Filter must be 'unviewed' or 'all'."""
     from dealbrain_api.api.user_shares import get_current_user
 
-    app.dependency_overrides[get_current_user] = mock_current_user(recipient_user.id, recipient_user.username)
+    app.dependency_overrides[get_current_user] = mock_current_user(
+        recipient_user.id, recipient_user.username
+    )
 
     # Invalid filter
     response = client.get("/v1/user-shares?filter=invalid")

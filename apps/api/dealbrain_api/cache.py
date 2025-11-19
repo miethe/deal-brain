@@ -28,9 +28,7 @@ class CacheManager:
         """Get or create Redis connection."""
         if self._redis is None:
             self._redis = await aioredis.from_url(
-                self.settings.redis_url,
-                encoding="utf-8",
-                decode_responses=True
+                self.settings.redis_url, encoding="utf-8", decode_responses=True
             )
         return self._redis
 
@@ -49,12 +47,7 @@ class CacheManager:
             logger.warning(f"Cache get error for key {key}: {e}")
             return None
 
-    async def set(
-        self,
-        key: str,
-        value: str,
-        ttl: Optional[timedelta] = None
-    ) -> bool:
+    async def set(self, key: str, value: str, ttl: Optional[timedelta] = None) -> bool:
         """Set value in cache with optional TTL."""
         try:
             redis = await self.get_redis()
@@ -112,7 +105,7 @@ def cache_key(*args, **kwargs) -> str:
 def cached(
     prefix: str,
     ttl: Optional[timedelta] = timedelta(minutes=15),
-    key_func: Optional[Callable] = None
+    key_func: Optional[Callable] = None,
 ):
     """
     Decorator for caching async function results in Redis.
@@ -127,6 +120,7 @@ def cached(
         async def get_ruleset(session, ruleset_id: int):
             ...
     """
+
     def decorator(func: Callable):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
@@ -161,6 +155,7 @@ def cached(
             return result
 
         return wrapper
+
     return decorator
 
 

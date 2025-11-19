@@ -24,7 +24,9 @@ def upgrade():
         sa.Column("operation", sa.String(length=64), nullable=False),
         sa.Column("actor_id", sa.Integer(), nullable=True),
         sa.Column("actor_name", sa.String(length=128), nullable=True),
-        sa.Column("timestamp", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "timestamp", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False
+        ),
         sa.Column("payload", sa.JSON(), nullable=True),
         sa.Column("result", sa.String(length=16), nullable=False, server_default="success"),
         sa.Column("error_message", sa.Text(), nullable=True),

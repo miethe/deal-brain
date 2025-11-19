@@ -23,15 +23,13 @@ from dealbrain_api.services.sharing_service import SharingService
 
 try:
     import aiosqlite  # noqa: F401
+
     AIOSQLITE_AVAILABLE = True
 except ImportError:
     AIOSQLITE_AVAILABLE = False
 
 
-pytestmark = pytest.mark.skipif(
-    not AIOSQLITE_AVAILABLE,
-    reason="aiosqlite not installed"
-)
+pytestmark = pytest.mark.skipif(not AIOSQLITE_AVAILABLE, reason="aiosqlite not installed")
 
 
 @pytest_asyncio.fixture
@@ -56,11 +54,7 @@ async def db_session():
 @pytest_asyncio.fixture
 async def sample_user(db_session: AsyncSession):
     """Create sample user."""
-    user = User(
-        username="testuser",
-        email="test@example.com",
-        display_name="Test User"
-    )
+    user = User(username="testuser", email="test@example.com", display_name="Test User")
     db_session.add(user)
     await db_session.flush()
     return user
@@ -69,11 +63,7 @@ async def sample_user(db_session: AsyncSession):
 @pytest_asyncio.fixture
 async def sample_recipient(db_session: AsyncSession):
     """Create sample recipient user."""
-    user = User(
-        username="recipient",
-        email="recipient@example.com",
-        display_name="Recipient User"
-    )
+    user = User(username="recipient", email="recipient@example.com", display_name="Recipient User")
     db_session.add(user)
     await db_session.flush()
     return user
@@ -89,7 +79,7 @@ async def sample_listing(db_session: AsyncSession):
         condition="new",
         cpu_id=None,
         gpu_id=None,
-        form_factor="tower"
+        form_factor="tower",
     )
     db_session.add(listing)
     await db_session.flush()
@@ -110,13 +100,15 @@ class TestGenerateListingShareToken:
 
     @pytest.mark.asyncio
     async def test_generate_share_with_expiry(
-        self, service: SharingService, sample_listing: Listing, sample_user: User, db_session: AsyncSession
+        self,
+        service: SharingService,
+        sample_listing: Listing,
+        sample_user: User,
+        db_session: AsyncSession,
     ):
         """Test generating share with expiry."""
         share = await service.generate_listing_share_token(
-            listing_id=sample_listing.id,
-            user_id=sample_user.id,
-            ttl_days=30
+            listing_id=sample_listing.id, user_id=sample_user.id, ttl_days=30
         )
 
         assert share.id is not None
@@ -138,9 +130,7 @@ class TestGenerateListingShareToken:
     ):
         """Test generating share without expiry (ttl_days=0)."""
         share = await service.generate_listing_share_token(
-            listing_id=sample_listing.id,
-            user_id=None,
-            ttl_days=0
+            listing_id=sample_listing.id, user_id=None, ttl_days=0
         )
 
         assert share.id is not None
@@ -154,22 +144,15 @@ class TestGenerateListingShareToken:
     ):
         """Test generating share for non-existent listing."""
         with pytest.raises(ValueError, match="Listing 999 not found"):
-            await service.generate_listing_share_token(
-                listing_id=999,
-                user_id=None
-            )
+            await service.generate_listing_share_token(listing_id=999, user_id=None)
 
     @pytest.mark.asyncio
     async def test_token_uniqueness(
         self, service: SharingService, sample_listing: Listing, db_session: AsyncSession
     ):
         """Test that generated tokens are unique."""
-        share1 = await service.generate_listing_share_token(
-            listing_id=sample_listing.id
-        )
-        share2 = await service.generate_listing_share_token(
-            listing_id=sample_listing.id
-        )
+        share1 = await service.generate_listing_share_token(listing_id=sample_listing.id)
+        share2 = await service.generate_listing_share_token(listing_id=sample_listing.id)
 
         assert share1.share_token != share2.share_token
 
@@ -183,13 +166,10 @@ class TestValidateListingShareToken:
     ):
         """Test validating active (non-expired) share."""
         share = await service.generate_listing_share_token(
-            listing_id=sample_listing.id,
-            ttl_days=30
+            listing_id=sample_listing.id, ttl_days=30
         )
 
-        share_obj, is_valid = await service.validate_listing_share_token(
-            share.share_token
-        )
+        share_obj, is_valid = await service.validate_listing_share_token(share.share_token)
 
         assert share_obj is not None
         assert share_obj.id == share.id
@@ -204,22 +184,18 @@ class TestValidateListingShareToken:
         share = await service.share_repo.create_listing_share(
             listing_id=sample_listing.id,
             created_by=None,
-            expires_at=datetime.now(timezone.utc) - timedelta(days=1)
+            expires_at=datetime.now(timezone.utc) - timedelta(days=1),
         )
         await db_session.commit()
 
-        share_obj, is_valid = await service.validate_listing_share_token(
-            share.share_token
-        )
+        share_obj, is_valid = await service.validate_listing_share_token(share.share_token)
 
         assert share_obj is not None
         assert share_obj.id == share.id
         assert is_valid is False
 
     @pytest.mark.asyncio
-    async def test_validate_invalid_token(
-        self, service: SharingService, db_session: AsyncSession
-    ):
+    async def test_validate_invalid_token(self, service: SharingService, db_session: AsyncSession):
         """Test validating non-existent token."""
         share_obj, is_valid = await service.validate_listing_share_token(
             "invalid_token_that_doesnt_exist"
@@ -238,8 +214,7 @@ class TestIncrementShareView:
     ):
         """Test incrementing view count for active share."""
         share = await service.generate_listing_share_token(
-            listing_id=sample_listing.id,
-            ttl_days=30
+            listing_id=sample_listing.id, ttl_days=30
         )
 
         initial_count = share.view_count
@@ -249,9 +224,7 @@ class TestIncrementShareView:
         assert success is True
 
         # Verify count incremented
-        result = await db_session.execute(
-            select(ListingShare).where(ListingShare.id == share.id)
-        )
+        result = await db_session.execute(select(ListingShare).where(ListingShare.id == share.id))
         updated_share = result.scalar_one()
         assert updated_share.view_count == initial_count + 1
 
@@ -263,7 +236,7 @@ class TestIncrementShareView:
         share = await service.share_repo.create_listing_share(
             listing_id=sample_listing.id,
             created_by=None,
-            expires_at=datetime.now(timezone.utc) - timedelta(days=1)
+            expires_at=datetime.now(timezone.utc) - timedelta(days=1),
         )
         await db_session.commit()
 
@@ -294,14 +267,14 @@ class TestCreateUserShare:
         sample_user: User,
         sample_recipient: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test creating user share successfully."""
         share = await service.create_user_share(
             sender_id=sample_user.id,
             recipient_id=sample_recipient.id,
             listing_id=sample_listing.id,
-            message="Check this out!"
+            message="Check this out!",
         )
 
         assert share.id is not None
@@ -325,14 +298,14 @@ class TestCreateUserShare:
         sample_user: User,
         sample_recipient: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test creating user share with custom TTL."""
         share = await service.create_user_share(
             sender_id=sample_user.id,
             recipient_id=sample_recipient.id,
             listing_id=sample_listing.id,
-            ttl_days=7
+            ttl_days=7,
         )
 
         expected_expiry = datetime.now(timezone.utc) + timedelta(days=7)
@@ -341,38 +314,44 @@ class TestCreateUserShare:
 
     @pytest.mark.asyncio
     async def test_create_user_share_invalid_sender(
-        self, service: SharingService, sample_recipient: User, sample_listing: Listing, db_session: AsyncSession
+        self,
+        service: SharingService,
+        sample_recipient: User,
+        sample_listing: Listing,
+        db_session: AsyncSession,
     ):
         """Test creating share with invalid sender."""
         with pytest.raises(ValueError, match="Sender user 999 not found"):
             await service.create_user_share(
-                sender_id=999,
-                recipient_id=sample_recipient.id,
-                listing_id=sample_listing.id
+                sender_id=999, recipient_id=sample_recipient.id, listing_id=sample_listing.id
             )
 
     @pytest.mark.asyncio
     async def test_create_user_share_invalid_recipient(
-        self, service: SharingService, sample_user: User, sample_listing: Listing, db_session: AsyncSession
+        self,
+        service: SharingService,
+        sample_user: User,
+        sample_listing: Listing,
+        db_session: AsyncSession,
     ):
         """Test creating share with invalid recipient."""
         with pytest.raises(ValueError, match="Recipient user 999 not found"):
             await service.create_user_share(
-                sender_id=sample_user.id,
-                recipient_id=999,
-                listing_id=sample_listing.id
+                sender_id=sample_user.id, recipient_id=999, listing_id=sample_listing.id
             )
 
     @pytest.mark.asyncio
     async def test_create_user_share_invalid_listing(
-        self, service: SharingService, sample_user: User, sample_recipient: User, db_session: AsyncSession
+        self,
+        service: SharingService,
+        sample_user: User,
+        sample_recipient: User,
+        db_session: AsyncSession,
     ):
         """Test creating share with invalid listing."""
         with pytest.raises(ValueError, match="Listing 999 not found"):
             await service.create_user_share(
-                sender_id=sample_user.id,
-                recipient_id=sample_recipient.id,
-                listing_id=999
+                sender_id=sample_user.id, recipient_id=sample_recipient.id, listing_id=999
             )
 
 
@@ -395,7 +374,7 @@ class TestGetUserInbox:
         sample_user: User,
         sample_recipient: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test getting inbox with shares."""
         # Create 2 shares
@@ -403,13 +382,13 @@ class TestGetUserInbox:
             sender_id=sample_user.id,
             recipient_id=sample_recipient.id,
             listing_id=sample_listing.id,
-            message="Share 1"
+            message="Share 1",
         )
         share2 = await service.create_user_share(
             sender_id=sample_user.id,
             recipient_id=sample_recipient.id,
             listing_id=sample_listing.id,
-            message="Share 2"
+            message="Share 2",
         )
 
         # Get recipient's inbox
@@ -426,7 +405,7 @@ class TestGetUserInbox:
         sample_user: User,
         sample_recipient: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test getting inbox excludes expired shares by default."""
         # Create active share
@@ -434,7 +413,7 @@ class TestGetUserInbox:
             sender_id=sample_user.id,
             recipient_id=sample_recipient.id,
             listing_id=sample_listing.id,
-            message="Active"
+            message="Active",
         )
 
         # Create expired share
@@ -443,7 +422,7 @@ class TestGetUserInbox:
             recipient_id=sample_recipient.id,
             listing_id=sample_listing.id,
             message="Expired",
-            expires_at=datetime.now(timezone.utc) - timedelta(days=1)
+            expires_at=datetime.now(timezone.utc) - timedelta(days=1),
         )
         await db_session.commit()
 
@@ -454,10 +433,7 @@ class TestGetUserInbox:
         assert shares[0].message == "Active"
 
         # Get inbox including expired
-        all_shares = await service.get_user_inbox(
-            user_id=sample_recipient.id,
-            include_expired=True
-        )
+        all_shares = await service.get_user_inbox(user_id=sample_recipient.id, include_expired=True)
 
         assert len(all_shares) == 2
 
@@ -472,26 +448,19 @@ class TestMarkShareAsViewed:
         sample_user: User,
         sample_recipient: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test marking share as viewed."""
         share = await service.create_user_share(
-            sender_id=sample_user.id,
-            recipient_id=sample_recipient.id,
-            listing_id=sample_listing.id
+            sender_id=sample_user.id, recipient_id=sample_recipient.id, listing_id=sample_listing.id
         )
 
-        success = await service.mark_share_as_viewed(
-            share_id=share.id,
-            user_id=sample_recipient.id
-        )
+        success = await service.mark_share_as_viewed(share_id=share.id, user_id=sample_recipient.id)
 
         assert success is True
 
         # Verify viewed_at is set
-        result = await db_session.execute(
-            select(UserShare).where(UserShare.id == share.id)
-        )
+        result = await db_session.execute(select(UserShare).where(UserShare.id == share.id))
         updated_share = result.scalar_one()
         assert updated_share.viewed_at is not None
 
@@ -502,31 +471,23 @@ class TestMarkShareAsViewed:
         sample_user: User,
         sample_recipient: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test marking share viewed by non-recipient (should fail)."""
         share = await service.create_user_share(
-            sender_id=sample_user.id,
-            recipient_id=sample_recipient.id,
-            listing_id=sample_listing.id
+            sender_id=sample_user.id, recipient_id=sample_recipient.id, listing_id=sample_listing.id
         )
 
         # Try to mark viewed as sender (not recipient)
         with pytest.raises(PermissionError, match="is not the recipient"):
-            await service.mark_share_as_viewed(
-                share_id=share.id,
-                user_id=sample_user.id
-            )
+            await service.mark_share_as_viewed(share_id=share.id, user_id=sample_user.id)
 
     @pytest.mark.asyncio
     async def test_mark_share_viewed_invalid_id(
         self, service: SharingService, db_session: AsyncSession
     ):
         """Test marking non-existent share as viewed."""
-        success = await service.mark_share_as_viewed(
-            share_id=999,
-            user_id=1
-        )
+        success = await service.mark_share_as_viewed(share_id=999, user_id=1)
 
         assert success is False
 
@@ -544,7 +505,7 @@ class TestCheckShareRateLimit:
         sample_user: User,
         sample_recipient: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test rate limit check when under limit."""
         # Create 5 shares (under limit of 10)
@@ -552,7 +513,7 @@ class TestCheckShareRateLimit:
             await service.create_user_share(
                 sender_id=sample_user.id,
                 recipient_id=sample_recipient.id,
-                listing_id=sample_listing.id
+                listing_id=sample_listing.id,
             )
 
         # Check rate limit
@@ -567,7 +528,7 @@ class TestCheckShareRateLimit:
         sample_user: User,
         sample_recipient: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test rate limit check when at limit."""
         # Create 10 shares (at limit)
@@ -575,7 +536,7 @@ class TestCheckShareRateLimit:
             await service.create_user_share(
                 sender_id=sample_user.id,
                 recipient_id=sample_recipient.id,
-                listing_id=sample_listing.id
+                listing_id=sample_listing.id,
             )
 
         # Check rate limit (should fail)
@@ -590,7 +551,7 @@ class TestCheckShareRateLimit:
         sample_user: User,
         sample_recipient: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test that creating share is blocked when rate limit exceeded."""
         # Create 10 shares (at limit)
@@ -598,7 +559,7 @@ class TestCheckShareRateLimit:
             await service.create_user_share(
                 sender_id=sample_user.id,
                 recipient_id=sample_recipient.id,
-                listing_id=sample_listing.id
+                listing_id=sample_listing.id,
             )
 
         # Try to create 11th share (should fail)
@@ -606,7 +567,7 @@ class TestCheckShareRateLimit:
             await service.create_user_share(
                 sender_id=sample_user.id,
                 recipient_id=sample_recipient.id,
-                listing_id=sample_listing.id
+                listing_id=sample_listing.id,
             )
 
 
@@ -623,7 +584,7 @@ class TestImportShareToCollection:
         sample_user: User,
         sample_recipient: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test importing share to collection."""
         # Create user share
@@ -631,13 +592,12 @@ class TestImportShareToCollection:
             sender_id=sample_user.id,
             recipient_id=sample_recipient.id,
             listing_id=sample_listing.id,
-            message="Great deal!"
+            message="Great deal!",
         )
 
         # Import to collection (will create default collection)
         item = await service.import_share_to_collection(
-            share_token=share.share_token,
-            user_id=sample_recipient.id
+            share_token=share.share_token, user_id=sample_recipient.id
         )
 
         assert item.id is not None
@@ -645,9 +605,7 @@ class TestImportShareToCollection:
         assert "Great deal!" in item.notes
 
         # Verify share marked as imported
-        result = await db_session.execute(
-            select(UserShare).where(UserShare.id == share.id)
-        )
+        result = await db_session.execute(select(UserShare).where(UserShare.id == share.id))
         updated_share = result.scalar_one()
         assert updated_share.imported_at is not None
 
@@ -658,30 +616,24 @@ class TestImportShareToCollection:
         sample_user: User,
         sample_recipient: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test importing share to specific collection."""
         # Create collection
         collection = Collection(
-            user_id=sample_recipient.id,
-            name="Test Collection",
-            visibility="private"
+            user_id=sample_recipient.id, name="Test Collection", visibility="private"
         )
         db_session.add(collection)
         await db_session.flush()
 
         # Create share
         share = await service.create_user_share(
-            sender_id=sample_user.id,
-            recipient_id=sample_recipient.id,
-            listing_id=sample_listing.id
+            sender_id=sample_user.id, recipient_id=sample_recipient.id, listing_id=sample_listing.id
         )
 
         # Import to specific collection
         item = await service.import_share_to_collection(
-            share_token=share.share_token,
-            user_id=sample_recipient.id,
-            collection_id=collection.id
+            share_token=share.share_token, user_id=sample_recipient.id, collection_id=collection.id
         )
 
         assert item.collection_id == collection.id
@@ -693,21 +645,18 @@ class TestImportShareToCollection:
         sample_user: User,
         sample_recipient: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test importing share by non-recipient."""
         # Create share
         share = await service.create_user_share(
-            sender_id=sample_user.id,
-            recipient_id=sample_recipient.id,
-            listing_id=sample_listing.id
+            sender_id=sample_user.id, recipient_id=sample_recipient.id, listing_id=sample_listing.id
         )
 
         # Try to import as wrong user
         with pytest.raises(PermissionError, match="is not the recipient"):
             await service.import_share_to_collection(
-                share_token=share.share_token,
-                user_id=sample_user.id  # Wrong user!
+                share_token=share.share_token, user_id=sample_user.id  # Wrong user!
             )
 
     @pytest.mark.asyncio
@@ -717,25 +666,21 @@ class TestImportShareToCollection:
         sample_user: User,
         sample_recipient: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test importing same share twice (should fail)."""
         # Create share
         share = await service.create_user_share(
-            sender_id=sample_user.id,
-            recipient_id=sample_recipient.id,
-            listing_id=sample_listing.id
+            sender_id=sample_user.id, recipient_id=sample_recipient.id, listing_id=sample_listing.id
         )
 
         # Import first time
         await service.import_share_to_collection(
-            share_token=share.share_token,
-            user_id=sample_recipient.id
+            share_token=share.share_token, user_id=sample_recipient.id
         )
 
         # Try to import again (should fail - duplicate)
         with pytest.raises(ValueError, match="already in collection"):
             await service.import_share_to_collection(
-                share_token=share.share_token,
-                user_id=sample_recipient.id
+                share_token=share.share_token, user_id=sample_recipient.id
             )

@@ -21,15 +21,13 @@ from dealbrain_api.services.collections_service import CollectionsService
 
 try:
     import aiosqlite  # noqa: F401
+
     AIOSQLITE_AVAILABLE = True
 except ImportError:
     AIOSQLITE_AVAILABLE = False
 
 
-pytestmark = pytest.mark.skipif(
-    not AIOSQLITE_AVAILABLE,
-    reason="aiosqlite not installed"
-)
+pytestmark = pytest.mark.skipif(not AIOSQLITE_AVAILABLE, reason="aiosqlite not installed")
 
 
 @pytest_asyncio.fixture
@@ -54,11 +52,7 @@ async def db_session():
 @pytest_asyncio.fixture
 async def sample_user(db_session: AsyncSession):
     """Create sample user."""
-    user = User(
-        username="testuser",
-        email="test@example.com",
-        display_name="Test User"
-    )
+    user = User(username="testuser", email="test@example.com", display_name="Test User")
     db_session.add(user)
     await db_session.flush()
     return user
@@ -67,11 +61,7 @@ async def sample_user(db_session: AsyncSession):
 @pytest_asyncio.fixture
 async def other_user(db_session: AsyncSession):
     """Create another user for authorization tests."""
-    user = User(
-        username="otheruser",
-        email="other@example.com",
-        display_name="Other User"
-    )
+    user = User(username="otheruser", email="other@example.com", display_name="Other User")
     db_session.add(user)
     await db_session.flush()
     return user
@@ -87,7 +77,7 @@ async def sample_listing(db_session: AsyncSession):
         condition="new",
         cpu_id=None,
         gpu_id=None,
-        form_factor="tower"
+        form_factor="tower",
     )
     db_session.add(listing)
     await db_session.flush()
@@ -104,7 +94,7 @@ async def another_listing(db_session: AsyncSession):
         condition="used",
         cpu_id=None,
         gpu_id=None,
-        form_factor="sff"
+        form_factor="sff",
     )
     db_session.add(listing)
     await db_session.flush()
@@ -132,7 +122,7 @@ class TestCreateCollection:
             user_id=sample_user.id,
             name="Test Collection",
             description="A test collection",
-            visibility="private"
+            visibility="private",
         )
 
         assert collection.id is not None
@@ -147,10 +137,7 @@ class TestCreateCollection:
         self, service: CollectionsService, sample_user: User, db_session: AsyncSession
     ):
         """Test creating collection with default visibility."""
-        collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
-        )
+        collection = await service.create_collection(user_id=sample_user.id, name="Test Collection")
 
         assert collection.visibility == "private"
 
@@ -160,10 +147,7 @@ class TestCreateCollection:
     ):
         """Test creating collection with empty name."""
         with pytest.raises(ValueError, match="name must be 1-100 characters"):
-            await service.create_collection(
-                user_id=sample_user.id,
-                name=""
-            )
+            await service.create_collection(user_id=sample_user.id, name="")
 
     @pytest.mark.asyncio
     async def test_create_collection_invalid_name_too_long(
@@ -171,10 +155,7 @@ class TestCreateCollection:
     ):
         """Test creating collection with name too long."""
         with pytest.raises(ValueError, match="name must be 1-100 characters"):
-            await service.create_collection(
-                user_id=sample_user.id,
-                name="x" * 101
-            )
+            await service.create_collection(user_id=sample_user.id, name="x" * 101)
 
     @pytest.mark.asyncio
     async def test_create_collection_invalid_visibility(
@@ -183,9 +164,7 @@ class TestCreateCollection:
         """Test creating collection with invalid visibility."""
         with pytest.raises(ValueError, match="Visibility must be one of"):
             await service.create_collection(
-                user_id=sample_user.id,
-                name="Test",
-                visibility="invalid"
+                user_id=sample_user.id, name="Test", visibility="invalid"
             )
 
 
@@ -198,15 +177,11 @@ class TestGetCollection:
     ):
         """Test getting collection successfully."""
         # Create collection
-        collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
-        )
+        collection = await service.create_collection(user_id=sample_user.id, name="Test Collection")
 
         # Get collection
         retrieved = await service.get_collection(
-            collection_id=collection.id,
-            user_id=sample_user.id
+            collection_id=collection.id, user_id=sample_user.id
         )
 
         assert retrieved is not None
@@ -218,10 +193,7 @@ class TestGetCollection:
         self, service: CollectionsService, sample_user: User, db_session: AsyncSession
     ):
         """Test getting non-existent collection."""
-        retrieved = await service.get_collection(
-            collection_id=999,
-            user_id=sample_user.id
-        )
+        retrieved = await service.get_collection(collection_id=999, user_id=sample_user.id)
 
         assert retrieved is None
 
@@ -231,21 +203,15 @@ class TestGetCollection:
         service: CollectionsService,
         sample_user: User,
         other_user: User,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test getting collection owned by another user."""
         # Create collection as sample_user
-        collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
-        )
+        collection = await service.create_collection(user_id=sample_user.id, name="Test Collection")
 
         # Try to get as other_user (should raise PermissionError)
         with pytest.raises(PermissionError, match="does not own collection"):
-            await service.get_collection(
-                collection_id=collection.id,
-                user_id=other_user.id
-            )
+            await service.get_collection(collection_id=collection.id, user_id=other_user.id)
 
 
 class TestUpdateCollection:
@@ -256,15 +222,10 @@ class TestUpdateCollection:
         self, service: CollectionsService, sample_user: User, db_session: AsyncSession
     ):
         """Test updating collection name."""
-        collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Original Name"
-        )
+        collection = await service.create_collection(user_id=sample_user.id, name="Original Name")
 
         updated = await service.update_collection(
-            collection_id=collection.id,
-            user_id=sample_user.id,
-            name="New Name"
+            collection_id=collection.id, user_id=sample_user.id, name="New Name"
         )
 
         assert updated is not None
@@ -275,15 +236,10 @@ class TestUpdateCollection:
         self, service: CollectionsService, sample_user: User, db_session: AsyncSession
     ):
         """Test updating collection description."""
-        collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Test"
-        )
+        collection = await service.create_collection(user_id=sample_user.id, name="Test")
 
         updated = await service.update_collection(
-            collection_id=collection.id,
-            user_id=sample_user.id,
-            description="New description"
+            collection_id=collection.id, user_id=sample_user.id, description="New description"
         )
 
         assert updated.description == "New description"
@@ -294,15 +250,11 @@ class TestUpdateCollection:
     ):
         """Test updating collection visibility."""
         collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Test",
-            visibility="private"
+            user_id=sample_user.id, name="Test", visibility="private"
         )
 
         updated = await service.update_collection(
-            collection_id=collection.id,
-            user_id=sample_user.id,
-            visibility="public"
+            collection_id=collection.id, user_id=sample_user.id, visibility="public"
         )
 
         assert updated.visibility == "public"
@@ -312,16 +264,11 @@ class TestUpdateCollection:
         self, service: CollectionsService, sample_user: User, db_session: AsyncSession
     ):
         """Test updating collection with invalid name."""
-        collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Test"
-        )
+        collection = await service.create_collection(user_id=sample_user.id, name="Test")
 
         with pytest.raises(ValueError, match="name must be 1-100 characters"):
             await service.update_collection(
-                collection_id=collection.id,
-                user_id=sample_user.id,
-                name=""
+                collection_id=collection.id, user_id=sample_user.id, name=""
             )
 
     @pytest.mark.asyncio
@@ -330,19 +277,14 @@ class TestUpdateCollection:
         service: CollectionsService,
         sample_user: User,
         other_user: User,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test updating collection by non-owner."""
-        collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Test"
-        )
+        collection = await service.create_collection(user_id=sample_user.id, name="Test")
 
         with pytest.raises(PermissionError, match="does not own collection"):
             await service.update_collection(
-                collection_id=collection.id,
-                user_id=other_user.id,
-                name="Hacked"
+                collection_id=collection.id, user_id=other_user.id, name="Hacked"
             )
 
 
@@ -354,22 +296,16 @@ class TestDeleteCollection:
         self, service: CollectionsService, sample_user: User, db_session: AsyncSession
     ):
         """Test deleting collection successfully."""
-        collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Test"
-        )
+        collection = await service.create_collection(user_id=sample_user.id, name="Test")
 
         success = await service.delete_collection(
-            collection_id=collection.id,
-            user_id=sample_user.id
+            collection_id=collection.id, user_id=sample_user.id
         )
 
         assert success is True
 
         # Verify deleted
-        result = await db_session.execute(
-            select(Collection).where(Collection.id == collection.id)
-        )
+        result = await db_session.execute(select(Collection).where(Collection.id == collection.id))
         deleted = result.scalar_one_or_none()
         assert deleted is None
 
@@ -378,10 +314,7 @@ class TestDeleteCollection:
         self, service: CollectionsService, sample_user: User, db_session: AsyncSession
     ):
         """Test deleting non-existent collection."""
-        success = await service.delete_collection(
-            collection_id=999,
-            user_id=sample_user.id
-        )
+        success = await service.delete_collection(collection_id=999, user_id=sample_user.id)
 
         assert success is False
 
@@ -391,19 +324,13 @@ class TestDeleteCollection:
         service: CollectionsService,
         sample_user: User,
         other_user: User,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test deleting collection by non-owner."""
-        collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Test"
-        )
+        collection = await service.create_collection(user_id=sample_user.id, name="Test")
 
         with pytest.raises(PermissionError, match="does not own collection"):
-            await service.delete_collection(
-                collection_id=collection.id,
-                user_id=other_user.id
-            )
+            await service.delete_collection(collection_id=collection.id, user_id=other_user.id)
 
 
 class TestListUserCollections:
@@ -446,19 +373,11 @@ class TestListUserCollections:
             await service.create_collection(sample_user.id, f"Collection {i}")
 
         # Get first 2
-        page1 = await service.list_user_collections(
-            user_id=sample_user.id,
-            limit=2,
-            offset=0
-        )
+        page1 = await service.list_user_collections(user_id=sample_user.id, limit=2, offset=0)
         assert len(page1) == 2
 
         # Get next 2
-        page2 = await service.list_user_collections(
-            user_id=sample_user.id,
-            limit=2,
-            offset=2
-        )
+        page2 = await service.list_user_collections(user_id=sample_user.id, limit=2, offset=2)
         assert len(page2) == 2
 
         # Verify no overlap
@@ -479,20 +398,17 @@ class TestAddItemToCollection:
         service: CollectionsService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test adding item to collection."""
-        collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Test"
-        )
+        collection = await service.create_collection(user_id=sample_user.id, name="Test")
 
         item = await service.add_item_to_collection(
             collection_id=collection.id,
             listing_id=sample_listing.id,
             user_id=sample_user.id,
             status="undecided",
-            notes="Great deal"
+            notes="Great deal",
         )
 
         assert item.id is not None
@@ -508,27 +424,20 @@ class TestAddItemToCollection:
         service: CollectionsService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test adding duplicate item to collection."""
-        collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Test"
-        )
+        collection = await service.create_collection(user_id=sample_user.id, name="Test")
 
         # Add item first time
         await service.add_item_to_collection(
-            collection_id=collection.id,
-            listing_id=sample_listing.id,
-            user_id=sample_user.id
+            collection_id=collection.id, listing_id=sample_listing.id, user_id=sample_user.id
         )
 
         # Try to add same item again
         with pytest.raises(ValueError, match="already exists in collection"):
             await service.add_item_to_collection(
-                collection_id=collection.id,
-                listing_id=sample_listing.id,
-                user_id=sample_user.id
+                collection_id=collection.id, listing_id=sample_listing.id, user_id=sample_user.id
             )
 
     @pytest.mark.asyncio
@@ -537,20 +446,17 @@ class TestAddItemToCollection:
         service: CollectionsService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test adding item with invalid status."""
-        collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Test"
-        )
+        collection = await service.create_collection(user_id=sample_user.id, name="Test")
 
         with pytest.raises(ValueError, match="Status must be one of"):
             await service.add_item_to_collection(
                 collection_id=collection.id,
                 listing_id=sample_listing.id,
                 user_id=sample_user.id,
-                status="invalid_status"
+                status="invalid_status",
             )
 
     @pytest.mark.asyncio
@@ -560,19 +466,16 @@ class TestAddItemToCollection:
         sample_user: User,
         other_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test adding item to collection by non-owner."""
-        collection = await service.create_collection(
-            user_id=sample_user.id,
-            name="Test"
-        )
+        collection = await service.create_collection(user_id=sample_user.id, name="Test")
 
         with pytest.raises(PermissionError, match="does not own collection"):
             await service.add_item_to_collection(
                 collection_id=collection.id,
                 listing_id=sample_listing.id,
-                user_id=other_user.id  # Wrong user!
+                user_id=other_user.id,  # Wrong user!
             )
 
 
@@ -585,20 +488,16 @@ class TestUpdateCollectionItem:
         service: CollectionsService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test updating item status."""
         collection = await service.create_collection(sample_user.id, "Test")
         item = await service.add_item_to_collection(
-            collection.id,
-            sample_listing.id,
-            sample_user.id
+            collection.id, sample_listing.id, sample_user.id
         )
 
         updated = await service.update_collection_item(
-            item_id=item.id,
-            user_id=sample_user.id,
-            status="shortlisted"
+            item_id=item.id, user_id=sample_user.id, status="shortlisted"
         )
 
         assert updated is not None
@@ -610,20 +509,16 @@ class TestUpdateCollectionItem:
         service: CollectionsService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test updating item notes."""
         collection = await service.create_collection(sample_user.id, "Test")
         item = await service.add_item_to_collection(
-            collection.id,
-            sample_listing.id,
-            sample_user.id
+            collection.id, sample_listing.id, sample_user.id
         )
 
         updated = await service.update_collection_item(
-            item_id=item.id,
-            user_id=sample_user.id,
-            notes="Updated notes"
+            item_id=item.id, user_id=sample_user.id, notes="Updated notes"
         )
 
         assert updated.notes == "Updated notes"
@@ -634,20 +529,16 @@ class TestUpdateCollectionItem:
         service: CollectionsService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test updating item position."""
         collection = await service.create_collection(sample_user.id, "Test")
         item = await service.add_item_to_collection(
-            collection.id,
-            sample_listing.id,
-            sample_user.id
+            collection.id, sample_listing.id, sample_user.id
         )
 
         updated = await service.update_collection_item(
-            item_id=item.id,
-            user_id=sample_user.id,
-            position=99
+            item_id=item.id, user_id=sample_user.id, position=99
         )
 
         assert updated.position == 99
@@ -658,21 +549,17 @@ class TestUpdateCollectionItem:
         service: CollectionsService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test updating item with invalid status."""
         collection = await service.create_collection(sample_user.id, "Test")
         item = await service.add_item_to_collection(
-            collection.id,
-            sample_listing.id,
-            sample_user.id
+            collection.id, sample_listing.id, sample_user.id
         )
 
         with pytest.raises(ValueError, match="Status must be one of"):
             await service.update_collection_item(
-                item_id=item.id,
-                user_id=sample_user.id,
-                status="invalid"
+                item_id=item.id, user_id=sample_user.id, status="invalid"
             )
 
     @pytest.mark.asyncio
@@ -682,21 +569,17 @@ class TestUpdateCollectionItem:
         sample_user: User,
         other_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test updating item by non-owner."""
         collection = await service.create_collection(sample_user.id, "Test")
         item = await service.add_item_to_collection(
-            collection.id,
-            sample_listing.id,
-            sample_user.id
+            collection.id, sample_listing.id, sample_user.id
         )
 
         with pytest.raises(PermissionError, match="does not own collection"):
             await service.update_collection_item(
-                item_id=item.id,
-                user_id=other_user.id,
-                status="bought"
+                item_id=item.id, user_id=other_user.id, status="bought"
             )
 
 
@@ -709,20 +592,15 @@ class TestRemoveItemFromCollection:
         service: CollectionsService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test removing item from collection."""
         collection = await service.create_collection(sample_user.id, "Test")
         item = await service.add_item_to_collection(
-            collection.id,
-            sample_listing.id,
-            sample_user.id
+            collection.id, sample_listing.id, sample_user.id
         )
 
-        success = await service.remove_item_from_collection(
-            item_id=item.id,
-            user_id=sample_user.id
-        )
+        success = await service.remove_item_from_collection(item_id=item.id, user_id=sample_user.id)
 
         assert success is True
 
@@ -738,10 +616,7 @@ class TestRemoveItemFromCollection:
         self, service: CollectionsService, sample_user: User, db_session: AsyncSession
     ):
         """Test removing non-existent item."""
-        success = await service.remove_item_from_collection(
-            item_id=999,
-            user_id=sample_user.id
-        )
+        success = await service.remove_item_from_collection(item_id=999, user_id=sample_user.id)
 
         assert success is False
 
@@ -752,21 +627,16 @@ class TestRemoveItemFromCollection:
         sample_user: User,
         other_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test removing item by non-owner."""
         collection = await service.create_collection(sample_user.id, "Test")
         item = await service.add_item_to_collection(
-            collection.id,
-            sample_listing.id,
-            sample_user.id
+            collection.id, sample_listing.id, sample_user.id
         )
 
         with pytest.raises(PermissionError, match="does not own collection"):
-            await service.remove_item_from_collection(
-                item_id=item.id,
-                user_id=other_user.id
-            )
+            await service.remove_item_from_collection(item_id=item.id, user_id=other_user.id)
 
 
 # ==================== Queries & Filtering Tests ====================
@@ -783,8 +653,7 @@ class TestGetCollectionItems:
         collection = await service.create_collection(sample_user.id, "Test")
 
         items = await service.get_collection_items(
-            collection_id=collection.id,
-            user_id=sample_user.id
+            collection_id=collection.id, user_id=sample_user.id
         )
 
         assert items == []
@@ -796,26 +665,17 @@ class TestGetCollectionItems:
         sample_user: User,
         sample_listing: Listing,
         another_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test getting multiple items."""
         collection = await service.create_collection(sample_user.id, "Test")
 
         # Add 2 items
-        await service.add_item_to_collection(
-            collection.id,
-            sample_listing.id,
-            sample_user.id
-        )
-        await service.add_item_to_collection(
-            collection.id,
-            another_listing.id,
-            sample_user.id
-        )
+        await service.add_item_to_collection(collection.id, sample_listing.id, sample_user.id)
+        await service.add_item_to_collection(collection.id, another_listing.id, sample_user.id)
 
         items = await service.get_collection_items(
-            collection_id=collection.id,
-            user_id=sample_user.id
+            collection_id=collection.id, user_id=sample_user.id
         )
 
         assert len(items) == 2
@@ -827,30 +687,22 @@ class TestGetCollectionItems:
         sample_user: User,
         sample_listing: Listing,
         another_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test filtering items by status."""
         collection = await service.create_collection(sample_user.id, "Test")
 
         # Add items with different statuses
         await service.add_item_to_collection(
-            collection.id,
-            sample_listing.id,
-            sample_user.id,
-            status="undecided"
+            collection.id, sample_listing.id, sample_user.id, status="undecided"
         )
         await service.add_item_to_collection(
-            collection.id,
-            another_listing.id,
-            sample_user.id,
-            status="shortlisted"
+            collection.id, another_listing.id, sample_user.id, status="shortlisted"
         )
 
         # Get only shortlisted items
         shortlisted = await service.get_collection_items(
-            collection_id=collection.id,
-            user_id=sample_user.id,
-            status_filter="shortlisted"
+            collection_id=collection.id, user_id=sample_user.id, status_filter="shortlisted"
         )
 
         assert len(shortlisted) == 1
@@ -862,16 +714,13 @@ class TestGetCollectionItems:
         service: CollectionsService,
         sample_user: User,
         other_user: User,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test getting items by non-owner."""
         collection = await service.create_collection(sample_user.id, "Test")
 
         with pytest.raises(PermissionError, match="does not own collection"):
-            await service.get_collection_items(
-                collection_id=collection.id,
-                user_id=other_user.id
-            )
+            await service.get_collection_items(collection_id=collection.id, user_id=other_user.id)
 
 
 class TestGetOrCreateDefaultCollection:

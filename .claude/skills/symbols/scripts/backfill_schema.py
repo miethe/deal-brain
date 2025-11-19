@@ -27,13 +27,13 @@ import argparse
 
 
 # Schema v2.0 required fields
-REQUIRED_FIELDS = {'name', 'kind', 'path', 'line', 'signature', 'summary', 'layer'}
+REQUIRED_FIELDS = {"name", "kind", "path", "line", "signature", "summary", "layer"}
 
 # Schema v2.0 optional fields
-OPTIONAL_FIELDS = {'parent', 'docstring', 'category'}
+OPTIONAL_FIELDS = {"parent", "docstring", "category"}
 
 # Deprecated fields to remove
-DEPRECATED_FIELDS = {'expected_response', 'decorators', 'file_category'}
+DEPRECATED_FIELDS = {"expected_response", "decorators", "file_category"}
 
 
 def backfill_symbol(symbol: Dict[str, Any], module_path: str = None) -> Dict[str, Any]:
@@ -54,36 +54,44 @@ def backfill_symbol(symbol: Dict[str, Any], module_path: str = None) -> Dict[str
     for field in REQUIRED_FIELDS:
         if field in symbol:
             updated[field] = symbol[field]
-        elif field == 'path' and module_path:
+        elif field == "path" and module_path:
             # In module-based structure, path comes from module level
-            updated['path'] = module_path
-        elif field == 'layer':
+            updated["path"] = module_path
+        elif field == "layer":
             # If layer is missing, default to 'unknown' (should not happen after Phase 1)
-            updated['layer'] = symbol.get('layer', 'unknown')
-        elif field == 'path':
+            updated["layer"] = symbol.get("layer", "unknown")
+        elif field == "path":
             # Missing path and no module_path provided
-            print(f"WARNING: Symbol '{symbol.get('name', 'unknown')}' missing 'path' - setting to empty", file=sys.stderr)
-            updated['path'] = ''
-        elif field == 'signature':
+            print(
+                f"WARNING: Symbol '{symbol.get('name', 'unknown')}' missing 'path' - setting to empty",
+                file=sys.stderr,
+            )
+            updated["path"] = ""
+        elif field == "signature":
             # Missing signature - use name as fallback
-            print(f"WARNING: Symbol '{symbol.get('name', 'unknown')}' missing 'signature' - using name", file=sys.stderr)
-            updated['signature'] = symbol.get('name', '')
-        elif field == 'summary':
+            print(
+                f"WARNING: Symbol '{symbol.get('name', 'unknown')}' missing 'signature' - using name",
+                file=sys.stderr,
+            )
+            updated["signature"] = symbol.get("name", "")
+        elif field == "summary":
             # Missing summary - use empty string
-            updated['summary'] = ''
+            updated["summary"] = ""
         else:
             # Missing required field - this is an error
-            raise ValueError(f"Symbol missing required field '{field}': {symbol.get('name', 'unknown')}")
+            raise ValueError(
+                f"Symbol missing required field '{field}': {symbol.get('name', 'unknown')}"
+            )
 
     # Rename file_category → category
-    if 'file_category' in symbol:
-        updated['category'] = symbol['file_category']
-    elif 'category' in symbol:
-        updated['category'] = symbol['category']
+    if "file_category" in symbol:
+        updated["category"] = symbol["file_category"]
+    elif "category" in symbol:
+        updated["category"] = symbol["category"]
 
     # Copy other optional fields (but not deprecated ones)
     for field in OPTIONAL_FIELDS:
-        if field in symbol and field != 'category':  # category already handled above
+        if field in symbol and field != "category":  # category already handled above
             updated[field] = symbol[field]
 
     return updated
@@ -99,13 +107,12 @@ def backfill_module(module: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Updated module dictionary
     """
-    module_path = module.get('path', '')
-    updated_module = {'path': module_path}
+    module_path = module.get("path", "")
+    updated_module = {"path": module_path}
 
-    if 'symbols' in module:
-        updated_module['symbols'] = [
-            backfill_symbol(symbol, module_path=module_path)
-            for symbol in module['symbols']
+    if "symbols" in module:
+        updated_module["symbols"] = [
+            backfill_symbol(symbol, module_path=module_path) for symbol in module["symbols"]
         ]
 
     return updated_module
@@ -125,19 +132,19 @@ def backfill_file(file_path: Path, dry_run: bool = False) -> Dict[str, Any]:
     print(f"\nProcessing {file_path.name}...")
 
     # Load file
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    original_symbols = data.get('totalSymbols', 0)
+    original_symbols = data.get("totalSymbols", 0)
 
     # Backfill modules
-    if 'modules' in data:
+    if "modules" in data:
         updated_modules = []
         total_updated = 0
         total_deprecated_removed = 0
 
-        for module in data['modules']:
-            original_module_symbols = module.get('symbols', [])
+        for module in data["modules"]:
+            original_module_symbols = module.get("symbols", [])
 
             # Count deprecated fields before backfill
             for symbol in original_module_symbols:
@@ -147,18 +154,18 @@ def backfill_file(file_path: Path, dry_run: bool = False) -> Dict[str, Any]:
             # Backfill module
             updated_module = backfill_module(module)
             updated_modules.append(updated_module)
-            total_updated += len(updated_module.get('symbols', []))
+            total_updated += len(updated_module.get("symbols", []))
 
         # Update data
-        data['modules'] = updated_modules
+        data["modules"] = updated_modules
 
         # Update metadata if present
-        if 'version' in data:
-            data['version'] = '2.0'
+        if "version" in data:
+            data["version"] = "2.0"
 
         # Write back
         if not dry_run:
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
 
             new_size = file_path.stat().st_size / 1024
@@ -171,18 +178,14 @@ def backfill_file(file_path: Path, dry_run: bool = False) -> Dict[str, Any]:
                 print(f"   🔍 Would remove {total_deprecated_removed} deprecated fields")
 
         return {
-            'file': file_path.name,
-            'original_symbols': original_symbols,
-            'updated_symbols': total_updated,
-            'deprecated_removed': total_deprecated_removed,
-            'success': True
+            "file": file_path.name,
+            "original_symbols": original_symbols,
+            "updated_symbols": total_updated,
+            "deprecated_removed": total_deprecated_removed,
+            "success": True,
         }
 
-    return {
-        'file': file_path.name,
-        'error': 'No modules found',
-        'success': False
-    }
+    return {"file": file_path.name, "error": "No modules found", "success": False}
 
 
 def validate_file(file_path: Path) -> Dict[str, Any]:
@@ -197,35 +200,39 @@ def validate_file(file_path: Path) -> Dict[str, Any]:
     """
     print(f"\nValidating {file_path.name}...")
 
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     errors = []
     warnings = []
 
-    if 'modules' in data:
-        for i, module in enumerate(data['modules']):
-            module_path = module.get('path', f'module_{i}')
+    if "modules" in data:
+        for i, module in enumerate(data["modules"]):
+            module_path = module.get("path", f"module_{i}")
 
-            for j, symbol in enumerate(module.get('symbols', [])):
-                symbol_name = symbol.get('name', f'symbol_{j}')
+            for j, symbol in enumerate(module.get("symbols", [])):
+                symbol_name = symbol.get("name", f"symbol_{j}")
 
                 # Check required fields
                 for field in REQUIRED_FIELDS:
                     if field not in symbol:
-                        errors.append(f"{module_path}:{symbol_name} missing required field '{field}'")
+                        errors.append(
+                            f"{module_path}:{symbol_name} missing required field '{field}'"
+                        )
 
                 # Check for deprecated fields
                 for field in DEPRECATED_FIELDS:
                     if field in symbol:
-                        warnings.append(f"{module_path}:{symbol_name} has deprecated field '{field}'")
+                        warnings.append(
+                            f"{module_path}:{symbol_name} has deprecated field '{field}'"
+                        )
 
                 # Check layer field value
-                if 'layer' in symbol and symbol['layer'] == 'unknown':
+                if "layer" in symbol and symbol["layer"] == "unknown":
                     warnings.append(f"{module_path}:{symbol_name} has layer='unknown'")
 
     # Check version
-    if 'version' in data and data['version'] != '2.0':
+    if "version" in data and data["version"] != "2.0":
         warnings.append(f"File version is '{data['version']}', expected '2.0'")
 
     if errors:
@@ -246,10 +253,10 @@ def validate_file(file_path: Path) -> Dict[str, Any]:
         print(f"   ✅ Valid Schema v2.0")
 
     return {
-        'file': file_path.name,
-        'errors': errors,
-        'warnings': warnings,
-        'valid': len(errors) == 0
+        "file": file_path.name,
+        "errors": errors,
+        "warnings": warnings,
+        "valid": len(errors) == 0,
     }
 
 
@@ -258,29 +265,25 @@ def main():
     parser = argparse.ArgumentParser(
         description="Backfill Schema v2.0 to symbol files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Show what would be done without modifying files'
+        "--dry-run", action="store_true", help="Show what would be done without modifying files"
     )
     parser.add_argument(
-        '--validate',
-        action='store_true',
-        help='Only validate files, don\'t backfill'
+        "--validate", action="store_true", help="Only validate files, don't backfill"
     )
     parser.add_argument(
-        '--dir',
+        "--dir",
         type=Path,
-        default=Path('ai'),
-        help='Directory containing symbol files (default: ai/)'
+        default=Path("ai"),
+        help="Directory containing symbol files (default: ai/)",
     )
 
     args = parser.parse_args()
 
     # Find all symbol JSON files
-    symbol_files = list(args.dir.glob('symbols-*.json'))
+    symbol_files = list(args.dir.glob("symbols-*.json"))
 
     if not symbol_files:
         print(f"❌ No symbol files found in {args.dir}", file=sys.stderr)
@@ -297,7 +300,7 @@ def main():
             results.append(result)
 
         # Summary
-        valid_count = sum(1 for r in results if r.get('valid', False))
+        valid_count = sum(1 for r in results if r.get("valid", False))
         print(f"\n{'='*50}")
         print(f"Validation Summary: {valid_count}/{len(results)} files valid")
 
@@ -310,8 +313,8 @@ def main():
             results.append(result)
 
         # Summary
-        total_updated = sum(r.get('updated_symbols', 0) for r in results if r.get('success'))
-        total_deprecated = sum(r.get('deprecated_removed', 0) for r in results if r.get('success'))
+        total_updated = sum(r.get("updated_symbols", 0) for r in results if r.get("success"))
+        total_deprecated = sum(r.get("deprecated_removed", 0) for r in results if r.get("success"))
 
         print(f"\n{'='*50}")
         print(f"Backfill Summary:")
@@ -327,5 +330,5 @@ def main():
     sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -67,7 +67,6 @@ class TestCpuUpdate:
     """Tests for PUT /v1/catalog/cpus/{cpu_id} endpoint."""
 
     @pytest.mark.asyncio
-    
     async def test_update_cpu_full_success(self, client: AsyncClient, async_session: AsyncSession):
         """Should successfully perform full update (PUT) of CPU entity."""
         # Create CPU via POST
@@ -296,9 +295,7 @@ class TestGpuUpdate:
         gpu_a = await client.post(
             "/v1/catalog/gpus", json={"name": "GPU A", "manufacturer": "NVIDIA"}
         )
-        gpu_b = await client.post(
-            "/v1/catalog/gpus", json={"name": "GPU B", "manufacturer": "AMD"}
-        )
+        gpu_b = await client.post("/v1/catalog/gpus", json={"name": "GPU B", "manufacturer": "AMD"})
 
         assert gpu_a.status_code == 201
         assert gpu_b.status_code == 201
@@ -850,9 +847,7 @@ class TestStorageProfileUpdate:
             "capacity_gb": 512,
             "performance_tier": "high",
         }
-        create_response = await client.post(
-            "/v1/catalog/storage-profiles", json=create_payload
-        )
+        create_response = await client.post("/v1/catalog/storage-profiles", json=create_payload)
         assert create_response.status_code == 201
         storage_profile_id = create_response.json()["id"]
 
@@ -974,9 +969,7 @@ class TestStorageProfilePartialUpdate:
             "capacity_gb": 2000,
             "attributes": {"rpm": 7200},
         }
-        create_response = await client.post(
-            "/v1/catalog/storage-profiles", json=create_payload
-        )
+        create_response = await client.post("/v1/catalog/storage-profiles", json=create_payload)
         storage_profile_id = create_response.json()["id"]
 
         # Partial update
@@ -1318,7 +1311,11 @@ class TestProfileDelete:
         # Create default profile
         default_profile = await client.post(
             "/v1/catalog/profiles",
-            json={"name": "Default Profile", "weights_json": {"cpu_score": 1.0}, "is_default": True},
+            json={
+                "name": "Default Profile",
+                "weights_json": {"cpu_score": 1.0},
+                "is_default": True,
+            },
         )
         assert default_profile.status_code == 201
 
@@ -1581,9 +1578,7 @@ class TestStorageProfileDelete:
         storage_profile_id = create_response.json()["id"]
 
         # Delete via DELETE
-        delete_response = await client.delete(
-            f"/v1/catalog/storage-profiles/{storage_profile_id}"
-        )
+        delete_response = await client.delete(f"/v1/catalog/storage-profiles/{storage_profile_id}")
 
         # Assert response is 204 No Content
         assert delete_response.status_code == 204
@@ -1618,9 +1613,7 @@ class TestStorageProfileDelete:
         assert listing_response.status_code == 201
 
         # Attempt DELETE
-        delete_response = await client.delete(
-            f"/v1/catalog/storage-profiles/{storage_profile_id}"
-        )
+        delete_response = await client.delete(f"/v1/catalog/storage-profiles/{storage_profile_id}")
 
         # Assert response is 409 Conflict
         assert delete_response.status_code == 409
@@ -1659,9 +1652,7 @@ class TestStorageProfileDelete:
         assert listing_response.status_code == 201
 
         # Attempt DELETE
-        delete_response = await client.delete(
-            f"/v1/catalog/storage-profiles/{storage_profile_id}"
-        )
+        delete_response = await client.delete(f"/v1/catalog/storage-profiles/{storage_profile_id}")
 
         # Assert response is 409 Conflict
         assert delete_response.status_code == 409
@@ -1708,9 +1699,7 @@ class TestStorageProfileDelete:
         await client.post("/v1/listings/", json=listing2_payload)
 
         # Attempt DELETE
-        delete_response = await client.delete(
-            f"/v1/catalog/storage-profiles/{storage_profile_id}"
-        )
+        delete_response = await client.delete(f"/v1/catalog/storage-profiles/{storage_profile_id}")
 
         # Assert 409 with count from both fields
         assert delete_response.status_code == 409
@@ -1759,7 +1748,9 @@ class TestCpuCreate:
         assert "created_at" in data
 
     @pytest.mark.asyncio
-    async def test_create_cpu_duplicate_name(self, client: AsyncClient, async_session: AsyncSession):
+    async def test_create_cpu_duplicate_name(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
         """Should return 400 for duplicate CPU name."""
         payload = {"name": "Duplicate CPU", "manufacturer": "Intel"}
 
@@ -1798,7 +1789,9 @@ class TestGpuCreate:
         assert "id" in data
 
     @pytest.mark.asyncio
-    async def test_create_gpu_duplicate_name(self, client: AsyncClient, async_session: AsyncSession):
+    async def test_create_gpu_duplicate_name(
+        self, client: AsyncClient, async_session: AsyncSession
+    ):
         """Should return 400 for duplicate GPU name."""
         payload = {"name": "Duplicate GPU", "manufacturer": "NVIDIA"}
 
@@ -2144,9 +2137,7 @@ class TestPortsProfileRead:
         assert len(data) >= 1
 
     @pytest.mark.asyncio
-    async def test_get_ports_profile_by_id(
-        self, client: AsyncClient, async_session: AsyncSession
-    ):
+    async def test_get_ports_profile_by_id(self, client: AsyncClient, async_session: AsyncSession):
         """Should return specific ports profile by ID."""
         create_response = await client.post(
             "/v1/catalog/ports-profiles",
@@ -2409,9 +2400,7 @@ class TestStorageProfileListings:
         )
 
         # Get listings
-        response = await client.get(
-            f"/v1/catalog/storage-profiles/{storage_profile_id}/listings"
-        )
+        response = await client.get(f"/v1/catalog/storage-profiles/{storage_profile_id}/listings")
         assert response.status_code == 200
         listings = response.json()
         assert len(listings) >= 1
@@ -2440,9 +2429,7 @@ class TestStorageProfileListings:
         )
 
         # Get listings
-        response = await client.get(
-            f"/v1/catalog/storage-profiles/{storage_profile_id}/listings"
-        )
+        response = await client.get(f"/v1/catalog/storage-profiles/{storage_profile_id}/listings")
         assert response.status_code == 200
         listings = response.json()
         assert len(listings) >= 1

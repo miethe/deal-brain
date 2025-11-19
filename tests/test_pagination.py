@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 try:
     import aiosqlite  # type: ignore  # noqa: F401
+
     AIOSQLITE_AVAILABLE = True
 except ImportError:
     AIOSQLITE_AVAILABLE = False
@@ -111,10 +112,10 @@ class TestPaginatedListings:
     For full integration testing, run with pytest --integration flag.
     """
 
-    @pytest.mark.skip(reason="Requires test database setup - see test_pagination_api.py for API-level tests")
-    async def test_get_first_page_default_params(
-        self, db_session, sample_listings: list[Listing]
-    ):
+    @pytest.mark.skip(
+        reason="Requires test database setup - see test_pagination_api.py for API-level tests"
+    )
+    async def test_get_first_page_default_params(self, db_session, sample_listings: list[Listing]):
         """Test getting first page with default parameters."""
         result = await get_paginated_listings(db_session)
 
@@ -249,9 +250,7 @@ class TestPaginatedListings:
         self, session: AsyncSession, sample_listings: list[Listing]
     ):
         """Test filtering by price range."""
-        result = await get_paginated_listings(
-            session, min_price=200.0, max_price=800.0
-        )
+        result = await get_paginated_listings(session, min_price=200.0, max_price=800.0)
 
         # All returned items should be within price range
         for listing in result["items"]:

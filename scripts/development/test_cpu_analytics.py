@@ -28,8 +28,7 @@ from dealbrain_core.enums import ListingStatus
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -44,13 +43,13 @@ async def find_test_cpu():
                 Cpu.name,
                 Cpu.cpu_mark_single,
                 Cpu.cpu_mark_multi,
-                func.count(Listing.id).label('listing_count')
+                func.count(Listing.id).label("listing_count"),
             )
             .join(Listing, Listing.cpu_id == Cpu.id)
             .where(
                 Listing.status == ListingStatus.ACTIVE.value,
                 Listing.adjusted_price_usd.isnot(None),
-                Listing.adjusted_price_usd > 0
+                Listing.adjusted_price_usd > 0,
             )
             .group_by(Cpu.id, Cpu.name, Cpu.cpu_mark_single, Cpu.cpu_mark_multi)
             .order_by(func.count(Listing.id).desc())
@@ -75,9 +74,9 @@ async def find_test_cpu():
 
 async def test_price_targets(cpu_id: int):
     """Test price target calculation."""
-    logger.info("\n" + "="*80)
+    logger.info("\n" + "=" * 80)
     logger.info("TEST 1: Price Target Calculation")
-    logger.info("="*80)
+    logger.info("=" * 80)
 
     async with session_scope() as session:
         result = await CPUAnalyticsService.calculate_price_targets(session, cpu_id)
@@ -96,16 +95,16 @@ async def test_price_targets(cpu_id: int):
             assert result.good is not None, "Good price should be set with sufficient data"
             assert result.great is not None, "Great price should be set with sufficient data"
             assert result.fair is not None, "Fair price should be set with sufficient data"
-            assert result.confidence != 'insufficient', "Confidence should not be insufficient"
+            assert result.confidence != "insufficient", "Confidence should not be insufficient"
 
         logger.info("\n✅ Price target calculation PASSED")
 
 
 async def test_performance_value(cpu_id: int):
     """Test performance value calculation."""
-    logger.info("\n" + "="*80)
+    logger.info("\n" + "=" * 80)
     logger.info("TEST 2: Performance Value Calculation")
-    logger.info("="*80)
+    logger.info("=" * 80)
 
     async with session_scope() as session:
         result = await CPUAnalyticsService.calculate_performance_value(session, cpu_id)
@@ -113,15 +112,18 @@ async def test_performance_value(cpu_id: int):
         logger.info(f"\nPerformance Value Results:")
         logger.info(
             f"  $/Single-Thread Mark: ${result.dollar_per_mark_single:.4f}"
-            if result.dollar_per_mark_single else "  $/Single-Thread Mark: None"
+            if result.dollar_per_mark_single
+            else "  $/Single-Thread Mark: None"
         )
         logger.info(
             f"  $/Multi-Thread Mark: ${result.dollar_per_mark_multi:.4f}"
-            if result.dollar_per_mark_multi else "  $/Multi-Thread Mark: None"
+            if result.dollar_per_mark_multi
+            else "  $/Multi-Thread Mark: None"
         )
         logger.info(
             f"  Percentile: {result.percentile:.1f}%"
-            if result.percentile is not None else "  Percentile: None"
+            if result.percentile is not None
+            else "  Percentile: None"
         )
         logger.info(f"  Rating: {result.rating}" if result.rating else "  Rating: None")
         logger.info(f"  Updated: {result.updated_at}")
@@ -130,16 +132,16 @@ async def test_performance_value(cpu_id: int):
             assert result.dollar_per_mark_single > 0, "$/mark should be positive"
             assert result.dollar_per_mark_multi > 0, "$/mark should be positive"
             assert 0 <= result.percentile <= 100, "Percentile should be 0-100"
-            assert result.rating in ['excellent', 'good', 'fair', 'poor'], "Invalid rating"
+            assert result.rating in ["excellent", "good", "fair", "poor"], "Invalid rating"
 
         logger.info("\n✅ Performance value calculation PASSED")
 
 
 async def test_update_analytics(cpu_id: int):
     """Test updating CPU analytics in database."""
-    logger.info("\n" + "="*80)
+    logger.info("\n" + "=" * 80)
     logger.info("TEST 3: Update CPU Analytics")
-    logger.info("="*80)
+    logger.info("=" * 80)
 
     async with session_scope() as session:
         # Update analytics
@@ -150,30 +152,51 @@ async def test_update_analytics(cpu_id: int):
         cpu = await session.get(Cpu, cpu_id)
 
         logger.info(f"\nCPU Analytics After Update:")
-        logger.info(f"  Price Target Good: ${cpu.price_target_good:.2f}" if cpu.price_target_good else "  Price Target Good: None")
-        logger.info(f"  Price Target Great: ${cpu.price_target_great:.2f}" if cpu.price_target_great else "  Price Target Great: None")
-        logger.info(f"  Price Target Fair: ${cpu.price_target_fair:.2f}" if cpu.price_target_fair else "  Price Target Fair: None")
+        logger.info(
+            f"  Price Target Good: ${cpu.price_target_good:.2f}"
+            if cpu.price_target_good
+            else "  Price Target Good: None"
+        )
+        logger.info(
+            f"  Price Target Great: ${cpu.price_target_great:.2f}"
+            if cpu.price_target_great
+            else "  Price Target Great: None"
+        )
+        logger.info(
+            f"  Price Target Fair: ${cpu.price_target_fair:.2f}"
+            if cpu.price_target_fair
+            else "  Price Target Fair: None"
+        )
         logger.info(f"  Sample Size: {cpu.price_target_sample_size}")
         logger.info(f"  Confidence: {cpu.price_target_confidence}")
         logger.info(f"  Price Targets Updated: {cpu.price_target_updated_at}")
         logger.info("")
         logger.info(
             f"  $/Single Mark: ${cpu.dollar_per_mark_single:.4f}"
-            if cpu.dollar_per_mark_single else "  $/Single Mark: None"
+            if cpu.dollar_per_mark_single
+            else "  $/Single Mark: None"
         )
         logger.info(
             f"  $/Multi Mark: ${cpu.dollar_per_mark_multi:.4f}"
-            if cpu.dollar_per_mark_multi else "  $/Multi Mark: None"
+            if cpu.dollar_per_mark_multi
+            else "  $/Multi Mark: None"
         )
         logger.info(
             f"  Percentile: {cpu.performance_value_percentile:.1f}%"
-            if cpu.performance_value_percentile is not None else "  Percentile: None"
+            if cpu.performance_value_percentile is not None
+            else "  Percentile: None"
         )
-        logger.info(f"  Rating: {cpu.performance_value_rating}" if cpu.performance_value_rating else "  Rating: None")
+        logger.info(
+            f"  Rating: {cpu.performance_value_rating}"
+            if cpu.performance_value_rating
+            else "  Rating: None"
+        )
         logger.info(f"  Performance Metrics Updated: {cpu.performance_metrics_updated_at}")
 
         assert cpu.price_target_updated_at is not None, "Price target timestamp should be set"
-        assert cpu.performance_metrics_updated_at is not None, "Performance metrics timestamp should be set"
+        assert (
+            cpu.performance_metrics_updated_at is not None
+        ), "Performance metrics timestamp should be set"
 
         if cpu.price_target_sample_size >= 2:
             assert cpu.price_target_good is not None, "Price targets should be populated"
@@ -183,9 +206,9 @@ async def test_update_analytics(cpu_id: int):
 
 async def test_recalculate_all(limit: int = 5):
     """Test batch recalculation (limited sample)."""
-    logger.info("\n" + "="*80)
+    logger.info("\n" + "=" * 80)
     logger.info(f"TEST 4: Recalculate All CPU Metrics (first {limit} CPUs)")
-    logger.info("="*80)
+    logger.info("=" * 80)
 
     async with session_scope() as session:
         # Get first N CPU IDs for testing
@@ -211,7 +234,7 @@ async def test_recalculate_all(limit: int = 5):
 async def main():
     """Run all tests."""
     logger.info("Starting CPU Analytics Service Tests")
-    logger.info("="*80)
+    logger.info("=" * 80)
 
     try:
         # Find a test CPU
@@ -226,9 +249,9 @@ async def main():
         await test_update_analytics(cpu_id)
         await test_recalculate_all(limit=5)
 
-        logger.info("\n" + "="*80)
+        logger.info("\n" + "=" * 80)
         logger.info("✅ ALL TESTS PASSED")
-        logger.info("="*80)
+        logger.info("=" * 80)
 
         return 0
 

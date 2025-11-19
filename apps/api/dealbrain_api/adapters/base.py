@@ -105,8 +105,7 @@ class RateLimitConfig:
         if self.current_count >= self.requests_per_minute:
             wait_time = 60 - elapsed
             logger.warning(
-                f"Rate limit reached ({self.requests_per_minute}/min). "
-                f"Waiting {wait_time:.1f}s"
+                f"Rate limit reached ({self.requests_per_minute}/min). " f"Waiting {wait_time:.1f}s"
             )
             await asyncio.sleep(wait_time)
             self.current_count = 0
@@ -170,14 +169,11 @@ class RetryConfig:
                 if attempt < self.max_retries:
                     wait_time = self.backoff_factor * (2**attempt)
                     logger.warning(
-                        f"Attempt {attempt + 1} failed: {e.message}. "
-                        f"Retrying in {wait_time}s"
+                        f"Attempt {attempt + 1} failed: {e.message}. " f"Retrying in {wait_time}s"
                     )
                     await asyncio.sleep(wait_time)
                 else:
-                    logger.error(
-                        f"All {self.max_retries + 1} attempts failed: {e.message}"
-                    )
+                    logger.error(f"All {self.max_retries + 1} attempts failed: {e.message}")
                     raise
 
         # Should never reach here, but just in case
@@ -342,9 +338,7 @@ class BaseAdapter(ABC):
         has_price = bool(data.get("price"))
 
         if not has_price:
-            logger.warning(
-                f"[{self.name}] No price extracted - will create partial import"
-            )
+            logger.warning(f"[{self.name}] No price extracted - will create partial import")
             data["quality"] = "partial"
             data["missing_fields"] = ["price"]
         else:

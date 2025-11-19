@@ -28,10 +28,7 @@ class CPUAnalyticsService:
     """
 
     @staticmethod
-    async def calculate_price_targets(
-        session: AsyncSession,
-        cpu_id: int
-    ) -> PriceTarget:
+    async def calculate_price_targets(session: AsyncSession, cpu_id: int) -> PriceTarget:
         """Calculate price targets from listing adjusted prices.
 
         Algorithm:
@@ -55,7 +52,7 @@ class CPUAnalyticsService:
                     Listing.cpu_id == cpu_id,
                     Listing.status == ListingStatus.ACTIVE.value,
                     Listing.adjusted_price_usd.isnot(None),
-                    Listing.adjusted_price_usd > 0
+                    Listing.adjusted_price_usd > 0,
                 )
             )
             result = await session.execute(stmt)
@@ -71,9 +68,9 @@ class CPUAnalyticsService:
                     great=None,
                     fair=None,
                     sample_size=sample_size,
-                    confidence='insufficient',
+                    confidence="insufficient",
                     stddev=None,
-                    updated_at=datetime.utcnow()
+                    updated_at=datetime.utcnow(),
                 )
 
             # Calculate statistics
@@ -87,11 +84,11 @@ class CPUAnalyticsService:
 
             # Determine confidence level
             if sample_size >= 10:
-                confidence = 'high'
+                confidence = "high"
             elif sample_size >= 5:
-                confidence = 'medium'
+                confidence = "medium"
             else:
-                confidence = 'low'
+                confidence = "low"
 
             logger.info(
                 f"CPU {cpu_id}: Calculated price targets - "
@@ -106,7 +103,7 @@ class CPUAnalyticsService:
                 sample_size=sample_size,
                 confidence=confidence,
                 stddev=round(price_stddev, 2),
-                updated_at=datetime.utcnow()
+                updated_at=datetime.utcnow(),
             )
 
         except Exception as e:
@@ -116,16 +113,13 @@ class CPUAnalyticsService:
                 great=None,
                 fair=None,
                 sample_size=0,
-                confidence='insufficient',
+                confidence="insufficient",
                 stddev=None,
-                updated_at=datetime.utcnow()
+                updated_at=datetime.utcnow(),
             )
 
     @staticmethod
-    async def calculate_performance_value(
-        session: AsyncSession,
-        cpu_id: int
-    ) -> PerformanceValue:
+    async def calculate_performance_value(session: AsyncSession, cpu_id: int) -> PerformanceValue:
         """Calculate $/PassMark metrics and percentile ranking.
 
         Algorithm:
@@ -152,7 +146,7 @@ class CPUAnalyticsService:
                     dollar_per_mark_multi=None,
                     percentile=None,
                     rating=None,
-                    updated_at=datetime.utcnow()
+                    updated_at=datetime.utcnow(),
                 )
 
             # Check if benchmark scores exist
@@ -166,7 +160,7 @@ class CPUAnalyticsService:
                     dollar_per_mark_multi=None,
                     percentile=None,
                     rating=None,
-                    updated_at=datetime.utcnow()
+                    updated_at=datetime.utcnow(),
                 )
 
             # Calculate average adjusted price from active listings
@@ -175,7 +169,7 @@ class CPUAnalyticsService:
                     Listing.cpu_id == cpu_id,
                     Listing.status == ListingStatus.ACTIVE.value,
                     Listing.adjusted_price_usd.isnot(None),
-                    Listing.adjusted_price_usd > 0
+                    Listing.adjusted_price_usd > 0,
                 )
             )
             result = await session.execute(stmt)
@@ -188,7 +182,7 @@ class CPUAnalyticsService:
                     dollar_per_mark_multi=None,
                     percentile=None,
                     rating=None,
-                    updated_at=datetime.utcnow()
+                    updated_at=datetime.utcnow(),
                 )
 
             # Calculate $/mark ratios
@@ -197,38 +191,41 @@ class CPUAnalyticsService:
 
             # Calculate percentile rank (lower $/mark = better value = lower percentile)
             # Count CPUs with better (lower) $/mark ratio
-            better_count_stmt = select(func.count(Cpu.id)).where(
-                and_(
-                    Cpu.cpu_mark_multi.isnot(None),
-                    Cpu.cpu_mark_multi > 0
+            better_count_stmt = (
+                select(func.count(Cpu.id))
+                .where(and_(Cpu.cpu_mark_multi.isnot(None), Cpu.cpu_mark_multi > 0))
+                .select_from(Cpu)
+                .join(
+                    Listing,
+                    and_(
+                        Listing.cpu_id == Cpu.id,
+                        Listing.status == ListingStatus.ACTIVE.value,
+                        Listing.adjusted_price_usd.isnot(None),
+                        Listing.adjusted_price_usd > 0,
+                    ),
                 )
-            ).select_from(Cpu).join(
-                Listing,
-                and_(
-                    Listing.cpu_id == Cpu.id,
-                    Listing.status == ListingStatus.ACTIVE.value,
-                    Listing.adjusted_price_usd.isnot(None),
-                    Listing.adjusted_price_usd > 0
+                .group_by(Cpu.id)
+                .having(
+                    # Better = lower $/mark ratio
+                    (func.avg(Listing.adjusted_price_usd) / Cpu.cpu_mark_multi)
+                    < dollar_per_multi
                 )
-            ).group_by(Cpu.id).having(
-                # Better = lower $/mark ratio
-                (func.avg(Listing.adjusted_price_usd) / Cpu.cpu_mark_multi) < dollar_per_multi
             )
 
             # Count total CPUs with valid data
-            total_count_stmt = select(func.count(func.distinct(Cpu.id))).select_from(Cpu).join(
-                Listing,
-                and_(
-                    Listing.cpu_id == Cpu.id,
-                    Listing.status == ListingStatus.ACTIVE.value,
-                    Listing.adjusted_price_usd.isnot(None),
-                    Listing.adjusted_price_usd > 0
+            total_count_stmt = (
+                select(func.count(func.distinct(Cpu.id)))
+                .select_from(Cpu)
+                .join(
+                    Listing,
+                    and_(
+                        Listing.cpu_id == Cpu.id,
+                        Listing.status == ListingStatus.ACTIVE.value,
+                        Listing.adjusted_price_usd.isnot(None),
+                        Listing.adjusted_price_usd > 0,
+                    ),
                 )
-            ).where(
-                and_(
-                    Cpu.cpu_mark_multi.isnot(None),
-                    Cpu.cpu_mark_multi > 0
-                )
+                .where(and_(Cpu.cpu_mark_multi.isnot(None), Cpu.cpu_mark_multi > 0))
             )
 
             better_result = await session.execute(better_count_stmt)
@@ -242,13 +239,13 @@ class CPUAnalyticsService:
 
             # Assign rating based on quartiles
             if percentile <= 25:
-                rating = 'excellent'
+                rating = "excellent"
             elif percentile <= 50:
-                rating = 'good'
+                rating = "good"
             elif percentile <= 75:
-                rating = 'fair'
+                rating = "fair"
             else:
-                rating = 'poor'
+                rating = "poor"
 
             logger.info(
                 f"CPU {cpu_id} ({cpu.name}): Performance value calculated - "
@@ -261,24 +258,23 @@ class CPUAnalyticsService:
                 dollar_per_mark_multi=round(dollar_per_multi, 4),
                 percentile=round(percentile, 1),
                 rating=rating,
-                updated_at=datetime.utcnow()
+                updated_at=datetime.utcnow(),
             )
 
         except Exception as e:
-            logger.error(f"Error calculating performance value for CPU {cpu_id}: {e}", exc_info=True)
+            logger.error(
+                f"Error calculating performance value for CPU {cpu_id}: {e}", exc_info=True
+            )
             return PerformanceValue(
                 dollar_per_mark_single=None,
                 dollar_per_mark_multi=None,
                 percentile=None,
                 rating=None,
-                updated_at=datetime.utcnow()
+                updated_at=datetime.utcnow(),
             )
 
     @staticmethod
-    async def update_cpu_analytics(
-        session: AsyncSession,
-        cpu_id: int
-    ) -> None:
+    async def update_cpu_analytics(session: AsyncSession, cpu_id: int) -> None:
         """Update all analytics fields for a CPU.
 
         Calculates both price targets and performance value,
@@ -333,9 +329,7 @@ class CPUAnalyticsService:
             raise
 
     @staticmethod
-    async def recalculate_all_cpu_metrics(
-        session: AsyncSession
-    ) -> dict[str, int]:
+    async def recalculate_all_cpu_metrics(session: AsyncSession) -> dict[str, int]:
         """Background task to refresh all CPU analytics.
 
         Iterates through all CPUs and recalculates their analytics.
@@ -375,11 +369,7 @@ class CPUAnalyticsService:
         # Commit all changes
         await session.commit()
 
-        summary = {
-            'total': total,
-            'success': success,
-            'errors': errors
-        }
+        summary = {"total": total, "success": success, "errors": errors}
 
         logger.info(
             f"CPU metrics recalculation complete: "

@@ -216,7 +216,7 @@ async def test_calculate_build_success(
         json={
             "cpu_id": sample_cpu.id,
             "gpu_id": sample_gpu.id,
-        }
+        },
     )
 
     assert response.status_code == 200
@@ -259,10 +259,7 @@ async def test_calculate_build_cpu_only(
     sample_cpu: Cpu,
 ):
     """Test build calculation with CPU only (no GPU)."""
-    response = await async_client.post(
-        "/v1/builder/calculate",
-        json={"cpu_id": sample_cpu.id}
-    )
+    response = await async_client.post("/v1/builder/calculate", json={"cpu_id": sample_cpu.id})
 
     assert response.status_code == 200
     data = response.json()
@@ -279,8 +276,7 @@ async def test_calculate_build_cpu_only(
 async def test_calculate_build_missing_cpu(async_client: AsyncClient):
     """Test calculation fails without CPU (required)."""
     response = await async_client.post(
-        "/v1/builder/calculate",
-        json={"gpu_id": 999}  # Missing cpu_id
+        "/v1/builder/calculate", json={"gpu_id": 999}  # Missing cpu_id
     )
 
     assert response.status_code == 422  # Validation error
@@ -290,8 +286,7 @@ async def test_calculate_build_missing_cpu(async_client: AsyncClient):
 async def test_calculate_build_invalid_cpu_id(async_client: AsyncClient):
     """Test calculation fails with invalid CPU ID."""
     response = await async_client.post(
-        "/v1/builder/calculate",
-        json={"cpu_id": 99999}  # Non-existent CPU
+        "/v1/builder/calculate", json={"cpu_id": 99999}  # Non-existent CPU
     )
 
     assert response.status_code == 400
@@ -309,7 +304,7 @@ async def test_calculate_build_invalid_gpu_id(
         json={
             "cpu_id": sample_cpu.id,
             "gpu_id": 99999,  # Non-existent GPU
-        }
+        },
     )
 
     assert response.status_code == 400
@@ -336,8 +331,8 @@ async def test_save_build_success(
             "components": {
                 "cpu_id": sample_cpu.id,
                 "gpu_id": sample_gpu.id,
-            }
-        }
+            },
+        },
     )
 
     assert response.status_code == 201
@@ -380,7 +375,7 @@ async def test_save_build_missing_name(
         json={
             "components": {"cpu_id": sample_cpu.id}
             # Missing name
-        }
+        },
     )
 
     assert response.status_code == 422  # Validation error
@@ -394,10 +389,7 @@ async def test_save_build_empty_name(
     """Test save fails with empty/whitespace name."""
     response = await async_client.post(
         "/v1/builder/builds",
-        json={
-            "name": "   ",  # Whitespace only
-            "components": {"cpu_id": sample_cpu.id}
-        }
+        json={"name": "   ", "components": {"cpu_id": sample_cpu.id}},  # Whitespace only
     )
 
     # Pydantic validation returns 422 for validation errors
@@ -416,8 +408,8 @@ async def test_save_build_invalid_visibility(
         json={
             "name": "Test Build",
             "visibility": "invalid",  # Not private/public/unlisted
-            "components": {"cpu_id": sample_cpu.id}
-        }
+            "components": {"cpu_id": sample_cpu.id},
+        },
     )
 
     assert response.status_code == 422  # Validation error
@@ -433,9 +425,9 @@ async def test_save_build_default_visibility(
         "/v1/builder/builds",
         json={
             "name": "Test Build",
-            "components": {"cpu_id": sample_cpu.id}
+            "components": {"cpu_id": sample_cpu.id},
             # No visibility specified
-        }
+        },
     )
 
     assert response.status_code == 201
@@ -447,11 +439,7 @@ async def test_save_build_default_visibility(
 async def test_save_build_missing_cpu(async_client: AsyncClient):
     """Test save fails without CPU in components."""
     response = await async_client.post(
-        "/v1/builder/builds",
-        json={
-            "name": "Test Build",
-            "components": {}  # Missing cpu_id
-        }
+        "/v1/builder/builds", json={"name": "Test Build", "components": {}}  # Missing cpu_id
     )
 
     assert response.status_code == 422  # Validation error
@@ -488,10 +476,7 @@ async def test_list_builds_pagination(
     sample_build: SavedBuild,
 ):
     """Test build listing with pagination parameters."""
-    response = await async_client.get(
-        "/v1/builder/builds",
-        params={"limit": 5, "offset": 0}
-    )
+    response = await async_client.get("/v1/builder/builds", params={"limit": 5, "offset": 0})
 
     assert response.status_code == 200
     data = response.json()
@@ -503,10 +488,7 @@ async def test_list_builds_pagination(
 @pytest.mark.asyncio
 async def test_list_builds_limit_validation(async_client: AsyncClient):
     """Test list fails with limit > 100."""
-    response = await async_client.get(
-        "/v1/builder/builds",
-        params={"limit": 101}
-    )
+    response = await async_client.get("/v1/builder/builds", params={"limit": 101})
 
     # Pydantic/Query validation returns 422 for validation errors
     assert response.status_code == 422
@@ -586,8 +568,8 @@ async def test_update_build_success(
             "name": "Updated Build Name",
             "description": "Updated description",
             "visibility": "public",
-            "components": {"cpu_id": sample_cpu.id}
-        }
+            "components": {"cpu_id": sample_cpu.id},
+        },
     )
 
     assert response.status_code == 200
@@ -606,10 +588,7 @@ async def test_update_build_not_found(
     """Test update returns 403 for non-existent build."""
     response = await async_client.patch(
         "/v1/builder/builds/99999",
-        json={
-            "name": "Updated Name",
-            "components": {"cpu_id": sample_cpu.id}
-        }
+        json={"name": "Updated Name", "components": {"cpu_id": sample_cpu.id}},
     )
 
     assert response.status_code == 403
@@ -654,9 +633,7 @@ async def test_get_shared_build_success(
     public_build: SavedBuild,
 ):
     """Test successful shared build retrieval."""
-    response = await async_client.get(
-        f"/v1/builder/builds/shared/{public_build.share_token}"
-    )
+    response = await async_client.get(f"/v1/builder/builds/shared/{public_build.share_token}")
 
     assert response.status_code == 200
     data = response.json()
@@ -672,9 +649,7 @@ async def test_get_shared_build_private_not_accessible(
 ):
     """Test private build not accessible via share token."""
     # sample_build is private
-    response = await async_client.get(
-        f"/v1/builder/builds/shared/{sample_build.share_token}"
-    )
+    response = await async_client.get(f"/v1/builder/builds/shared/{sample_build.share_token}")
 
     # Private builds should return 404 via share link
     assert response.status_code == 404
@@ -683,9 +658,7 @@ async def test_get_shared_build_private_not_accessible(
 @pytest.mark.asyncio
 async def test_get_shared_build_not_found(async_client: AsyncClient):
     """Test shared build returns 404 for invalid token."""
-    response = await async_client.get(
-        "/v1/builder/builds/shared/invalid-token-xyz"
-    )
+    response = await async_client.get("/v1/builder/builds/shared/invalid-token-xyz")
 
     assert response.status_code == 404
     assert "detail" in response.json()
@@ -708,7 +681,7 @@ async def test_compare_to_listings_success(
             "ram_gb": 16,
             "storage_gb": 512,
             "limit": 5,
-        }
+        },
     )
 
     assert response.status_code == 200
@@ -746,10 +719,7 @@ async def test_compare_no_matches(
     sample_cpu: Cpu,
 ):
     """Test compare returns empty list when no matches found."""
-    response = await async_client.get(
-        "/v1/builder/compare",
-        params={"cpu_id": sample_cpu.id}
-    )
+    response = await async_client.get("/v1/builder/compare", params={"cpu_id": sample_cpu.id})
 
     assert response.status_code == 200
     data = response.json()
@@ -771,10 +741,7 @@ async def test_calculate_performance(
     import time
 
     start = time.time()
-    response = await async_client.post(
-        "/v1/builder/calculate",
-        json={"cpu_id": sample_cpu.id}
-    )
+    response = await async_client.post("/v1/builder/calculate", json={"cpu_id": sample_cpu.id})
     duration = (time.time() - start) * 1000  # Convert to ms
 
     assert response.status_code == 200
@@ -793,10 +760,7 @@ async def test_save_build_performance(
     start = time.time()
     response = await async_client.post(
         "/v1/builder/builds",
-        json={
-            "name": "Performance Test Build",
-            "components": {"cpu_id": sample_cpu.id}
-        }
+        json={"name": "Performance Test Build", "components": {"cpu_id": sample_cpu.id}},
     )
     duration = (time.time() - start) * 1000  # Convert to ms
 
@@ -822,7 +786,7 @@ async def test_end_to_end_flow(
         json={
             "cpu_id": sample_cpu.id,
             "gpu_id": sample_gpu.id,
-        }
+        },
     )
     assert calc_response.status_code == 200
     calc_data = calc_response.json()
@@ -838,8 +802,8 @@ async def test_end_to_end_flow(
             "components": {
                 "cpu_id": sample_cpu.id,
                 "gpu_id": sample_gpu.id,
-            }
-        }
+            },
+        },
     )
     assert save_response.status_code == 201
     build_data = save_response.json()
@@ -854,9 +818,7 @@ async def test_end_to_end_flow(
     assert get_data["name"] == "E2E Test Build"
 
     # 4. Get build via share link
-    share_response = await async_client.get(
-        f"/v1/builder/builds/shared/{share_token}"
-    )
+    share_response = await async_client.get(f"/v1/builder/builds/shared/{share_token}")
     assert share_response.status_code == 200
     share_data = share_response.json()
     assert share_data["id"] == build_id
@@ -864,10 +826,7 @@ async def test_end_to_end_flow(
     # 5. Update build
     update_response = await async_client.patch(
         f"/v1/builder/builds/{build_id}",
-        json={
-            "name": "Updated E2E Build",
-            "components": {"cpu_id": sample_cpu.id}
-        }
+        json={"name": "Updated E2E Build", "components": {"cpu_id": sample_cpu.id}},
     )
     assert update_response.status_code == 200
     update_data = update_response.json()

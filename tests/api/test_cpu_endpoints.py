@@ -489,12 +489,16 @@ class TestGetCPUDetail:
         # Verify all performance value fields
         assert data["dollar_per_mark_single"] == float(sample_cpu.dollar_per_mark_single)
         assert data["dollar_per_mark_multi"] == float(sample_cpu.dollar_per_mark_multi)
-        assert data["performance_value_percentile"] == float(sample_cpu.performance_value_percentile)
+        assert data["performance_value_percentile"] == float(
+            sample_cpu.performance_value_percentile
+        )
         assert data["performance_value_rating"] == sample_cpu.performance_value_rating
         assert data["performance_metrics_updated_at"] is not None
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="API bug: uses listing.base_price_usd and listing.url instead of price_usd and listing_url")
+    @pytest.mark.skip(
+        reason="API bug: uses listing.base_price_usd and listing.url instead of price_usd and listing_url"
+    )
     async def test_get_cpu_by_id_includes_associated_listings(
         self,
         async_client: AsyncClient,
@@ -528,7 +532,9 @@ class TestGetCPUDetail:
             assert "status" in listing
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="API bug: uses listing.base_price_usd and listing.url instead of price_usd and listing_url")
+    @pytest.mark.skip(
+        reason="API bug: uses listing.base_price_usd and listing.url instead of price_usd and listing_url"
+    )
     async def test_get_cpu_by_id_includes_price_distribution(
         self,
         async_client: AsyncClient,
@@ -765,7 +771,9 @@ class TestCPUEndpointIntegration:
     """End-to-end integration tests for CPU endpoints"""
 
     @pytest.mark.asyncio
-    @pytest.mark.skip(reason="API bug: uses listing.base_price_usd and listing.url instead of price_usd and listing_url")
+    @pytest.mark.skip(
+        reason="API bug: uses listing.base_price_usd and listing.url instead of price_usd and listing_url"
+    )
     async def test_full_cpu_workflow(
         self,
         async_client: AsyncClient,

@@ -45,9 +45,7 @@ class TestPaginatedListingsEndpoint:
         assert data["limit"] == 10
         assert len(data["items"]) <= 10
 
-    async def test_pagination_navigation(
-        self, client: AsyncClient, many_listings: list[Listing]
-    ):
+    async def test_pagination_navigation(self, client: AsyncClient, many_listings: list[Listing]):
         """Test navigating through pages using cursor."""
         # Get first page
         response1 = await client.get("/v1/listings/paginated?limit=10")
@@ -108,7 +106,7 @@ class TestPaginatedListingsEndpoint:
         # Verify items are sorted by updated_at descending
         timestamps = [item["updated_at"] for item in data["items"]]
         # Convert to datetime for comparison
-        dt_timestamps = [datetime.fromisoformat(ts.replace('Z', '+00:00')) for ts in timestamps]
+        dt_timestamps = [datetime.fromisoformat(ts.replace("Z", "+00:00")) for ts in timestamps]
         assert dt_timestamps == sorted(dt_timestamps, reverse=True)
 
     async def test_filter_by_form_factor(
@@ -137,13 +135,9 @@ class TestPaginatedListingsEndpoint:
         for item in data["items"]:
             assert item["manufacturer"] == "Dell"
 
-    async def test_filter_by_price_range(
-        self, client: AsyncClient, sample_listings: list[Listing]
-    ):
+    async def test_filter_by_price_range(self, client: AsyncClient, sample_listings: list[Listing]):
         """Test filtering by price range."""
-        response = await client.get(
-            "/v1/listings/paginated?min_price=200&max_price=800"
-        )
+        response = await client.get("/v1/listings/paginated?min_price=200&max_price=800")
 
         assert response.status_code == 200
         data = response.json()
@@ -152,9 +146,7 @@ class TestPaginatedListingsEndpoint:
         for item in data["items"]:
             assert 200.0 <= item["price_usd"] <= 800.0
 
-    async def test_filter_min_price_only(
-        self, client: AsyncClient, sample_listings: list[Listing]
-    ):
+    async def test_filter_min_price_only(self, client: AsyncClient, sample_listings: list[Listing]):
         """Test filtering with min_price only."""
         response = await client.get("/v1/listings/paginated?min_price=500")
 
@@ -164,9 +156,7 @@ class TestPaginatedListingsEndpoint:
         for item in data["items"]:
             assert item["price_usd"] >= 500.0
 
-    async def test_filter_max_price_only(
-        self, client: AsyncClient, sample_listings: list[Listing]
-    ):
+    async def test_filter_max_price_only(self, client: AsyncClient, sample_listings: list[Listing]):
         """Test filtering with max_price only."""
         response = await client.get("/v1/listings/paginated?max_price=500")
 
@@ -215,9 +205,7 @@ class TestPaginatedListingsEndpoint:
 
     async def test_sql_injection_protection(self, client: AsyncClient):
         """Test protection against SQL injection in sort column."""
-        response = await client.get(
-            "/v1/listings/paginated?sort_by=id; DROP TABLE listing;"
-        )
+        response = await client.get("/v1/listings/paginated?sort_by=id; DROP TABLE listing;")
 
         # Should be rejected by regex validation or invalid column check
         assert response.status_code == 400
@@ -257,9 +245,7 @@ class TestPaginatedListingsEndpoint:
 
     async def test_empty_result_set(self, client: AsyncClient):
         """Test pagination with no matching results."""
-        response = await client.get(
-            "/v1/listings/paginated?manufacturer=NonExistentManufacturer"
-        )
+        response = await client.get("/v1/listings/paginated?manufacturer=NonExistentManufacturer")
 
         assert response.status_code == 200
         data = response.json()

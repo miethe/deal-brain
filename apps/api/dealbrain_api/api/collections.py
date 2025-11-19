@@ -153,7 +153,7 @@ async def create_collection(
                 user_id=current_user.user_id,
                 name=payload.name,
                 description=payload.description,
-                visibility=payload.visibility.value
+                visibility=payload.visibility.value,
             )
 
             span.set_attribute("collection_id", collection.id)
@@ -174,16 +174,13 @@ async def create_collection(
                 created_at=collection.created_at,
                 updated_at=collection.updated_at,
                 item_count=0,
-                items=None
+                items=None,
             )
 
         except ValueError as e:
             # Validation error
             logger.warning(f"Invalid collection creation: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.get(
@@ -243,9 +240,7 @@ async def list_collections(
 
         # Get user's collections
         collections = await collections_service.list_user_collections(
-            user_id=current_user.user_id,
-            limit=limit,
-            offset=skip
+            user_id=current_user.user_id, limit=limit, offset=skip
         )
 
         span.set_attribute("result_count", len(collections))
@@ -266,7 +261,7 @@ async def list_collections(
                 created_at=collection.created_at,
                 updated_at=collection.updated_at,
                 item_count=len(collection.items) if collection.items else 0,
-                items=None
+                items=None,
             )
             for collection in collections
         ]
@@ -343,22 +338,18 @@ async def get_collection(
         try:
             # Get collection with items (service handles ownership check)
             collection = await collections_service.get_collection(
-                collection_id=collection_id,
-                user_id=current_user.user_id,
-                load_items=True
+                collection_id=collection_id, user_id=current_user.user_id, load_items=True
             )
 
             if not collection:
                 logger.info(f"Collection {collection_id} not found")
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Collection not found"
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found"
                 )
 
             # Get items with details
             items = await collections_service.get_collection_items(
-                collection_id=collection_id,
-                user_id=current_user.user_id
+                collection_id=collection_id, user_id=current_user.user_id
             )
 
             span.set_attribute("item_count", len(items))
@@ -388,19 +379,16 @@ async def get_collection(
                         notes=item.notes,
                         position=item.position,
                         added_at=item.added_at,
-                        updated_at=item.updated_at
+                        updated_at=item.updated_at,
                     )
                     for item in items
-                ]
+                ],
             )
 
         except PermissionError as e:
             # Not owner
             logger.warning(f"Permission denied for collection {collection_id}: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
 @router.patch(
@@ -475,20 +463,16 @@ async def update_collection(
                 user_id=current_user.user_id,
                 name=payload.name,
                 description=payload.description,
-                visibility=payload.visibility.value if payload.visibility else None
+                visibility=payload.visibility.value if payload.visibility else None,
             )
 
             if not updated:
                 logger.info(f"Collection {collection_id} not found")
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Collection not found"
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found"
                 )
 
-            logger.info(
-                f"Collection updated: id={collection_id}, "
-                f"user={current_user.user_id}"
-            )
+            logger.info(f"Collection updated: id={collection_id}, " f"user={current_user.user_id}")
 
             # Convert to response schema
             return CollectionRead(
@@ -500,24 +484,18 @@ async def update_collection(
                 created_at=updated.created_at,
                 updated_at=updated.updated_at,
                 item_count=len(updated.items) if updated.items else 0,
-                items=None
+                items=None,
             )
 
         except ValueError as e:
             # Validation error
             logger.warning(f"Invalid collection update: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
         except PermissionError as e:
             # Not owner
             logger.warning(f"Permission denied for collection {collection_id}: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
 # ==================== Task 2a-api-1: Update Visibility ====================
@@ -909,31 +887,23 @@ async def delete_collection(
         try:
             # Delete collection (service handles ownership check)
             deleted = await collections_service.delete_collection(
-                collection_id=collection_id,
-                user_id=current_user.user_id
+                collection_id=collection_id, user_id=current_user.user_id
             )
 
             if not deleted:
                 logger.info(f"Collection {collection_id} not found")
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Collection not found"
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found"
                 )
 
-            logger.info(
-                f"Collection deleted: id={collection_id}, "
-                f"user={current_user.user_id}"
-            )
+            logger.info(f"Collection deleted: id={collection_id}, " f"user={current_user.user_id}")
 
             return Response(status_code=status.HTTP_204_NO_CONTENT)
 
         except PermissionError as e:
             # Not owner
             logger.warning(f"Permission denied for collection {collection_id}: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
 # ==================== Collection Item Endpoints ====================
@@ -1014,7 +984,7 @@ async def add_collection_item(
                 user_id=current_user.user_id,
                 status=payload.status.value,
                 notes=payload.notes,
-                position=payload.position
+                position=payload.position,
             )
 
             span.set_attribute("item_id", item.id)
@@ -1035,30 +1005,21 @@ async def add_collection_item(
                 notes=item.notes,
                 position=item.position,
                 added_at=item.added_at,
-                updated_at=item.updated_at
+                updated_at=item.updated_at,
             )
 
         except ValueError as e:
             # Validation error or duplicate
             logger.warning(f"Failed to add item to collection: {e}")
             if "already exists" in str(e).lower():
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=str(e)
-                )
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
             else:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=str(e)
-                )
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
         except PermissionError as e:
             # Not owner
             logger.warning(f"Permission denied for collection {collection_id}: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
 @router.patch(
@@ -1135,14 +1096,13 @@ async def update_collection_item(
                 user_id=current_user.user_id,
                 status=payload.status.value if payload.status else None,
                 notes=payload.notes,
-                position=payload.position
+                position=payload.position,
             )
 
             if not updated:
                 logger.info(f"Collection item {item_id} not found")
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Collection item not found"
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Collection item not found"
                 )
 
             logger.info(
@@ -1160,24 +1120,18 @@ async def update_collection_item(
                 notes=updated.notes,
                 position=updated.position,
                 added_at=updated.added_at,
-                updated_at=updated.updated_at
+                updated_at=updated.updated_at,
             )
 
         except ValueError as e:
             # Validation error
             logger.warning(f"Invalid item update: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
         except PermissionError as e:
             # Not owner
             logger.warning(f"Permission denied for item {item_id}: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
 @router.delete(
@@ -1232,15 +1186,13 @@ async def remove_collection_item(
         try:
             # Remove item (service handles ownership check)
             removed = await collections_service.remove_item_from_collection(
-                item_id=item_id,
-                user_id=current_user.user_id
+                item_id=item_id, user_id=current_user.user_id
             )
 
             if not removed:
                 logger.info(f"Collection item {item_id} not found")
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Collection item not found"
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Collection item not found"
                 )
 
             logger.info(
@@ -1254,10 +1206,7 @@ async def remove_collection_item(
         except PermissionError as e:
             # Not owner
             logger.warning(f"Permission denied for item {item_id}: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
 # ==================== Export Endpoint ====================
@@ -1322,22 +1271,18 @@ async def export_collection(
         try:
             # Get collection with items (service handles ownership check)
             collection = await collections_service.get_collection(
-                collection_id=collection_id,
-                user_id=current_user.user_id,
-                load_items=True
+                collection_id=collection_id, user_id=current_user.user_id, load_items=True
             )
 
             if not collection:
                 logger.info(f"Collection {collection_id} not found")
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Collection not found"
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found"
                 )
 
             # Get items with full details
             items = await collections_service.get_collection_items(
-                collection_id=collection_id,
-                user_id=current_user.user_id
+                collection_id=collection_id, user_id=current_user.user_id
             )
 
             span.set_attribute("item_count", len(items))
@@ -1348,38 +1293,46 @@ async def export_collection(
                 writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
 
                 # Write header
-                writer.writerow([
-                    "title",
-                    "price_usd",
-                    "cpu",
-                    "gpu",
-                    "dollar_per_cpu_mark",
-                    "score",
-                    "status",
-                    "notes"
-                ])
+                writer.writerow(
+                    [
+                        "title",
+                        "price_usd",
+                        "cpu",
+                        "gpu",
+                        "dollar_per_cpu_mark",
+                        "score",
+                        "status",
+                        "notes",
+                    ]
+                )
 
                 # Write rows
                 for item in items:
-                    listing = item.listing if hasattr(item, 'listing') else None
-                    writer.writerow([
-                        listing.title if listing else "",
-                        f"{listing.price_usd:.2f}" if listing and listing.price_usd is not None else "",
-                        listing.cpu.name if listing and listing.cpu else "",
-                        listing.gpu.name if listing and listing.gpu else "",
-                        (
-                            f"{listing.dollar_per_cpu_mark:.2f}"
-                            if listing and listing.dollar_per_cpu_mark is not None
-                            else ""
-                        ),
-                        (
-                            f"{listing.score_composite:.2f}"
-                            if listing and listing.score_composite is not None
-                            else ""
-                        ),
-                        item.status,
-                        item.notes or ""
-                    ])
+                    listing = item.listing if hasattr(item, "listing") else None
+                    writer.writerow(
+                        [
+                            listing.title if listing else "",
+                            (
+                                f"{listing.price_usd:.2f}"
+                                if listing and listing.price_usd is not None
+                                else ""
+                            ),
+                            listing.cpu.name if listing and listing.cpu else "",
+                            listing.gpu.name if listing and listing.gpu else "",
+                            (
+                                f"{listing.dollar_per_cpu_mark:.2f}"
+                                if listing and listing.dollar_per_cpu_mark is not None
+                                else ""
+                            ),
+                            (
+                                f"{listing.score_composite:.2f}"
+                                if listing and listing.score_composite is not None
+                                else ""
+                            ),
+                            item.status,
+                            item.notes or "",
+                        ]
+                    )
 
                 logger.info(
                     f"Collection exported as CSV: id={collection_id}, "
@@ -1393,7 +1346,7 @@ async def export_collection(
                     media_type="text/csv",
                     headers={
                         "Content-Disposition": f'attachment; filename="collection_{collection_id}.csv"'
-                    }
+                    },
                 )
 
             else:  # format == "json"
@@ -1443,10 +1396,7 @@ async def export_collection(
         except PermissionError as e:
             # Not owner
             logger.warning(f"Permission denied for collection {collection_id}: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=str(e)
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
 # ==================== Task 2a-api-4: Discovery Endpoint ====================

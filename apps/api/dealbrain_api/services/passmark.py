@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import session_scope
 from ..models import Cpu
+
 NUMERIC_NA = {"", "na", "n/a", "null", "none"}
 
 
@@ -102,7 +103,7 @@ def build_passmark_url(href: str | None) -> tuple[str | None, str | None]:
 
     slug = decoded
     if slug.startswith("cpu="):
-        slug = slug[len("cpu="):]
+        slug = slug[len("cpu=") :]
     base_url = "https://www.cpubenchmark.net/cpu.php"
     if decoded.startswith("cpu="):
         url = f"{base_url}?{decoded}"
@@ -153,7 +154,9 @@ def update_cpu_from_passmark(cpu: Cpu, data: dict[str, Any]) -> None:
         manufacturer = infer_manufacturer(cpu.name)
 
     socket = parse_string(data.get("socket") or data.get("socketType"))
-    igpu_model = parse_string(data.get("igpu_model") or data.get("igpuModel") or data.get("gpuModel"))
+    igpu_model = parse_string(
+        data.get("igpu_model") or data.get("igpuModel") or data.get("gpuModel")
+    )
     notes = parse_string(data.get("notes") or data.get("comment"))
 
     if cpu_mark_single is not None:

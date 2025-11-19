@@ -99,20 +99,14 @@ def main():
     tests_failed = 0
 
     # Test 1: Help output
-    success, output = run_test(
-        "Help output",
-        ["python", str(init_script), "--help"]
-    )
+    success, output = run_test("Help output", ["python", str(init_script), "--help"])
     if success and "Interactive symbols configuration wizard" in output:
         tests_passed += 1
     else:
         tests_failed += 1
 
     # Test 2: List templates
-    success, output = run_test(
-        "List templates",
-        ["python", str(init_script), "--list"]
-    )
+    success, output = run_test("List templates", ["python", str(init_script), "--list"])
     if success and "react-typescript-fullstack" in output:
         tests_passed += 1
     else:
@@ -122,12 +116,13 @@ def main():
     success, output = run_test(
         "Dry run - Python FastAPI",
         [
-            "python", str(init_script),
+            "python",
+            str(init_script),
             "--template=python-fastapi",
             "--name=TestProject",
             "--symbols-dir=symbols",
-            "--dry-run"
-        ]
+            "--dry-run",
+        ],
     )
     if success and "Dry run mode" in output and "TestProject" in output:
         tests_passed += 1
@@ -141,12 +136,13 @@ def main():
         success, output = run_test(
             "Quick mode - React Fullstack",
             [
-                "python", str(init_script),
+                "python",
+                str(init_script),
                 "--quick",
                 "--name=QuickTest",
                 "--symbols-dir=ai",
-                f"--output={output_path}"
-            ]
+                f"--output={output_path}",
+            ],
         )
 
         if success:
@@ -170,13 +166,14 @@ def main():
         success, output = run_test(
             "Force overwrite - Next.js Monorepo",
             [
-                "python", str(init_script),
+                "python",
+                str(init_script),
                 "--template=nextjs-monorepo",
                 "--name=NextJSTest",
                 "--symbols-dir=ai",
                 f"--output={output_path}",
-                "--force"
-            ]
+                "--force",
+            ],
         )
 
         if success:
@@ -204,12 +201,13 @@ def main():
         success, output = run_test(
             "Vue TypeScript template",
             [
-                "python", str(init_script),
+                "python",
+                str(init_script),
                 "--template=vue-typescript",
                 "--name=VueTest",
                 "--symbols-dir=ai",
-                f"--output={output_path}"
-            ]
+                f"--output={output_path}",
+            ],
         )
 
         if success:
@@ -230,12 +228,13 @@ def main():
         success, output = run_test(
             "Django template",
             [
-                "python", str(init_script),
+                "python",
+                str(init_script),
                 "--template=python-django",
                 "--name=DjangoTest",
                 "--symbols-dir=ai",
-                f"--output={output_path}"
-            ]
+                f"--output={output_path}",
+            ],
         )
 
         if success:

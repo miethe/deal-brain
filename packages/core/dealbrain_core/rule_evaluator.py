@@ -7,6 +7,7 @@ from typing import Any
 @dataclass
 class ConditionNode:
     """Tree node representing a condition or condition group."""
+
     field_name: str | None  # None for group nodes
     operator: str | None
     value: Any | None
@@ -50,22 +51,34 @@ class ConditionNode:
         elif self.operator == "less_than":
             return actual_value is not None and self.value is not None and actual_value < self.value
         elif self.operator == "gte":
-            return actual_value is not None and self.value is not None and actual_value >= self.value
+            return (
+                actual_value is not None and self.value is not None and actual_value >= self.value
+            )
         elif self.operator == "lte":
-            return actual_value is not None and self.value is not None and actual_value <= self.value
+            return (
+                actual_value is not None and self.value is not None and actual_value <= self.value
+            )
         elif self.operator == "contains":
             return self.value in str(actual_value) if actual_value is not None else False
         elif self.operator == "starts_with":
-            return str(actual_value).startswith(str(self.value)) if actual_value is not None else False
+            return (
+                str(actual_value).startswith(str(self.value)) if actual_value is not None else False
+            )
         elif self.operator == "ends_with":
-            return str(actual_value).endswith(str(self.value)) if actual_value is not None else False
+            return (
+                str(actual_value).endswith(str(self.value)) if actual_value is not None else False
+            )
         elif self.operator == "in":
             return actual_value in self.value if isinstance(self.value, (list, tuple)) else False
         elif self.operator == "not_in":
             return actual_value not in self.value if isinstance(self.value, (list, tuple)) else True
         elif self.operator == "between":
             if isinstance(self.value, (list, tuple)) and len(self.value) == 2:
-                return self.value[0] <= actual_value <= self.value[1] if actual_value is not None else False
+                return (
+                    self.value[0] <= actual_value <= self.value[1]
+                    if actual_value is not None
+                    else False
+                )
             return False
         else:
             raise ValueError(f"Unknown operator: {self.operator}")
@@ -127,12 +140,14 @@ def evaluate_conditions(conditions: list[dict], context: dict[str, Any]) -> tupl
         matched = node.evaluate(context)
         actual_value = node._get_nested_value(context, node.field_name)
 
-        condition_results.append({
-            "condition": f"{condition.get('field_name')} {condition.get('operator')} {condition.get('value')}",
-            "matched": matched,
-            "actual_value": actual_value,
-            "expected": condition.get("value"),
-        })
+        condition_results.append(
+            {
+                "condition": f"{condition.get('field_name')} {condition.get('operator')} {condition.get('value')}",
+                "matched": matched,
+                "actual_value": actual_value,
+                "expected": condition.get("value"),
+            }
+        )
 
         # Apply logical operator
         if i == 0:

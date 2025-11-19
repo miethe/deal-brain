@@ -6,12 +6,14 @@ along with payload normalization and validation utilities.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 from urllib.parse import urlparse
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ...events import EventType, publish_event
 from ...models import Listing, Profile
 from ...telemetry import get_logger
 
@@ -170,6 +172,13 @@ async def create_listing(session: AsyncSession, payload: dict) -> Listing:
         price=listing.price_usd,
         ruleset_id=listing.ruleset_id,
     )
+
+    # Publish SSE event
+    await publish_event(
+        EventType.LISTING_CREATED,
+        {"listing_id": listing.id, "timestamp": datetime.utcnow().isoformat()},
+    )
+
     return listing
 
 
@@ -191,16 +200,29 @@ async def update_listing(session: AsyncSession, listing: Listing, payload: dict)
 
     payload = _normalize_listing_payload(payload)
     await _prepare_component_relationships(session, payload, listing=listing)
+
+    # Track changed fields for event
+    changed_fields = list(payload.keys())
+
     for field, value in payload.items():
         setattr(listing, field, value)
     await session.flush()
     logger.info(
         "listing.updated",
         listing_id=listing.id,
-        updated_fields=list(payload.keys()),
+        updated_fields=changed_fields,
         ruleset_id=listing.ruleset_id,
     )
 
+    # Publish SSE event
+    await publish_event(
+        EventType.LISTING_UPDATED,
+        {
+            "listing_id": listing.id,
+            "changes": changed_fields,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
     # Invalidate card image cache if price or components changed
     await _invalidate_card_cache_if_needed(session, listing, payload)
 
@@ -238,9 +260,13 @@ async def partial_update_listing(
     fields = _normalize_listing_payload(dict(fields))
     await _prepare_component_relationships(session, fields, listing=listing)
 
+    # Track changed fields for event
+    changed_fields = []
+
     for field, value in fields.items():
         if field in MUTABLE_LISTING_FIELDS:
             setattr(listing, field, value)
+            changed_fields.append(field)
 
     if attributes:
         merged = dict(listing.attributes_json or {})
@@ -250,6 +276,7 @@ async def partial_update_listing(
             else:
                 merged[key] = value
         listing.attributes_json = merged
+        changed_fields.append("attributes_json")
 
     logger.info(
         "listing.partial_update",
@@ -261,6 +288,30 @@ async def partial_update_listing(
 
     await session.flush()
 
+    # Publish SSE event
+    await publish_event(
+        EventType.LISTING_UPDATED,
+        {
+            "listing_id": listing.id,
+            "changes": changed_fields,
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
+
+    # Check if recalculation should be triggered asynchronously
+    # Fields that trigger async recalculation via Celery
+    async_recalc_fields = {
+        "price_usd",
+        "cpu_id",
+        "gpu_id",
+        "ram_gb",
+        "ram_capacity_gb",
+        "primary_storage_gb",
+        "secondary_storage_gb",
+        "ruleset_id",
+    }
+
+    should_queue_recalc = bool(set(changed_fields) & async_recalc_fields)
     # Invalidate card image cache if price or components changed
     await _invalidate_card_cache_if_needed(session, listing, fields)
 
@@ -275,6 +326,29 @@ async def partial_update_listing(
                 listing_id=listing.id,
                 reason="price_is_none",
             )
+    else:
+        # If metrics are disabled but recalc fields changed, still consider queuing
+        should_queue_recalc = should_queue_recalc and listing.price_usd is not None
+
+    # Queue async recalculation if needed (optional background enhancement)
+    # This ensures valuations stay fresh when critical fields change
+    if should_queue_recalc:
+        from ...tasks.valuation import enqueue_listing_recalculation
+
+        # Queue recalculation (fire-and-forget, non-blocking)
+        try:
+            enqueue_listing_recalculation(
+                listing_ids=[listing.id],
+                reason="field_update",
+                use_celery=True,
+            )
+        except Exception as exc:
+            logger.warning(
+                "listing.recalc.queue_failed",
+                listing_id=listing.id,
+                error=str(exc),
+            )
+
     return listing
 
 
@@ -370,6 +444,11 @@ async def delete_listing(
         listing_id=listing_id,
     )
 
+    # Publish SSE event
+    await publish_event(
+        EventType.LISTING_DELETED,
+        {"listing_id": listing_id, "timestamp": datetime.utcnow().isoformat()},
+    )
 
 async def _invalidate_card_cache_if_needed(
     session: AsyncSession,

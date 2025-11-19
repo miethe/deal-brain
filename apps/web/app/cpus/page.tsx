@@ -2,29 +2,40 @@
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { useCPUCatalogStore } from "@/stores/cpu-catalog-store";
+import { useCPUCatalogStore, useSort, useFilters } from "@/stores/cpu-catalog-store";
 import { useCPUs } from "@/hooks/use-cpus";
 import { useCPUUrlSync } from "@/hooks/use-cpu-url-sync";
 import { Plus, Upload } from "lucide-react";
 import { CatalogTab } from "./_components/catalog-tab";
+import { CPUDataTable } from "@/components/catalog/cpu-data-table";
 
 /**
  * CPU Catalog Main Page
  *
  * Dual-tab interface for browsing CPU catalog:
- * - Catalog Tab: Grid/List/Master-Detail views with filters (FE-003, FE-004, FE-005)
+ * - Catalog Tab: Grid/List/Master-Detail views with filters and sorting (FE-003, FE-004, FE-005)
  * - Data Tab: Legacy table view for power users
  *
  * Features:
  * - React Query integration for data fetching with analytics
- * - Zustand store for view state and tab persistence
+ * - Zustand store for view state, tab persistence, sort, and filters
  * - URL sync for shareable state (FE-007)
+ * - Server-side sorting and filtering for performance
  * - Loading and error states
  * - Accessible, responsive layout
  */
 export default function CPUsPage() {
-  // Fetch CPUs with analytics data (price targets, performance values)
-  const { data: cpus, isLoading, error } = useCPUs(true);
+  // Get sort and filter state
+  const { sort } = useSort();
+  const { filters } = useFilters();
+
+  // Fetch CPUs with analytics data, sorting, and filtering
+  const { data: cpus, isLoading, error } = useCPUs({
+    include_analytics: true,
+    sort_by: sort.sortBy,
+    sort_order: sort.sortOrder,
+    only_with_listings: filters.activeListingsOnly,
+  });
 
   // Store state management
   const activeTab = useCPUCatalogStore((state) => state.activeTab);
@@ -101,26 +112,12 @@ export default function CPUsPage() {
           />
         </TabsContent>
 
-        {/* Data Tab - Legacy table view for power users */}
+        {/* Data Tab - Table view for power users */}
         <TabsContent value="data" className="space-y-4">
-          {/* Placeholder for Data table view */}
-          <div className="rounded-lg border border-dashed border-muted-foreground/25 p-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              CPU Data Table
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground/75">
-              Legacy table view with advanced filtering (to be implemented later)
-            </p>
-
-            {/* Data preview */}
-            {!isLoading && cpus && cpus.length > 0 && (
-              <div className="mt-4 space-y-1">
-                <p className="text-xs text-muted-foreground">
-                  {cpus.length} rows ready for table display
-                </p>
-              </div>
-            )}
-          </div>
+          <CPUDataTable
+            cpus={cpus || []}
+            isLoading={isLoading}
+          />
         </TabsContent>
       </Tabs>
     </div>

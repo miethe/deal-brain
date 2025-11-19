@@ -23,15 +23,13 @@ from dealbrain_api.services.sharing_service import SharingService
 
 try:
     import aiosqlite  # noqa: F401
+
     AIOSQLITE_AVAILABLE = True
 except ImportError:
     AIOSQLITE_AVAILABLE = False
 
 
-pytestmark = pytest.mark.skipif(
-    not AIOSQLITE_AVAILABLE,
-    reason="aiosqlite not installed"
-)
+pytestmark = pytest.mark.skipif(not AIOSQLITE_AVAILABLE, reason="aiosqlite not installed")
 
 
 @pytest_asyncio.fixture
@@ -56,11 +54,7 @@ async def db_session():
 @pytest_asyncio.fixture
 async def sample_user(db_session: AsyncSession):
     """Create sample user."""
-    user = User(
-        username="testuser",
-        email="test@example.com",
-        display_name="Test User"
-    )
+    user = User(username="testuser", email="test@example.com", display_name="Test User")
     db_session.add(user)
     await db_session.flush()
     return user
@@ -69,11 +63,7 @@ async def sample_user(db_session: AsyncSession):
 @pytest_asyncio.fixture
 async def recipient_user(db_session: AsyncSession):
     """Create recipient user."""
-    user = User(
-        username="recipient",
-        email="recipient@example.com",
-        display_name="Recipient User"
-    )
+    user = User(username="recipient", email="recipient@example.com", display_name="Recipient User")
     db_session.add(user)
     await db_session.flush()
     return user
@@ -89,7 +79,7 @@ async def sample_listing(db_session: AsyncSession):
         condition="new",
         cpu_id=None,
         gpu_id=None,
-        form_factor="tower"
+        form_factor="tower",
     )
     db_session.add(listing)
     await db_session.flush()
@@ -106,7 +96,7 @@ async def another_listing(db_session: AsyncSession):
         condition="used",
         cpu_id=None,
         gpu_id=None,
-        form_factor="sff"
+        form_factor="sff",
     )
     db_session.add(listing)
     await db_session.flush()
@@ -138,20 +128,17 @@ class TestImportSharedDeal:
         sharing_service: SharingService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test importing public listing share."""
         # Create public listing share
         listing_share = await sharing_service.generate_listing_share_token(
-            listing_id=sample_listing.id,
-            user_id=sample_user.id,
-            ttl_days=30
+            listing_id=sample_listing.id, user_id=sample_user.id, ttl_days=30
         )
 
         # Import to collection (will create default collection)
         item, collection = await service.import_shared_deal(
-            share_token=listing_share.share_token,
-            user_id=sample_user.id
+            share_token=listing_share.share_token, user_id=sample_user.id
         )
 
         assert item.id is not None
@@ -167,7 +154,7 @@ class TestImportSharedDeal:
         sample_user: User,
         recipient_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test importing user share."""
         # Create user share
@@ -175,13 +162,12 @@ class TestImportSharedDeal:
             sender_id=sample_user.id,
             recipient_id=recipient_user.id,
             listing_id=sample_listing.id,
-            message="Great deal!"
+            message="Great deal!",
         )
 
         # Import as recipient
         item, collection = await service.import_shared_deal(
-            share_token=user_share.share_token,
-            user_id=recipient_user.id
+            share_token=user_share.share_token, user_id=recipient_user.id
         )
 
         assert item.id is not None
@@ -195,28 +181,27 @@ class TestImportSharedDeal:
         sharing_service: SharingService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test importing to specific collection."""
         # Create collection
         from dealbrain_api.services.collections_service import CollectionsService
+
         collections_service = CollectionsService(db_session)
         collection = await collections_service.create_collection(
-            user_id=sample_user.id,
-            name="Test Collection"
+            user_id=sample_user.id, name="Test Collection"
         )
 
         # Create share
         listing_share = await sharing_service.generate_listing_share_token(
-            listing_id=sample_listing.id,
-            ttl_days=30
+            listing_id=sample_listing.id, ttl_days=30
         )
 
         # Import to specific collection
         item, imported_collection = await service.import_shared_deal(
             share_token=listing_share.share_token,
             user_id=sample_user.id,
-            collection_id=collection.id
+            collection_id=collection.id,
         )
 
         assert item.collection_id == collection.id
@@ -228,10 +213,7 @@ class TestImportSharedDeal:
     ):
         """Test importing with invalid token."""
         with pytest.raises(ValueError, match="not found"):
-            await service.import_shared_deal(
-                share_token="invalid_token",
-                user_id=sample_user.id
-            )
+            await service.import_shared_deal(share_token="invalid_token", user_id=sample_user.id)
 
     @pytest.mark.asyncio
     async def test_import_expired_listing_share(
@@ -240,22 +222,21 @@ class TestImportSharedDeal:
         sharing_service: SharingService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test importing expired listing share."""
         # Create expired share
         listing_share = await sharing_service.share_repo.create_listing_share(
             listing_id=sample_listing.id,
             created_by=sample_user.id,
-            expires_at=datetime.now(timezone.utc) - timedelta(days=1)
+            expires_at=datetime.now(timezone.utc) - timedelta(days=1),
         )
         await db_session.commit()
 
         # Try to import (should fail)
         with pytest.raises(ValueError, match="has expired"):
             await service.import_shared_deal(
-                share_token=listing_share.share_token,
-                user_id=sample_user.id
+                share_token=listing_share.share_token, user_id=sample_user.id
             )
 
     @pytest.mark.asyncio
@@ -266,21 +247,18 @@ class TestImportSharedDeal:
         sample_user: User,
         recipient_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test importing user share by wrong user."""
         # Create user share
         user_share = await sharing_service.create_user_share(
-            sender_id=sample_user.id,
-            recipient_id=recipient_user.id,
-            listing_id=sample_listing.id
+            sender_id=sample_user.id, recipient_id=recipient_user.id, listing_id=sample_listing.id
         )
 
         # Try to import as wrong user (sender instead of recipient)
         with pytest.raises(PermissionError, match="is not the recipient"):
             await service.import_shared_deal(
-                share_token=user_share.share_token,
-                user_id=sample_user.id  # Wrong user!
+                share_token=user_share.share_token, user_id=sample_user.id  # Wrong user!
             )
 
     @pytest.mark.asyncio
@@ -290,26 +268,23 @@ class TestImportSharedDeal:
         sharing_service: SharingService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test importing same share twice (duplicate)."""
         # Create share
         listing_share = await sharing_service.generate_listing_share_token(
-            listing_id=sample_listing.id,
-            ttl_days=30
+            listing_id=sample_listing.id, ttl_days=30
         )
 
         # Import first time
         await service.import_shared_deal(
-            share_token=listing_share.share_token,
-            user_id=sample_user.id
+            share_token=listing_share.share_token, user_id=sample_user.id
         )
 
         # Try to import again (should fail - duplicate)
         with pytest.raises(ValueError, match="already exists in collection"):
             await service.import_shared_deal(
-                share_token=listing_share.share_token,
-                user_id=sample_user.id
+                share_token=listing_share.share_token, user_id=sample_user.id
             )
 
 
@@ -325,19 +300,18 @@ class TestCheckDuplicateInCollection:
         service: IntegrationService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test checking duplicate when item doesn't exist."""
         from dealbrain_api.services.collections_service import CollectionsService
+
         collections_service = CollectionsService(db_session)
         collection = await collections_service.create_collection(
-            user_id=sample_user.id,
-            name="Test"
+            user_id=sample_user.id, name="Test"
         )
 
         is_duplicate = await service.check_duplicate_in_collection(
-            listing_id=sample_listing.id,
-            collection_id=collection.id
+            listing_id=sample_listing.id, collection_id=collection.id
         )
 
         assert is_duplicate is False
@@ -348,27 +322,24 @@ class TestCheckDuplicateInCollection:
         service: IntegrationService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test checking duplicate when item exists."""
         from dealbrain_api.services.collections_service import CollectionsService
+
         collections_service = CollectionsService(db_session)
         collection = await collections_service.create_collection(
-            user_id=sample_user.id,
-            name="Test"
+            user_id=sample_user.id, name="Test"
         )
 
         # Add item
         await collections_service.add_item_to_collection(
-            collection_id=collection.id,
-            listing_id=sample_listing.id,
-            user_id=sample_user.id
+            collection_id=collection.id, listing_id=sample_listing.id, user_id=sample_user.id
         )
 
         # Check duplicate
         is_duplicate = await service.check_duplicate_in_collection(
-            listing_id=sample_listing.id,
-            collection_id=collection.id
+            listing_id=sample_listing.id, collection_id=collection.id
         )
 
         assert is_duplicate is True
@@ -388,23 +359,20 @@ class TestBulkImportShares:
         sample_user: User,
         sample_listing: Listing,
         another_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test bulk import with all successful imports."""
         # Create 2 shares
         share1 = await sharing_service.generate_listing_share_token(
-            listing_id=sample_listing.id,
-            ttl_days=30
+            listing_id=sample_listing.id, ttl_days=30
         )
         share2 = await sharing_service.generate_listing_share_token(
-            listing_id=another_listing.id,
-            ttl_days=30
+            listing_id=another_listing.id, ttl_days=30
         )
 
         # Bulk import
         results = await service.bulk_import_shares(
-            share_tokens=[share1.share_token, share2.share_token],
-            user_id=sample_user.id
+            share_tokens=[share1.share_token, share2.share_token], user_id=sample_user.id
         )
 
         assert len(results) == 2
@@ -418,19 +386,17 @@ class TestBulkImportShares:
         sharing_service: SharingService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test bulk import with partial success (some invalid tokens)."""
         # Create 1 valid share
         share1 = await sharing_service.generate_listing_share_token(
-            listing_id=sample_listing.id,
-            ttl_days=30
+            listing_id=sample_listing.id, ttl_days=30
         )
 
         # Bulk import with 1 valid, 1 invalid
         results = await service.bulk_import_shares(
-            share_tokens=[share1.share_token, "invalid_token"],
-            user_id=sample_user.id
+            share_tokens=[share1.share_token, "invalid_token"], user_id=sample_user.id
         )
 
         assert len(results) == 2
@@ -445,25 +411,20 @@ class TestBulkImportShares:
         sharing_service: SharingService,
         sample_user: User,
         sample_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test bulk import skips duplicates."""
         # Create share
         share = await sharing_service.generate_listing_share_token(
-            listing_id=sample_listing.id,
-            ttl_days=30
+            listing_id=sample_listing.id, ttl_days=30
         )
 
         # Import once
-        await service.import_shared_deal(
-            share_token=share.share_token,
-            user_id=sample_user.id
-        )
+        await service.import_shared_deal(share_token=share.share_token, user_id=sample_user.id)
 
         # Try to bulk import same token again
         results = await service.bulk_import_shares(
-            share_tokens=[share.share_token],
-            user_id=sample_user.id
+            share_tokens=[share.share_token], user_id=sample_user.id
         )
 
         assert len(results) == 1
@@ -478,31 +439,29 @@ class TestBulkImportShares:
         sample_user: User,
         sample_listing: Listing,
         another_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test bulk import to specific collection."""
         from dealbrain_api.services.collections_service import CollectionsService
+
         collections_service = CollectionsService(db_session)
         collection = await collections_service.create_collection(
-            user_id=sample_user.id,
-            name="Bulk Import Collection"
+            user_id=sample_user.id, name="Bulk Import Collection"
         )
 
         # Create shares
         share1 = await sharing_service.generate_listing_share_token(
-            listing_id=sample_listing.id,
-            ttl_days=30
+            listing_id=sample_listing.id, ttl_days=30
         )
         share2 = await sharing_service.generate_listing_share_token(
-            listing_id=another_listing.id,
-            ttl_days=30
+            listing_id=another_listing.id, ttl_days=30
         )
 
         # Bulk import to specific collection
         results = await service.bulk_import_shares(
             share_tokens=[share1.share_token, share2.share_token],
             user_id=sample_user.id,
-            collection_id=collection.id
+            collection_id=collection.id,
         )
 
         # Verify both items in same collection
@@ -516,10 +475,7 @@ class TestBulkImportShares:
         self, service: IntegrationService, sample_user: User, db_session: AsyncSession
     ):
         """Test bulk import with empty list."""
-        results = await service.bulk_import_shares(
-            share_tokens=[],
-            user_id=sample_user.id
-        )
+        results = await service.bulk_import_shares(share_tokens=[], user_id=sample_user.id)
 
         assert results == {}
 
@@ -532,7 +488,7 @@ class TestBulkImportShares:
         recipient_user: User,
         sample_listing: Listing,
         another_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test bulk import with user shares."""
         # Create user shares
@@ -540,19 +496,18 @@ class TestBulkImportShares:
             sender_id=sample_user.id,
             recipient_id=recipient_user.id,
             listing_id=sample_listing.id,
-            message="Share 1"
+            message="Share 1",
         )
         share2 = await sharing_service.create_user_share(
             sender_id=sample_user.id,
             recipient_id=recipient_user.id,
             listing_id=another_listing.id,
-            message="Share 2"
+            message="Share 2",
         )
 
         # Bulk import as recipient
         results = await service.bulk_import_shares(
-            share_tokens=[share1.share_token, share2.share_token],
-            user_id=recipient_user.id
+            share_tokens=[share1.share_token, share2.share_token], user_id=recipient_user.id
         )
 
         assert len(results) == 2
@@ -574,26 +529,23 @@ class TestBulkImportShares:
         recipient_user: User,
         sample_listing: Listing,
         another_listing: Listing,
-        db_session: AsyncSession
+        db_session: AsyncSession,
     ):
         """Test bulk import with mixed share types (listing + user shares)."""
         # Create listing share (public)
         listing_share = await sharing_service.generate_listing_share_token(
-            listing_id=sample_listing.id,
-            ttl_days=30
+            listing_id=sample_listing.id, ttl_days=30
         )
 
         # Create user share
         user_share = await sharing_service.create_user_share(
-            sender_id=sample_user.id,
-            recipient_id=recipient_user.id,
-            listing_id=another_listing.id
+            sender_id=sample_user.id, recipient_id=recipient_user.id, listing_id=another_listing.id
         )
 
         # Bulk import as recipient
         results = await service.bulk_import_shares(
             share_tokens=[listing_share.share_token, user_share.share_token],
-            user_id=recipient_user.id
+            user_id=recipient_user.id,
         )
 
         assert len(results) == 2

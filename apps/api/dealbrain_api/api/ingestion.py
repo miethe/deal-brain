@@ -692,11 +692,12 @@ async def get_bulk_import_status(
         # Count completed URLs by quality
         # Partial: URLs with status="complete" and quality="partial" OR status="partial" (backward compat)
         # Success: URLs with status="complete" and quality="full" (or quality=None for backward compat)
-        partial_count = (
-            quality_counts.get(("complete", "partial"), 0)
-            + status_counts.get("partial", 0)  # Backward compatibility with old status="partial"
+        partial_count = quality_counts.get(("complete", "partial"), 0) + status_counts.get(
+            "partial", 0
+        )  # Backward compatibility with old status="partial"
+        success_count = quality_counts.get(("complete", "full"), 0) + quality_counts.get(
+            ("complete", None), 0
         )
-        success_count = quality_counts.get(("complete", "full"), 0) + quality_counts.get(("complete", None), 0)
         completed_count = success_count + partial_count + failed_count
 
         # Determine overall status

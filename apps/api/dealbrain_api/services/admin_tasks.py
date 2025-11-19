@@ -35,11 +35,7 @@ async def recalculate_cpu_mark_metrics(
     listing_ids: Sequence[int] | None = None,
 ) -> CpuMetricSummary:
     """Recalculate CPU dollar-per-mark metrics for listings with CPUs."""
-    stmt = (
-        select(Listing)
-        .options(selectinload(Listing.cpu))
-        .where(Listing.cpu_id.is_not(None))
-    )
+    stmt = select(Listing).options(selectinload(Listing.cpu)).where(Listing.cpu_id.is_not(None))
     if listing_ids:
         stmt = stmt.where(Listing.id.in_(listing_ids))
 
@@ -67,15 +63,11 @@ async def recalculate_cpu_mark_metrics(
         updated_flag = False
 
         if cpu.cpu_mark_single:
-            listing.dollar_per_cpu_mark_single = (
-                listing.adjusted_price_usd / cpu.cpu_mark_single
-            )
+            listing.dollar_per_cpu_mark_single = listing.adjusted_price_usd / cpu.cpu_mark_single
             updated_flag = True
 
         if cpu.cpu_mark_multi:
-            listing.dollar_per_cpu_mark_multi = (
-                listing.adjusted_price_usd / cpu.cpu_mark_multi
-            )
+            listing.dollar_per_cpu_mark_multi = listing.adjusted_price_usd / cpu.cpu_mark_multi
             updated_flag = True
 
         if updated_flag:

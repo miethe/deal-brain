@@ -28,6 +28,7 @@ router = APIRouter()
 
 # --- Preview Endpoints ---
 
+
 @router.post("/valuation-rules/preview", response_model=RulePreviewResponse)
 async def preview_rule(
     request: RulePreviewRequest,
@@ -121,6 +122,7 @@ async def validate_formula(
 
 # --- Evaluation Endpoints ---
 
+
 @router.post("/valuation-rules/evaluate/{listing_id}", response_model=RuleEvaluationResponse)
 async def evaluate_listing(
     listing_id: int,
@@ -160,13 +162,12 @@ async def apply_ruleset(
         return {"results": results}
     else:
         # Apply to all active listings
-        result = await service.apply_ruleset_to_all_listings(
-            session, request.ruleset_id
-        )
+        result = await service.apply_ruleset_to_all_listings(session, request.ruleset_id)
         return result
 
 
 # --- Audit Endpoints ---
+
 
 @router.get("/valuation-rules/audit-log", response_model=list[AuditLogResponse])
 async def get_audit_log(

@@ -192,8 +192,15 @@ def detect_backend_paths(project_root: Path) -> List[Dict[str, Any]]:
 
     # Common backend directory patterns
     backend_patterns = [
-        "api", "backend", "server", "services", "services/api",
-        "apps/api", "packages/api", "src/api", "src/server"
+        "api",
+        "backend",
+        "server",
+        "services",
+        "services/api",
+        "apps/api",
+        "packages/api",
+        "src/api",
+        "src/server",
     ]
 
     for pattern in backend_patterns:
@@ -205,28 +212,34 @@ def detect_backend_paths(project_root: Path) -> List[Dict[str, Any]]:
         py_count = count_files_by_extension(path, [".py"])
         if py_count > 0:
             confidence = "high" if py_count > 10 else "medium" if py_count > 3 else "low"
-            candidates.append({
-                "path": pattern,
-                "language": "python",
-                "confidence": confidence,
-                "file_count": py_count
-            })
+            candidates.append(
+                {
+                    "path": pattern,
+                    "language": "python",
+                    "confidence": confidence,
+                    "file_count": py_count,
+                }
+            )
 
         # Check for Node.js backend
         js_count = count_files_by_extension(path, [".js", ".ts"])
         has_express = (path / "package.json").exists()
         if js_count > 0 and has_express:
             confidence = "high" if js_count > 10 else "medium"
-            candidates.append({
-                "path": pattern,
-                "language": "typescript",
-                "confidence": confidence,
-                "file_count": js_count
-            })
+            candidates.append(
+                {
+                    "path": pattern,
+                    "language": "typescript",
+                    "confidence": confidence,
+                    "file_count": js_count,
+                }
+            )
 
     # Sort by confidence and file count
     confidence_order = {"high": 3, "medium": 2, "low": 1}
-    candidates.sort(key=lambda x: (confidence_order.get(x["confidence"], 0), x["file_count"]), reverse=True)
+    candidates.sort(
+        key=lambda x: (confidence_order.get(x["confidence"], 0), x["file_count"]), reverse=True
+    )
 
     return candidates
 
@@ -241,8 +254,15 @@ def detect_frontend_paths(project_root: Path) -> List[Dict[str, Any]]:
 
     # Common frontend directory patterns
     frontend_patterns = [
-        "web", "frontend", "client", "app", "apps/web", "apps/frontend",
-        "packages/web", "src", "src/client"
+        "web",
+        "frontend",
+        "client",
+        "app",
+        "apps/web",
+        "apps/frontend",
+        "packages/web",
+        "src",
+        "src/client",
     ]
 
     for pattern in frontend_patterns:
@@ -269,17 +289,21 @@ def detect_frontend_paths(project_root: Path) -> List[Dict[str, Any]]:
             elif tsx_count > 0:
                 framework = "react"
 
-            candidates.append({
-                "path": pattern,
-                "language": "typescript",
-                "confidence": confidence,
-                "file_count": tsx_count + vue_count,
-                "framework": framework
-            })
+            candidates.append(
+                {
+                    "path": pattern,
+                    "language": "typescript",
+                    "confidence": confidence,
+                    "file_count": tsx_count + vue_count,
+                    "framework": framework,
+                }
+            )
 
     # Sort by confidence and file count
     confidence_order = {"high": 3, "medium": 2, "low": 1}
-    candidates.sort(key=lambda x: (confidence_order.get(x["confidence"], 0), x["file_count"]), reverse=True)
+    candidates.sort(
+        key=lambda x: (confidence_order.get(x["confidence"], 0), x["file_count"]), reverse=True
+    )
 
     return candidates
 
@@ -288,10 +312,7 @@ def detect_mobile_paths(project_root: Path) -> List[Dict[str, Any]]:
     """Detect mobile app code locations."""
     candidates = []
 
-    mobile_patterns = [
-        "mobile", "apps/mobile", "packages/mobile",
-        "ios", "android", "react-native"
-    ]
+    mobile_patterns = ["mobile", "apps/mobile", "packages/mobile", "ios", "android", "react-native"]
 
     for pattern in mobile_patterns:
         path = project_root / pattern
@@ -308,16 +329,20 @@ def detect_mobile_paths(project_root: Path) -> List[Dict[str, Any]]:
             confidence = "high" if (has_expo or has_rn) else "medium"
             framework = "expo" if has_expo else "react-native" if has_rn else "unknown"
 
-            candidates.append({
-                "path": pattern,
-                "language": "typescript",
-                "confidence": confidence,
-                "file_count": tsx_count,
-                "framework": framework
-            })
+            candidates.append(
+                {
+                    "path": pattern,
+                    "language": "typescript",
+                    "confidence": confidence,
+                    "file_count": tsx_count,
+                    "framework": framework,
+                }
+            )
 
     confidence_order = {"high": 3, "medium": 2, "low": 1}
-    candidates.sort(key=lambda x: (confidence_order.get(x["confidence"], 0), x["file_count"]), reverse=True)
+    candidates.sort(
+        key=lambda x: (confidence_order.get(x["confidence"], 0), x["file_count"]), reverse=True
+    )
 
     return candidates
 
@@ -327,8 +352,13 @@ def detect_shared_paths(project_root: Path) -> List[Dict[str, Any]]:
     candidates = []
 
     shared_patterns = [
-        "packages/ui", "packages/shared", "packages/common",
-        "libs/shared", "libs/common", "shared", "common"
+        "packages/ui",
+        "packages/shared",
+        "packages/common",
+        "libs/shared",
+        "libs/common",
+        "shared",
+        "common",
     ]
 
     for pattern in shared_patterns:
@@ -344,15 +374,19 @@ def detect_shared_paths(project_root: Path) -> List[Dict[str, Any]]:
             language = "typescript" if tsx_count > py_count else "python"
             confidence = "high" if total_count > 5 else "medium"
 
-            candidates.append({
-                "path": pattern,
-                "language": language,
-                "confidence": confidence,
-                "file_count": total_count
-            })
+            candidates.append(
+                {
+                    "path": pattern,
+                    "language": language,
+                    "confidence": confidence,
+                    "file_count": total_count,
+                }
+            )
 
     confidence_order = {"high": 3, "medium": 2, "low": 1}
-    candidates.sort(key=lambda x: (confidence_order.get(x["confidence"], 0), x["file_count"]), reverse=True)
+    candidates.sort(
+        key=lambda x: (confidence_order.get(x["confidence"], 0), x["file_count"]), reverse=True
+    )
 
     return candidates
 
@@ -397,17 +431,21 @@ def detect_codebase_structure(project_root: Path, verbose: bool = False) -> Dict
     shared = detect_shared_paths(project_root)
 
     if verbose:
-        print_info(f"Found {len(backend)} backend paths, {len(frontend)} frontend paths, "
-                  f"{len(mobile)} mobile paths, {len(shared)} shared paths")
+        print_info(
+            f"Found {len(backend)} backend paths, {len(frontend)} frontend paths, "
+            f"{len(mobile)} mobile paths, {len(shared)} shared paths"
+        )
 
     # Suggest template based on detection
-    suggested_template = suggest_template_from_detection({
-        "backend": backend,
-        "frontend": frontend,
-        "mobile": mobile,
-        "shared": shared,
-        "is_monorepo": is_monorepo
-    })
+    suggested_template = suggest_template_from_detection(
+        {
+            "backend": backend,
+            "frontend": frontend,
+            "mobile": mobile,
+            "shared": shared,
+            "is_monorepo": is_monorepo,
+        }
+    )
 
     return {
         "backend": backend,
@@ -417,7 +455,7 @@ def detect_codebase_structure(project_root: Path, verbose: bool = False) -> Dict
         "is_monorepo": is_monorepo,
         "monorepo_type": monorepo_type,
         "package_manager": package_manager,
-        "suggested_template": suggested_template
+        "suggested_template": suggested_template,
     }
 
 
@@ -506,11 +544,19 @@ def show_detection_results(detected: Dict[str, Any]) -> None:
         if paths:
             print(f"  {Fore.GREEN}✓{Style.RESET_ALL} {Style.BRIGHT}{label}:{Style.RESET_ALL}")
             for p in paths[:3]:  # Show top 3
-                conf_color = Fore.GREEN if p["confidence"] == "high" else Fore.YELLOW if p["confidence"] == "medium" else Fore.RED
-                framework_info = f" ({p.get('framework', '')})" if p.get('framework') else ""
-                print(f"      {p['path']} - {p['language']}{framework_info} [{conf_color}{p['confidence']}{Style.RESET_ALL} confidence, {p['file_count']} files]")
+                conf_color = (
+                    Fore.GREEN
+                    if p["confidence"] == "high"
+                    else Fore.YELLOW if p["confidence"] == "medium" else Fore.RED
+                )
+                framework_info = f" ({p.get('framework', '')})" if p.get("framework") else ""
+                print(
+                    f"      {p['path']} - {p['language']}{framework_info} [{conf_color}{p['confidence']}{Style.RESET_ALL} confidence, {p['file_count']} files]"
+                )
         else:
-            print(f"  {Fore.RED}✗{Style.RESET_ALL} {Style.BRIGHT}{label}:{Style.RESET_ALL} not detected")
+            print(
+                f"  {Fore.RED}✗{Style.RESET_ALL} {Style.BRIGHT}{label}:{Style.RESET_ALL} not detected"
+            )
 
     show_paths("Backend", detected.get("backend", []))
     show_paths("Frontend", detected.get("frontend", []))
@@ -522,9 +568,13 @@ def show_detection_results(detected: Dict[str, Any]) -> None:
     # Suggested template
     if detected.get("suggested_template"):
         template_name = TEMPLATES[detected["suggested_template"]]["name"]
-        print(f"  {Style.BRIGHT}Suggested Template:{Style.RESET_ALL} {Fore.CYAN}{template_name}{Style.RESET_ALL}")
+        print(
+            f"  {Style.BRIGHT}Suggested Template:{Style.RESET_ALL} {Fore.CYAN}{template_name}{Style.RESET_ALL}"
+        )
     else:
-        print(f"  {Style.BRIGHT}Suggested Template:{Style.RESET_ALL} {Fore.YELLOW}No clear match - manual selection recommended{Style.RESET_ALL}")
+        print(
+            f"  {Style.BRIGHT}Suggested Template:{Style.RESET_ALL} {Fore.YELLOW}No clear match - manual selection recommended{Style.RESET_ALL}"
+        )
 
 
 def prompt_detection_choice() -> int:
@@ -692,7 +742,9 @@ def load_template(template_id: str) -> Dict[str, Any]:
         return json.load(f)
 
 
-def replace_placeholders(config: Dict[str, Any], project_name: str, symbols_dir: str) -> Dict[str, Any]:
+def replace_placeholders(
+    config: Dict[str, Any], project_name: str, symbols_dir: str
+) -> Dict[str, Any]:
     """Replace placeholders in template configuration."""
     config_str = json.dumps(config)
     config_str = config_str.replace("{{PROJECT_NAME}}", project_name)
@@ -800,10 +852,7 @@ def select_template(non_interactive: bool = False, template_arg: Optional[str] =
         print()
 
     while True:
-        choice = prompt_input(
-            f"Select a template (1-{len(template_list)})",
-            default="1"
-        )
+        choice = prompt_input(f"Select a template (1-{len(template_list)})", default="1")
 
         try:
             idx = int(choice) - 1
@@ -911,7 +960,9 @@ def write_configuration(
     if "metadata" not in config:
         config["metadata"] = {}
 
-    config["metadata"]["lastUpdated"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    config["metadata"]["lastUpdated"] = (
+        datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    )
     if "version" not in config["metadata"]:
         config["metadata"]["version"] = "1.0"
 
@@ -966,13 +1017,19 @@ def show_next_steps(config: Dict[str, Any], output_path: Path) -> None:
 
     print(f"{Style.BRIGHT}1. Generate Symbols:{Style.RESET_ALL}")
     if has_typescript:
-        print(f"   {Fore.CYAN}python .claude/skills/symbols/scripts/extract_symbols_typescript.py{Style.RESET_ALL}")
+        print(
+            f"   {Fore.CYAN}python .claude/skills/symbols/scripts/extract_symbols_typescript.py{Style.RESET_ALL}"
+        )
     if has_python:
-        print(f"   {Fore.CYAN}python .claude/skills/symbols/scripts/extract_symbols_python.py{Style.RESET_ALL}")
+        print(
+            f"   {Fore.CYAN}python .claude/skills/symbols/scripts/extract_symbols_python.py{Style.RESET_ALL}"
+        )
     print()
 
     print(f"{Style.BRIGHT}2. Validate Symbols:{Style.RESET_ALL}")
-    print(f"   {Fore.CYAN}python .claude/skills/symbols/scripts/validate_symbols.py{Style.RESET_ALL}")
+    print(
+        f"   {Fore.CYAN}python .claude/skills/symbols/scripts/validate_symbols.py{Style.RESET_ALL}"
+    )
     print()
 
     print(f"{Style.BRIGHT}3. Query Symbols:{Style.RESET_ALL}")
@@ -984,7 +1041,9 @@ def show_next_steps(config: Dict[str, Any], output_path: Path) -> None:
     print()
 
     print(f"{Style.BRIGHT}For Help:{Style.RESET_ALL}")
-    print(f"   {Fore.CYAN}python .claude/skills/symbols/scripts/init_symbols.py --help{Style.RESET_ALL}")
+    print(
+        f"   {Fore.CYAN}python .claude/skills/symbols/scripts/init_symbols.py --help{Style.RESET_ALL}"
+    )
     print()
 
 
@@ -1108,10 +1167,16 @@ Examples:
                     return 1
 
             # Determine output path
-            output_path = args.output if args.output else project_root / ".claude" / "skills" / "symbols" / "symbols.config.json"
+            output_path = (
+                args.output
+                if args.output
+                else project_root / ".claude" / "skills" / "symbols" / "symbols.config.json"
+            )
 
             # Write configuration
-            success = write_configuration(config, output_path, dry_run=args.dry_run, force=args.force)
+            success = write_configuration(
+                config, output_path, dry_run=args.dry_run, force=args.force
+            )
             if success and not args.dry_run:
                 show_next_steps(config, output_path)
                 return 0
@@ -1121,7 +1186,12 @@ Examples:
             return 1
 
     # Determine if running in non-interactive mode
-    non_interactive = bool(args.template and args.name and args.symbols_dir) or args.quick or args.auto_detect or args.no_interactive
+    non_interactive = (
+        bool(args.template and args.name and args.symbols_dir)
+        or args.quick
+        or args.auto_detect
+        or args.no_interactive
+    )
 
     # Quick mode defaults
     if args.quick:
@@ -1171,7 +1241,9 @@ Examples:
                     # Use detected structure
                     if detected_structure.get("suggested_template"):
                         args.template = detected_structure["suggested_template"]
-                        print_success(f"Using detected template: {TEMPLATES[args.template]['name']}")
+                        print_success(
+                            f"Using detected template: {TEMPLATES[args.template]['name']}"
+                        )
                     else:
                         print_warning("No template auto-detected, falling back to manual selection")
                         # Fall through to manual template selection
@@ -1190,8 +1262,18 @@ Examples:
                             for warning in warnings:
                                 print(f"  - {warning}")
 
-                        output_path = args.output if args.output else project_root / ".claude" / "skills" / "symbols" / "symbols.config.json"
-                        success = write_configuration(config, output_path, dry_run=args.dry_run, force=args.force)
+                        output_path = (
+                            args.output
+                            if args.output
+                            else project_root
+                            / ".claude"
+                            / "skills"
+                            / "symbols"
+                            / "symbols.config.json"
+                        )
+                        success = write_configuration(
+                            config, output_path, dry_run=args.dry_run, force=args.force
+                        )
                         if success and not args.dry_run:
                             show_next_steps(config, output_path)
                         return 0 if success else 1

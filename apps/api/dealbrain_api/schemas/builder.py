@@ -32,13 +32,7 @@ class BuildComponentsRequest(BaseModel):
     case_spec_id: Optional[int] = Field(None, gt=0, description="Case spec ID (optional)")
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "cpu_id": 123,
-                "gpu_id": 456,
-                "ram_spec_id": 789
-            }
-        }
+        json_schema_extra = {"example": {"cpu_id": 123, "gpu_id": 456, "ram_spec_id": 789}}
 
 
 class SaveBuildRequest(BaseModel):
@@ -49,44 +43,35 @@ class SaveBuildRequest(BaseModel):
     """
 
     name: str = Field(
-        ...,
-        min_length=1,
-        max_length=255,
-        description="Build name (required, 1-255 characters)"
+        ..., min_length=1, max_length=255, description="Build name (required, 1-255 characters)"
     )
     description: Optional[str] = Field(
-        None,
-        max_length=2000,
-        description="Build description (optional, max 2000 characters)"
+        None, max_length=2000, description="Build description (optional, max 2000 characters)"
     )
-    tags: Optional[List[str]] = Field(
-        None,
-        description="Build tags for organization and search"
-    )
+    tags: Optional[List[str]] = Field(None, description="Build tags for organization and search")
     visibility: str = Field(
-        'private',
-        pattern='^(private|public|unlisted)$',
-        description="Build visibility: private (owner only), public (everyone), unlisted (share link)"
+        "private",
+        pattern="^(private|public|unlisted)$",
+        description="Build visibility: private (owner only), public (everyone), unlisted (share link)",
     )
     components: BuildComponentsRequest = Field(
-        ...,
-        description="Build component selection (CPU required)"
+        ..., description="Build component selection (CPU required)"
     )
 
-    @field_validator('visibility')
+    @field_validator("visibility")
     @classmethod
     def validate_visibility(cls, v: str) -> str:
         """Ensure visibility is one of the allowed values."""
-        if v not in ['private', 'public', 'unlisted']:
-            raise ValueError('visibility must be private, public, or unlisted')
+        if v not in ["private", "public", "unlisted"]:
+            raise ValueError("visibility must be private, public, or unlisted")
         return v
 
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def validate_name_not_empty(cls, v: str) -> str:
         """Ensure name is not just whitespace."""
         if not v or not v.strip():
-            raise ValueError('name cannot be empty or whitespace')
+            raise ValueError("name cannot be empty or whitespace")
         return v.strip()
 
     class Config:
@@ -96,11 +81,7 @@ class SaveBuildRequest(BaseModel):
                 "description": "Budget gaming build with i5-12400 and GTX 1660",
                 "tags": ["gaming", "budget", "intel"],
                 "visibility": "public",
-                "components": {
-                    "cpu_id": 123,
-                    "gpu_id": 456,
-                    "ram_spec_id": 789
-                }
+                "components": {"cpu_id": 123, "gpu_id": 456, "ram_spec_id": 789},
             }
         }
 
@@ -116,12 +97,10 @@ class ValuationBreakdownResponse(BaseModel):
     """
 
     components: List[Dict[str, Any]] = Field(
-        ...,
-        description="List of components with name, type, and price"
+        ..., description="List of components with name, type, and price"
     )
     adjustments: List[Dict[str, Any]] = Field(
-        ...,
-        description="List of valuation adjustments (rules applied)"
+        ..., description="List of valuation adjustments (rules applied)"
     )
 
     class Config:
@@ -129,9 +108,9 @@ class ValuationBreakdownResponse(BaseModel):
             "example": {
                 "components": [
                     {"type": "CPU", "name": "Intel i5-12400", "price": 175.00},
-                    {"type": "GPU", "name": "GTX 1660", "price": 150.00}
+                    {"type": "GPU", "name": "GTX 1660", "price": 150.00},
                 ],
-                "adjustments": []
+                "adjustments": [],
             }
         }
 
@@ -150,9 +129,7 @@ class ValuationResponse(BaseModel):
     breakdown: ValuationBreakdownResponse = Field(..., description="Detailed pricing breakdown")
 
     class Config:
-        json_encoders = {
-            Decimal: float
-        }
+        json_encoders = {Decimal: float}
         json_schema_extra = {
             "example": {
                 "base_price": 325.00,
@@ -160,11 +137,9 @@ class ValuationResponse(BaseModel):
                 "delta_amount": 0.00,
                 "delta_percentage": 0.0,
                 "breakdown": {
-                    "components": [
-                        {"type": "CPU", "name": "Intel i5-12400", "price": 175.00}
-                    ],
-                    "adjustments": []
-                }
+                    "components": [{"type": "CPU", "name": "Intel i5-12400", "price": 175.00}],
+                    "adjustments": [],
+                },
             }
         }
 
@@ -177,39 +152,26 @@ class MetricsResponse(BaseModel):
     """
 
     dollar_per_cpu_mark_multi: Optional[Decimal] = Field(
-        None,
-        description="Dollars per CPU Mark (multi-thread) - lower is better"
+        None, description="Dollars per CPU Mark (multi-thread) - lower is better"
     )
     dollar_per_cpu_mark_single: Optional[Decimal] = Field(
-        None,
-        description="Dollars per CPU Mark (single-thread) - lower is better"
+        None, description="Dollars per CPU Mark (single-thread) - lower is better"
     )
     composite_score: Optional[int] = Field(
-        None,
-        ge=0,
-        le=100,
-        description="Composite score (0-100 scale, higher is better)"
+        None, ge=0, le=100, description="Composite score (0-100 scale, higher is better)"
     )
-    cpu_mark_multi: Optional[int] = Field(
-        None,
-        description="CPU multi-thread benchmark score"
-    )
-    cpu_mark_single: Optional[int] = Field(
-        None,
-        description="CPU single-thread benchmark score"
-    )
+    cpu_mark_multi: Optional[int] = Field(None, description="CPU multi-thread benchmark score")
+    cpu_mark_single: Optional[int] = Field(None, description="CPU single-thread benchmark score")
 
     class Config:
-        json_encoders = {
-            Decimal: lambda v: float(v) if v is not None else None
-        }
+        json_encoders = {Decimal: lambda v: float(v) if v is not None else None}
         json_schema_extra = {
             "example": {
                 "dollar_per_cpu_mark_multi": 0.018,
                 "dollar_per_cpu_mark_single": 0.100,
                 "composite_score": 75,
                 "cpu_mark_multi": 17500,
-                "cpu_mark_single": 3200
+                "cpu_mark_single": 3200,
             }
         }
 
@@ -239,16 +201,13 @@ class SavedBuildResponse(BaseModel):
 
     # Snapshots
     pricing_snapshot: Optional[Dict[str, Any]] = Field(
-        None,
-        description="Pricing data snapshot at save time"
+        None, description="Pricing data snapshot at save time"
     )
     metrics_snapshot: Optional[Dict[str, Any]] = Field(
-        None,
-        description="Performance metrics snapshot at save time"
+        None, description="Performance metrics snapshot at save time"
     )
     valuation_breakdown: Optional[Dict[str, Any]] = Field(
-        None,
-        description="Valuation breakdown for transparency"
+        None, description="Valuation breakdown for transparency"
     )
 
     # Timestamps
@@ -272,16 +231,11 @@ class SavedBuildResponse(BaseModel):
                 "storage_spec_id": None,
                 "psu_spec_id": None,
                 "case_spec_id": None,
-                "pricing_snapshot": {
-                    "base_price": "325.00",
-                    "adjusted_price": "325.00"
-                },
-                "metrics_snapshot": {
-                    "composite_score": 75
-                },
+                "pricing_snapshot": {"base_price": "325.00", "adjusted_price": "325.00"},
+                "metrics_snapshot": {"composite_score": 75},
                 "valuation_breakdown": {},
                 "created_at": "2025-11-14T10:30:00Z",
-                "updated_at": "2025-11-14T10:30:00Z"
+                "updated_at": "2025-11-14T10:30:00Z",
             }
         }
 
@@ -307,12 +261,12 @@ class BuildListResponse(BaseModel):
                         "name": "Gaming Build",
                         "visibility": "public",
                         "cpu_id": 123,
-                        "created_at": "2025-11-14T10:30:00Z"
+                        "created_at": "2025-11-14T10:30:00Z",
                     }
                 ],
                 "total": 1,
                 "limit": 10,
-                "offset": 0
+                "offset": 0,
             }
         }
 
@@ -335,15 +289,9 @@ class CalculateResponse(BaseModel):
                     "adjusted_price": 325.00,
                     "delta_amount": 0.00,
                     "delta_percentage": 0.0,
-                    "breakdown": {
-                        "components": [],
-                        "adjustments": []
-                    }
+                    "breakdown": {"components": [], "adjustments": []},
                 },
-                "metrics": {
-                    "dollar_per_cpu_mark_multi": 0.018,
-                    "composite_score": 75
-                }
+                "metrics": {"dollar_per_cpu_mark_multi": 0.018, "composite_score": 75},
             }
         }
 
@@ -364,9 +312,7 @@ class ListingComparisonResponse(BaseModel):
     similarity_score: float = Field(..., ge=0.0, le=1.0, description="Similarity score (0-1)")
 
     class Config:
-        json_encoders = {
-            Decimal: float
-        }
+        json_encoders = {Decimal: float}
 
 
 class CompareResponse(BaseModel):
@@ -376,10 +322,7 @@ class CompareResponse(BaseModel):
     than pre-built alternatives.
     """
 
-    listings: List[ListingComparisonResponse] = Field(
-        ...,
-        description="Similar pre-built listings"
-    )
+    listings: List[ListingComparisonResponse] = Field(..., description="Similar pre-built listings")
 
     class Config:
         json_schema_extra = {
@@ -392,7 +335,7 @@ class CompareResponse(BaseModel):
                         "adjusted_price": 340.00,
                         "deal_quality": "good",
                         "price_difference": 15.00,
-                        "similarity_score": 0.95
+                        "similarity_score": 0.95,
                     }
                 ]
             }
@@ -405,11 +348,7 @@ class DeleteResponse(BaseModel):
     deleted: bool = Field(..., description="Whether deletion was successful")
 
     class Config:
-        json_schema_extra = {
-            "example": {
-                "deleted": True
-            }
-        }
+        json_schema_extra = {"example": {"deleted": True}}
 
 
 __all__ = [

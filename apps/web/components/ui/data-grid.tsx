@@ -472,7 +472,7 @@ export function DataGrid<TData>({
         className="listings-table-container relative flex-1 overflow-x-auto overflow-y-auto"
       >
         <Table className="listings-table" style={{ width: resolvedTable.getTotalSize(), minWidth: "100%" }}>
-          <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
+          <TableHeader className="sticky top-0 z-20 bg-background shadow-sm">
             {headerGroups.map((headerGroup) => (
               <TableRow key={headerGroup.id} className="border-0">
                 {headerGroup.headers.map((header) => {
@@ -558,7 +558,7 @@ export function DataGrid<TData>({
               </TableRow>
             ) : null}
           </TableHeader>
-          <TableBody>
+          <TableBody className="[&_tr:first-child]:scroll-mt-[calc(var(--header-height,52px)+var(--filter-row-height,0px))]">
             {loading ? (
               <TableRow>
                 <TableCell
@@ -575,9 +575,10 @@ export function DataGrid<TData>({
                     <TableCell colSpan={resolvedTable.getAllLeafColumns().length} className="p-0" />
                   </TableRow>
                 ) : null}
-                {virtualization.rows.map((row) => {
+                {virtualization.rows.map((row, index) => {
                   const rowId = (row.original as any).id;
                   const isHighlighted = highlightedRowId !== null && highlightedRowId !== undefined && rowId === highlightedRowId;
+                  const isFirstRow = index === 0 && !virtualization.enabled;
 
                   return (
                     <TableRow
@@ -588,7 +589,10 @@ export function DataGrid<TData>({
                       data-listings-table-row={true}
                       tabIndex={isHighlighted ? -1 : undefined}
                       aria-label={isHighlighted ? "Newly created listing" : undefined}
-                      className="hover:bg-muted/40 outline-none"
+                      className={cn(
+                        "hover:bg-muted/40 outline-none",
+                        isFirstRow && "scroll-mt-[calc(var(--header-height,52px)+var(--filter-row-height,0px))]"
+                      )}
                       style={{ minHeight: rowHeight }}
                     >
                       {row.getVisibleCells().map((cell) => {

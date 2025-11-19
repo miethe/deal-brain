@@ -102,7 +102,9 @@ def parse_args() -> argparse.Namespace:
 
 def _resolve_path(path_argument: str) -> Path:
     candidate = Path(path_argument)
-    candidate = (PROJECT_ROOT / candidate).resolve() if not candidate.is_absolute() else candidate.resolve()
+    candidate = (
+        (PROJECT_ROOT / candidate).resolve() if not candidate.is_absolute() else candidate.resolve()
+    )
     try:
         candidate.relative_to(PROJECT_ROOT)
     except ValueError as exc:

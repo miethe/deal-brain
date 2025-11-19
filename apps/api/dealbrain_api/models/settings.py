@@ -14,6 +14,7 @@ from .base import TimestampMixin
 
 class ApplicationSettings(Base, TimestampMixin):
     """Global application configuration stored in database."""
+
     __tablename__ = "application_settings"
 
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -23,6 +24,7 @@ class ApplicationSettings(Base, TimestampMixin):
 
 class CustomFieldDefinition(Base, TimestampMixin):
     """Dynamic custom field definitions for extensible entity attributes."""
+
     __tablename__ = "custom_field_definition"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -63,6 +65,7 @@ class CustomFieldDefinition(Base, TimestampMixin):
 
 class CustomFieldAuditLog(Base, TimestampMixin):
     """Audit trail for custom field definition changes."""
+
     __tablename__ = "custom_field_audit_log"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -78,6 +81,7 @@ class CustomFieldAuditLog(Base, TimestampMixin):
 
 class CustomFieldAttributeHistory(Base, TimestampMixin):
     """Historical tracking of custom field value changes on entities."""
+
     __tablename__ = "custom_field_attribute_history"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

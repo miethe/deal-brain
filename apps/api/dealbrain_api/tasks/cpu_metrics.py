@@ -30,18 +30,18 @@ async def _recalculate_all_cpu_metrics_async() -> dict[str, int]:
 
     logger.info(
         "cpu_metrics.recalc.complete",
-        total=result['total'],
-        success=result['success'],
-        errors=result['errors']
+        total=result["total"],
+        success=result["success"],
+        errors=result["errors"],
     )
 
     # Alert if >10% failed
-    if result['total'] > 0 and result['errors'] > result['total'] * 0.1:
+    if result["total"] > 0 and result["errors"] > result["total"] * 0.1:
         logger.error(
             "cpu_metrics.recalc.high_error_rate",
-            error_count=result['errors'],
-            total_count=result['total'],
-            error_rate=f"{(result['errors'] / result['total'] * 100):.1f}%"
+            error_count=result["errors"],
+            total_count=result["total"],
+            error_rate=f"{(result['errors'] / result['total'] * 100):.1f}%",
         )
 
     return result
@@ -70,11 +70,7 @@ def recalculate_all_cpu_metrics(self) -> dict[str, int]:
         Exception: If task fails completely (individual CPU errors are logged but don't fail the task)
     """
     correlation_id = new_request_id()
-    bind_request_context(
-        correlation_id,
-        task=RECALC_CPU_TASK_NAME,
-        reason="scheduled_nightly"
-    )
+    bind_request_context(correlation_id, task=RECALC_CPU_TASK_NAME, reason="scheduled_nightly")
 
     logger.info("cpu_metrics.recalc.dispatch", correlation_id=correlation_id)
 
@@ -95,7 +91,7 @@ def recalculate_all_cpu_metrics(self) -> dict[str, int]:
             "cpu_metrics.recalc.failed",
             error=str(exc),
             correlation_id=correlation_id,
-            exc_info=True
+            exc_info=True,
         )
         raise
 

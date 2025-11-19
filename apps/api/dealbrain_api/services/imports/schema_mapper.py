@@ -185,7 +185,9 @@ class SchemaMapper:
             if normalized_column in normalized_aliases:
                 candidates.append(MappingCandidate(column=column, confidence=1.0, reason="exact"))
                 continue
-            best_alias, score = SchemaMapper._best_alias_score(normalized_column, normalized_aliases)
+            best_alias, score = SchemaMapper._best_alias_score(
+                normalized_column, normalized_aliases
+            )
             if score > 0.0:
                 candidates.append(
                     MappingCandidate(column=column, confidence=score, reason=f"fuzzy:{best_alias}")
@@ -245,9 +247,11 @@ class SchemaMapper:
                         "label": existing.get("label")
                         or mapping.get("label")
                         or (field_def.label if field_def else field_key.replace("_", " ").title()),
-                        "required": existing.get("required")
-                        if "required" in existing
-                        else mapping.get("required", field_def.required if field_def else False),
+                        "required": (
+                            existing.get("required")
+                            if "required" in existing
+                            else mapping.get("required", field_def.required if field_def else False)
+                        ),
                         "data_type": existing.get("data_type")
                         or mapping.get("data_type")
                         or (field_def.data_type if field_def else "string"),

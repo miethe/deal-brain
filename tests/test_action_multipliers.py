@@ -7,6 +7,7 @@ Tests cover:
 - Multiple multipliers stacking
 - Edge cases and error handling
 """
+
 from dealbrain_core.rules.actions import Action, ActionType
 
 

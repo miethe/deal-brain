@@ -84,9 +84,9 @@ class TestMatchedRulesFlattening:
                         "rule_id": 101,
                         "rule_name": "Baseline RAM",
                         "adjustment": 50.0,
-                        "breakdown": []
+                        "breakdown": [],
                     }
-                ]
+                ],
             },
             "basic": {
                 "ruleset_id": 2,
@@ -98,10 +98,10 @@ class TestMatchedRulesFlattening:
                         "rule_id": 201,
                         "rule_name": "Standard RAM",
                         "adjustment": 25.0,
-                        "breakdown": []
+                        "breakdown": [],
                     }
-                ]
-            }
+                ],
+            },
         }
 
         flattened = service._flatten_matched_rules(matched_by_layer)
@@ -164,13 +164,15 @@ class TestMultiRulesetEvaluation:
         # so mock should return already-ordered results
         mock_session = AsyncMock()
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [baseline, standard, advanced]  # Correct order from SQL
+        mock_result.scalars.return_value.all.return_value = [
+            baseline,
+            standard,
+            advanced,
+        ]  # Correct order from SQL
         mock_session.execute.return_value = mock_result
 
         # Call the method
-        rulesets = await service._get_rulesets_for_evaluation(
-            mock_session, {}, set()
-        )
+        rulesets = await service._get_rulesets_for_evaluation(mock_session, {}, set())
 
         # Verify rulesets are returned in the order from SQL
         assert len(rulesets) == 3
@@ -224,7 +226,7 @@ class TestMultiRulesetEvaluation:
         conditional_ruleset.conditions_json = {
             "field_name": "ram_gb",
             "operator": ">=",
-            "value": 64
+            "value": 64,
         }
 
         # Mock database query
@@ -234,14 +236,14 @@ class TestMultiRulesetEvaluation:
         mock_session.execute.return_value = mock_result
 
         # Test with context that doesn't match (32GB RAM)
-        with patch.object(service, '_ruleset_matches_context', return_value=False):
+        with patch.object(service, "_ruleset_matches_context", return_value=False):
             rulesets = await service._get_rulesets_for_evaluation(
                 mock_session, {"ram_gb": 32}, set()
             )
             assert len(rulesets) == 0
 
         # Test with context that matches (64GB RAM)
-        with patch.object(service, '_ruleset_matches_context', return_value=True):
+        with patch.object(service, "_ruleset_matches_context", return_value=True):
             rulesets = await service._get_rulesets_for_evaluation(
                 mock_session, {"ram_gb": 64}, set()
             )
@@ -296,15 +298,16 @@ class TestBackwardCompatibility:
         mock_session.execute = mock_execute
 
         # Mock rule fetching and evaluation
-        with patch.object(service, '_get_rules_from_ruleset', return_value=[]):
-            with patch.object(service.evaluator, 'evaluate_ruleset', return_value=[]):
-                with patch.object(service.evaluator, 'calculate_total_adjustment',
-                                return_value={"total_adjustment": 0, "matched_rules": []}):
+        with patch.object(service, "_get_rules_from_ruleset", return_value=[]):
+            with patch.object(service.evaluator, "evaluate_ruleset", return_value=[]):
+                with patch.object(
+                    service.evaluator,
+                    "calculate_total_adjustment",
+                    return_value={"total_adjustment": 0, "matched_rules": []},
+                ):
 
                     result = await service.evaluate_listing(
-                        mock_session,
-                        listing_id=1,
-                        ruleset_id=99  # Specific ruleset
+                        mock_session, listing_id=1, ruleset_id=99  # Specific ruleset
                     )
 
                     # Should only evaluate the specific ruleset
@@ -338,7 +341,7 @@ class TestBackwardCompatibility:
         mock_session.refresh = AsyncMock()
 
         # Mock evaluation to return sample results
-        with patch.object(service, 'evaluate_listing') as mock_eval:
+        with patch.object(service, "evaluate_listing") as mock_eval:
             mock_eval.return_value = {
                 "listing_id": 1,
                 "original_price": 1000.0,
@@ -351,24 +354,24 @@ class TestBackwardCompatibility:
                         "ruleset_name": "System: Baseline v1.0",
                         "priority": 5,
                         "adjustment": 50.0,
-                        "matched_rules": [{"rule_id": 101, "adjustment": 50.0}]
+                        "matched_rules": [{"rule_id": 101, "adjustment": 50.0}],
                     },
                     "basic": {
                         "ruleset_id": 2,
                         "ruleset_name": "Standard",
                         "priority": 10,
                         "adjustment": 25.0,
-                        "matched_rules": [{"rule_id": 201, "adjustment": 25.0}]
-                    }
+                        "matched_rules": [{"rule_id": 201, "adjustment": 25.0}],
+                    },
                 },
                 "matched_rules": [
                     {"rule_id": 101, "adjustment": 50.0, "layer": "baseline"},
-                    {"rule_id": 201, "adjustment": 25.0, "layer": "basic"}
+                    {"rule_id": 201, "adjustment": 25.0, "layer": "basic"},
                 ],
                 "rulesets_evaluated": [
                     {"id": 1, "name": "System: Baseline v1.0", "priority": 5, "layer": "baseline"},
-                    {"id": 2, "name": "Standard", "priority": 10, "layer": "basic"}
-                ]
+                    {"id": 2, "name": "Standard", "priority": 10, "layer": "basic"},
+                ],
             }
 
             result = await service.apply_ruleset_to_listing(mock_session, 1)

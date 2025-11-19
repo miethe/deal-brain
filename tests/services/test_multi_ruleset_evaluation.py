@@ -11,8 +11,14 @@ from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from dealbrain_api.models.core import (
-    Listing, Cpu, Gpu, ValuationRuleset, ValuationRuleGroup, ValuationRuleV2,
-    ValuationRuleCondition, ValuationRuleAction
+    Listing,
+    Cpu,
+    Gpu,
+    ValuationRuleset,
+    ValuationRuleGroup,
+    ValuationRuleV2,
+    ValuationRuleCondition,
+    ValuationRuleAction,
 )
 from dealbrain_api.services.rule_evaluation import RuleEvaluationService
 from dealbrain_api.services.baseline_loader import BaselineLoaderService
@@ -21,6 +27,7 @@ from dealbrain_api.db import Base
 # Try to import aiosqlite
 try:
     import aiosqlite
+
     AIOSQLITE_AVAILABLE = True
 except ImportError:
     AIOSQLITE_AVAILABLE = False
@@ -95,9 +102,7 @@ async def sample_gpu(db_session: AsyncSession) -> Gpu:
 
 
 @pytest.fixture
-async def sample_listing(
-    db_session: AsyncSession, sample_cpu: Cpu, sample_gpu: Gpu
-) -> Listing:
+async def sample_listing(db_session: AsyncSession, sample_cpu: Cpu, sample_gpu: Gpu) -> Listing:
     """Create a sample listing for testing."""
     listing = Listing(
         source="test",
@@ -282,9 +287,7 @@ class TestMultiRulesetEvaluation:
         )
 
         # Evaluate listing (should evaluate all rulesets)
-        result = await evaluation_service.evaluate_listing(
-            db_session, sample_listing.id
-        )
+        result = await evaluation_service.evaluate_listing(db_session, sample_listing.id)
 
         # Verify results
         assert result["total_adjustment"] == 85.0  # 50 + 25 + 10
@@ -386,9 +389,7 @@ class TestMultiRulesetEvaluation:
         )
 
         # Apply rulesets to listing
-        result = await evaluation_service.apply_ruleset_to_listing(
-            db_session, sample_listing.id
-        )
+        result = await evaluation_service.apply_ruleset_to_listing(db_session, sample_listing.id)
 
         # Refresh listing to get updated data
         await db_session.refresh(sample_listing)
@@ -446,9 +447,7 @@ class TestMultiRulesetEvaluation:
         await db_session.commit()
 
         # Evaluate
-        result = await evaluation_service.evaluate_listing(
-            db_session, sample_listing.id
-        )
+        result = await evaluation_service.evaluate_listing(db_session, sample_listing.id)
 
         # Should only evaluate baseline
         assert result["total_adjustment"] == 50.0
@@ -484,15 +483,11 @@ class TestMultiRulesetEvaluation:
         )
 
         # Add baseline to excluded rulesets for this listing
-        sample_listing.attributes_json = {
-            "valuation_disabled_rulesets": [baseline_ruleset.id]
-        }
+        sample_listing.attributes_json = {"valuation_disabled_rulesets": [baseline_ruleset.id]}
         await db_session.commit()
 
         # Evaluate
-        result = await evaluation_service.evaluate_listing(
-            db_session, sample_listing.id
-        )
+        result = await evaluation_service.evaluate_listing(db_session, sample_listing.id)
 
         # Should only evaluate standard
         assert result["total_adjustment"] == 25.0
@@ -543,9 +538,7 @@ class TestMultiRulesetEvaluation:
         )
 
         # Evaluate with 32GB listing (doesn't match conditional)
-        result = await evaluation_service.evaluate_listing(
-            db_session, sample_listing.id
-        )
+        result = await evaluation_service.evaluate_listing(db_session, sample_listing.id)
 
         # Should only get baseline
         assert result["total_adjustment"] == 50.0
@@ -556,9 +549,7 @@ class TestMultiRulesetEvaluation:
         await db_session.commit()
 
         # Re-evaluate
-        result = await evaluation_service.evaluate_listing(
-            db_session, sample_listing.id
-        )
+        result = await evaluation_service.evaluate_listing(db_session, sample_listing.id)
 
         # Now should get both rulesets
         assert result["total_adjustment"] == 150.0  # 50 + 100
@@ -627,9 +618,7 @@ class TestMultiRulesetEvaluation:
         # Standard ruleset has no rules
 
         # Evaluate
-        result = await evaluation_service.evaluate_listing(
-            db_session, sample_listing.id
-        )
+        result = await evaluation_service.evaluate_listing(db_session, sample_listing.id)
 
         # Should handle empty ruleset gracefully
         assert result["total_adjustment"] == 50.0

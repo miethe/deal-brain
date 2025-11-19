@@ -198,10 +198,7 @@ Old symbols content here
             new_template = "New symbols content"
 
             result = update_claude_md.update_claude_md(
-                tmpdir_path,
-                new_template,
-                dry_run=True,
-                no_backup=True
+                tmpdir_path, new_template, dry_run=True, no_backup=True
             )
 
             self.assertEqual(result["action"], "updated (dry-run)")
@@ -234,7 +231,7 @@ More content
                 new_template,
                 force=True,  # Force insertion
                 dry_run=True,
-                no_backup=True
+                no_backup=True,
             )
 
             # Should insert new content
@@ -249,10 +246,7 @@ More content
             # Don't create CLAUDE.md
 
             result = update_claude_md.update_claude_md(
-                tmpdir_path,
-                "content",
-                dry_run=True,
-                no_backup=True
+                tmpdir_path, "content", dry_run=True, no_backup=True
             )
 
             self.assertFalse(result["exists"])
@@ -298,6 +292,7 @@ class TestProjectRootDetection(unittest.TestCase):
 
             # Temporarily change directory
             import os
+
             original_cwd = os.getcwd()
             try:
                 os.chdir(sub_dir)

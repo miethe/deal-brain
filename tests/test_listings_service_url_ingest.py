@@ -145,7 +145,9 @@ async def test_upsert_from_url_updates_existing_listing(
 
     # Act: Update existing listing
     updated_listing = await upsert_from_url(
-        db_session, sample_normalized_updated_price, dedupe_result,
+        db_session,
+        sample_normalized_updated_price,
+        dedupe_result,
     )
 
     # Assert: Same listing updated (not new)
@@ -191,7 +193,9 @@ async def test_upsert_from_url_emits_price_changed_event(
 
     # Act: Update with lower price (price drop of $50, 8.3%)
     updated_listing = await upsert_from_url(
-        db_session, sample_normalized_updated_price, dedupe_result,
+        db_session,
+        sample_normalized_updated_price,
+        dedupe_result,
     )
 
     # Assert: Price updated

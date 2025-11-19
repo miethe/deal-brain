@@ -53,6 +53,7 @@ import argparse
 @dataclass
 class Symbol:
     """Represents a single extracted symbol (Schema v2.0)."""
+
     name: str
     kind: str
     path: str
@@ -70,34 +71,26 @@ class TypeScriptSymbolExtractor:
 
     # Regex patterns for various symbol types
     INTERFACE_PATTERN = re.compile(
-        r'^\s*(?:export\s+)?interface\s+(\w+)(?:<[^>]+>)?\s*(?:extends\s+[^{]+)?\s*\{',
-        re.MULTILINE
+        r"^\s*(?:export\s+)?interface\s+(\w+)(?:<[^>]+>)?\s*(?:extends\s+[^{]+)?\s*\{", re.MULTILINE
     )
 
-    TYPE_PATTERN = re.compile(
-        r'^\s*(?:export\s+)?type\s+(\w+)(?:<[^>]+>)?\s*=',
-        re.MULTILINE
-    )
+    TYPE_PATTERN = re.compile(r"^\s*(?:export\s+)?type\s+(\w+)(?:<[^>]+>)?\s*=", re.MULTILINE)
 
     CLASS_PATTERN = re.compile(
-        r'^\s*(?:export\s+)?(?:abstract\s+)?class\s+(\w+)(?:<[^>]+>)?(?:\s+extends\s+(\w+))?',
-        re.MULTILINE
+        r"^\s*(?:export\s+)?(?:abstract\s+)?class\s+(\w+)(?:<[^>]+>)?(?:\s+extends\s+(\w+))?",
+        re.MULTILINE,
     )
 
     FUNCTION_PATTERN = re.compile(
-        r'^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*(?:<[^>]+>)?\s*\([^)]*\)',
-        re.MULTILINE
+        r"^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*(?:<[^>]+>)?\s*\([^)]*\)", re.MULTILINE
     )
 
     ARROW_FUNCTION_PATTERN = re.compile(
-        r'^\s*(?:export\s+)?(?:const|let)\s+(\w+)\s*(?::\s*[^=]+)?\s*=\s*(?:async\s+)?\([^)]*\)\s*(?::\s*[^=]+)?\s*=>',
-        re.MULTILINE
+        r"^\s*(?:export\s+)?(?:const|let)\s+(\w+)\s*(?::\s*[^=]+)?\s*=\s*(?:async\s+)?\([^)]*\)\s*(?::\s*[^=]+)?\s*=>",
+        re.MULTILINE,
     )
 
-    JSDOC_PATTERN = re.compile(
-        r'/\*\*\s*\n([^*]|\*(?!/))*\*/',
-        re.MULTILINE
-    )
+    JSDOC_PATTERN = re.compile(r"/\*\*\s*\n([^*]|\*(?!/))*\*/", re.MULTILINE)
 
     def __init__(self, file_path: str, source_code: str):
         self.file_path = file_path
@@ -125,7 +118,7 @@ class TypeScriptSymbolExtractor:
             line = self._get_line_number(match.start())
 
             # Skip private interfaces
-            if name.startswith('_'):
+            if name.startswith("_"):
                 continue
 
             # Get JSDoc summary and full doc
@@ -142,7 +135,7 @@ class TypeScriptSymbolExtractor:
                 signature=signature,
                 summary=summary,
                 layer="unknown",  # Will be set by categorize_file
-                docstring=docstring if docstring else None
+                docstring=docstring if docstring else None,
             )
             self.symbols.append(symbol)
 
@@ -153,7 +146,7 @@ class TypeScriptSymbolExtractor:
             line = self._get_line_number(match.start())
 
             # Skip private types
-            if name.startswith('_'):
+            if name.startswith("_"):
                 continue
 
             # Get JSDoc summary and full doc
@@ -170,7 +163,7 @@ class TypeScriptSymbolExtractor:
                 signature=signature,
                 summary=summary,
                 layer="unknown",  # Will be set by categorize_file
-                docstring=docstring if docstring else None
+                docstring=docstring if docstring else None,
             )
             self.symbols.append(symbol)
 
@@ -182,7 +175,7 @@ class TypeScriptSymbolExtractor:
             line = self._get_line_number(match.start())
 
             # Skip private classes
-            if name.startswith('_'):
+            if name.startswith("_"):
                 continue
 
             # Get JSDoc summary and full doc
@@ -202,7 +195,7 @@ class TypeScriptSymbolExtractor:
                 signature=signature,
                 summary=summary,
                 layer="unknown",  # Will be set by categorize_file
-                docstring=docstring if docstring else None
+                docstring=docstring if docstring else None,
             )
             self.symbols.append(symbol)
 
@@ -213,7 +206,7 @@ class TypeScriptSymbolExtractor:
             line = self._get_line_number(match.start())
 
             # Skip private functions
-            if name.startswith('_'):
+            if name.startswith("_"):
                 continue
 
             # Get JSDoc summary and full doc
@@ -233,7 +226,7 @@ class TypeScriptSymbolExtractor:
                 signature=signature,
                 summary=summary,
                 layer="unknown",  # Will be set by categorize_file
-                docstring=docstring if docstring else None
+                docstring=docstring if docstring else None,
             )
             self.symbols.append(symbol)
 
@@ -244,7 +237,7 @@ class TypeScriptSymbolExtractor:
             line = self._get_line_number(match.start())
 
             # Skip private functions
-            if name.startswith('_'):
+            if name.startswith("_"):
                 continue
 
             # Get JSDoc summary and full doc
@@ -264,14 +257,14 @@ class TypeScriptSymbolExtractor:
                 signature=signature,
                 summary=summary,
                 layer="unknown",  # Will be set by categorize_file
-                docstring=docstring if docstring else None
+                docstring=docstring if docstring else None,
             )
             self.symbols.append(symbol)
 
     def _determine_function_kind(self, name: str, position: int) -> str:
         """Determine if a function is a component, hook, or regular function."""
         # Check if it's a hook (starts with 'use')
-        if name.startswith('use') and len(name) > 3 and name[3].isupper():
+        if name.startswith("use") and len(name) > 3 and name[3].isupper():
             return "hook"
 
         # Check if it's a React component (capitalized and returns JSX)
@@ -289,23 +282,23 @@ class TypeScriptSymbolExtractor:
         in_function = False
         for i in range(start_pos, len(self.source_code)):
             char = self.source_code[i]
-            if char == '{':
+            if char == "{":
                 brace_count += 1
                 in_function = True
-            elif char == '}':
+            elif char == "}":
                 brace_count -= 1
                 if brace_count == 0 and in_function:
                     # End of function body
                     function_body = self.source_code[start_pos:i]
                     # Look for JSX patterns
                     jsx_patterns = [
-                        r'return\s*<',
-                        r'return\s*\(',
-                        r'<\w+[^>]*>',
-                        r'</\w+>',
-                        r'JSX\.Element',
-                        r'React\.ReactElement',
-                        r'ReactNode'
+                        r"return\s*<",
+                        r"return\s*\(",
+                        r"<\w+[^>]*>",
+                        r"</\w+>",
+                        r"JSX\.Element",
+                        r"React\.ReactElement",
+                        r"ReactNode",
                     ]
                     for pattern in jsx_patterns:
                         if re.search(pattern, function_body):
@@ -316,34 +309,34 @@ class TypeScriptSymbolExtractor:
     def _extract_function_signature(self, position: int, name: str) -> str:
         """Extract the full function signature."""
         # Find the function declaration line
-        line_start = self.source_code.rfind('\n', 0, position) + 1
-        line_end = self.source_code.find('{', position)
+        line_start = self.source_code.rfind("\n", 0, position) + 1
+        line_end = self.source_code.find("{", position)
 
         if line_end == -1:
-            line_end = self.source_code.find('\n', position)
+            line_end = self.source_code.find("\n", position)
 
         signature = self.source_code[line_start:line_end].strip()
 
         # Clean up the signature
-        signature = re.sub(r'\s+', ' ', signature)
+        signature = re.sub(r"\s+", " ", signature)
 
         return signature
 
     def _extract_arrow_function_signature(self, position: int, name: str) -> str:
         """Extract the full arrow function signature."""
         # Find the declaration
-        line_start = self.source_code.rfind('\n', 0, position) + 1
-        arrow_pos = self.source_code.find('=>', position)
+        line_start = self.source_code.rfind("\n", 0, position) + 1
+        arrow_pos = self.source_code.find("=>", position)
 
         if arrow_pos == -1:
-            arrow_pos = self.source_code.find('\n', position)
+            arrow_pos = self.source_code.find("\n", position)
         else:
             arrow_pos += 2  # Include =>
 
         signature = self.source_code[line_start:arrow_pos].strip()
 
         # Clean up the signature
-        signature = re.sub(r'\s+', ' ', signature)
+        signature = re.sub(r"\s+", " ", signature)
 
         return signature
 
@@ -369,18 +362,18 @@ class TypeScriptSymbolExtractor:
 
         # Extract full docstring (clean up comment markers)
         docstring_lines = []
-        for line in jsdoc_text.split('\n'):
-            cleaned = re.sub(r'^\s*/?\*+\s*', '', line).strip()
-            if cleaned and cleaned != '/':
+        for line in jsdoc_text.split("\n"):
+            cleaned = re.sub(r"^\s*/?\*+\s*", "", line).strip()
+            if cleaned and cleaned != "/":
                 docstring_lines.append(cleaned)
 
-        full_docstring = '\n'.join(docstring_lines) if docstring_lines else ""
+        full_docstring = "\n".join(docstring_lines) if docstring_lines else ""
 
         # Extract summary (first line that's not a tag)
         summary = ""
-        for line in jsdoc_text.split('\n'):
-            cleaned = re.sub(r'^\s*/?\*+\s*', '', line).strip()
-            if cleaned and not cleaned.startswith('@'):
+        for line in jsdoc_text.split("\n"):
+            cleaned = re.sub(r"^\s*/?\*+\s*", "", line).strip()
+            if cleaned and not cleaned.startswith("@"):
                 # Truncate if too long
                 if len(cleaned) > 100:
                     summary = cleaned[:97] + "..."
@@ -392,30 +385,30 @@ class TypeScriptSymbolExtractor:
 
     def _get_line_number(self, position: int) -> int:
         """Get line number from character position."""
-        return self.source_code[:position].count('\n') + 1
+        return self.source_code[:position].count("\n") + 1
 
 
 def is_test_file(file_path: Path) -> bool:
     """Check if a file is a test file."""
     parts = file_path.parts
     return (
-        'test' in parts or
-        'tests' in parts or
-        '__tests__' in parts or
-        file_path.name.endswith('.test.ts') or
-        file_path.name.endswith('.test.tsx') or
-        file_path.name.endswith('.test.js') or
-        file_path.name.endswith('.test.jsx') or
-        file_path.name.endswith('.spec.ts') or
-        file_path.name.endswith('.spec.tsx') or
-        file_path.name.endswith('.spec.js') or
-        file_path.name.endswith('.spec.jsx')
+        "test" in parts
+        or "tests" in parts
+        or "__tests__" in parts
+        or file_path.name.endswith(".test.ts")
+        or file_path.name.endswith(".test.tsx")
+        or file_path.name.endswith(".test.js")
+        or file_path.name.endswith(".test.jsx")
+        or file_path.name.endswith(".spec.ts")
+        or file_path.name.endswith(".spec.tsx")
+        or file_path.name.endswith(".spec.js")
+        or file_path.name.endswith(".spec.jsx")
     )
 
 
 def is_typescript_file(file_path: Path) -> bool:
     """Check if a file is a TypeScript or JavaScript file."""
-    return file_path.suffix in ['.ts', '.tsx', '.js', '.jsx']
+    return file_path.suffix in [".ts", ".tsx", ".js", ".jsx"]
 
 
 def categorize_file(file_path: Path) -> tuple[str, str]:
@@ -436,31 +429,37 @@ def categorize_file(file_path: Path) -> tuple[str, str]:
         return ("test", "test")
 
     # Pages (Next.js app router or pages router)
-    if 'pages' in parts or 'app' in parts and any(s in name for s in ['page.tsx', 'page.ts', 'page.jsx', 'page.js']):
+    if (
+        "pages" in parts
+        or "app" in parts
+        and any(s in name for s in ["page.tsx", "page.ts", "page.jsx", "page.js"])
+    ):
         return ("page", "ui")
 
     # Components (React components)
-    if 'components' in parts or 'component' in name:
+    if "components" in parts or "component" in name:
         return ("component", "ui")
 
     # Hooks (React hooks)
-    if name.startswith('use') and any(name.endswith(ext) for ext in ['.ts', '.tsx', '.js', '.jsx']):
+    if name.startswith("use") and any(name.endswith(ext) for ext in [".ts", ".tsx", ".js", ".jsx"]):
         return ("hook", "ui")
 
     # API routes (Next.js)
-    if 'api' in parts or 'route' in name:
+    if "api" in parts or "route" in name:
         return ("router", "business_logic")
 
     # Services (business logic)
-    if 'services' in parts or 'service' in name:
+    if "services" in parts or "service" in name:
         return ("service", "business_logic")
 
     # Utils/helpers
-    if any(p in parts for p in ['utils', 'helpers', 'lib', 'utilities']) or any(k in name for k in ['util', 'helper']):
+    if any(p in parts for p in ["utils", "helpers", "lib", "utilities"]) or any(
+        k in name for k in ["util", "helper"]
+    ):
         return ("util", "business_logic")
 
     # Config files
-    if any(k in name for k in ['config', 'constant', 'env']):
+    if any(k in name for k in ["config", "constant", "env"]):
         return ("util", "config")
 
     # Default: util layer
@@ -470,7 +469,7 @@ def categorize_file(file_path: Path) -> tuple[str, str]:
 def extract_symbols_from_file(file_path: Path, base_path: Path) -> List[Symbol]:
     """Extract symbols from a single TypeScript/JavaScript file."""
     try:
-        source_code = file_path.read_text(encoding='utf-8')
+        source_code = file_path.read_text(encoding="utf-8")
 
         # Calculate relative path
         rel_path = file_path.relative_to(base_path)
@@ -495,22 +494,20 @@ def extract_symbols_from_file(file_path: Path, base_path: Path) -> List[Symbol]:
 
 
 def extract_symbols_from_directory(
-    directory: Path,
-    exclude_tests: bool = False,
-    exclude_private: bool = False
+    directory: Path, exclude_tests: bool = False, exclude_private: bool = False
 ) -> List[Symbol]:
     """Extract symbols from all TypeScript/JavaScript files in a directory."""
     symbols: List[Symbol] = []
 
     # Find all TypeScript/JavaScript files
-    patterns = ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx']
+    patterns = ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
     files = []
     for pattern in patterns:
         files.extend(directory.glob(pattern))
 
     for file_path in files:
         # Skip node_modules and other special directories
-        if 'node_modules' in file_path.parts or '.next' in file_path.parts:
+        if "node_modules" in file_path.parts or ".next" in file_path.parts:
             continue
 
         # Skip test files if requested
@@ -522,10 +519,7 @@ def extract_symbols_from_directory(
 
         # Filter private symbols if requested
         if exclude_private:
-            file_symbols = [
-                s for s in file_symbols
-                if not s.name.startswith('_')
-            ]
+            file_symbols = [s for s in file_symbols if not s.name.startswith("_")]
 
         symbols.extend(file_symbols)
 
@@ -565,32 +559,19 @@ def main():
     parser = argparse.ArgumentParser(
         description="Extract symbols from TypeScript/JavaScript files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__
+        epilog=__doc__,
     )
     parser.add_argument(
-        'path',
-        help='Path to TypeScript/JavaScript file or directory to extract symbols from'
+        "path", help="Path to TypeScript/JavaScript file or directory to extract symbols from"
+    )
+    parser.add_argument("--output", "-o", help="Output JSON file path (default: stdout)")
+    parser.add_argument(
+        "--exclude-tests", action="store_true", help="Exclude test files from extraction"
     )
     parser.add_argument(
-        '--output',
-        '-o',
-        help='Output JSON file path (default: stdout)'
+        "--exclude-private", action="store_true", help="Exclude private symbols (starting with _)"
     )
-    parser.add_argument(
-        '--exclude-tests',
-        action='store_true',
-        help='Exclude test files from extraction'
-    )
-    parser.add_argument(
-        '--exclude-private',
-        action='store_true',
-        help='Exclude private symbols (starting with _)'
-    )
-    parser.add_argument(
-        '--pretty',
-        action='store_true',
-        help='Pretty-print JSON output'
-    )
+    parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output")
 
     args = parser.parse_args()
 
@@ -608,21 +589,19 @@ def main():
         symbols = extract_symbols_from_file(path, path.parent)
     else:
         symbols = extract_symbols_from_directory(
-            path,
-            exclude_tests=args.exclude_tests,
-            exclude_private=args.exclude_private
+            path, exclude_tests=args.exclude_tests, exclude_private=args.exclude_private
         )
 
     # Convert to output format
     output = symbols_to_dict(symbols)
 
     # Output results
-    json_kwargs = {'indent': 2} if args.pretty else {}
+    json_kwargs = {"indent": 2} if args.pretty else {}
     json_output = json.dumps(output, **json_kwargs)
 
     if args.output:
         output_path = Path(args.output)
-        output_path.write_text(json_output, encoding='utf-8')
+        output_path.write_text(json_output, encoding="utf-8")
         print(f"Extracted {len(symbols)} symbols to {output_path}", file=sys.stderr)
     else:
         print(json_output)
@@ -637,5 +616,5 @@ def main():
             print(f"# {kind}: {count}", file=sys.stderr)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

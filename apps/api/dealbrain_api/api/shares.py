@@ -111,27 +111,18 @@ async def get_public_shared_deal(
 
         if not share:
             logger.info(f"Share not found for token {share_token[:8]}...")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Share not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Share not found")
 
         # Verify listing_id matches (extra security check)
         if share.listing_id != listing_id:
             logger.warning(
                 f"Listing ID mismatch: URL has {listing_id}, token has {share.listing_id}"
             )
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Share not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Share not found")
 
         if not is_valid:
             logger.info(f"Share expired for token {share_token[:8]}...")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Share has expired"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Share has expired")
 
         # Increment view count (fire and forget - don't block response)
         try:
@@ -147,7 +138,7 @@ async def get_public_shared_deal(
             share_token=share.share_token,
             listing_id=share.listing_id,
             view_count=share.view_count + 1,  # Include the incremented count
-            is_expired=share.is_expired()
+            is_expired=share.is_expired(),
         )
 
         # Cache response for 24 hours (graceful fallback if Redis unavailable)

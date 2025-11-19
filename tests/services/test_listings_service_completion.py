@@ -162,7 +162,6 @@ async def test_complete_partial_import_success(db_session: AsyncSession):
     assert updated.extraction_metadata.get("price") == "manual"
 
 
-
 async def test_complete_partial_import_not_found(db_session: AsyncSession):
     """Test error when listing not found."""
     with pytest.raises(ValueError, match="Listing 9999 not found"):
@@ -172,7 +171,6 @@ async def test_complete_partial_import_not_found(db_session: AsyncSession):
             completion_data={"price": 299.99},
             user_id="test_user",
         )
-
 
 
 async def test_complete_partial_import_already_complete(db_session: AsyncSession):
@@ -196,7 +194,6 @@ async def test_complete_partial_import_already_complete(db_session: AsyncSession
             completion_data={"price": 599.99},
             user_id="test_user",
         )
-
 
 
 async def test_complete_partial_import_invalid_price_negative(db_session: AsyncSession):
@@ -223,7 +220,6 @@ async def test_complete_partial_import_invalid_price_negative(db_session: AsyncS
         )
 
 
-
 async def test_complete_partial_import_invalid_price_non_numeric(db_session: AsyncSession):
     """Test error when price is non-numeric."""
     # Create partial listing
@@ -246,7 +242,6 @@ async def test_complete_partial_import_invalid_price_non_numeric(db_session: Asy
             completion_data={"price": "not_a_number"},
             user_id="test_user",
         )
-
 
 
 async def test_complete_partial_import_metrics_calculated(db_session: AsyncSession):
@@ -288,7 +283,6 @@ async def test_complete_partial_import_metrics_calculated(db_session: AsyncSessi
     assert updated.dollar_per_cpu_mark_multi is not None
 
 
-
 async def test_complete_partial_import_metadata_tracking(db_session: AsyncSession):
     """Test that extraction_metadata tracks manual price entry."""
     # Create partial listing with some existing metadata
@@ -317,7 +311,6 @@ async def test_complete_partial_import_metadata_tracking(db_session: AsyncSessio
     assert updated.extraction_metadata.get("price") == "manual"
     assert updated.extraction_metadata.get("title") == "extracted"
     assert updated.extraction_metadata.get("condition") == "extracted"
-
 
 
 async def test_complete_partial_import_partial_still_incomplete(db_session: AsyncSession):
@@ -350,7 +343,6 @@ async def test_complete_partial_import_partial_still_incomplete(db_session: Asyn
     assert "price" not in updated.missing_fields
     assert "cpu_model" in updated.missing_fields
     assert "ram_gb" in updated.missing_fields
-
 
 
 async def test_complete_partial_import_zero_price(db_session: AsyncSession):

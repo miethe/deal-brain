@@ -14,14 +14,16 @@ def test_many_multipliers_performance():
     # Create action with 10 multipliers
     multipliers_list = []
     for i in range(10):
-        multipliers_list.append({
-            "name": f"Multiplier {i}",
-            "field": f"test_field_{i}",
-            "conditions": [
-                {"value": "value1", "multiplier": 1.0 + (i * 0.1)},
-                {"value": "value2", "multiplier": 0.9 + (i * 0.1)},
-            ],
-        })
+        multipliers_list.append(
+            {
+                "name": f"Multiplier {i}",
+                "field": f"test_field_{i}",
+                "conditions": [
+                    {"value": "value1", "multiplier": 1.0 + (i * 0.1)},
+                    {"value": "value2", "multiplier": 0.9 + (i * 0.1)},
+                ],
+            }
+        )
 
     action = Action(
         action_type="fixed_value",
@@ -60,7 +62,9 @@ def test_many_multipliers_performance():
     assert elapsed < 0.5, f"Too slow: {elapsed:.3f}s for {iterations} iterations"
 
     avg_time_ms = (elapsed / iterations) * 1000
-    print(f"\nPerformance: {iterations} iterations in {elapsed:.3f}s (avg {avg_time_ms:.4f}ms per call)")
+    print(
+        f"\nPerformance: {iterations} iterations in {elapsed:.3f}s (avg {avg_time_ms:.4f}ms per call)"
+    )
     assert result > 0  # Verify it actually calculated
 
 
@@ -85,15 +89,7 @@ def test_nested_field_path_performance():
         },
     )
 
-    context = {
-        "level1": {
-            "level2": {
-                "level3": {
-                    "level4": {"field1": "test", "field2": "test"}
-                }
-            }
-        }
-    }
+    context = {"level1": {"level2": {"level3": {"level4": {"field1": "test", "field2": "test"}}}}}
 
     # Warm up
     for _ in range(10):
@@ -110,7 +106,9 @@ def test_nested_field_path_performance():
     assert elapsed < 0.3, f"Too slow for nested paths: {elapsed:.3f}s for {iterations} iterations"
 
     avg_time_ms = (elapsed / iterations) * 1000
-    print(f"\nDeep path performance: {iterations} iterations in {elapsed:.3f}s (avg {avg_time_ms:.4f}ms per call)")
+    print(
+        f"\nDeep path performance: {iterations} iterations in {elapsed:.3f}s (avg {avg_time_ms:.4f}ms per call)"
+    )
     assert result == pytest.approx(100.0 * 1.2 * 1.3)
 
 
@@ -148,5 +146,7 @@ def test_simple_multiplier_performance():
     assert elapsed < 0.1, f"Too slow: {elapsed:.3f}s for {iterations} iterations"
 
     avg_time_us = (elapsed / iterations) * 1000000
-    print(f"\nSimple multiplier performance: {iterations} iterations in {elapsed:.3f}s (avg {avg_time_us:.2f}µs per call)")
+    print(
+        f"\nSimple multiplier performance: {iterations} iterations in {elapsed:.3f}s (avg {avg_time_us:.2f}µs per call)"
+    )
     assert result == pytest.approx(40.0)  # 16 * 2.5 * 1.0

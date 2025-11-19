@@ -77,8 +77,18 @@ IMPORT_SCHEMAS: dict[str, ImportSchema] = {
             SchemaField("threads", "Threads", data_type="number"),
             SchemaField("tdp_w", "TDP (W)", data_type="number", aliases=("tdp", "tdp w")),
             SchemaField("igpu_model", "Integrated GPU", aliases=("igpu", "graphics")),
-            SchemaField("cpu_mark_multi", "CPU Mark (Multi)", data_type="number", aliases=("cpu mark", "multi score")),
-            SchemaField("cpu_mark_single", "CPU Mark (Single)", data_type="number", aliases=("single thread", "single score")),
+            SchemaField(
+                "cpu_mark_multi",
+                "CPU Mark (Multi)",
+                data_type="number",
+                aliases=("cpu mark", "multi score"),
+            ),
+            SchemaField(
+                "cpu_mark_single",
+                "CPU Mark (Single)",
+                data_type="number",
+                aliases=("single thread", "single score"),
+            ),
             SchemaField("release_year", "Release Year", data_type="number", aliases=("year",)),
             SchemaField("notes", "Notes", data_type="text"),
         ),
@@ -101,12 +111,32 @@ IMPORT_SCHEMAS: dict[str, ImportSchema] = {
         sheet_keywords=("valuation", "reference", "rule"),
         fields=(
             SchemaField("name", "Rule Name", required=True, aliases=("reference", "rule")),
-            SchemaField("component_type", "Component Type", required=True, aliases=("component", "type")),
+            SchemaField(
+                "component_type", "Component Type", required=True, aliases=("component", "type")
+            ),
             SchemaField("metric", "Metric", aliases=("pricing metric", "unit")),
-            SchemaField("unit_value_usd", "Unit Value (USD)", required=True, data_type="number", aliases=("unit value", "unit cost")),
-            SchemaField("condition_new", "Condition New", data_type="number", aliases=("multiplier new",)),
-            SchemaField("condition_refurb", "Condition Refurb", data_type="number", aliases=("multiplier refurb", "condition refurb")),
-            SchemaField("condition_used", "Condition Used", data_type="number", aliases=("multiplier used", "condition used")),
+            SchemaField(
+                "unit_value_usd",
+                "Unit Value (USD)",
+                required=True,
+                data_type="number",
+                aliases=("unit value", "unit cost"),
+            ),
+            SchemaField(
+                "condition_new", "Condition New", data_type="number", aliases=("multiplier new",)
+            ),
+            SchemaField(
+                "condition_refurb",
+                "Condition Refurb",
+                data_type="number",
+                aliases=("multiplier refurb", "condition refurb"),
+            ),
+            SchemaField(
+                "condition_used",
+                "Condition Used",
+                data_type="number",
+                aliases=("multiplier used", "condition used"),
+            ),
             SchemaField("notes", "Notes", data_type="text"),
         ),
     ),
@@ -117,7 +147,9 @@ IMPORT_SCHEMAS: dict[str, ImportSchema] = {
         fields=(
             SchemaField("name", "Profile Name", required=True, aliases=("profile", "name")),
             SchemaField("description", "Description", data_type="text"),
-            SchemaField("ports", "Ports", data_type="text", aliases=("port breakdown", "port list")),
+            SchemaField(
+                "ports", "Ports", data_type="text", aliases=("port breakdown", "port list")
+            ),
         ),
     ),
     "listing": ImportSchema(
@@ -126,15 +158,37 @@ IMPORT_SCHEMAS: dict[str, ImportSchema] = {
         sheet_keywords=("listing", "device", "sff", "mac"),
         fields=(
             SchemaField("title", "Title", required=True, aliases=("device", "listing")),
-            SchemaField("price_usd", "Price (USD)", required=True, data_type="number", aliases=("price", "cost")),
+            SchemaField(
+                "price_usd",
+                "Price (USD)",
+                required=True,
+                data_type="number",
+                aliases=("price", "cost"),
+            ),
             SchemaField("condition", "Condition", aliases=("state",)),
             SchemaField("cpu_name", "CPU", aliases=("cpu", "processor")),
             SchemaField("gpu_name", "GPU", aliases=("gpu", "graphics")),
             SchemaField("ram_gb", "RAM (GB)", data_type="number", aliases=("memory", "ram")),
-            SchemaField("primary_storage_gb", "Primary Storage (GB)", data_type="number", aliases=("storage", "storage 1")),
-            SchemaField("primary_storage_type", "Primary Storage Type", aliases=("storage type", "storage 1 type")),
-            SchemaField("secondary_storage_gb", "Secondary Storage (GB)", data_type="number", aliases=("storage 2", "secondary storage")),
-            SchemaField("secondary_storage_type", "Secondary Storage Type", aliases=("storage 2 type",)),
+            SchemaField(
+                "primary_storage_gb",
+                "Primary Storage (GB)",
+                data_type="number",
+                aliases=("storage", "storage 1"),
+            ),
+            SchemaField(
+                "primary_storage_type",
+                "Primary Storage Type",
+                aliases=("storage type", "storage 1 type"),
+            ),
+            SchemaField(
+                "secondary_storage_gb",
+                "Secondary Storage (GB)",
+                data_type="number",
+                aliases=("storage 2", "secondary storage"),
+            ),
+            SchemaField(
+                "secondary_storage_type", "Secondary Storage Type", aliases=("storage 2 type",)
+            ),
             SchemaField("os_license", "OS License", aliases=("os", "operating system")),
             SchemaField("notes", "Notes", data_type="text"),
         ),

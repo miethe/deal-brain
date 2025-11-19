@@ -42,6 +42,8 @@ import { RamSpecSelector } from "../forms/ram-spec-selector";
 import { StorageProfileSelector } from "../forms/storage-profile-selector";
 import { getStorageMediumLabel } from "../../lib/component-catalog";
 import { measureInteraction, measureInteractionAsync, logRenderPerformance } from "../../lib/performance";
+import { ColumnSelector, type ColumnDefinition } from "../ui/column-selector";
+import { useColumnPreferences } from "@/hooks/use-column-preferences";
 import { ShareButton } from "../share/share-button";
 
 // ListingRow is just an alias for ListingRecord - all fields come from the API
@@ -411,6 +413,32 @@ export function ListingsTable() {
     });
     return Array.from(unique).map((value) => ({ label: value, value }));
   }, [listings]);
+
+  // Define all available columns for column selector
+  const allColumnDefinitions: ColumnDefinition[] = useMemo(() => [
+    { id: "title", label: "Title", defaultVisible: true, description: "Product title or name" },
+    { id: "cpu_name", label: "CPU", defaultVisible: true, description: "CPU model" },
+    { id: "adjusted_price_usd", label: "Valuation", defaultVisible: true, description: "Adjusted valuation" },
+    { id: "dollar_per_cpu_mark", label: "$/CPU Mark", defaultVisible: false, description: "Price per CPU mark" },
+    { id: "dollar_per_cpu_mark_single", label: "$/CPU Mark (Single)", defaultVisible: true, description: "Single-thread price efficiency" },
+    { id: "dollar_per_cpu_mark_multi", label: "$/CPU Mark (Multi)", defaultVisible: true, description: "Multi-thread price efficiency" },
+    { id: "manufacturer", label: "Manufacturer", defaultVisible: true, description: "PC manufacturer" },
+    { id: "form_factor", label: "Form Factor", defaultVisible: true, description: "PC form factor" },
+    { id: "ports", label: "Ports", defaultVisible: false, description: "Connectivity ports" },
+    { id: "score_composite", label: "Composite", defaultVisible: false, description: "Composite performance score" },
+    // Add editable fields from schema
+    ...fieldConfigs
+      .filter((config) => config.editable && !["title", "cpu_id", "gpu_id", "manufacturer", "form_factor"].includes(config.key))
+      .map((config) => ({
+        id: config.key,
+        label: config.label,
+        defaultVisible: ["price_usd", "ram_gb", "primary_storage_gb"].includes(config.key), // Common fields visible by default
+        description: config.description ?? undefined,
+      })),
+  ], [fieldConfigs]);
+
+  // Column preferences hook
+  const { selectedColumns, updateColumns } = useColumnPreferences("listings", allColumnDefinitions);
 
   const columns = useMemo<ColumnDef<ListingRow>[]>(() => {
     const titleConfig = fieldMap.get("title");
@@ -810,8 +838,35 @@ export function ListingsTable() {
         };
       });
 
-    return [...baseColumns, ...editableColumns];
-  }, [cpuOptions, fieldConfigs, fieldMap, handleInlineSave, handleCreateOption, inlineMutation.isPending, thresholds]);
+    // Build all columns
+    const allColumns = [...baseColumns, ...editableColumns];
+
+    // Filter and reorder based on column preferences
+    // Keep the select column always visible (not part of preferences)
+    const selectColumn = allColumns.find((col) => (col as any).id === "select");
+    const otherColumns = allColumns.filter((col) => (col as any).id !== "select");
+
+    // Create a map for efficient lookup
+    const columnMap = new Map<string, ColumnDef<ListingRow>>();
+    otherColumns.forEach((col) => {
+      const id = (col as any).id || (col as any).accessorKey;
+      if (id) {
+        columnMap.set(String(id), col);
+      }
+    });
+
+    // Filter and reorder based on selectedColumns
+    const orderedColumns: ColumnDef<ListingRow>[] = [];
+    selectedColumns.forEach((id) => {
+      const column = columnMap.get(id);
+      if (column) {
+        orderedColumns.push(column);
+      }
+    });
+
+    // Return select column + ordered visible columns
+    return selectColumn ? [selectColumn, ...orderedColumns] : orderedColumns;
+  }, [cpuOptions, fieldConfigs, fieldMap, handleInlineSave, handleCreateOption, inlineMutation.isPending, thresholds, selectedColumns]);
 
   // Wrap state setters with performance instrumentation
   const handleSortingChange = useCallback((updater: any) => {
@@ -937,6 +992,13 @@ export function ListingsTable() {
               ))}
             </select>
           </div>
+          <ColumnSelector
+            columns={allColumnDefinitions}
+            selectedColumns={selectedColumns}
+            onColumnsChange={updateColumns}
+            variant="outline"
+            size="sm"
+          />
           <Button variant="ghost" size="sm" onClick={resetView}>
             Reset view
           </Button>

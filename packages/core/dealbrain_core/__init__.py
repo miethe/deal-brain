@@ -8,4 +8,3 @@ except PackageNotFoundError:  # pragma: no cover - during local dev without inst
     __version__ = "0.0.0"
 
 __all__ = ["__version__"]
-

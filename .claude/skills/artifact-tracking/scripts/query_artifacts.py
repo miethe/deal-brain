@@ -28,6 +28,7 @@ import yaml
 @dataclass
 class ArtifactMetadata:
     """Lightweight artifact metadata for queries."""
+
     filepath: str
     type: str
     title: str
@@ -61,16 +62,16 @@ def extract_frontmatter_only(filepath: Path) -> Optional[Dict[str, Any]]:
     import re
 
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             # Read only first few KB to get frontmatter
             content = f.read(8192)  # 8KB should be enough for frontmatter
 
             # Check if content starts with frontmatter delimiter
-            if not content.strip().startswith('---'):
+            if not content.strip().startswith("---"):
                 return None
 
             # Find the closing delimiter
-            match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+            match = re.match(r"^---\n(.*?)\n---", content, re.DOTALL)
             if not match:
                 return None
 
@@ -99,19 +100,19 @@ def load_artifact_metadata(filepath: Path) -> Optional[ArtifactMetadata]:
     try:
         metadata = ArtifactMetadata(
             filepath=str(filepath),
-            type=frontmatter.get('type', 'unknown'),
-            title=frontmatter.get('title', filepath.name),
-            status=frontmatter.get('status', 'unknown'),
-            prd=frontmatter.get('prd'),
-            phase=frontmatter.get('phase'),
-            overall_progress=frontmatter.get('overall_progress'),
-            owners=frontmatter.get('owners', []),
-            contributors=frontmatter.get('contributors', []),
-            started=frontmatter.get('started'),
-            completed=frontmatter.get('completed'),
-            blockers_count=len(frontmatter.get('blockers', [])),
-            total_tasks=frontmatter.get('total_tasks'),
-            completed_tasks=frontmatter.get('completed_tasks'),
+            type=frontmatter.get("type", "unknown"),
+            title=frontmatter.get("title", filepath.name),
+            status=frontmatter.get("status", "unknown"),
+            prd=frontmatter.get("prd"),
+            phase=frontmatter.get("phase"),
+            overall_progress=frontmatter.get("overall_progress"),
+            owners=frontmatter.get("owners", []),
+            contributors=frontmatter.get("contributors", []),
+            started=frontmatter.get("started"),
+            completed=frontmatter.get("completed"),
+            blockers_count=len(frontmatter.get("blockers", [])),
+            total_tasks=frontmatter.get("total_tasks"),
+            completed_tasks=frontmatter.get("completed_tasks"),
         )
         return metadata
 
@@ -237,7 +238,9 @@ def aggregate_metrics(artifacts: List[ArtifactMetadata]) -> Dict[str, Any]:
     average_progress = sum(progress_values) / len(progress_values) if progress_values else 0
 
     # Task metrics (only for progress artifacts)
-    progress_artifacts = [a for a in artifacts if a.type == 'progress' and a.total_tasks is not None]
+    progress_artifacts = [
+        a for a in artifacts if a.type == "progress" and a.total_tasks is not None
+    ]
     total_tasks_sum = sum(a.total_tasks or 0 for a in progress_artifacts)
     completed_tasks_sum = sum(a.completed_tasks or 0 for a in progress_artifacts)
 
@@ -250,7 +253,9 @@ def aggregate_metrics(artifacts: List[ArtifactMetadata]) -> Dict[str, Any]:
         "average_progress": round(average_progress, 1),
         "total_tasks": total_tasks_sum,
         "completed_tasks": completed_tasks_sum,
-        "task_completion_rate": round((completed_tasks_sum / total_tasks_sum * 100), 1) if total_tasks_sum > 0 else 0,
+        "task_completion_rate": (
+            round((completed_tasks_sum / total_tasks_sum * 100), 1) if total_tasks_sum > 0 else 0
+        ),
     }
 
 
@@ -275,19 +280,25 @@ def format_table_output(artifacts: List[ArtifactMetadata]) -> str:
     lines.append("=" * 100)
 
     # Table header
-    lines.append(f"{'Type':<12} {'Status':<15} {'PRD':<20} {'Phase':<6} {'Progress':<10} {'Title':<30}")
+    lines.append(
+        f"{'Type':<12} {'Status':<15} {'PRD':<20} {'Phase':<6} {'Progress':<10} {'Title':<30}"
+    )
     lines.append("-" * 100)
 
     # Table rows
     for artifact in artifacts:
         type_str = artifact.type[:11]
         status_str = artifact.status[:14]
-        prd_str = (artifact.prd or 'N/A')[:19]
-        phase_str = str(artifact.phase) if artifact.phase else 'N/A'
-        progress_str = f"{artifact.overall_progress}%" if artifact.overall_progress is not None else 'N/A'
+        prd_str = (artifact.prd or "N/A")[:19]
+        phase_str = str(artifact.phase) if artifact.phase else "N/A"
+        progress_str = (
+            f"{artifact.overall_progress}%" if artifact.overall_progress is not None else "N/A"
+        )
         title_str = artifact.title[:29]
 
-        lines.append(f"{type_str:<12} {status_str:<15} {prd_str:<20} {phase_str:<6} {progress_str:<10} {title_str:<30}")
+        lines.append(
+            f"{type_str:<12} {status_str:<15} {prd_str:<20} {phase_str:<6} {progress_str:<10} {title_str:<30}"
+        )
 
     lines.append("=" * 100)
 
@@ -328,18 +339,18 @@ def format_summary_output(artifacts: List[ArtifactMetadata]) -> str:
     lines.append("")
 
     lines.append("By Type:")
-    for artifact_type, count in sorted(metrics['by_type'].items()):
+    for artifact_type, count in sorted(metrics["by_type"].items()):
         lines.append(f"  {artifact_type}: {count}")
     lines.append("")
 
     lines.append("By Status:")
-    for status, count in sorted(metrics['by_status'].items()):
+    for status, count in sorted(metrics["by_status"].items()):
         lines.append(f"  {status}: {count}")
     lines.append("")
 
-    if metrics['by_prd']:
+    if metrics["by_prd"]:
         lines.append("By PRD:")
-        for prd, count in sorted(metrics['by_prd'].items()):
+        for prd, count in sorted(metrics["by_prd"].items()):
             lines.append(f"  {prd}: {count}")
         lines.append("")
 
@@ -362,7 +373,7 @@ def query_artifacts(
     owner: Optional[str] = None,
     contributor: Optional[str] = None,
     has_blockers: Optional[bool] = None,
-    output_format: str = 'table',
+    output_format: str = "table",
     aggregate: bool = False,
 ) -> str:
     """
@@ -406,9 +417,9 @@ def query_artifacts(
     )
 
     # Format output
-    if aggregate or output_format == 'summary':
+    if aggregate or output_format == "summary":
         return format_summary_output(filtered)
-    elif output_format == 'json':
+    elif output_format == "json":
         return format_json_output(filtered)
     else:  # table
         return format_table_output(filtered)
@@ -438,79 +449,53 @@ Examples:
 
   # Output as JSON
   python query_artifacts.py --directory .claude/progress --format json
-        """
+        """,
     )
 
     parser.add_argument(
-        '--directory',
-        '-d',
-        type=Path,
-        required=True,
-        help='Directory to search for artifacts'
+        "--directory", "-d", type=Path, required=True, help="Directory to search for artifacts"
     )
 
     parser.add_argument(
-        '--type',
-        '-t',
-        choices=['progress', 'context', 'bug-fix', 'observation'],
-        help='Filter by artifact type'
+        "--type",
+        "-t",
+        choices=["progress", "context", "bug-fix", "observation"],
+        help="Filter by artifact type",
     )
 
     parser.add_argument(
-        '--status',
-        '-s',
-        help='Filter by status (e.g., in-progress, complete, blocked)'
+        "--status", "-s", help="Filter by status (e.g., in-progress, complete, blocked)"
+    )
+
+    parser.add_argument("--prd", "-p", help="Filter by PRD identifier")
+
+    parser.add_argument("--phase", type=int, help="Filter by phase number")
+
+    parser.add_argument("--owner", "-o", help="Filter by owner agent")
+
+    parser.add_argument("--contributor", "-c", help="Filter by contributor agent")
+
+    parser.add_argument(
+        "--has-blockers", action="store_true", help="Filter to only artifacts with blockers"
     )
 
     parser.add_argument(
-        '--prd',
-        '-p',
-        help='Filter by PRD identifier'
+        "--no-blockers", action="store_true", help="Filter to only artifacts without blockers"
     )
 
     parser.add_argument(
-        '--phase',
-        type=int,
-        help='Filter by phase number'
+        "--format",
+        "-f",
+        choices=["table", "json", "summary"],
+        default="table",
+        help="Output format (default: table)",
     )
 
     parser.add_argument(
-        '--owner',
-        '-o',
-        help='Filter by owner agent'
-    )
-
-    parser.add_argument(
-        '--contributor',
-        '-c',
-        help='Filter by contributor agent'
-    )
-
-    parser.add_argument(
-        '--has-blockers',
-        action='store_true',
-        help='Filter to only artifacts with blockers'
-    )
-
-    parser.add_argument(
-        '--no-blockers',
-        action='store_true',
-        help='Filter to only artifacts without blockers'
-    )
-
-    parser.add_argument(
-        '--format',
-        '-f',
-        choices=['table', 'json', 'summary'],
-        default='table',
-        help='Output format (default: table)'
-    )
-
-    parser.add_argument(
-        '--aggregate',
-        '-a',
-        action='store_true',
-        help='Show aggregated metrics across all artifacts'
+        "--aggregate",
+        "-a",
+        action="store_true",
+        help="Show aggregated metrics across all artifacts",
     )
 
     args = parser.parse_args()
@@ -546,9 +531,10 @@ Examples:
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

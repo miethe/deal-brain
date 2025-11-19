@@ -48,10 +48,7 @@ def list_rules(
 
             # Get rulesets
             rulesets = await service.list_rulesets(
-                session=session,
-                active_only=active_only,
-                skip=0,
-                limit=100
+                session=session, active_only=active_only, skip=0, limit=100
             )
 
             # Filter by name if provided
@@ -64,13 +61,13 @@ def list_rules(
 
                 # Get groups for this ruleset
                 groups = await service.list_rule_groups(
-                    session=session,
-                    ruleset_id=rs.id,
-                    category=category
+                    session=session, ruleset_id=rs.id, category=category
                 )
 
                 for group in groups:
-                    console.print(f"\n  [bold yellow]└─ {group.category}:[/bold yellow] {group.name}")
+                    console.print(
+                        f"\n  [bold yellow]└─ {group.category}:[/bold yellow] {group.name}"
+                    )
                     console.print(f"     [dim]ID: {group.id} | Weight: {group.weight}[/dim]")
 
                     # Get rules for this group
@@ -79,7 +76,7 @@ def list_rules(
                         group_id=group.id,
                         active_only=active_only,
                         skip=0,
-                        limit=100
+                        limit=100,
                     )
 
                     if rules:
@@ -98,7 +95,7 @@ def list_rules(
                                 str(rule.priority),
                                 "✓" if rule.is_active else "✗",
                                 str(len(rule.conditions)),
-                                str(len(rule.actions))
+                                str(len(rule.actions)),
                             )
 
                         console.print("     ")
@@ -121,7 +118,9 @@ def show_rule(rule_id: int) -> None:
                 raise typer.Exit(code=1)
 
             console.print(f"\n[bold cyan]Rule #{rule.id}:[/bold cyan] {rule.name}")
-            console.print(f"[dim]Group ID: {rule.group_id} | Priority: {rule.priority} | Active: {rule.is_active}[/dim]")
+            console.print(
+                f"[dim]Group ID: {rule.group_id} | Priority: {rule.priority} | Active: {rule.is_active}[/dim]"
+            )
 
             if rule.description:
                 console.print(f"\n[bold]Description:[/bold] {rule.description}")
@@ -144,11 +143,15 @@ def show_rule(rule_id: int) -> None:
                     if action.formula:
                         console.print(f"     Formula: {action.formula}")
                     if action.modifiers_json:
-                        console.print(f"     Modifiers: {json.dumps(action.modifiers_json, indent=2)}")
+                        console.print(
+                            f"     Modifiers: {json.dumps(action.modifiers_json, indent=2)}"
+                        )
 
             # Metadata
             if rule.metadata_json:
-                console.print(f"\n[bold]Metadata:[/bold]\n{json.dumps(rule.metadata_json, indent=2)}")
+                console.print(
+                    f"\n[bold]Metadata:[/bold]\n{json.dumps(rule.metadata_json, indent=2)}"
+                )
 
     asyncio.run(runner())
 
@@ -181,7 +184,7 @@ def create_rule(
                 evaluation_order=data.get("evaluation_order", 100),
                 conditions=data.get("conditions", []),
                 actions=data.get("actions", []),
-                metadata=data.get("metadata", {})
+                metadata=data.get("metadata", {}),
             )
 
             console.print(f"[green]✓[/green] Created rule #{rule.id}: {rule.name}")
@@ -222,7 +225,9 @@ def update_rule(
 def import_rules(
     file: Path,
     format: str = typer.Option("json", "--format", "-f", help="Format: json, yaml, csv"),
-    mapping: Optional[Path] = typer.Option(None, "--mapping", "-m", help="Field mapping file (for CSV)"),
+    mapping: Optional[Path] = typer.Option(
+        None, "--mapping", "-m", help="Field mapping file (for CSV)"
+    ),
 ) -> None:
     """Import rules from a file"""
 
@@ -279,44 +284,50 @@ def export_rules(
                         "description": ruleset.description,
                     },
                     "rule_groups": [],
-                    "rules": []
+                    "rules": [],
                 }
 
                 for group in ruleset.rule_groups:
-                    export_data["rule_groups"].append({
-                        "id": group.id,
-                        "name": group.name,
-                        "category": group.category,
-                        "weight": float(group.weight) if group.weight else 1.0,
-                    })
+                    export_data["rule_groups"].append(
+                        {
+                            "id": group.id,
+                            "name": group.name,
+                            "category": group.category,
+                            "weight": float(group.weight) if group.weight else 1.0,
+                        }
+                    )
 
                     for rule in group.rules:
-                        export_data["rules"].append({
-                            "id": rule.id,
-                            "group_id": rule.group_id,
-                            "name": rule.name,
-                            "description": rule.description,
-                            "priority": rule.priority,
-                            "conditions": [
-                                {
-                                    "field_name": c.field_name,
-                                    "operator": c.operator,
-                                    "value": c.value_json
-                                }
-                                for c in rule.conditions
-                            ],
-                            "actions": [
-                                {
-                                    "action_type": a.action_type,
-                                    "value_usd": float(a.value_usd) if a.value_usd else None,
-                                    "formula": a.formula
-                                }
-                                for a in rule.actions
-                            ]
-                        })
+                        export_data["rules"].append(
+                            {
+                                "id": rule.id,
+                                "group_id": rule.group_id,
+                                "name": rule.name,
+                                "description": rule.description,
+                                "priority": rule.priority,
+                                "conditions": [
+                                    {
+                                        "field_name": c.field_name,
+                                        "operator": c.operator,
+                                        "value": c.value_json,
+                                    }
+                                    for c in rule.conditions
+                                ],
+                                "actions": [
+                                    {
+                                        "action_type": a.action_type,
+                                        "value_usd": float(a.value_usd) if a.value_usd else None,
+                                        "formula": a.formula,
+                                    }
+                                    for a in rule.actions
+                                ],
+                            }
+                        )
             else:
                 # Export all rules
-                rulesets = await service.list_rulesets(session, active_only=False, skip=0, limit=1000)
+                rulesets = await service.list_rulesets(
+                    session, active_only=False, skip=0, limit=1000
+                )
                 export_data = {"rulesets": [rs.name for rs in rulesets]}
 
             # Write to file
@@ -335,7 +346,9 @@ def export_rules(
 
 
 @rules_app.command("preview")
-def preview_rule(rule_id: int, sample_size: int = typer.Option(10, help="Number of sample listings")) -> None:
+def preview_rule(
+    rule_id: int, sample_size: int = typer.Option(10, help="Number of sample listings")
+) -> None:
     """Preview the impact of a rule"""
 
     async def runner() -> None:
@@ -369,10 +382,7 @@ def preview_rule(rule_id: int, sample_size: int = typer.Option(10, help="Number 
             ]
 
             result = await preview_service.preview_rule(
-                session=session,
-                conditions=conditions,
-                actions=actions,
-                sample_size=sample_size
+                session=session, conditions=conditions, actions=actions, sample_size=sample_size
             )
 
             console.print(f"\n[bold]Preview for Rule:[/bold] {rule.name}")
@@ -395,7 +405,7 @@ def preview_rule(rule_id: int, sample_size: int = typer.Option(10, help="Number 
                         listing["title"][:40],
                         f"${listing['original_price']:.2f}",
                         f"${listing.get('adjustment', 0):.2f}",
-                        f"${listing.get('adjusted_price', 0):.2f}"
+                        f"${listing.get('adjusted_price', 0):.2f}",
                     )
 
                 console.print(table)
@@ -424,7 +434,9 @@ def apply_ruleset(
                 raise typer.Exit(code=1)
 
             if dry_run:
-                console.print(f"[yellow]DRY RUN:[/yellow] Would apply ruleset '{ruleset.name}' (ID: {ruleset.id})")
+                console.print(
+                    f"[yellow]DRY RUN:[/yellow] Would apply ruleset '{ruleset.name}' (ID: {ruleset.id})"
+                )
                 console.print("Run with --no-dry-run to apply changes")
             else:
                 console.print(f"Applying ruleset '{ruleset.name}' to listings...")
@@ -432,7 +444,9 @@ def apply_ruleset(
                 service = RuleEvaluationService()
                 result = await service.apply_ruleset_to_all_listings(session, ruleset.id)
 
-                console.print(f"[green]✓[/green] Applied to {result.get('listings_processed', 0)} listings")
+                console.print(
+                    f"[green]✓[/green] Applied to {result.get('listings_processed', 0)} listings"
+                )
 
     asyncio.run(runner())
 
@@ -443,7 +457,9 @@ def package_ruleset(
     output: Path = typer.Option(..., "--output", "-o", help="Output .dbrs file path"),
     version: str = typer.Option("1.0.0", "--version", "-v", help="Package version"),
     author: str = typer.Option("Unknown", "--author", "-a", help="Package author"),
-    description: Optional[str] = typer.Option(None, "--description", "-d", help="Package description"),
+    description: Optional[str] = typer.Option(
+        None, "--description", "-d", help="Package description"
+    ),
 ) -> None:
     """Package a ruleset for distribution"""
 
@@ -467,13 +483,13 @@ def package_ruleset(
                 version=version,
                 author=author,
                 description=description or ruleset.description or "",
-                min_app_version="1.0.0"
+                min_app_version="1.0.0",
             )
 
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
-                console=console
+                console=console,
             ) as progress:
                 task = progress.add_task("Creating package...", total=None)
 
@@ -481,7 +497,7 @@ def package_ruleset(
                     session=session,
                     ruleset_id=ruleset.id,
                     metadata=metadata,
-                    include_examples=False
+                    include_examples=False,
                 )
 
                 progress.update(task, description="Writing package file...")
@@ -499,7 +515,9 @@ def package_ruleset(
 @rules_app.command("install")
 def install_package(
     file: Path,
-    merge_strategy: str = typer.Option("replace", "--strategy", help="Merge strategy: replace, skip, merge"),
+    merge_strategy: str = typer.Option(
+        "replace", "--strategy", help="Merge strategy: replace, skip, merge"
+    ),
 ) -> None:
     """Install a ruleset package from a .dbrs file"""
 
@@ -513,7 +531,9 @@ def install_package(
         # Load package
         package = RulesetPackage.from_file(file)
 
-        console.print(f"\n[bold cyan]Package:[/bold cyan] {package.metadata.name} v{package.metadata.version}")
+        console.print(
+            f"\n[bold cyan]Package:[/bold cyan] {package.metadata.name} v{package.metadata.version}"
+        )
         console.print(f"[dim]Author: {package.metadata.author}[/dim]")
         console.print(f"[dim]Description: {package.metadata.description}[/dim]")
 
@@ -523,15 +543,12 @@ def install_package(
             with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
-                console=console
+                console=console,
             ) as progress:
                 task = progress.add_task("Installing package...", total=None)
 
                 result = await service.install_package(
-                    session=session,
-                    package=package,
-                    actor="cli",
-                    merge_strategy=merge_strategy
+                    session=session, package=package, actor="cli", merge_strategy=merge_strategy
                 )
 
                 progress.update(task, description="Installation complete")

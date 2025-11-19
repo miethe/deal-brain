@@ -82,11 +82,7 @@ class BuilderRepository:
 
         return build
 
-    async def get_by_id(
-        self,
-        build_id: int,
-        user_id: Optional[int] = None
-    ) -> Optional[SavedBuild]:
+    async def get_by_id(self, build_id: int, user_id: Optional[int] = None) -> Optional[SavedBuild]:
         """Get single build by ID with optional access control.
 
         Access control rules:
@@ -104,14 +100,10 @@ class BuilderRepository:
         # Build query with eager loading
         stmt = (
             select(SavedBuild)
-            .options(
-                joinedload(SavedBuild.cpu),
-                joinedload(SavedBuild.gpu)
-            )
+            .options(joinedload(SavedBuild.cpu), joinedload(SavedBuild.gpu))
             .where(
                 and_(
-                    SavedBuild.id == build_id,
-                    SavedBuild.deleted_at.is_(None)  # Only active builds
+                    SavedBuild.id == build_id, SavedBuild.deleted_at.is_(None)  # Only active builds
                 )
             )
         )
@@ -142,15 +134,12 @@ class BuilderRepository:
         """
         stmt = (
             select(SavedBuild)
-            .options(
-                joinedload(SavedBuild.cpu),
-                joinedload(SavedBuild.gpu)
-            )
+            .options(joinedload(SavedBuild.cpu), joinedload(SavedBuild.gpu))
             .where(
                 and_(
                     SavedBuild.share_token == share_token,
                     SavedBuild.deleted_at.is_(None),  # Only active builds
-                    SavedBuild.visibility.in_(["public", "unlisted"])  # Only shareable builds
+                    SavedBuild.visibility.in_(["public", "unlisted"]),  # Only shareable builds
                 )
             )
         )
@@ -159,10 +148,7 @@ class BuilderRepository:
         return result.unique().scalar_one_or_none()
 
     async def list_by_user(
-        self,
-        user_id: int,
-        limit: int = 10,
-        offset: int = 0
+        self, user_id: int, limit: int = 10, offset: int = 0
     ) -> list[SavedBuild]:
         """List user's builds with pagination.
 
@@ -179,14 +165,11 @@ class BuilderRepository:
         """
         stmt = (
             select(SavedBuild)
-            .options(
-                joinedload(SavedBuild.cpu),
-                joinedload(SavedBuild.gpu)
-            )
+            .options(joinedload(SavedBuild.cpu), joinedload(SavedBuild.gpu))
             .where(
                 and_(
                     SavedBuild.user_id == user_id,
-                    SavedBuild.deleted_at.is_(None)  # Only active builds
+                    SavedBuild.deleted_at.is_(None),  # Only active builds
                 )
             )
             .order_by(SavedBuild.created_at.desc())  # Newest first
@@ -232,10 +215,19 @@ class BuilderRepository:
 
         # Define allowed update fields
         allowed_fields = {
-            "name", "description", "tags", "visibility",
-            "cpu_id", "gpu_id", "ram_spec_id", "storage_spec_id",
-            "psu_spec_id", "case_spec_id",
-            "pricing_snapshot", "metrics_snapshot", "valuation_breakdown"
+            "name",
+            "description",
+            "tags",
+            "visibility",
+            "cpu_id",
+            "gpu_id",
+            "ram_spec_id",
+            "storage_spec_id",
+            "psu_spec_id",
+            "case_spec_id",
+            "pricing_snapshot",
+            "metrics_snapshot",
+            "valuation_breakdown",
         }
 
         # Update only allowed fields

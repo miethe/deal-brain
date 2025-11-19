@@ -121,18 +121,26 @@ async def test_load_creates_ruleset_and_groups(db_session: AsyncSession) -> None
     assert ruleset.metadata_json["source_hash"] == result.source_hash
 
     groups = (
-        await db_session.execute(
-            select(ValuationRuleGroup).where(ValuationRuleGroup.ruleset_id == ruleset.id)
+        (
+            await db_session.execute(
+                select(ValuationRuleGroup).where(ValuationRuleGroup.ruleset_id == ruleset.id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(groups) == 2
 
     # Ensure rules were materialised with placeholder metadata
     rules = (
-        await db_session.execute(
-            select(ValuationRuleV2).where(ValuationRuleV2.group_id == groups[0].id)
+        (
+            await db_session.execute(
+                select(ValuationRuleV2).where(ValuationRuleV2.group_id == groups[0].id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert rules
 
 

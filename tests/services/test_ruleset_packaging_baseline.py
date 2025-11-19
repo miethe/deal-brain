@@ -14,6 +14,7 @@ from sqlalchemy.orm import selectinload
 
 try:  # pragma: no cover - optional dependency
     import aiosqlite  # type: ignore  # noqa: F401
+
     AIOSQLITE_AVAILABLE = True
 except ModuleNotFoundError:  # pragma: no cover - executed when optional dep missing
     AIOSQLITE_AVAILABLE = False
@@ -43,6 +44,7 @@ pytestmark = pytest.mark.asyncio
 
 
 if pytest_asyncio:
+
     @pytest_asyncio.fixture
     async def db_session() -> AsyncSession:
         """Provide an isolated in-memory database session for baseline tests."""
@@ -89,9 +91,9 @@ async def baseline_ruleset(db_session: AsyncSession):
             "system_baseline": True,
             "source_version": "1.0.0",
             "source_hash": "abc123def456",
-            "read_only": True
+            "read_only": True,
         },
-        created_by="system"
+        created_by="system",
     )
     db_session.add(baseline)
     await db_session.flush()
@@ -104,11 +106,7 @@ async def baseline_ruleset(db_session: AsyncSession):
         description="Baseline RAM valuation",
         display_order=1,
         weight=1.0,
-        metadata_json={
-            "entity_key": "ram",
-            "basic_managed": False,
-            "read_only": True
-        }
+        metadata_json={"entity_key": "ram", "basic_managed": False, "read_only": True},
     )
     db_session.add(group)
     await db_session.commit()
@@ -140,7 +138,7 @@ async def customer_ruleset(db_session: AsyncSession, rules_service: RulesService
             description="Customer adjustments to baseline",
             weight=1.0,
             display_order=100,
-            metadata={"basic_managed": True}
+            metadata={"basic_managed": True},
         ),
     )
 
@@ -269,19 +267,14 @@ class TestBaselineImport:
 
         # Import with version mode (default)
         result = await packaging_service.install_package(
-            db_session,
-            package,
-            actor="test_user",
-            baseline_import_mode="version"
+            db_session, package, actor="test_user", baseline_import_mode="version"
         )
 
         assert result["baseline_versioned"] == 1
         assert result["rulesets_created"] == 1
 
         # Verify new version was created
-        query = select(ValuationRuleset).where(
-            ValuationRuleset.name.like("System: Baseline v%")
-        )
+        query = select(ValuationRuleset).where(ValuationRuleset.name.like("System: Baseline v%"))
         result = await db_session.execute(query)
         baselines = result.scalars().all()
 
@@ -318,13 +311,10 @@ class TestBaselineImport:
             description="Invalid baseline",
             version="2.0.0",
             is_active=True,
-            metadata_json={
-                "system_baseline": True,
-                "priority": 10  # Invalid: > 5
-            },
+            metadata_json={"system_baseline": True, "priority": 10},  # Invalid: > 5
             created_by="test",
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
         )
 
         builder = PackageBuilder()
@@ -333,11 +323,7 @@ class TestBaselineImport:
 
         # Should fail due to invalid priority
         with pytest.raises(ValueError, match="invalid priority.*must have priority ≤ 5"):
-            await packaging_service.install_package(
-                db_session,
-                package,
-                actor="test_user"
-            )
+            await packaging_service.install_package(db_session, package, actor="test_user")
 
     @pytest.mark.asyncio
     async def test_import_baseline_preserves_read_only(
@@ -368,21 +354,18 @@ class TestBaselineImport:
             db_session,
             package,
             actor="test_user",
-            baseline_import_mode="replace"  # Use replace to test metadata preservation
+            baseline_import_mode="replace",  # Use replace to test metadata preservation
         )
 
         assert result["rulesets_created"] == 1
 
         # Verify read_only flags preserved
-        query = select(ValuationRuleGroup).options(
-            selectinload(ValuationRuleGroup.ruleset)
-        )
+        query = select(ValuationRuleGroup).options(selectinload(ValuationRuleGroup.ruleset))
         result = await db_session.execute(query)
         groups = result.scalars().all()
 
         baseline_group = next(
-            g for g in groups
-            if g.ruleset.metadata_json.get("system_baseline") is True
+            g for g in groups if g.ruleset.metadata_json.get("system_baseline") is True
         )
         assert baseline_group.metadata_json["read_only"] is True
 
@@ -414,10 +397,7 @@ class TestBaselineImport:
 
         # Import with replace mode
         result = await packaging_service.install_package(
-            db_session,
-            package,
-            actor="test_user",
-            baseline_import_mode="replace"
+            db_session, package, actor="test_user", baseline_import_mode="replace"
         )
 
         assert result["rulesets_updated"] == 1
@@ -464,11 +444,11 @@ class TestMixedPackageImport:
                 "system_baseline": True,
                 "source_version": "2.0.0",
                 "source_hash": "new_hash",
-                "priority": 1
+                "priority": 1,
             },
             created_by="system",
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
         )
         builder.add_ruleset(baseline_export)
 
@@ -482,7 +462,7 @@ class TestMixedPackageImport:
             metadata_json={"custom": True},
             created_by="user",
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
         )
         builder.add_ruleset(customer_export)
 
@@ -494,7 +474,7 @@ class TestMixedPackageImport:
             package,
             actor="test_user",
             merge_strategy="replace",
-            baseline_import_mode="version"
+            baseline_import_mode="version",
         )
 
         assert result["baseline_versioned"] == 1
@@ -506,12 +486,10 @@ class TestMixedPackageImport:
         all_rulesets = result.scalars().all()
 
         baseline_names = [
-            r.name for r in all_rulesets
-            if r.metadata_json.get("system_baseline") is True
+            r.name for r in all_rulesets if r.metadata_json.get("system_baseline") is True
         ]
         customer_names = [
-            r.name for r in all_rulesets
-            if r.metadata_json.get("system_baseline") is not True
+            r.name for r in all_rulesets if r.metadata_json.get("system_baseline") is not True
         ]
 
         assert "System: Baseline v2.0" in baseline_names
@@ -540,11 +518,7 @@ class TestBaselineExportToFile:
         output_path = tmp_path / "baseline.dbrs"
 
         await packaging_service.export_to_file(
-            db_session,
-            baseline_ruleset.id,
-            metadata,
-            str(output_path),
-            include_baseline=True
+            db_session, baseline_ruleset.id, metadata, str(output_path), include_baseline=True
         )
 
         # Verify file exists and contains baseline metadata
@@ -576,11 +550,7 @@ class TestBaselineExportToFile:
 
         output_path = tmp_path / "baseline-import.dbrs"
         await packaging_service.export_to_file(
-            db_session,
-            baseline_ruleset.id,
-            metadata,
-            str(output_path),
-            include_baseline=True
+            db_session, baseline_ruleset.id, metadata, str(output_path), include_baseline=True
         )
 
         # Modify the exported file to simulate version update
@@ -595,26 +565,20 @@ class TestBaselineExportToFile:
 
         # Import from file
         result = await packaging_service.install_from_file(
-            db_session,
-            str(output_path),
-            actor="file_import_user",
-            baseline_import_mode="version"
+            db_session, str(output_path), actor="file_import_user", baseline_import_mode="version"
         )
 
         assert result["baseline_versioned"] == 1
         assert result["rulesets_created"] == 1
 
         # Verify new version created
-        query = select(ValuationRuleset).where(
-            ValuationRuleset.name.like("System: Baseline v%")
-        )
+        query = select(ValuationRuleset).where(ValuationRuleset.name.like("System: Baseline v%"))
         result = await db_session.execute(query)
         baselines = result.scalars().all()
 
         assert len(baselines) == 2
         new_baseline = next(
-            b for b in baselines
-            if b.metadata_json.get("source_hash") == "file_import_hash"
+            b for b in baselines if b.metadata_json.get("source_hash") == "file_import_hash"
         )
         assert new_baseline is not None
         assert new_baseline.metadata_json["source_version"] == "2.0.0"

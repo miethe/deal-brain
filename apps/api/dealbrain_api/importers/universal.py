@@ -34,8 +34,12 @@ class EntityConfig:
 
 
 SUPPORTED_ENTITIES: dict[str, EntityConfig] = {
-    "cpu": EntityConfig("cpus", lambda payload: CpuCreate.model_validate(payload), frozenset({"attributes"})),
-    "gpu": EntityConfig("gpus", lambda payload: GpuCreate.model_validate(payload), frozenset({"attributes"})),
+    "cpu": EntityConfig(
+        "cpus", lambda payload: CpuCreate.model_validate(payload), frozenset({"attributes"})
+    ),
+    "gpu": EntityConfig(
+        "gpus", lambda payload: GpuCreate.model_validate(payload), frozenset({"attributes"})
+    ),
     "profile": EntityConfig(
         "profiles",
         lambda payload: ProfileCreate.model_validate(payload),
@@ -132,10 +136,7 @@ def _load_json(path: Path, entity: str) -> list[dict[str, Any]]:
         raise ImporterError(f"Invalid JSON in {path}: {exc}") from exc
 
     if isinstance(payload, list):
-        return [
-            _ensure_object(item, index)
-            for index, item in enumerate(payload, start=1)
-        ]
+        return [_ensure_object(item, index) for index, item in enumerate(payload, start=1)]
 
     if isinstance(payload, dict):
         # Accept either {"items": [...]} or {"<entity>": [...]} payloads.
@@ -144,8 +145,7 @@ def _load_json(path: Path, entity: str) -> list[dict[str, Any]]:
                 value = payload[key]
                 if isinstance(value, list):
                     return [
-                        _ensure_object(item, index)
-                        for index, item in enumerate(value, start=1)
+                        _ensure_object(item, index) for index, item in enumerate(value, start=1)
                     ]
                 raise ImporterError(
                     f"Expected array for key '{key}' in {path}, received {type(value).__name__}."
@@ -160,19 +160,14 @@ def _load_csv(path: Path) -> list[dict[str, Any]]:
     try:
         with path.open("r", encoding="utf-8-sig") as handle:
             reader = csv.DictReader(handle)
-            return [
-                {key: value for key, value in row.items() if key}
-                for row in reader
-            ]
+            return [{key: value for key, value in row.items() if key} for row in reader]
     except csv.Error as exc:
         raise ImporterError(f"Invalid CSV in {path}: {exc}") from exc
 
 
 def _ensure_object(item: Any, index: int) -> dict[str, Any]:
     if not isinstance(item, dict):
-        raise ImporterError(
-            f"Expected object at index {index}, received {type(item).__name__}."
-        )
+        raise ImporterError(f"Expected object at index {index}, received {type(item).__name__}.")
     return item
 
 

@@ -4,6 +4,7 @@ Schema endpoints for listings.
 Provides listing field schema including core fields and custom fields.
 Extracted from monolithic listings.py for better modularity and maintainability.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -165,7 +166,9 @@ CORE_LISTING_FIELDS: list[ListingFieldSchema] = [
 
 
 @router.get("/schema", response_model=ListingSchemaResponse)
-async def get_listing_schema(session: AsyncSession = Depends(session_dependency)) -> ListingSchemaResponse:
+async def get_listing_schema(
+    session: AsyncSession = Depends(session_dependency),
+) -> ListingSchemaResponse:
     """Get the complete schema for listing fields.
 
     Returns:
@@ -174,22 +177,24 @@ async def get_listing_schema(session: AsyncSession = Depends(session_dependency)
     try:
         custom_fields = await custom_field_service.list_fields(session, entity="listing")
         custom_field_models = [CustomFieldResponse.model_validate(field) for field in custom_fields]
-        return ListingSchemaResponse(core_fields=CORE_LISTING_FIELDS, custom_fields=custom_field_models)
+        return ListingSchemaResponse(
+            core_fields=CORE_LISTING_FIELDS, custom_fields=custom_field_models
+        )
     except OperationalError as e:
         logger.error(f"Database connection error in get_listing_schema: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in get_listing_schema: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in get_listing_schema: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )

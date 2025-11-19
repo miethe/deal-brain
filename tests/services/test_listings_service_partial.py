@@ -210,8 +210,14 @@ class TestCreateFromIngestionPartial:
         assert listing.score_composite is None
 
         # Performance metrics should be None
-        assert not hasattr(listing, "dollar_per_cpu_mark_single") or listing.dollar_per_cpu_mark_single is None
-        assert not hasattr(listing, "dollar_per_cpu_mark_multi") or listing.dollar_per_cpu_mark_multi is None
+        assert (
+            not hasattr(listing, "dollar_per_cpu_mark_single")
+            or listing.dollar_per_cpu_mark_single is None
+        )
+        assert (
+            not hasattr(listing, "dollar_per_cpu_mark_multi")
+            or listing.dollar_per_cpu_mark_multi is None
+        )
 
 
 class TestCreateFromIngestionComplete:
@@ -243,7 +249,10 @@ class TestCreateFromIngestionComplete:
 
     @pytest.mark.asyncio
     async def test_create_full_listing_with_cpu_metrics(
-        self, async_session: AsyncSession, complete_normalized_data: NormalizedListingSchema, sample_cpu: Cpu
+        self,
+        async_session: AsyncSession,
+        complete_normalized_data: NormalizedListingSchema,
+        sample_cpu: Cpu,
     ):
         """Verify metrics calculated when CPU assigned and price exists."""
         # Assign CPU to listing
@@ -396,7 +405,10 @@ class TestCalculateCpuPerformanceMetricsNullSafety:
 
     @pytest.mark.asyncio
     async def test_calculate_metrics_returns_empty_when_no_price(
-        self, async_session: AsyncSession, partial_normalized_data: NormalizedListingSchema, sample_cpu: Cpu
+        self,
+        async_session: AsyncSession,
+        partial_normalized_data: NormalizedListingSchema,
+        sample_cpu: Cpu,
     ):
         """Verify calculate_cpu_performance_metrics returns empty dict when price is None."""
         listing = await create_from_ingestion(
@@ -418,7 +430,10 @@ class TestCalculateCpuPerformanceMetricsNullSafety:
 
     @pytest.mark.asyncio
     async def test_calculate_metrics_works_when_price_exists(
-        self, async_session: AsyncSession, complete_normalized_data: NormalizedListingSchema, sample_cpu: Cpu
+        self,
+        async_session: AsyncSession,
+        complete_normalized_data: NormalizedListingSchema,
+        sample_cpu: Cpu,
     ):
         """Verify calculate_cpu_performance_metrics works when price exists."""
         listing = await create_from_ingestion(

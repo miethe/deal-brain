@@ -91,7 +91,9 @@ async def recalculate_all_metrics(
                 if not listing.valuation_breakdown:
                     skipped += 1
                     if i % batch_size == 0 or i == total:
-                        print(f"  [{i}/{total}] Listing {listing.id}: Skipped (no valuation_breakdown)")
+                        print(
+                            f"  [{i}/{total}] Listing {listing.id}: Skipped (no valuation_breakdown)"
+                        )
                     continue
 
                 # Recalculate metrics
@@ -101,7 +103,9 @@ async def recalculate_all_metrics(
 
                 # Progress logging
                 if i % batch_size == 0 or i == total:
-                    print(f"  [{i}/{total}] Progress - Updated: {updated}, Skipped: {skipped}, Failed: {failed}")
+                    print(
+                        f"  [{i}/{total}] Progress - Updated: {updated}, Skipped: {skipped}, Failed: {failed}"
+                    )
 
                 # Commit in batches
                 if not dry_run and i % batch_size == 0:

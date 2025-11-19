@@ -10,6 +10,7 @@ from apps.api.dealbrain_api.services.settings import SettingsService
 
 try:
     import aiosqlite  # type: ignore  # noqa: F401
+
     AIOSQLITE_AVAILABLE = True
 except ImportError:
     AIOSQLITE_AVAILABLE = False
@@ -46,7 +47,7 @@ class TestGetCpuMarkThresholds:
                 "fair": 5.0,
                 "neutral": 0.0,
                 "poor": -10.0,
-                "premium": -20.0
+                "premium": -20.0,
             }
 
     async def test_returns_stored_values_when_in_db(self):
@@ -67,16 +68,13 @@ class TestGetCpuMarkThresholds:
             "fair": 7.5,
             "neutral": 2.5,
             "poor": -5.0,
-            "premium": -15.0
+            "premium": -15.0,
         }
 
         async with async_session() as session:
             # Store custom thresholds
             await service.update_setting(
-                session,
-                "cpu_mark_thresholds",
-                custom_thresholds,
-                "Custom CPU Mark thresholds"
+                session, "cpu_mark_thresholds", custom_thresholds, "Custom CPU Mark thresholds"
             )
 
             # Retrieve and verify
@@ -101,16 +99,12 @@ class TestGetCpuMarkThresholds:
             "fair": 10.0,
             "neutral": 5.0,
             "poor": -10.0,
-            "premium": -25.0
+            "premium": -25.0,
         }
 
         # First session: store values
         async with async_session() as session:
-            await service.update_setting(
-                session,
-                "cpu_mark_thresholds",
-                custom_thresholds
-            )
+            await service.update_setting(session, "cpu_mark_thresholds", custom_thresholds)
 
         # Second session: retrieve values
         async with async_session() as session:
@@ -135,22 +129,17 @@ class TestGetCpuMarkThresholds:
             "fair": 6.0,
             "neutral": 1.0,
             "poor": -8.0,
-            "premium": -18.0
+            "premium": -18.0,
         }
 
         async with async_session() as session:
             await service.update_setting(
-                session,
-                "cpu_mark_thresholds",
-                custom_thresholds,
-                "Test description"
+                session, "cpu_mark_thresholds", custom_thresholds, "Test description"
             )
 
             # Query database directly
             result = await session.execute(
-                select(ApplicationSettings).where(
-                    ApplicationSettings.key == "cpu_mark_thresholds"
-                )
+                select(ApplicationSettings).where(ApplicationSettings.key == "cpu_mark_thresholds")
             )
             setting = result.scalar_one()
 
@@ -179,8 +168,4 @@ class TestGetValuationThresholds:
         async with async_session() as session:
             thresholds = await service.get_valuation_thresholds(session)
 
-            assert thresholds == {
-                "good_deal": 15.0,
-                "great_deal": 25.0,
-                "premium_warning": 10.0
-            }
+            assert thresholds == {"good_deal": 15.0, "great_deal": 25.0, "premium_warning": 10.0}

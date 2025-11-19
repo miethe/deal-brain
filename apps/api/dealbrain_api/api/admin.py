@@ -35,7 +35,9 @@ class TaskSubmissionResponse(BaseModel):
 
 
 class ValuationRecalcRequest(BaseModel):
-    listing_ids: list[int] | None = Field(default=None, description="Specific listing IDs to recalculate")
+    listing_ids: list[int] | None = Field(
+        default=None, description="Specific listing IDs to recalculate"
+    )
     ruleset_id: int | None = Field(default=None, description="Override ruleset when recalculating")
     batch_size: int = Field(default=100, ge=1, le=1000)
     include_inactive: bool = False
@@ -43,7 +45,9 @@ class ValuationRecalcRequest(BaseModel):
 
 
 class MetricsRecalcRequest(BaseModel):
-    listing_ids: list[int] | None = Field(default=None, description="Specific listing IDs to update")
+    listing_ids: list[int] | None = Field(
+        default=None, description="Specific listing IDs to update"
+    )
 
 
 class TaskStatusResponse(BaseModel):

@@ -20,10 +20,7 @@ class TestBasicOperators:
     def test_equals_operator(self):
         """Test equality comparison."""
         condition = Condition(
-            field_name="cpu.cores",
-            field_type="integer",
-            operator=ConditionOperator.EQUALS,
-            value=8
+            field_name="cpu.cores", field_type="integer", operator=ConditionOperator.EQUALS, value=8
         )
 
         # Match
@@ -40,7 +37,7 @@ class TestBasicOperators:
             field_name="condition",
             field_type="string",
             operator=ConditionOperator.NOT_EQUALS,
-            value="new"
+            value="new",
         )
 
         context = {"condition": "used"}
@@ -55,7 +52,7 @@ class TestBasicOperators:
             field_name="cpu.cpu_mark_multi",
             field_type="integer",
             operator=ConditionOperator.GREATER_THAN,
-            value=20000
+            value=20000,
         )
 
         context = {"cpu": {"cpu_mark_multi": 25000}}
@@ -73,7 +70,7 @@ class TestBasicOperators:
             field_name="price_usd",
             field_type="float",
             operator=ConditionOperator.LESS_THAN,
-            value=500.0
+            value=500.0,
         )
 
         context = {"price_usd": 450.0}
@@ -88,7 +85,7 @@ class TestBasicOperators:
             field_name="ram_gb",
             field_type="integer",
             operator=ConditionOperator.GREATER_THAN_OR_EQUAL,
-            value=16
+            value=16,
         )
 
         context = {"ram_gb": 32}
@@ -106,7 +103,7 @@ class TestBasicOperators:
             field_name="tdp_w",
             field_type="integer",
             operator=ConditionOperator.LESS_THAN_OR_EQUAL,
-            value=65
+            value=65,
         )
 
         context = {"tdp_w": 45}
@@ -124,7 +121,7 @@ class TestBasicOperators:
             field_name="cpu.release_year",
             field_type="integer",
             operator=ConditionOperator.BETWEEN,
-            value=[2020, 2023]
+            value=[2020, 2023],
         )
 
         context = {"cpu": {"release_year": 2021}}
@@ -152,7 +149,7 @@ class TestStringOperators:
             field_name="primary_storage_type",
             field_type="string",
             operator=ConditionOperator.CONTAINS,
-            value="NVMe"
+            value="NVMe",
         )
 
         context = {"primary_storage_type": "NVMe SSD"}
@@ -167,7 +164,7 @@ class TestStringOperators:
             field_name="cpu.name",
             field_type="string",
             operator=ConditionOperator.STARTS_WITH,
-            value="Intel"
+            value="Intel",
         )
 
         context = {"cpu": {"name": "Intel Core i7-12700K"}}
@@ -182,7 +179,7 @@ class TestStringOperators:
             field_name="device_model",
             field_type="string",
             operator=ConditionOperator.ENDS_WITH,
-            value="Pro"
+            value="Pro",
         )
 
         context = {"device_model": "Mac Mini Pro"}
@@ -197,7 +194,7 @@ class TestStringOperators:
             field_name="cpu.name",
             field_type="string",
             operator=ConditionOperator.REGEX,
-            value=r"i[579]-\d{4,5}[A-Z]?"
+            value=r"i[579]-\d{4,5}[A-Z]?",
         )
 
         context = {"cpu": {"name": "Intel Core i7-12700K"}}
@@ -216,7 +213,7 @@ class TestSetOperators:
             field_name="custom.ram_generation",
             field_type="string",
             operator=ConditionOperator.IN,
-            value=["DDR4", "DDR5"]
+            value=["DDR4", "DDR5"],
         )
 
         context = {"custom": {"ram_generation": "DDR5"}}
@@ -231,7 +228,7 @@ class TestSetOperators:
             field_name="condition",
             field_type="string",
             operator=ConditionOperator.NOT_IN,
-            value=["parts", "for_parts"]
+            value=["parts", "for_parts"],
         )
 
         context = {"condition": "used"}
@@ -251,15 +248,13 @@ class TestNestedConditions:
                 Condition(
                     field_name="cpu.cores",
                     operator=ConditionOperator.GREATER_THAN_OR_EQUAL,
-                    value=8
+                    value=8,
                 ),
                 Condition(
-                    field_name="ram_gb",
-                    operator=ConditionOperator.GREATER_THAN_OR_EQUAL,
-                    value=16
+                    field_name="ram_gb", operator=ConditionOperator.GREATER_THAN_OR_EQUAL, value=16
                 ),
             ],
-            logical_operator=LogicalOperator.AND
+            logical_operator=LogicalOperator.AND,
         )
 
         # Both match
@@ -285,15 +280,13 @@ class TestNestedConditions:
                 Condition(
                     field_name="cpu.cpu_mark_multi",
                     operator=ConditionOperator.GREATER_THAN,
-                    value=30000
+                    value=30000,
                 ),
                 Condition(
-                    field_name="gpu.gpu_mark",
-                    operator=ConditionOperator.GREATER_THAN,
-                    value=20000
+                    field_name="gpu.gpu_mark", operator=ConditionOperator.GREATER_THAN, value=20000
                 ),
             ],
-            logical_operator=LogicalOperator.OR
+            logical_operator=LogicalOperator.OR,
         )
 
         # Both match
@@ -322,15 +315,15 @@ class TestNestedConditions:
                         Condition(field_name="cpu.cores", operator=ConditionOperator.GTE, value=8),
                         Condition(field_name="ram_gb", operator=ConditionOperator.GTE, value=16),
                     ],
-                    logical_operator=LogicalOperator.AND
+                    logical_operator=LogicalOperator.AND,
                 ),
                 Condition(
                     field_name="cpu.cpu_mark_multi",
                     operator=ConditionOperator.GREATER_THAN,
-                    value=25000
+                    value=25000,
                 ),
             ],
-            logical_operator=LogicalOperator.OR
+            logical_operator=LogicalOperator.OR,
         )
 
         # First group matches
@@ -355,11 +348,7 @@ class TestEdgeCases:
 
     def test_missing_field(self):
         """Test behavior when field is missing from context."""
-        condition = Condition(
-            field_name="cpu.cores",
-            operator=ConditionOperator.EQUALS,
-            value=8
-        )
+        condition = Condition(field_name="cpu.cores", operator=ConditionOperator.EQUALS, value=8)
 
         # Missing cpu object
         context = {}
@@ -372,9 +361,7 @@ class TestEdgeCases:
     def test_null_value(self):
         """Test behavior with null/None values."""
         condition = Condition(
-            field_name="gpu.gpu_mark",
-            operator=ConditionOperator.GREATER_THAN,
-            value=10000
+            field_name="gpu.gpu_mark", operator=ConditionOperator.GREATER_THAN, value=10000
         )
 
         context = {"gpu": {"gpu_mark": None}}
@@ -383,10 +370,7 @@ class TestEdgeCases:
     def test_type_coercion(self):
         """Test automatic type coercion."""
         condition = Condition(
-            field_name="ram_gb",
-            field_type="integer",
-            operator=ConditionOperator.EQUALS,
-            value=16
+            field_name="ram_gb", field_type="integer", operator=ConditionOperator.EQUALS, value=16
         )
 
         # String "16" should coerce to int 16
@@ -400,7 +384,7 @@ class TestEdgeCases:
             field_type="string",
             operator=ConditionOperator.EQUALS,
             value="used",
-            case_sensitive=False
+            case_sensitive=False,
         )
 
         context = {"condition": "USED"}

@@ -27,7 +27,9 @@ def upgrade() -> None:
 
     # Create enum types using raw SQL with DO block to handle IF NOT EXISTS
     # This is more reliable than using SQLAlchemy's enum creation
-    bind.execute(sa.text("""
+    bind.execute(
+        sa.text(
+            """
         DO $$
         BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ram_generation') THEN
@@ -39,9 +41,13 @@ def upgrade() -> None:
                 );
             END IF;
         END$$;
-    """))
-    
-    bind.execute(sa.text("""
+    """
+        )
+    )
+
+    bind.execute(
+        sa.text(
+            """
         DO $$
         BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'storage_medium') THEN
@@ -50,7 +56,9 @@ def upgrade() -> None:
                 );
             END IF;
         END$$;
-    """))
+    """
+        )
+    )
 
     op.create_table(
         "ram_spec",
@@ -59,12 +67,18 @@ def upgrade() -> None:
         sa.Column(
             "ddr_generation",
             postgresql.ENUM(
-                'ddr3', 'ddr4', 'ddr5', 
-                'lpddr4', 'lpddr4x', 'lpddr5', 'lpddr5x', 
-                'hbm2', 'hbm3', 
-                'unknown',
+                "ddr3",
+                "ddr4",
+                "ddr5",
+                "lpddr4",
+                "lpddr4x",
+                "lpddr5",
+                "lpddr5x",
+                "hbm2",
+                "hbm3",
+                "unknown",
                 name="ram_generation",
-                create_type=False
+                create_type=False,
             ),
             nullable=False,
             server_default=RamGeneration.UNKNOWN.value,
@@ -99,9 +113,15 @@ def upgrade() -> None:
         sa.Column(
             "medium",
             postgresql.ENUM(
-                'nvme', 'sata_ssd', 'hdd', 'hybrid', 'emmc', 'ufs', 'unknown',
+                "nvme",
+                "sata_ssd",
+                "hdd",
+                "hybrid",
+                "emmc",
+                "ufs",
+                "unknown",
                 name="storage_medium",
-                create_type=False
+                create_type=False,
             ),
             nullable=False,
             server_default=StorageMedium.UNKNOWN.value,
@@ -134,8 +154,12 @@ def upgrade() -> None:
     op.add_column("listing", sa.Column("secondary_storage_profile_id", sa.Integer(), nullable=True))
 
     op.create_index("ix_listing_ram_spec_id", "listing", ["ram_spec_id"])
-    op.create_index("ix_listing_primary_storage_profile_id", "listing", ["primary_storage_profile_id"])
-    op.create_index("ix_listing_secondary_storage_profile_id", "listing", ["secondary_storage_profile_id"])
+    op.create_index(
+        "ix_listing_primary_storage_profile_id", "listing", ["primary_storage_profile_id"]
+    )
+    op.create_index(
+        "ix_listing_secondary_storage_profile_id", "listing", ["secondary_storage_profile_id"]
+    )
 
     op.create_foreign_key(
         "fk_listing_ram_spec_id",
@@ -257,7 +281,9 @@ def _backfill_components(bind: Any) -> None:
             return StorageMedium.UFS.value
         return StorageMedium.UNKNOWN.value
 
-    def get_or_create_storage_profile(capacity_gb: int | None, storage_type: str | None) -> int | None:
+    def get_or_create_storage_profile(
+        capacity_gb: int | None, storage_type: str | None
+    ) -> int | None:
         if not capacity_gb or capacity_gb <= 0:
             return None
         medium_value = normalize_medium(storage_type)
@@ -303,7 +329,5 @@ def _backfill_components(bind: Any) -> None:
 
         if updates:
             bind.execute(
-                listing_table.update()
-                .where(listing_table.c.id == row.id)
-                .values(**updates)
+                listing_table.update().where(listing_table.c.id == row.id).values(**updates)
             )

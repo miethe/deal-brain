@@ -38,7 +38,7 @@ async def create_rule_group(
     metadata = merge_metadata_fields(
         existing_metadata=request.metadata,
         basic_managed=request.basic_managed,
-        entity_key=request.entity_key
+        entity_key=request.entity_key,
     )
 
     service = RulesService()
@@ -225,7 +225,7 @@ async def update_rule_group(
             existing_metadata=existing_group.metadata_json,
             basic_managed=basic_managed,
             entity_key=entity_key,
-            additional_metadata=updates.get("metadata")
+            additional_metadata=updates.get("metadata"),
         )
 
     group: ValuationRuleGroup | None = await service.update_rule_group(session, group_id, updates)

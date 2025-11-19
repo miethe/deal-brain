@@ -4,6 +4,7 @@ CRUD endpoints for listings.
 Handles basic listing operations: create, read, update, delete, and pagination.
 Extracted from monolithic listings.py for better modularity and maintainability.
 """
+
 from __future__ import annotations
 
 from typing import Sequence
@@ -46,35 +47,41 @@ async def list_listings(
     session: AsyncSession = Depends(session_dependency),
 ) -> Sequence[ListingRead]:
     try:
-        result = await session.execute(select(Listing).order_by(Listing.created_at.desc()).offset(offset).limit(limit))
+        result = await session.execute(
+            select(Listing).order_by(Listing.created_at.desc()).offset(offset).limit(limit)
+        )
         listings = result.scalars().unique().all()
         return [ListingRead.model_validate(listing) for listing in listings]
     except OperationalError as e:
         logger.error(f"Database connection error in list_listings: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in list_listings: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in list_listings: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )
 
 
 @router.get("/paginated", response_model=PaginatedListingsResponse)
 async def get_paginated_listings_endpoint(
     limit: int = Query(default=50, ge=1, le=500, description="Number of items per page (1-500)"),
-    cursor: str | None = Query(default=None, description="Pagination cursor from previous response"),
+    cursor: str | None = Query(
+        default=None, description="Pagination cursor from previous response"
+    ),
     sort_by: str = Query(default="updated_at", regex=r"^[a-z_]+$", description="Column to sort by"),
-    sort_order: str = Query(default="desc", regex=r"^(asc|desc)$", description="Sort direction (asc or desc)"),
+    sort_order: str = Query(
+        default="desc", regex=r"^(asc|desc)$", description="Sort direction (asc or desc)"
+    ),
     form_factor: str | None = Query(default=None, description="Filter by form factor"),
     manufacturer: str | None = Query(default=None, description="Filter by manufacturer"),
     min_price: float | None = Query(default=None, ge=0, description="Minimum price filter"),
@@ -143,19 +150,19 @@ async def get_paginated_listings_endpoint(
         logger.error(f"Database connection error in get_paginated_listings: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in get_paginated_listings: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in get_paginated_listings: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )
 
 
@@ -179,24 +186,26 @@ async def create_listing_endpoint(
         logger.error(f"Database connection error in create_listing: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in create_listing: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in create_listing: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )
 
 
 @router.get("/{listing_id}", response_model=ListingRead)
-async def get_listing(listing_id: int, session: AsyncSession = Depends(session_dependency)) -> ListingRead:
+async def get_listing(
+    listing_id: int, session: AsyncSession = Depends(session_dependency)
+) -> ListingRead:
     try:
         listing = await session.get(Listing, listing_id)
         if not listing:
@@ -209,19 +218,19 @@ async def get_listing(listing_id: int, session: AsyncSession = Depends(session_d
         logger.error(f"Database connection error in get_listing (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in get_listing (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in get_listing (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )
 
 
@@ -252,19 +261,19 @@ async def update_listing_endpoint(
         logger.error(f"Database connection error in update_listing (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in update_listing (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in update_listing (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )
 
 
@@ -292,19 +301,19 @@ async def patch_listing_endpoint(
         logger.error(f"Database connection error in patch_listing (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in patch_listing (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in patch_listing (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )
 
 
@@ -335,19 +344,19 @@ async def delete_listing_endpoint(
         logger.error(f"Database connection error in delete_listing (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in delete_listing (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in delete_listing (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )
 
 
@@ -418,23 +427,24 @@ async def complete_partial_import_endpoint(
         logger.error(f"Database connection error in complete_partial_import (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in complete_partial_import (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in complete_partial_import (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )
     except Exception as e:
-        logger.exception(f"Unexpected error completing partial import for listing {listing_id}: {e}")
+        logger.exception(
+            f"Unexpected error completing partial import for listing {listing_id}: {e}"
+        )
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to complete import"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to complete import"
         )

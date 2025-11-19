@@ -202,13 +202,9 @@ class SymbolConfig:
             with open(self._config_path) as f:
                 return json.load(f)
         except json.JSONDecodeError as e:
-            raise ConfigurationError(
-                f"Invalid JSON in configuration file {self._config_path}: {e}"
-            )
+            raise ConfigurationError(f"Invalid JSON in configuration file {self._config_path}: {e}")
         except Exception as e:
-            raise ConfigurationError(
-                f"Failed to load configuration from {self._config_path}: {e}"
-            )
+            raise ConfigurationError(f"Failed to load configuration from {self._config_path}: {e}")
 
     def _validate_config(self) -> None:
         """
@@ -221,9 +217,7 @@ class SymbolConfig:
             ConfigurationError: If required fields are missing or invalid
         """
         required_fields = ["projectName", "symbolsDir", "domains", "extraction"]
-        missing_fields = [
-            field for field in required_fields if field not in self._raw_config
-        ]
+        missing_fields = [field for field in required_fields if field not in self._raw_config]
 
         if missing_fields:
             raise ConfigurationError(
@@ -239,9 +233,7 @@ class SymbolConfig:
 
         for domain_name, domain_config in self._raw_config["domains"].items():
             if "file" not in domain_config:
-                raise ConfigurationError(
-                    f"Domain '{domain_name}' is missing required 'file' field"
-                )
+                raise ConfigurationError(f"Domain '{domain_name}' is missing required 'file' field")
             if "description" not in domain_config:
                 raise ConfigurationError(
                     f"Domain '{domain_name}' is missing required 'description' field"
@@ -253,9 +245,7 @@ class SymbolConfig:
 
         for lang in ["python", "typescript"]:
             if lang not in self._raw_config["extraction"]:
-                raise ConfigurationError(
-                    f"Extraction configuration missing '{lang}' section"
-                )
+                raise ConfigurationError(f"Extraction configuration missing '{lang}' section")
 
             lang_config = self._raw_config["extraction"][lang]
             if "directories" not in lang_config or "extensions" not in lang_config:
@@ -338,8 +328,7 @@ class SymbolConfig:
         if domain not in self.domains:
             available = ", ".join(self.domains.keys())
             raise ConfigurationError(
-                f"Domain '{domain}' not found in configuration. "
-                f"Available domains: {available}"
+                f"Domain '{domain}' not found in configuration. " f"Available domains: {available}"
             )
 
         domain_config = self.domains[domain]
@@ -367,8 +356,7 @@ class SymbolConfig:
         if domain not in self.domains:
             available = ", ".join(self.domains.keys())
             raise ConfigurationError(
-                f"Domain '{domain}' not found in configuration. "
-                f"Available domains: {available}"
+                f"Domain '{domain}' not found in configuration. " f"Available domains: {available}"
             )
 
         domain_config = self.domains[domain]
@@ -401,8 +389,7 @@ class SymbolConfig:
         if layer not in self.api_layers:
             available = ", ".join(self.api_layers.keys())
             raise ConfigurationError(
-                f"API layer '{layer}' not found in configuration. "
-                f"Available layers: {available}"
+                f"API layer '{layer}' not found in configuration. " f"Available layers: {available}"
             )
 
         layer_config = self.api_layers[layer]
@@ -448,9 +435,7 @@ class SymbolConfig:
         """
         return [name for name, config in self.api_layers.items() if config.enabled]
 
-    def get_extraction_config(
-        self, language: Literal["python", "typescript"]
-    ) -> ExtractionConfig:
+    def get_extraction_config(self, language: Literal["python", "typescript"]) -> ExtractionConfig:
         """
         Get extraction configuration for a specific language.
 
@@ -464,9 +449,7 @@ class SymbolConfig:
             ConfigurationError: If language not configured
         """
         if language not in self.extraction:
-            raise ConfigurationError(
-                f"No extraction configuration for language '{language}'"
-            )
+            raise ConfigurationError(f"No extraction configuration for language '{language}'")
 
         return self.extraction[language]
 

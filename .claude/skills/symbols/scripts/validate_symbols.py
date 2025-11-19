@@ -36,6 +36,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 # Try to import colorama for terminal colors (optional)
 try:
     from colorama import Fore, Style, init as colorama_init
+
     colorama_init(autoreset=True)
     HAS_COLOR = True
 except ImportError:
@@ -65,9 +66,21 @@ except ImportError:
 REQUIRED_FIELDS = {"name", "kind", "line", "signature", "summary", "layer"}
 VALID_KINDS = {"function", "class", "method", "component", "hook", "interface", "type", "variable"}
 VALID_LAYERS = {
-    "router", "service", "repository", "schema", "model", "core",
-    "auth", "middleware", "observability", "component", "hook",
-    "page", "util", "test", "unknown"
+    "router",
+    "service",
+    "repository",
+    "schema",
+    "model",
+    "core",
+    "auth",
+    "middleware",
+    "observability",
+    "component",
+    "hook",
+    "page",
+    "util",
+    "test",
+    "unknown",
 }
 
 # Validation thresholds
@@ -173,10 +186,7 @@ def check_source_file_exists(symbol_file_path: Path, source_path: str, project_r
 
 
 def validate_domain_file(
-    domain_name: str,
-    file_path: Path,
-    project_root: Path,
-    verbose: bool = False
+    domain_name: str, file_path: Path, project_root: Path, verbose: bool = False
 ) -> Dict[str, Any]:
     """
     Validate a single domain symbol file.
@@ -277,16 +287,10 @@ def validate_domain_file(
             report["errors"].extend(schema_errors)
 
             # Duplicate detection (same name + file + line)
-            symbol_key = (
-                symbol.get("name", ""),
-                module_path,
-                symbol.get("line", 0)
-            )
+            symbol_key = (symbol.get("name", ""), module_path, symbol.get("line", 0))
 
             if symbol_key in seen_symbols:
-                duplicates.append(
-                    f"{symbol_key[0]} at {symbol_key[1]}:{symbol_key[2]}"
-                )
+                duplicates.append(f"{symbol_key[0]} at {symbol_key[1]}:{symbol_key[2]}")
                 report["duplicates"] += 1
             else:
                 seen_symbols.add(symbol_key)
@@ -302,8 +306,7 @@ def validate_domain_file(
     if missing_sources:
         report["warnings"].append(
             f"Found {len(missing_sources)} stale source references: "
-            f"{', '.join(missing_sources[:3])}"
-            + ("..." if len(missing_sources) > 3 else "")
+            f"{', '.join(missing_sources[:3])}" + ("..." if len(missing_sources) > 3 else "")
         )
 
     if verbose:
@@ -312,10 +315,7 @@ def validate_domain_file(
     return report
 
 
-def validate_symbols(
-    domain: Optional[str] = None,
-    verbose: bool = False
-) -> Dict[str, Any]:
+def validate_symbols(domain: Optional[str] = None, verbose: bool = False) -> Dict[str, Any]:
     """
     Validate symbol files for all or specific domains.
 
@@ -355,7 +355,7 @@ def validate_symbols(
             return {
                 "status": "errors",
                 "error": f"Domain '{domain}' not found in configuration. "
-                        f"Available: {', '.join(config.get_domains())}",
+                f"Available: {', '.join(config.get_domains())}",
                 "domains": {},
                 "summary": {
                     "total_symbols": 0,
@@ -500,16 +500,26 @@ def print_report(report: Dict[str, Any], verbose: bool = False) -> None:
             elif not domain_report["readable"]:
                 print_color("  Status: NOT READABLE", Fore.RED, Style.BRIGHT)
             elif domain_report["errors"]:
-                print_color(f"  Status: {len(domain_report['errors'])} ERRORS", Fore.RED, Style.BRIGHT)
+                print_color(
+                    f"  Status: {len(domain_report['errors'])} ERRORS", Fore.RED, Style.BRIGHT
+                )
             elif domain_report["warnings"]:
-                print_color(f"  Status: {len(domain_report['warnings'])} WARNINGS", Fore.YELLOW, Style.BRIGHT)
+                print_color(
+                    f"  Status: {len(domain_report['warnings'])} WARNINGS",
+                    Fore.YELLOW,
+                    Style.BRIGHT,
+                )
             else:
                 print_color("  Status: VALID", Fore.GREEN, Style.BRIGHT)
 
             print(f"  Symbols: {domain_report['symbols_count']:,}")
 
             if domain_report.get("last_modified"):
-                age_str = f"{domain_report['age_days']} days old" if domain_report.get("age_days") else "unknown age"
+                age_str = (
+                    f"{domain_report['age_days']} days old"
+                    if domain_report.get("age_days")
+                    else "unknown age"
+                )
                 print(f"  Last Modified: {domain_report['last_modified']} ({age_str})")
 
             if domain_report.get("duplicates", 0) > 0:
@@ -528,11 +538,15 @@ def print_report(report: Dict[str, Any], verbose: bool = False) -> None:
 
             # Print warnings
             if domain_report["warnings"]:
-                print_color(f"\n  Warnings ({len(domain_report['warnings'])}):", Fore.YELLOW, Style.BRIGHT)
+                print_color(
+                    f"\n  Warnings ({len(domain_report['warnings'])}):", Fore.YELLOW, Style.BRIGHT
+                )
                 for warning in domain_report["warnings"][:5]:  # Limit to first 5
                     print_color(f"    - {warning}", Fore.YELLOW)
                 if len(domain_report["warnings"]) > 5:
-                    print_color(f"    ... and {len(domain_report['warnings']) - 5} more", Fore.YELLOW)
+                    print_color(
+                        f"    ... and {len(domain_report['warnings']) - 5} more", Fore.YELLOW
+                    )
 
     # Print footer
     print_color("\n" + "=" * 70, Fore.CYAN, Style.BRIGHT)
@@ -580,26 +594,21 @@ Exit Codes:
   0 = Valid (no errors or warnings)
   1 = Warnings present (stale files, minor issues)
   2 = Errors present (missing files, schema violations)
-        """
+        """,
     )
 
     parser.add_argument(
-        "--domain",
-        type=str,
-        help="Specific domain to validate (ui, web, api, shared)"
+        "--domain", type=str, help="Specific domain to validate (ui, web, api, shared)"
     )
 
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
-        help="Print detailed validation progress and domain information"
+        help="Print detailed validation progress and domain information",
     )
 
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Output report in JSON format"
-    )
+    parser.add_argument("--json", action="store_true", help="Output report in JSON format")
 
     args = parser.parse_args()
 

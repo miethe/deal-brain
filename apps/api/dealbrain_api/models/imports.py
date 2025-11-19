@@ -18,6 +18,7 @@ from .base import TimestampMixin
 
 class ImportJob(Base, TimestampMixin):
     """Legacy import job tracking (Excel/file-based imports)."""
+
     __tablename__ = "import_job"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -32,6 +33,7 @@ class ImportJob(Base, TimestampMixin):
 
 class TaskRun(Base, TimestampMixin):
     """Generic task execution tracking for background jobs."""
+
     __tablename__ = "task_run"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -45,6 +47,7 @@ class TaskRun(Base, TimestampMixin):
 
 class ImportSession(Base, TimestampMixin):
     """Unified import session for both file-based and URL-based imports."""
+
     __tablename__ = "import_session"
 
     id: Mapped[str] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -57,14 +60,14 @@ class ImportSession(Base, TimestampMixin):
     mappings_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     conflicts_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     preview_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
-    declared_entities_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    declared_entities_json: Mapped[dict[str, Any]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
     created_by: Mapped[str | None] = mapped_column(String(128))
 
     # URL Ingestion Fields (Phase 1)
     source_type: Mapped[str] = mapped_column(
-        String(16),
-        nullable=False,
-        default=SourceType.EXCEL.value
+        String(16), nullable=False, default=SourceType.EXCEL.value
     )
     url: Mapped[str | None] = mapped_column(Text)
     adapter_config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
@@ -75,7 +78,9 @@ class ImportSession(Base, TimestampMixin):
     # Bulk Job Tracking (Phase 1.2)
     bulk_job_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     quality: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    listing_id: Mapped[int | None] = mapped_column(ForeignKey("listing.id", ondelete="SET NULL"), nullable=True)
+    listing_id: Mapped[int | None] = mapped_column(
+        ForeignKey("listing.id", ondelete="SET NULL"), nullable=True
+    )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     audit_events: Mapped[list[ImportSessionAudit]] = relationship(
@@ -85,6 +90,7 @@ class ImportSession(Base, TimestampMixin):
 
 class ImportSessionAudit(Base, TimestampMixin):
     """Audit trail for import session events and changes."""
+
     __tablename__ = "import_session_audit"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

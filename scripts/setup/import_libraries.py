@@ -70,9 +70,7 @@ class LibraryImporter:
                 existing_fields = await self.fields_service.list_fields(
                     self.session, entity=entity_type
                 )
-                existing = next(
-                    (f for f in existing_fields if f.key == field_key), None
-                )
+                existing = next((f for f in existing_fields if f.key == field_key), None)
 
                 if existing:
                     print(f"  ⏭️  Skipping existing field: {field_key}")
@@ -128,9 +126,7 @@ class LibraryImporter:
 
         # Check if ruleset exists
         existing_rulesets = await self.rules_service.list_rulesets(self.session)
-        existing = next(
-            (rs for rs in existing_rulesets if rs.name == ruleset_name), None
-        )
+        existing = next((rs for rs in existing_rulesets if rs.name == ruleset_name), None)
 
         if existing:
             print(f"  ⏭️  Ruleset '{ruleset_name}' already exists (ID: {existing.id})")
@@ -219,7 +215,11 @@ class LibraryImporter:
                 sanitized[key] = self._sanitize_metadata(value)
             elif isinstance(value, list):
                 sanitized[key] = [
-                    item.isoformat() if isinstance(item, (datetime.date, datetime.datetime)) else item
+                    (
+                        item.isoformat()
+                        if isinstance(item, (datetime.date, datetime.datetime))
+                        else item
+                    )
                     for item in value
                 ]
             else:
@@ -238,14 +238,16 @@ class LibraryImporter:
                     flatten_conditions(nested_cond, parent_group)
             else:
                 # This is a leaf condition
-                conditions.append({
-                    "field_name": cond_data["field_name"],
-                    "field_type": cond_data.get("field_type", "string"),
-                    "operator": cond_data["operator"],
-                    "value": cond_data["value"],
-                    "logical_operator": cond_data.get("logical_operator"),
-                    "group_order": parent_group,
-                })
+                conditions.append(
+                    {
+                        "field_name": cond_data["field_name"],
+                        "field_type": cond_data.get("field_type", "string"),
+                        "operator": cond_data["operator"],
+                        "value": cond_data["value"],
+                        "logical_operator": cond_data.get("logical_operator"),
+                        "group_order": parent_group,
+                    }
+                )
 
         flatten_conditions(condition_data)
         return conditions
@@ -421,9 +423,9 @@ async def main():
     if not any([args.all, args.fields, args.rules, args.profiles, args.ruleset]):
         args.all = True
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🚀 Deal Brain Library Importer")
-    print("="*60)
+    print("=" * 60)
 
     async with session_scope() as session:
         try:
@@ -448,6 +450,7 @@ async def main():
         except Exception as e:
             print(f"\n❌ Import failed: {e}\n")
             import traceback
+
             traceback.print_exc()
             sys.exit(1)
 

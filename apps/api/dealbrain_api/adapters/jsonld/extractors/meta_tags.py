@@ -118,9 +118,7 @@ class MetaTagExtractor:
             generic_site_names = ["amazon.com", "amazon", "ebay", "ebay.com", "product page"]
             title_lower = title.lower() if title else ""
             is_generic = (
-                not title
-                or title_lower in generic_site_names
-                or "product page" in title_lower
+                not title or title_lower in generic_site_names or "product page" in title_lower
             )
             if is_generic:
                 logger.debug(
@@ -146,7 +144,9 @@ class MetaTagExtractor:
             price = None
             if price_str:
                 price = self._parse_price(price_str)
-                logger.debug(f"Price extraction attempt: price_str={price_str}, parsed_price={price}")
+                logger.debug(
+                    f"Price extraction attempt: price_str={price_str}, parsed_price={price}"
+                )
 
             # Price is optional - log but continue if missing
             if not price:

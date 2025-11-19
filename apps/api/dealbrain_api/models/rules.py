@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 class ValuationRuleset(Base, TimestampMixin):
     """Top-level container for a coherent set of valuation rules."""
+
     __tablename__ = "valuation_ruleset"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -37,11 +38,14 @@ class ValuationRuleset(Base, TimestampMixin):
 
 class ValuationRuleGroup(Base, TimestampMixin):
     """Logical grouping of related valuation rules within a ruleset."""
+
     __tablename__ = "valuation_rule_group"
     __table_args__ = (UniqueConstraint("ruleset_id", "name", name="uq_rule_group_ruleset_name"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    ruleset_id: Mapped[int] = mapped_column(ForeignKey("valuation_ruleset.id", ondelete="CASCADE"), nullable=False)
+    ruleset_id: Mapped[int] = mapped_column(
+        ForeignKey("valuation_ruleset.id", ondelete="CASCADE"), nullable=False
+    )
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     category: Mapped[str] = mapped_column(String(64), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
@@ -58,11 +62,14 @@ class ValuationRuleGroup(Base, TimestampMixin):
 
 class ValuationRuleV2(Base, TimestampMixin):
     """Individual valuation rule with conditions and actions."""
+
     __tablename__ = "valuation_rule_v2"
     __table_args__ = (UniqueConstraint("group_id", "name", name="uq_rule_v2_group_name"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    group_id: Mapped[int] = mapped_column(ForeignKey("valuation_rule_group.id", ondelete="CASCADE"), nullable=False)
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("valuation_rule_group.id", ondelete="CASCADE"), nullable=False
+    )
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
@@ -89,17 +96,22 @@ class ValuationRuleV2(Base, TimestampMixin):
 
 class ValuationRuleCondition(Base):
     """Condition that must be met for a valuation rule to apply."""
+
     __tablename__ = "valuation_rule_condition"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    rule_id: Mapped[int] = mapped_column(ForeignKey("valuation_rule_v2.id", ondelete="CASCADE"), nullable=False)
+    rule_id: Mapped[int] = mapped_column(
+        ForeignKey("valuation_rule_v2.id", ondelete="CASCADE"), nullable=False
+    )
     parent_condition_id: Mapped[int | None] = mapped_column(
         ForeignKey("valuation_rule_condition.id", ondelete="CASCADE")
     )
     field_name: Mapped[str] = mapped_column(String(128), nullable=False)
     field_type: Mapped[str] = mapped_column(String(32), nullable=False)
     operator: Mapped[str] = mapped_column(String(32), nullable=False)
-    value_json: Mapped[dict[str, Any] | list[Any] | str | int | float] = mapped_column(JSON, nullable=False)
+    value_json: Mapped[dict[str, Any] | list[Any] | str | int | float] = mapped_column(
+        JSON, nullable=False
+    )
     logical_operator: Mapped[str | None] = mapped_column(String(8))
     group_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
@@ -146,10 +158,13 @@ class ValuationRuleAction(Base):
     Both formats can coexist. Field paths use dot notation to navigate nested
     structures (e.g., "ram_spec.ddr_generation"). Empty dict {} is valid.
     """
+
     __tablename__ = "valuation_rule_action"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    rule_id: Mapped[int] = mapped_column(ForeignKey("valuation_rule_v2.id", ondelete="CASCADE"), nullable=False)
+    rule_id: Mapped[int] = mapped_column(
+        ForeignKey("valuation_rule_v2.id", ondelete="CASCADE"), nullable=False
+    )
     action_type: Mapped[str] = mapped_column(String(32), nullable=False)
     metric: Mapped[str | None] = mapped_column(String(32))
     value_usd: Mapped[float | None]
@@ -164,11 +179,14 @@ class ValuationRuleAction(Base):
 
 class ValuationRuleVersion(Base):
     """Historical version of a valuation rule for audit trail."""
+
     __tablename__ = "valuation_rule_version"
     __table_args__ = (UniqueConstraint("rule_id", "version_number", name="uq_rule_version"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    rule_id: Mapped[int] = mapped_column(ForeignKey("valuation_rule_v2.id", ondelete="CASCADE"), nullable=False)
+    rule_id: Mapped[int] = mapped_column(
+        ForeignKey("valuation_rule_v2.id", ondelete="CASCADE"), nullable=False
+    )
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
     snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     change_summary: Mapped[str | None] = mapped_column(Text)
@@ -180,10 +198,13 @@ class ValuationRuleVersion(Base):
 
 class ValuationRuleAudit(Base):
     """Audit log for valuation rule changes and impacts."""
+
     __tablename__ = "valuation_rule_audit"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    rule_id: Mapped[int | None] = mapped_column(ForeignKey("valuation_rule_v2.id", ondelete="SET NULL"))
+    rule_id: Mapped[int | None] = mapped_column(
+        ForeignKey("valuation_rule_v2.id", ondelete="SET NULL")
+    )
     action: Mapped[str] = mapped_column(String(32), nullable=False)
     actor: Mapped[str | None] = mapped_column(String(128))
     changes_json: Mapped[dict[str, Any] | None] = mapped_column(JSON)

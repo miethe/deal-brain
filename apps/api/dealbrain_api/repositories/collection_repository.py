@@ -43,8 +43,8 @@ class CollectionRepository:
         self,
         user_id: int,
         name: str,
-        description: str | None = None,
-        visibility: str = "private"
+        description: Optional[str] = None,
+        visibility: str = "private",
     ) -> Collection:
         """Create a new collection.
 
@@ -59,10 +59,7 @@ class CollectionRepository:
         """
         # Create collection instance
         collection = Collection(
-            user_id=user_id,
-            name=name,
-            description=description,
-            visibility=visibility
+            user_id=user_id, name=name, description=description, visibility=visibility
         )
 
         # Add to session and flush to get ID
@@ -77,9 +74,9 @@ class CollectionRepository:
     async def get_collection_by_id(
         self,
         collection_id: int,
-        user_id: int | None = None,
+        user_id: Optional[int] = None,
         load_items: bool = False
-    ) -> Collection | None:
+    ) -> Optional[Collection]:
         """Get collection by ID with optional ownership check and item loading.
 
         Args:
@@ -110,11 +107,7 @@ class CollectionRepository:
 
             options.append(items_loader)
 
-        stmt = (
-            select(Collection)
-            .options(*options)
-            .where(Collection.id == collection_id)
-        )
+        stmt = select(Collection).options(*options).where(Collection.id == collection_id)
 
         result = await self.session.execute(stmt)
         collection = result.unique().scalar_one_or_none()
@@ -132,10 +125,10 @@ class CollectionRepository:
         self,
         collection_id: int,
         user_id: int,
-        name: str | None = None,
-        description: str | None = None,
-        visibility: str | None = None
-    ) -> Collection | None:
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        visibility: Optional[str] = None,
+    ) -> Optional[Collection]:
         """Update collection metadata.
 
         Validates ownership before allowing updates. Only the collection owner can update.
@@ -201,11 +194,7 @@ class CollectionRepository:
         return True
 
     async def find_user_collections(
-        self,
-        user_id: int,
-        limit: int = 50,
-        offset: int = 0,
-        load_items: bool = False
+        self, user_id: int, limit: int = 50, offset: int = 0, load_items: bool = False
     ) -> list[Collection]:
         """Find all collections for a user with pagination.
 
@@ -257,8 +246,8 @@ class CollectionRepository:
         collection_id: int,
         listing_id: int,
         status: str = "undecided",
-        notes: str | None = None,
-        position: int | None = None
+        notes: Optional[str] = None,
+        position: Optional[int] = None,
     ) -> CollectionItem:
         """Add item to collection with deduplication.
 
@@ -280,9 +269,7 @@ class CollectionRepository:
         # Check for duplicates
         exists = await self.check_item_exists(collection_id, listing_id)
         if exists:
-            raise ValueError(
-                f"Listing {listing_id} already exists in collection {collection_id}"
-            )
+            raise ValueError(f"Listing {listing_id} already exists in collection {collection_id}")
 
         # Get next position if not provided
         if position is None:
@@ -294,7 +281,7 @@ class CollectionRepository:
             listing_id=listing_id,
             status=status,
             notes=notes,
-            position=position
+            position=position,
         )
 
         # Add to session and flush to get ID
@@ -309,10 +296,10 @@ class CollectionRepository:
     async def update_item(
         self,
         item_id: int,
-        status: str | None = None,
-        notes: str | None = None,
-        position: int | None = None
-    ) -> CollectionItem | None:
+        status: Optional[str] = None,
+        notes: Optional[str] = None,
+        position: Optional[int] = None,
+    ) -> Optional[CollectionItem]:
         """Update collection item.
 
         Args:
@@ -372,7 +359,7 @@ class CollectionRepository:
         self,
         collection_id: int,
         load_listings: bool = True,
-        limit: int | None = None,
+        limit: Optional[int] = None,
         offset: int = 0
     ) -> list[CollectionItem]:
         """Get items in collection with optional listing data and pagination.
@@ -454,7 +441,7 @@ class CollectionRepository:
         stmt = select(CollectionItem).where(
             and_(
                 CollectionItem.collection_id == collection_id,
-                CollectionItem.listing_id == listing_id
+                CollectionItem.listing_id == listing_id,
             )
         )
 

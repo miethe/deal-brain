@@ -8,7 +8,7 @@ from typing import Sequence
 from dealbrain_core.enums import ListingStatus
 from dealbrain_core.schemas.cpu import CPUStatistics, CPUWithAnalytics
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
-from sqlalchemy import and_, distinct, func, select
+from sqlalchemy import and_, case, desc, distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import session_dependency
@@ -41,10 +41,15 @@ router = APIRouter(prefix="/v1/cpus", tags=["cpus"])
 
     - **Market Data**: Count of active listings for each CPU
 
+    **Sorting Support:**
+    - Sort by any CPU field: name, manufacturer, cores, threads, tdp_w, cpu_mark_multi, cpu_mark_single, release_year, listings_count
+    - Ascending or descending order
+    - Default: name (ascending)
+
     **Performance Notes:**
     - Analytics fields are pre-computed and stored in the CPU table for fast queries
-    - No performance penalty when `include_analytics=true` (default)
-    - Results are sorted alphabetically by CPU name
+    - Listing counts computed with efficient LEFT JOIN (no N+1 queries)
+    - Optimized for large catalogs with indexed sorting columns
 
     **Use Cases:**
     - CPU catalog browsing with price intelligence
@@ -54,6 +59,9 @@ router = APIRouter(prefix="/v1/cpus", tags=["cpus"])
 
     **Query Parameters:**
     - `include_analytics`: Set to `false` to exclude price targets and performance metrics (returns base CPU data only)
+    - `sort_by`: Field to sort by (default: "name")
+    - `sort_order`: Sort direction "asc" or "desc" (default: "asc")
+    - `only_with_listings`: Set to `true` to show only CPUs with active listings (default: false)
     """,
     response_description="List of CPUs with embedded analytics (price targets, performance value, active listings count)",
     responses={
@@ -94,7 +102,7 @@ router = APIRouter(prefix="/v1/cpus", tags=["cpus"])
                             "performance_value_percentile": 35.5,
                             "performance_value_rating": "good",
                             "performance_metrics_updated_at": "2025-11-06T08:15:00Z",
-                            "listings_count": 12
+                            "listings_count": 12,
                         },
                         {
                             "id": 2,
@@ -128,11 +136,11 @@ router = APIRouter(prefix="/v1/cpus", tags=["cpus"])
                             "performance_value_percentile": 15.2,
                             "performance_value_rating": "excellent",
                             "performance_metrics_updated_at": "2025-11-06T08:15:00Z",
-                            "listings_count": 6
-                        }
+                            "listings_count": 6,
+                        },
                     ]
                 }
-            }
+            },
         },
         500: {
             "description": "Internal server error during CPU retrieval",
@@ -140,50 +148,121 @@ router = APIRouter(prefix="/v1/cpus", tags=["cpus"])
                 "application/json": {
                     "example": {"detail": "Error listing CPUs: Database connection failed"}
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 async def list_cpus(
     session: AsyncSession = Depends(session_dependency),
     include_analytics: bool = Query(
         default=True, description="Include price targets and performance metrics"
     ),
+    sort_by: str = Query(
+        default="name",
+        description="Field to sort by (name, manufacturer, cores, threads, tdp_w, cpu_mark_multi, cpu_mark_single, release_year, listings_count)",
+    ),
+    sort_order: str = Query(
+        default="asc",
+        description="Sort direction: 'asc' (ascending) or 'desc' (descending)",
+        regex="^(asc|desc)$",
+    ),
+    only_with_listings: bool = Query(
+        default=False,
+        description="Show only CPUs with active listings",
+    ),
 ) -> Sequence[CPUWithAnalytics]:
-    """List all CPUs with optional analytics data.
+    """List all CPUs with optional analytics data, sorting, and filtering.
 
-    Analytics fields are pre-computed and stored in CPU table,
-    so this query is fast even with analytics enabled.
+    Uses efficient LEFT JOIN to count listings in a single query (no N+1 problem).
+    Supports sorting by any CPU field or by listing count.
 
     Args:
         session: Async database session for queries
         include_analytics: Whether to include price targets and performance metrics (default: True)
+        sort_by: Field to sort by (default: "name")
+        sort_order: Sort direction "asc" or "desc" (default: "asc")
+        only_with_listings: Show only CPUs with active listings (default: False)
 
     Returns:
         List of CPUs with embedded analytics (price targets, performance value, listings count)
 
     Raises:
+        HTTPException(400): Invalid sort_by field
         HTTPException(500): Error listing CPUs from database
     """
     try:
-        # Query all CPUs ordered by name
-        stmt = select(Cpu).order_by(Cpu.name)
-        result = await session.execute(stmt)
-        cpus = result.scalars().all()
+        # Validate sort_by field
+        valid_sort_fields = {
+            "name",
+            "manufacturer",
+            "socket",
+            "cores",
+            "threads",
+            "tdp_w",
+            "cpu_mark_multi",
+            "cpu_mark_single",
+            "igpu_mark",
+            "release_year",
+            "listings_count",
+        }
+        if sort_by not in valid_sort_fields:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid sort_by field '{sort_by}'. Valid fields: {', '.join(sorted(valid_sort_fields))}",
+            )
 
-        cpu_with_analytics_list = []
-
-        for cpu in cpus:
-            # Count active listings for this CPU
-            count_stmt = select(func.count(Listing.id)).where(
+        # Build efficient query with LEFT JOIN to count listings
+        # This avoids N+1 queries by computing all listing counts in a single query
+        listings_count_subquery = (
+            select(
+                Listing.cpu_id,
+                func.count(Listing.id).label("listings_count"),
+            )
+            .where(
                 and_(
-                    Listing.cpu_id == cpu.id,
+                    Listing.cpu_id.isnot(None),
                     Listing.status == ListingStatus.ACTIVE.value,
                 )
             )
-            count_result = await session.execute(count_stmt)
-            listings_count = count_result.scalar() or 0
+            .group_by(Listing.cpu_id)
+            .subquery()
+        )
 
+        # Main query with LEFT JOIN to include CPUs with zero listings
+        stmt = select(
+            Cpu,
+            func.coalesce(listings_count_subquery.c.listings_count, 0).label("listings_count"),
+        ).outerjoin(
+            listings_count_subquery,
+            Cpu.id == listings_count_subquery.c.cpu_id,
+        )
+
+        # Apply filter for only_with_listings
+        if only_with_listings:
+            stmt = stmt.where(
+                func.coalesce(listings_count_subquery.c.listings_count, 0) > 0
+            )
+
+        # Apply sorting
+        if sort_by == "listings_count":
+            # Sort by computed listings_count
+            order_column = func.coalesce(listings_count_subquery.c.listings_count, 0)
+        else:
+            # Sort by CPU table column
+            order_column = getattr(Cpu, sort_by)
+
+        if sort_order == "desc":
+            stmt = stmt.order_by(desc(order_column))
+        else:
+            stmt = stmt.order_by(order_column)
+
+        # Execute query
+        result = await session.execute(stmt)
+        rows = result.all()
+
+        cpu_with_analytics_list = []
+
+        for cpu, listings_count in rows:
             # Build CPUWithAnalytics response
             cpu_dict = {
                 "id": cpu.id,
@@ -210,43 +289,52 @@ async def list_cpus(
 
             if include_analytics:
                 # Add price target fields
-                cpu_dict.update({
-                    "price_target_good": cpu.price_target_good,
-                    "price_target_great": cpu.price_target_great,
-                    "price_target_fair": cpu.price_target_fair,
-                    "price_target_sample_size": cpu.price_target_sample_size,
-                    "price_target_confidence": cpu.price_target_confidence or "insufficient",
-                    "price_target_stddev": cpu.price_target_stddev,
-                    "price_target_updated_at": cpu.price_target_updated_at,
-                    # Add performance value fields
-                    "dollar_per_mark_single": cpu.dollar_per_mark_single,
-                    "dollar_per_mark_multi": cpu.dollar_per_mark_multi,
-                    "performance_value_percentile": cpu.performance_value_percentile,
-                    "performance_value_rating": cpu.performance_value_rating,
-                    "performance_metrics_updated_at": cpu.performance_metrics_updated_at,
-                })
+                cpu_dict.update(
+                    {
+                        "price_target_good": cpu.price_target_good,
+                        "price_target_great": cpu.price_target_great,
+                        "price_target_fair": cpu.price_target_fair,
+                        "price_target_sample_size": cpu.price_target_sample_size,
+                        "price_target_confidence": cpu.price_target_confidence or "insufficient",
+                        "price_target_stddev": cpu.price_target_stddev,
+                        "price_target_updated_at": cpu.price_target_updated_at,
+                        # Add performance value fields
+                        "dollar_per_mark_single": cpu.dollar_per_mark_single,
+                        "dollar_per_mark_multi": cpu.dollar_per_mark_multi,
+                        "performance_value_percentile": cpu.performance_value_percentile,
+                        "performance_value_rating": cpu.performance_value_rating,
+                        "performance_metrics_updated_at": cpu.performance_metrics_updated_at,
+                    }
+                )
             else:
                 # Set default values when analytics not included
-                cpu_dict.update({
-                    "price_target_good": None,
-                    "price_target_great": None,
-                    "price_target_fair": None,
-                    "price_target_sample_size": 0,
-                    "price_target_confidence": "insufficient",
-                    "price_target_stddev": None,
-                    "price_target_updated_at": None,
-                    "dollar_per_mark_single": None,
-                    "dollar_per_mark_multi": None,
-                    "performance_value_percentile": None,
-                    "performance_value_rating": None,
-                    "performance_metrics_updated_at": None,
-                })
+                cpu_dict.update(
+                    {
+                        "price_target_good": None,
+                        "price_target_great": None,
+                        "price_target_fair": None,
+                        "price_target_sample_size": 0,
+                        "price_target_confidence": "insufficient",
+                        "price_target_stddev": None,
+                        "price_target_updated_at": None,
+                        "dollar_per_mark_single": None,
+                        "dollar_per_mark_multi": None,
+                        "performance_value_percentile": None,
+                        "performance_value_rating": None,
+                        "performance_metrics_updated_at": None,
+                    }
+                )
 
             cpu_with_analytics_list.append(CPUWithAnalytics(**cpu_dict))
 
-        logger.info(f"Listed {len(cpu_with_analytics_list)} CPUs with analytics={include_analytics}")
+        logger.info(
+            f"Listed {len(cpu_with_analytics_list)} CPUs with analytics={include_analytics}, "
+            f"sort_by={sort_by}, sort_order={sort_order}, only_with_listings={only_with_listings}"
+        )
         return cpu_with_analytics_list
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error listing CPUs: {e}", exc_info=True)
         raise HTTPException(
@@ -342,7 +430,7 @@ async def list_cpus(
                                 "condition": "refurbished",
                                 "url": "https://example.com/listing/101",
                                 "marketplace": "ebay",
-                                "status": "active"
+                                "status": "active",
                             },
                             {
                                 "id": 102,
@@ -352,23 +440,32 @@ async def list_cpus(
                                 "condition": "new",
                                 "url": "https://example.com/listing/102",
                                 "marketplace": "amazon",
-                                "status": "active"
-                            }
+                                "status": "active",
+                            },
                         ],
                         "market_data": {
-                            "price_distribution": [320.00, 325.00, 330.00, 335.00, 340.00, 345.00, 350.00, 355.00, 360.00, 365.00, 370.00, 375.00]
-                        }
+                            "price_distribution": [
+                                320.00,
+                                325.00,
+                                330.00,
+                                335.00,
+                                340.00,
+                                345.00,
+                                350.00,
+                                355.00,
+                                360.00,
+                                365.00,
+                                370.00,
+                                375.00,
+                            ]
+                        },
                     }
                 }
-            }
+            },
         },
         404: {
             "description": "CPU not found with the given ID",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "CPU with id 99999 not found"}
-                }
-            }
+            "content": {"application/json": {"example": {"detail": "CPU with id 99999 not found"}}},
         },
         422: {
             "description": "Validation error - invalid CPU ID format",
@@ -379,12 +476,12 @@ async def list_cpus(
                             {
                                 "loc": ["path", "cpu_id"],
                                 "msg": "value is not a valid integer",
-                                "type": "type_error.integer"
+                                "type": "type_error.integer",
                             }
                         ]
                     }
                 }
-            }
+            },
         },
         500: {
             "description": "Internal server error during CPU detail retrieval",
@@ -392,9 +489,9 @@ async def list_cpus(
                 "application/json": {
                     "example": {"detail": "Error getting CPU detail: Database query failed"}
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 async def get_cpu_detail(
     cpu_id: int,
@@ -525,9 +622,7 @@ async def get_cpu_detail(
             },
         }
 
-        logger.info(
-            f"Retrieved CPU detail for {cpu_id} with {len(associated_listings)} listings"
-        )
+        logger.info(f"Retrieved CPU detail for {cpu_id} with {len(associated_listings)} listings")
         return response
 
     except HTTPException:
@@ -603,20 +698,22 @@ async def get_cpu_detail(
                         "core_range": [2, 64],
                         "tdp_range": [15, 280],
                         "year_range": [2015, 2025],
-                        "total_count": 156
+                        "total_count": 156,
                     }
                 }
-            }
+            },
         },
         500: {
             "description": "Internal server error during statistics calculation",
             "content": {
                 "application/json": {
-                    "example": {"detail": "Error getting CPU statistics: Database aggregation failed"}
+                    "example": {
+                        "detail": "Error getting CPU statistics: Database aggregation failed"
+                    }
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 async def get_cpu_statistics(
     session: AsyncSession = Depends(session_dependency),
@@ -643,16 +740,18 @@ async def get_cpu_statistics(
     """
     try:
         # Query distinct manufacturers (non-null, sorted)
-        manufacturers_stmt = select(distinct(Cpu.manufacturer)).where(
-            Cpu.manufacturer.isnot(None)
-        ).order_by(Cpu.manufacturer)
+        manufacturers_stmt = (
+            select(distinct(Cpu.manufacturer))
+            .where(Cpu.manufacturer.isnot(None))
+            .order_by(Cpu.manufacturer)
+        )
         manufacturers_result = await session.execute(manufacturers_stmt)
         manufacturers = [row[0] for row in manufacturers_result.all()]
 
         # Query distinct sockets (non-null, sorted)
-        sockets_stmt = select(distinct(Cpu.socket)).where(
-            Cpu.socket.isnot(None)
-        ).order_by(Cpu.socket)
+        sockets_stmt = (
+            select(distinct(Cpu.socket)).where(Cpu.socket.isnot(None)).order_by(Cpu.socket)
+        )
         sockets_result = await session.execute(sockets_stmt)
         sockets = [row[0] for row in sockets_result.all()]
 
@@ -762,10 +861,10 @@ async def get_cpu_statistics(
                 "application/json": {
                     "example": {
                         "status": "accepted",
-                        "message": "CPU metrics recalculation task has been queued and will run in the background"
+                        "message": "CPU metrics recalculation task has been queued and will run in the background",
                     }
                 }
-            }
+            },
         },
         500: {
             "description": "Internal server error during task queueing",
@@ -773,9 +872,9 @@ async def get_cpu_statistics(
                 "application/json": {
                     "example": {"detail": "Error queueing recalculation task: Task queue full"}
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 async def trigger_metric_recalculation(
     background_tasks: BackgroundTasks,
@@ -806,6 +905,7 @@ async def trigger_metric_recalculation(
             """Background task to recalculate all CPU metrics."""
             # Note: We need a new session for the background task
             from ..db import session_scope
+
             async with session_scope() as bg_session:
                 try:
                     summary = await CPUAnalyticsService.recalculate_all_cpu_metrics(bg_session)

@@ -24,31 +24,27 @@ interface GridViewProps {
  * - Large desktop: 4 columns
  *
  * Features:
- * - Client-side filtering via cpu-filters
- * - Sorted by CPU Mark Multi (descending - highest performance first)
+ * - Client-side filtering for search, manufacturer, socket, cores, TDP, year, iGPU, PassMark
+ * - Server-side sorting (configured via sort controls)
+ * - Server-side filtering for "only with listings" (performance optimization)
  * - Empty states for no CPUs and no filter results
  * - Loading skeletons during data fetch
  * - Memoized for performance optimization
+ *
+ * Note: CPUs are pre-sorted by the API based on sort controls.
+ * Additional client-side filters are applied without re-sorting.
  */
 export function GridView({ cpus, isLoading }: GridViewProps) {
   const { filters } = useFilters();
 
-  // Filter CPUs based on active filters
+  // Filter CPUs based on active filters (client-side)
+  // Note: "activeListingsOnly" filter is applied server-side for performance
   const filteredCPUs = useMemo(() => {
     if (!cpus) return [];
     return filterCPUs(cpus, filters);
   }, [cpus, filters]);
 
-  // Sort by CPU Mark Multi (descending - highest performance first)
-  const sortedCPUs = useMemo(() => {
-    return [...filteredCPUs].sort((a, b) => {
-      const aValue = a.cpu_mark_multi ?? 0;
-      const bValue = b.cpu_mark_multi ?? 0;
-      return bValue - aValue;
-    });
-  }, [filteredCPUs]);
-
-  // Check if any filters are active
+  // Check if any client-side filters are active
   const hasActiveFilters = useMemo(() => {
     return (
       filters.searchQuery !== "" ||
@@ -87,8 +83,8 @@ export function GridView({ cpus, isLoading }: GridViewProps) {
     );
   }
 
-  // Empty state - no results from filters
-  if (sortedCPUs.length === 0 && hasActiveFilters) {
+  // Empty state - no results from client-side filters
+  if (filteredCPUs.length === 0 && hasActiveFilters) {
     return (
       <EmptyState
         icon={SearchX}
@@ -98,10 +94,21 @@ export function GridView({ cpus, isLoading }: GridViewProps) {
     );
   }
 
-  // Grid with CPUs
+  // Empty state - no results when "only with listings" server filter is active
+  if (filteredCPUs.length === 0 && filters.activeListingsOnly) {
+    return (
+      <EmptyState
+        icon={PackageOpen}
+        heading="No CPUs with active listings"
+        description="There are no CPUs with active listings at the moment. Try disabling the 'Show Only CPUs with Active Listings' filter."
+      />
+    );
+  }
+
+  // Grid with CPUs (pre-sorted by API)
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {sortedCPUs.map((cpu) => (
+      {filteredCPUs.map((cpu) => (
         <CPUCard key={cpu.id} cpu={cpu} />
       ))}
     </div>

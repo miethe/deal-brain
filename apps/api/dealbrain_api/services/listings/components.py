@@ -149,11 +149,12 @@ async def _prepare_component_relationships(
         spec_input = normalize_ram_spec_payload(
             ram_spec_payload,
             fallback_total_gb=total_capacity,
-            fallback_generation=normalize_ram_generation(ram_type_hint)
-            if ram_type_hint
-            else (listing.ram_spec.ddr_generation if listing and listing.ram_spec else None),
-            fallback_speed=
-            normalize_int(ram_speed_hint)
+            fallback_generation=(
+                normalize_ram_generation(ram_type_hint)
+                if ram_type_hint
+                else (listing.ram_spec.ddr_generation if listing and listing.ram_spec else None)
+            ),
+            fallback_speed=normalize_int(ram_speed_hint)
             or (listing.ram_spec.speed_mhz if listing and listing.ram_spec else None),
         )
         if spec_input:
@@ -202,10 +203,7 @@ async def _prepare_component_relationships(
         storage_profile = await get_or_create_storage_profile(session, profile_input)
         payload[profile_id_key] = storage_profile.id
 
-        if (
-            payload.get(capacity_key) is None
-            and storage_profile.capacity_gb is not None
-        ):
+        if payload.get(capacity_key) is None and storage_profile.capacity_gb is not None:
             payload[capacity_key] = storage_profile.capacity_gb
 
         # Import here to avoid circular dependency
@@ -280,9 +278,7 @@ async def complete_partial_import(
 
         # Validate price is positive
         if price_float <= 0:
-            raise ValueError(
-                f"Invalid price value: {price_float}. Price must be greater than 0."
-            )
+            raise ValueError(f"Invalid price value: {price_float}. Price must be greater than 0.")
 
         # Update listing price
         listing.price_usd = price_float
@@ -294,12 +290,12 @@ async def complete_partial_import(
 
         # Remove "price" from missing_fields if present (create new list for SQLAlchemy to detect change)
         if listing.missing_fields and "price" in listing.missing_fields:
-            listing.missing_fields = [
-                field for field in listing.missing_fields if field != "price"
-            ]
+            listing.missing_fields = [field for field in listing.missing_fields if field != "price"]
 
     # Update quality if all required fields are present
-    if listing.price_usd is not None and (not listing.missing_fields or len(listing.missing_fields) == 0):
+    if listing.price_usd is not None and (
+        not listing.missing_fields or len(listing.missing_fields) == 0
+    ):
         listing.quality = "full"
 
     await session.flush()
@@ -563,7 +559,9 @@ async def upsert_from_url(
         # Emit price.changed event if threshold met
         if old_price != new_price:
             emitted = event_service.check_and_emit_price_change(
-                existing, old_price, new_price,
+                existing,
+                old_price,
+                new_price,
             )
             logger.debug(
                 "Price change event emission",

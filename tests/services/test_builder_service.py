@@ -148,9 +148,7 @@ async def listing_sample(session: AsyncSession, cpu_sample: Cpu) -> Listing:
 
 
 @pytest.mark.asyncio
-async def test_calculate_build_valuation_cpu_only(
-    session: AsyncSession, cpu_sample: Cpu
-):
+async def test_calculate_build_valuation_cpu_only(session: AsyncSession, cpu_sample: Cpu):
     """Test valuation calculation with CPU only."""
     service = BuilderService(session)
 
@@ -226,9 +224,7 @@ async def test_calculate_build_valuation_invalid_cpu_id(session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_calculate_build_valuation_invalid_gpu_id(
-    session: AsyncSession, cpu_sample: Cpu
-):
+async def test_calculate_build_valuation_invalid_gpu_id(session: AsyncSession, cpu_sample: Cpu):
     """Test error handling for invalid GPU ID."""
     service = BuilderService(session)
 
@@ -243,7 +239,7 @@ async def test_calculate_build_valuation_invalid_gpu_id(
 @pytest.mark.asyncio
 @pytest.mark.skipif(
     "CI" in __import__("os").environ,
-    reason="Performance tests are flaky in CI environments with variable load"
+    reason="Performance tests are flaky in CI environments with variable load",
 )
 async def test_calculate_build_valuation_performance(
     session: AsyncSession, cpu_sample: Cpu, gpu_sample: Gpu
@@ -270,9 +266,7 @@ async def test_calculate_build_valuation_performance(
 
 
 @pytest.mark.asyncio
-async def test_calculate_build_metrics_with_benchmarks(
-    session: AsyncSession, cpu_sample: Cpu
-):
+async def test_calculate_build_metrics_with_benchmarks(session: AsyncSession, cpu_sample: Cpu):
     """Test metrics calculation with CPU benchmark data."""
     service = BuilderService(session)
 
@@ -298,9 +292,7 @@ async def test_calculate_build_metrics_with_benchmarks(
 
 
 @pytest.mark.asyncio
-async def test_calculate_build_metrics_no_benchmarks(
-    session: AsyncSession, cpu_no_benchmarks: Cpu
-):
+async def test_calculate_build_metrics_no_benchmarks(session: AsyncSession, cpu_no_benchmarks: Cpu):
     """Test metrics calculation with CPU lacking benchmark data."""
     service = BuilderService(session)
 
@@ -425,9 +417,7 @@ async def test_save_build_cpu_required_in_components(session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_save_build_snapshot_values_match_calculation(
-    session: AsyncSession, cpu_sample: Cpu
-):
+async def test_save_build_snapshot_values_match_calculation(session: AsyncSession, cpu_sample: Cpu):
     """Test that snapshot values match current calculation."""
     service = BuilderService(session)
 
@@ -451,11 +441,9 @@ async def test_save_build_snapshot_values_match_calculation(
 @pytest.mark.asyncio
 @pytest.mark.skipif(
     "CI" in __import__("os").environ,
-    reason="Performance tests are flaky in CI environments with variable load"
+    reason="Performance tests are flaky in CI environments with variable load",
 )
-async def test_save_build_performance(
-    session: AsyncSession, cpu_sample: Cpu, gpu_sample: Gpu
-):
+async def test_save_build_performance(session: AsyncSession, cpu_sample: Cpu, gpu_sample: Gpu):
     """Test that save_build completes in <500ms."""
     service = BuilderService(session)
 
@@ -570,9 +558,7 @@ async def test_get_build_by_id_public_build(session: AsyncSession, cpu_sample: C
 
 
 @pytest.mark.asyncio
-async def test_get_build_by_id_private_build_access_control(
-    session: AsyncSession, cpu_sample: Cpu
-):
+async def test_get_build_by_id_private_build_access_control(session: AsyncSession, cpu_sample: Cpu):
     """Test access control for private builds."""
     service = BuilderService(session)
 
@@ -632,9 +618,7 @@ async def test_compare_build_to_listings_same_cpu(
 
 
 @pytest.mark.asyncio
-async def test_compare_build_to_listings_similarity_scoring(
-    session: AsyncSession, cpu_sample: Cpu
-):
+async def test_compare_build_to_listings_similarity_scoring(session: AsyncSession, cpu_sample: Cpu):
     """Test similarity scoring based on specs."""
     service = BuilderService(session)
 
@@ -666,9 +650,7 @@ async def test_compare_build_to_listings_similarity_scoring(
 
 
 @pytest.mark.asyncio
-async def test_compare_build_to_listings_limit(
-    session: AsyncSession, cpu_sample: Cpu
-):
+async def test_compare_build_to_listings_limit(session: AsyncSession, cpu_sample: Cpu):
     """Test limit parameter."""
     service = BuilderService(session)
 
@@ -705,9 +687,7 @@ async def test_compare_build_to_listings_limit(
 
 
 @pytest.mark.asyncio
-async def test_end_to_end_build_workflow(
-    session: AsyncSession, cpu_sample: Cpu, gpu_sample: Gpu
-):
+async def test_end_to_end_build_workflow(session: AsyncSession, cpu_sample: Cpu, gpu_sample: Gpu):
     """Test end-to-end: calculate → save → retrieve → compare."""
     service = BuilderService(session)
 
@@ -720,9 +700,7 @@ async def test_end_to_end_build_workflow(
     assert valuation["base_price"] > 0
 
     # Step 2: Calculate metrics
-    metrics = await service.calculate_build_metrics(
-        cpu_sample.id, valuation["adjusted_price"]
-    )
+    metrics = await service.calculate_build_metrics(cpu_sample.id, valuation["adjusted_price"])
     assert metrics["dollar_per_cpu_mark_multi"] is not None
 
     # Step 3: Save build
@@ -789,9 +767,7 @@ async def test_snapshot_consistency(session: AsyncSession, cpu_sample: Cpu):
 
     # Verify snapshot matches current calculation
     assert build.pricing_snapshot["base_price"] == str(current_valuation["base_price"])
-    assert build.pricing_snapshot["adjusted_price"] == str(
-        current_valuation["adjusted_price"]
-    )
+    assert build.pricing_snapshot["adjusted_price"] == str(current_valuation["adjusted_price"])
 
     # Verify metrics snapshot
     if current_metrics["dollar_per_cpu_mark_multi"] is not None:

@@ -4,6 +4,7 @@ Bulk operation endpoints for listings.
 Handles bulk updates and metric recalculation for multiple listings.
 Extracted from monolithic listings.py for better modularity and maintainability.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -57,7 +58,9 @@ async def bulk_update_listings_endpoint(
             attributes=request.attributes or {},
         )
         if not listings:
-            raise HTTPException(status_code=404, detail="No listings matched the provided identifiers")
+            raise HTTPException(
+                status_code=404, detail="No listings matched the provided identifiers"
+            )
         return ListingBulkUpdateResponse(
             updated=[ListingRead.model_validate(listing) for listing in listings],
             updated_count=len(listings),
@@ -69,26 +72,25 @@ async def bulk_update_listings_endpoint(
         logger.error(f"Database connection error in bulk_update_listings: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in bulk_update_listings: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in bulk_update_listings: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )
 
 
 @router.post("/{listing_id}/recalculate-metrics", response_model=ListingRead)
 async def recalculate_listing_metrics(
-    listing_id: int,
-    session: AsyncSession = Depends(session_dependency)
+    listing_id: int, session: AsyncSession = Depends(session_dependency)
 ):
     """Recalculate all performance metrics for a single listing.
 
@@ -108,29 +110,30 @@ async def recalculate_listing_metrics(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except OperationalError as e:
-        logger.error(f"Database connection error in recalculate_listing_metrics (id={listing_id}): {e}")
+        logger.error(
+            f"Database connection error in recalculate_listing_metrics (id={listing_id}): {e}"
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in recalculate_listing_metrics (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in recalculate_listing_metrics (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )
 
 
 @router.post("/bulk-recalculate-metrics", response_model=BulkRecalculateResponse)
 async def bulk_recalculate_metrics(
-    request: BulkRecalculateRequest,
-    session: AsyncSession = Depends(session_dependency)
+    request: BulkRecalculateRequest, session: AsyncSession = Depends(session_dependency)
 ):
     """Recalculate metrics for multiple listings.
 
@@ -144,29 +147,23 @@ async def bulk_recalculate_metrics(
         Response with count of updated listings
     """
     try:
-        count = await bulk_update_listing_metrics(
-            session,
-            request.listing_ids
-        )
-        return BulkRecalculateResponse(
-            updated_count=count,
-            message=f"Updated {count} listing(s)"
-        )
+        count = await bulk_update_listing_metrics(session, request.listing_ids)
+        return BulkRecalculateResponse(updated_count=count, message=f"Updated {count} listing(s)")
     except OperationalError as e:
         logger.error(f"Database connection error in bulk_recalculate_metrics: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in bulk_recalculate_metrics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in bulk_recalculate_metrics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )

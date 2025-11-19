@@ -52,9 +52,11 @@ from typing import List, Optional, Tuple, Dict, Any
 # Try to import colorama for terminal colors (optional)
 try:
     from colorama import Fore, Style, init as colorama_init
+
     colorama_init(autoreset=True)
     HAS_COLOR = True
 except ImportError:
+
     class Fore:
         RED = ""
         YELLOW = ""
@@ -140,8 +142,7 @@ def load_template(project_root: Path) -> str:
 
     if not template_path.exists():
         raise FileNotFoundError(
-            f"Template file not found at {template_path}\n"
-            f"Expected: {TEMPLATE_FILE}"
+            f"Template file not found at {template_path}\n" f"Expected: {TEMPLATE_FILE}"
         )
 
     with open(template_path) as f:
@@ -233,7 +234,9 @@ def generate_symbol_files_section(config: Any, stats: Dict[str, int]) -> str:
         if domain_config.test_file:
             test_count = stats.get(f"{domain_name}-tests", 0)
             test_path = f"{config._raw_config['symbolsDir']}/{domain_config.test_file}"
-            lines.append(f"- `{test_path}` - {domain_name.upper()} test helpers (on-demand) - {test_count:,} symbols")
+            lines.append(
+                f"- `{test_path}` - {domain_name.upper()} test helpers (on-demand) - {test_count:,} symbols"
+            )
 
     # API layer files (if configured)
     if config.get_api_layers():
@@ -327,34 +330,34 @@ def find_insertion_point(content: str) -> Optional[int]:
     Returns:
         Character index for insertion, or None if no suitable location found
     """
-    lines = content.split('\n')
+    lines = content.split("\n")
 
     # Strategy 1: After "Prime directives" section
     for i, line in enumerate(lines):
-        if re.match(r'^##\s+(Prime directives|Prime Directives)', line, re.IGNORECASE):
+        if re.match(r"^##\s+(Prime directives|Prime Directives)", line, re.IGNORECASE):
             # Find next level-2 heading
             for j in range(i + 1, len(lines)):
-                if re.match(r'^##\s+\w', lines[j]):
+                if re.match(r"^##\s+\w", lines[j]):
                     # Insert before next section
                     insertion_line = j
                     return sum(len(lines[k]) + 1 for k in range(insertion_line))
 
     # Strategy 2: After "Key Guidance" section
     for i, line in enumerate(lines):
-        if re.match(r'^##\s+(Key Guidance|Key guidance)', line, re.IGNORECASE):
+        if re.match(r"^##\s+(Key Guidance|Key guidance)", line, re.IGNORECASE):
             # Find next level-2 heading
             for j in range(i + 1, len(lines)):
-                if re.match(r'^##\s+\w', lines[j]):
+                if re.match(r"^##\s+\w", lines[j]):
                     # Insert before next section
                     insertion_line = j
                     return sum(len(lines[k]) + 1 for k in range(insertion_line))
 
     # Strategy 3: After first level-2 heading
     for i, line in enumerate(lines):
-        if re.match(r'^##\s+\w', line):
+        if re.match(r"^##\s+\w", line):
             # Find next level-2 heading
             for j in range(i + 1, len(lines)):
-                if re.match(r'^##\s+\w', lines[j]):
+                if re.match(r"^##\s+\w", lines[j]):
                     # Insert before next section
                     insertion_line = j
                     return sum(len(lines[k]) + 1 for k in range(insertion_line))
@@ -373,11 +376,11 @@ def detect_existing_symbols_content(content: str) -> bool:
         True if symbols-related content detected
     """
     indicators = [
-        r'codebase-explorer',
-        r'symbols system',
-        r'Symbol Files',
-        r'symbols-\w+\.json',
-        r'Symbols vs Explore',
+        r"codebase-explorer",
+        r"symbols system",
+        r"Symbol Files",
+        r"symbols-\w+\.json",
+        r"Symbols vs Explore",
     ]
 
     for pattern in indicators:
@@ -392,7 +395,7 @@ def update_claude_md(
     template_content: str,
     force: bool = False,
     dry_run: bool = False,
-    no_backup: bool = False
+    no_backup: bool = False,
 ) -> Dict[str, Any]:
     """
     Update CLAUDE.md with symbols integration guidance.
@@ -433,7 +436,7 @@ def update_claude_md(
         result["errors"].append(f"Failed to read CLAUDE.md: {e}")
         return result
 
-    original_lines = len(original_content.split('\n'))
+    original_lines = len(original_content.split("\n"))
 
     # Check for existing markers
     section_range = find_symbols_section(original_content)
@@ -442,12 +445,12 @@ def update_claude_md(
         # Replace content between markers
         start_idx, end_idx = section_range
         new_content = (
-            original_content[:start_idx] +
-            f"{BEGIN_MARKER}\n{template_content}\n{END_MARKER}" +
-            original_content[end_idx:]
+            original_content[:start_idx]
+            + f"{BEGIN_MARKER}\n{template_content}\n{END_MARKER}"
+            + original_content[end_idx:]
         )
         result["action"] = "updated"
-        result["lines_modified"] = template_content.count('\n') + 2
+        result["lines_modified"] = template_content.count("\n") + 2
 
     elif force or not detect_existing_symbols_content(original_content):
         # Find insertion point
@@ -455,19 +458,18 @@ def update_claude_md(
 
         if insertion_idx is None:
             result["errors"].append(
-                "Could not find suitable insertion point. "
-                "Add markers manually or use --force."
+                "Could not find suitable insertion point. " "Add markers manually or use --force."
             )
             return result
 
         # Insert new section with markers
         new_content = (
-            original_content[:insertion_idx] +
-            f"\n{BEGIN_MARKER}\n{template_content}\n{END_MARKER}\n\n" +
-            original_content[insertion_idx:]
+            original_content[:insertion_idx]
+            + f"\n{BEGIN_MARKER}\n{template_content}\n{END_MARKER}\n\n"
+            + original_content[insertion_idx:]
         )
         result["action"] = "inserted"
-        result["lines_added"] = template_content.count('\n') + 4
+        result["lines_added"] = template_content.count("\n") + 4
 
     else:
         # Symbols content exists but no markers
@@ -478,7 +480,7 @@ def update_claude_md(
         result["action"] = "skipped"
         return result
 
-    new_lines = len(new_content.split('\n'))
+    new_lines = len(new_content.split("\n"))
     result["lines_preserved"] = original_lines - result["lines_modified"]
 
     # Validate markdown structure (basic check)
@@ -489,13 +491,13 @@ def update_claude_md(
     # Dry run: show diff but don't modify
     if dry_run:
         result["action"] = f"{result['action']} (dry-run)"
-        result["preview_lines"] = new_content.split('\n')[:50]  # First 50 lines
+        result["preview_lines"] = new_content.split("\n")[:50]  # First 50 lines
         return result
 
     # Create backup
     if not no_backup:
         try:
-            backup_path = claude_md_path.with_suffix('.md.bak')
+            backup_path = claude_md_path.with_suffix(".md.bak")
             shutil.copy2(claude_md_path, backup_path)
             result["backup_created"] = True
             result["backup_path"] = str(backup_path)
@@ -504,7 +506,7 @@ def update_claude_md(
 
     # Write updated content
     try:
-        with open(claude_md_path, 'w') as f:
+        with open(claude_md_path, "w") as f:
             f.write(new_content)
         result["modified"] = True
     except Exception as e:
@@ -618,38 +620,26 @@ Exit Codes:
   0 = Success (file updated)
   1 = Warnings (skipped update)
   2 = Errors (update failed)
-        """
+        """,
     )
 
     parser.add_argument(
-        "--project-root",
-        type=Path,
-        help="Path to project root (default: auto-detect)"
+        "--project-root", type=Path, help="Path to project root (default: auto-detect)"
     )
 
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would change without modifying files"
+        "--dry-run", action="store_true", help="Show what would change without modifying files"
     )
 
     parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Force update even if symbols content already exists"
+        "--force", action="store_true", help="Force update even if symbols content already exists"
     )
 
     parser.add_argument(
-        "--no-backup",
-        action="store_true",
-        help="Skip backup creation before modifying"
+        "--no-backup", action="store_true", help="Skip backup creation before modifying"
     )
 
-    parser.add_argument(
-        "-v", "--verbose",
-        action="store_true",
-        help="Print detailed information"
-    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print detailed information")
 
     args = parser.parse_args()
 
@@ -710,7 +700,7 @@ Exit Codes:
         populated_template,
         force=args.force,
         dry_run=args.dry_run,
-        no_backup=args.no_backup
+        no_backup=args.no_backup,
     )
 
     # Print report

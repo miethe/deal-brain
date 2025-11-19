@@ -81,11 +81,7 @@ def client(app):
 @pytest_asyncio.fixture
 async def test_user(db_session):
     """Create a test user."""
-    user = User(
-        username="testuser",
-        email="test@example.com",
-        display_name="Test User"
-    )
+    user = User(username="testuser", email="test@example.com", display_name="Test User")
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
@@ -95,11 +91,7 @@ async def test_user(db_session):
 @pytest_asyncio.fixture
 async def test_listing(db_session):
     """Create a test listing."""
-    listing = Listing(
-        title="Test Mini PC",
-        price_usd=599.99,
-        quality="complete"
-    )
+    listing = Listing(title="Test Mini PC", price_usd=599.99, quality="complete")
     db_session.add(listing)
     await db_session.commit()
     await db_session.refresh(listing)
@@ -114,7 +106,7 @@ async def active_share(db_session, test_listing, test_user):
         created_by=test_user.id,
         share_token=ListingShare.generate_token(),
         view_count=5,
-        expires_at=datetime.utcnow() + timedelta(days=30)
+        expires_at=datetime.utcnow() + timedelta(days=30),
     )
     db_session.add(share)
     await db_session.commit()
@@ -130,7 +122,7 @@ async def expired_share(db_session, test_listing, test_user):
         created_by=test_user.id,
         share_token=ListingShare.generate_token(),
         view_count=10,
-        expires_at=datetime.utcnow() - timedelta(days=1)
+        expires_at=datetime.utcnow() - timedelta(days=1),
     )
     db_session.add(share)
     await db_session.commit()
@@ -146,7 +138,7 @@ async def share_without_expiry(db_session, test_listing, test_user):
         created_by=test_user.id,
         share_token=ListingShare.generate_token(),
         view_count=0,
-        expires_at=None
+        expires_at=None,
     )
     db_session.add(share)
     await db_session.commit()
@@ -234,7 +226,9 @@ def test_get_public_share_increments_view_count(client, active_share, test_listi
 def test_get_public_share_view_increment_failure_non_blocking(client, active_share, test_listing):
     """Test GET /deals/{id}/{token} - View increment failure doesn't block response."""
     # Mock the SharingService.increment_share_view to raise an exception
-    with patch('dealbrain_api.services.sharing_service.SharingService.increment_share_view') as mock_increment:
+    with patch(
+        "dealbrain_api.services.sharing_service.SharingService.increment_share_view"
+    ) as mock_increment:
         mock_increment.side_effect = Exception("Database error")
 
         response = client.get(f"/v1/deals/{test_listing.id}/{active_share.share_token}")
@@ -245,8 +239,10 @@ def test_get_public_share_view_increment_failure_non_blocking(client, active_sha
         assert data["share_token"] == active_share.share_token
 
 
-@patch('dealbrain_api.api.shares.get_redis_client')
-def test_get_public_share_with_redis_cache_miss(mock_redis_client, client, active_share, test_listing):
+@patch("dealbrain_api.api.shares.get_redis_client")
+def test_get_public_share_with_redis_cache_miss(
+    mock_redis_client, client, active_share, test_listing
+):
     """Test GET /deals/{id}/{token} - Cache miss behavior with Redis."""
     # Mock Redis client
     mock_redis = MagicMock()
@@ -262,8 +258,10 @@ def test_get_public_share_with_redis_cache_miss(mock_redis_client, client, activ
     # Note: In actual implementation, cache key would be checked
 
 
-@patch('dealbrain_api.api.shares.get_redis_client')
-def test_get_public_share_with_redis_cache_error(mock_redis_client, client, active_share, test_listing):
+@patch("dealbrain_api.api.shares.get_redis_client")
+def test_get_public_share_with_redis_cache_error(
+    mock_redis_client, client, active_share, test_listing
+):
     """Test GET /deals/{id}/{token} - Redis error doesn't block response."""
     # Mock Redis client to raise an exception
     mock_redis = MagicMock()

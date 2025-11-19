@@ -3,6 +3,7 @@ Integration test to verify real-world action multipliers scenarios.
 
 This test simulates real valuation scenarios from the frontend.
 """
+
 from dealbrain_core.rules.actions import Action, ActionType
 
 

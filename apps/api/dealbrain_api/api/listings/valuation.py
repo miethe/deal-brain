@@ -4,6 +4,7 @@ Valuation endpoints for listings.
 Handles valuation breakdowns, overrides, and ruleset management.
 Extracted from monolithic listings.py for better modularity and maintainability.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -74,7 +75,9 @@ async def update_listing_valuation_overrides(
             if not ruleset:
                 raise HTTPException(status_code=404, detail="Ruleset not found")
             if not ruleset.is_active:
-                raise HTTPException(status_code=400, detail="Ruleset is inactive and cannot be assigned")
+                raise HTTPException(
+                    status_code=400, detail="Ruleset is inactive and cannot be assigned"
+                )
 
         try:
             await update_listing_overrides(
@@ -94,22 +97,26 @@ async def update_listing_valuation_overrides(
         # Re-raise HTTPException without catching it
         raise
     except OperationalError as e:
-        logger.error(f"Database connection error in update_listing_valuation_overrides (id={listing_id}): {e}")
+        logger.error(
+            f"Database connection error in update_listing_valuation_overrides (id={listing_id}): {e}"
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
-        logger.error(f"Database schema error in update_listing_valuation_overrides (id={listing_id}): {e}")
+        logger.error(
+            f"Database schema error in update_listing_valuation_overrides (id={listing_id}): {e}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in update_listing_valuation_overrides (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )
 
 
@@ -136,15 +143,12 @@ async def get_valuation_breakdown(
     """
     try:
         # Get listing
-        result = await session.execute(
-            select(Listing).where(Listing.id == listing_id)
-        )
+        result = await session.execute(select(Listing).where(Listing.id == listing_id))
         listing = result.scalar_one_or_none()
 
         if not listing:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Listing {listing_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Listing {listing_id} not found"
             )
 
         breakdown = listing.valuation_breakdown or {}
@@ -213,7 +217,7 @@ async def get_valuation_breakdown(
                 .options(selectinload(ValuationRuleV2.group))
                 .where(
                     ValuationRuleGroup.ruleset_id == ruleset_id,
-                    ValuationRuleV2.id.notin_(active_rule_ids)
+                    ValuationRuleV2.id.notin_(active_rule_ids),
                 )
             )
             inactive_result = await session.execute(inactive_stmt)
@@ -285,17 +289,17 @@ async def get_valuation_breakdown(
         logger.error(f"Database connection error in get_valuation_breakdown (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database service unavailable. Please try again later."
+            detail="Database service unavailable. Please try again later.",
         )
     except ProgrammingError as e:
         logger.error(f"Database schema error in get_valuation_breakdown (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database configuration error. Please contact support."
+            detail="Database configuration error. Please contact support.",
         )
     except DatabaseError as e:
         logger.error(f"Database error in get_valuation_breakdown (id={listing_id}): {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred. Please try again later."
+            detail="Database error occurred. Please try again later.",
         )
