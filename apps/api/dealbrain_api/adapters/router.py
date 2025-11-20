@@ -212,16 +212,12 @@ class AdapterRouter:
         for adapter_class in matching:
             adapter_name = self._get_adapter_name(adapter_class)
 
-            try:
-                # Check if adapter is enabled before trying
-                if not self._is_adapter_class_enabled(adapter_class):
-                    logger.info(f"Skipping {adapter_name} adapter (disabled in settings)")
-                    raise AdapterException(
-                        AdapterError.ADAPTER_DISABLED,
-                        f"{adapter_name} adapter is disabled in settings",
-                        metadata={"adapter": adapter_name, "url": url},
-                    )
+            # Check if adapter is enabled before trying
+            if not self._is_adapter_class_enabled(adapter_class):
+                logger.info(f"Skipping {adapter_name} adapter (disabled in settings)")
+                continue  # Skip to next adapter silently
 
+            try:
                 # Try to initialize adapter
                 logger.info(f"Trying adapter {adapter_name} for {url}")
                 adapter = adapter_class()  # type: ignore[call-arg]
@@ -238,12 +234,12 @@ class AdapterRouter:
                 last_error = e
                 logger.warning(f"{adapter_name} adapter failed: [{e.error_type.value}] {e.message}")
 
-                # Don't retry if item not found or adapter disabled
-                if e.error_type in {AdapterError.ITEM_NOT_FOUND, AdapterError.ADAPTER_DISABLED}:
+                # Don't retry if item not found (definitive failure)
+                if e.error_type == AdapterError.ITEM_NOT_FOUND:
                     logger.info(f"Fast-fail for {e.error_type.value}, not trying other adapters")
                     raise
 
-                # Try next adapter
+                # Try next adapter for retryable errors
                 continue
 
             except ValueError as e:

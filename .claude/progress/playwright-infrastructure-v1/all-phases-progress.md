@@ -1,8 +1,8 @@
 # All-Phases Progress: Playwright Infrastructure Optimization
 
-**Status**: Phase 1 COMPLETE, Phase 2A COMPLETE, Phase 2B READY
+**Status**: Phase 1 COMPLETE, Phase 2A COMPLETE, Phase 2B COMPLETE
 **Last Updated**: 2025-11-20
-**Completion**: 45% (Phase 1 and 2A of 5 complete)
+**Completion**: 50% (Phase 1, 2A, and 2B of 5 complete)
 
 ---
 
@@ -12,7 +12,7 @@
 |-------|-------|--------|--------|-----------|
 | 1 | Multi-Stage Docker Optimization | 2-3 hours | COMPLETE | 100% |
 | 2A | PlaywrightAdapter MVP | 1-2 days | COMPLETE | 100% |
-| 2B | Fallback Chain & Error Handling | 0.5 days | NOT STARTED | 0% |
+| 2B | Fallback Chain & Error Handling | 0.5 days | COMPLETE | 100% |
 | 3 | Production Hardening & Observability | 1-2 days | NOT STARTED | 0% |
 | 4 | Anti-Detection Optimization (Optional) | 1 day | NOT STARTED | 0% |
 
@@ -227,7 +227,7 @@ services:
 
 ## Phase 2B: Fallback Chain & Error Handling
 
-**Duration**: 0.5 days | **Priority**: HIGH | **Status**: NOT STARTED | **Completion**: 0%
+**Duration**: 0.5 days | **Priority**: HIGH | **Status**: COMPLETE | **Completion**: 100% | **Completed**: 2025-11-20
 
 **Assigned Subagent(s)**: python-backend-engineer
 
@@ -237,15 +237,15 @@ services:
 
 ### Completion Checklist
 
-- [ ] Verify AdapterRouter.extract() fallback logic
-  - [ ] Non-retryable errors skip chain: ITEM_NOT_FOUND, ADAPTER_DISABLED
-  - [ ] Retryable errors continue chain: TIMEOUT, RATE_LIMITED, NETWORK_ERROR
-  - [ ] Proper adapter initialization error handling
-  - [ ] All errors logged with adapter name
-- [ ] Add adapter enablement via settings
-  - [ ] Each adapter can be disabled individually
-  - [ ] Fallback chain skips disabled adapters silently
-  - [ ] Configuration structure in `apps/api/dealbrain_api/settings.py`:
+- [x] Verify AdapterRouter.extract() fallback logic
+  - [x] Non-retryable errors skip chain: ITEM_NOT_FOUND (ADAPTER_DISABLED now skips silently)
+  - [x] Retryable errors continue chain: TIMEOUT, RATE_LIMITED, NETWORK_ERROR, PARSE_ERROR
+  - [x] Proper adapter initialization error handling
+  - [x] All errors logged with adapter name
+- [x] Add adapter enablement via settings
+  - [x] Each adapter can be disabled individually
+  - [x] Fallback chain skips disabled adapters silently
+  - [x] Configuration structure in `apps/api/dealbrain_api/settings.py`:
     ```python
     ingestion:
         ebay:
@@ -256,31 +256,31 @@ services:
             enabled: true
             timeout_s: 8
     ```
-- [ ] Enhance error telemetry and logging
-  - [ ] Structured logging for each adapter attempt
-  - [ ] Log fields: URL, adapter name, error type, error message
-  - [ ] Example log format:
+- [x] Enhance error telemetry and logging
+  - [x] Structured logging for each adapter attempt
+  - [x] Log fields: URL, adapter name, error type, error message
+  - [x] Example log format:
     ```
-    [eBay] Trying adapter ebay for https://ebay.com/itm/123
-    [eBay] EbayAdapter failed: [configuration_error] eBay Browse API key not configured
-    [JSON-LD] Trying adapter jsonld for https://ebay.com/itm/123
-    [JSON-LD] JsonLdAdapter failed: [no_structured_data] No JSON-LD found
-    [Playwright] Trying adapter playwright for https://ebay.com/itm/123
-    [Playwright] Success with playwright adapter
+    [Router] Trying adapter ebay for https://ebay.com/itm/123
+    [Router] ebay adapter initialization failed: eBay Browse API key not configured
+    [Router] Trying adapter jsonld for https://ebay.com/itm/123
+    [Router] jsonld adapter failed: [parse_error] No JSON-LD found
+    [Router] Trying adapter playwright for https://ebay.com/itm/123
+    [Router] Success with playwright adapter
     ```
-- [ ] Test fallback chain behavior
-  - [ ] Unit test each failure scenario
-  - [ ] Verify correct adapter tried next
-  - [ ] Verify correct error raised when all fail
-  - [ ] Test disabled adapters are skipped
-  - [ ] Test successful early adapter stops chain
+- [x] Test fallback chain behavior
+  - [x] Unit test each failure scenario
+  - [x] Verify correct adapter tried next
+  - [x] Verify correct error raised when all fail
+  - [x] Test disabled adapters are skipped
+  - [x] Test successful early adapter stops chain
 
 ### Success Criteria
 
 - [x] Fallback chain works correctly for all error types
 - [x] Logging is clear and actionable (includes adapter name)
 - [x] Disabled adapters are skipped silently
-- [x] Non-retryable errors stop chain immediately
+- [x] Non-retryable errors stop chain immediately (ITEM_NOT_FOUND only)
 - [x] Retryable errors continue to next adapter
 
 ### Key Files
@@ -305,6 +305,46 @@ services:
 - Structured JSON logs for machine parsing
 - Include adapter name prefix for clarity
 - Track which adapter ultimately succeeded
+
+### Phase 2B Implementation Summary
+
+**Key Changes:**
+
+1. **Updated Router Behavior** (`apps/api/dealbrain_api/adapters/router.py`):
+   - Disabled adapters now skipped silently (no exception raised)
+   - ADAPTER_DISABLED removed from non-retryable error list
+   - Only ITEM_NOT_FOUND triggers fast-fail (definitive 404)
+   - All other errors (TIMEOUT, NETWORK_ERROR, RATE_LIMITED, PARSE_ERROR) continue fallback chain
+   - Enhanced logging with adapter name on every attempt
+
+2. **Test Coverage** (`tests/adapters/test_router_phase2b.py`):
+   - Created comprehensive Phase 2B test suite (13 tests)
+   - Test priority order: eBay(1) → JSON-LD(5) → Playwright(10)
+   - Test non-retryable errors (ITEM_NOT_FOUND stops chain)
+   - Test retryable errors (TIMEOUT, NETWORK_ERROR, RATE_LIMITED, PARSE_ERROR continue)
+   - Test disabled adapters are skipped silently
+   - Test initialization failures (ValueError) continue to next adapter
+   - Test unexpected errors continue to next adapter
+   - Test logging completeness (adapter name on all attempts)
+   - Test ALL_ADAPTERS_FAILED error includes metadata
+   - All 13 tests passing
+
+3. **Updated Existing Tests**:
+   - Fixed `tests/test_adapter_fallback.py` to match new disabled adapter behavior
+   - Updated `test_fast_fail_for_disabled_adapter` → `test_disabled_adapter_skipped_and_fallback_continues`
+   - Updated `test_all_adapters_failed_error` to disable Playwright and adjust expectations
+   - All 56 total router tests passing (13 new + 43 existing)
+
+**Test Results:**
+- Phase 2B tests: 13/13 passing
+- Existing router tests: 43/43 passing
+- Total coverage: 56 tests, 100% passing
+- Test execution time: <1 second
+
+**Behavior Changes:**
+- **BEFORE**: Disabled adapter raised ADAPTER_DISABLED exception, fast-failed
+- **AFTER**: Disabled adapter skipped silently, continues to next adapter
+- **Benefit**: More resilient fallback chain, easier adapter management
 
 ---
 
@@ -676,9 +716,9 @@ playwright = "^1.40.0"  # Move from dev to main
 **Status**: Active (Tracking Document)
 **Created**: 2025-11-20
 **Last Updated**: 2025-11-20
-**Next Review**: After Phase 2B completion
-**Phase Progress**: Phase 1 & 2A complete, Phase 2B in progress
-**Overall Completion**: 40% (Phase 1 & 2A of 5 complete)
+**Next Review**: After Phase 3 completion
+**Phase Progress**: Phase 1, 2A, and 2B complete; Phase 3 ready to start
+**Overall Completion**: 50% (Phase 1, 2A, 2B of 5 complete)
 
 **Related Documentation**:
 - `/docs/project_plans/playwright-infrastructure/playwright-infrastructure-v1.md` - Full PRD
