@@ -3,19 +3,59 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import re
+import time
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from dealbrain_api.adapters.base import AdapterError, AdapterException, BaseAdapter
 from dealbrain_api.adapters.browser_pool import BrowserPool
 from dealbrain_api.settings import get_settings
+from dealbrain_api.telemetry import get_logger
 from dealbrain_core.enums import Condition
 from dealbrain_core.schemas.ingestion import NormalizedListingSchema
 from playwright.async_api import Browser, Page, TimeoutError as PlaywrightTimeoutError
+from prometheus_client import Counter, Gauge, Histogram
 
-logger = logging.getLogger(__name__)
+logger = get_logger("dealbrain.adapters.playwright")
+
+# Prometheus metrics
+playwright_extraction_duration = Histogram(
+    "playwright_extraction_duration_ms",
+    "Duration of Playwright extraction in milliseconds",
+    ["status"],
+    buckets=[100, 500, 1000, 2000, 3000, 5000, 8000, 10000, 15000, 20000],
+)
+
+playwright_extraction_total = Counter(
+    "playwright_extraction_total",
+    "Total number of Playwright extraction attempts",
+    ["status", "error_type"],
+)
+
+playwright_browser_pool_size = Gauge(
+    "playwright_browser_pool_size",
+    "Number of browsers in pool by state",
+    ["state"],  # in_use, available, total
+)
+
+playwright_page_load_duration = Histogram(
+    "playwright_page_load_duration_ms",
+    "Duration of page load in milliseconds",
+    buckets=[500, 1000, 2000, 3000, 5000, 8000, 10000],
+)
+
+playwright_extraction_field_success = Counter(
+    "playwright_extraction_field_success_total",
+    "Number of successful field extractions",
+    ["field_name"],
+)
+
+playwright_extraction_field_failure = Counter(
+    "playwright_extraction_field_failure_total",
+    "Number of failed field extractions",
+    ["field_name"],
+)
 
 
 class PlaywrightAdapter(BaseAdapter):
@@ -180,10 +220,20 @@ class PlaywrightAdapter(BaseAdapter):
         Raises:
             AdapterException: If extraction fails at any step
         """
+        start_time = time.time()
+        status = "success"
+        error_type = "none"
+
         logger.info(f"Extracting listing data from URL using Playwright: {url}")
 
         # Ensure browser pool is initialized
         pool = await self._ensure_browser_pool()
+
+        # Update browser pool metrics
+        stats = pool.get_pool_stats()
+        playwright_browser_pool_size.labels(state="in_use").set(stats["in_use"])
+        playwright_browser_pool_size.labels(state="available").set(stats["available"])
+        playwright_browser_pool_size.labels(state="total").set(stats["pool_size"])
 
         # Acquire browser from pool
         browser = await pool.acquire()
@@ -199,12 +249,49 @@ class PlaywrightAdapter(BaseAdapter):
                 url,
             )
 
-            logger.info(f"Successfully extracted listing: {normalized.title}")
+            logger.info(
+                "Successfully extracted listing",
+                title=normalized.title,
+                quality=normalized.quality,
+                url=url,
+            )
             return normalized
+
+        except AdapterException as e:
+            status = "error"
+            error_type = e.error_type.value
+            logger.error(
+                "Playwright extraction failed",
+                error_type=error_type,
+                error_message=e.message,
+                url=url,
+            )
+            raise
+
+        except Exception as e:
+            status = "error"
+            error_type = "unknown"
+            logger.error(
+                "Unexpected error in Playwright extraction",
+                exc_info=True,
+                url=url,
+                error=str(e),
+            )
+            raise
 
         finally:
             # Always release browser back to pool
             await pool.release(browser)
+
+            # Record metrics
+            duration_ms = (time.time() - start_time) * 1000
+            playwright_extraction_duration.labels(status=status).observe(duration_ms)
+            playwright_extraction_total.labels(status=status, error_type=error_type).inc()
+
+            # Update browser pool metrics
+            stats = pool.get_pool_stats()
+            playwright_browser_pool_size.labels(state="in_use").set(stats["in_use"])
+            playwright_browser_pool_size.labels(state="available").set(stats["available"])
 
     async def _extract_with_browser(
         self,
@@ -251,12 +338,21 @@ class PlaywrightAdapter(BaseAdapter):
             logger.debug(f"Loading page: {url}")
 
             # Load page and wait for network idle
+            page_load_start = time.time()
             try:
                 await page.goto(url, timeout=self.timeout_s * 1000, wait_until="domcontentloaded")
                 await page.wait_for_load_state("networkidle", timeout=self.timeout_s * 1000)
-                logger.debug("Page loaded successfully")
+                page_load_duration_ms = (time.time() - page_load_start) * 1000
+                playwright_page_load_duration.observe(page_load_duration_ms)
+                logger.debug(
+                    "Page loaded successfully",
+                    url=url,
+                    page_load_duration_ms=int(page_load_duration_ms),
+                )
 
             except PlaywrightTimeoutError as e:
+                page_load_duration_ms = (time.time() - page_load_start) * 1000
+                playwright_page_load_duration.observe(page_load_duration_ms)
                 raise AdapterException(
                     AdapterError.TIMEOUT,
                     f"Page load timed out after {self.timeout_s}s",
@@ -312,36 +408,49 @@ class PlaywrightAdapter(BaseAdapter):
         # Extract title (required)
         title = await self._extract_title(page)
         if not title:
+            playwright_extraction_field_failure.labels(field_name="title").inc()
             raise AdapterException(
                 AdapterError.PARSE_ERROR,
                 "Failed to extract title from page",
                 metadata={"url": url},
             )
         extracted["title"] = title
+        playwright_extraction_field_success.labels(field_name="title").inc()
 
         # Extract price (optional - may be None for partial imports)
         price = await self._extract_price(page)
         if price:
             extracted["price"] = price
+            playwright_extraction_field_success.labels(field_name="price").inc()
         else:
+            playwright_extraction_field_failure.labels(field_name="price").inc()
             logger.warning(f"No price found on page - will create partial import: {url}")
 
         # Extract condition (optional)
         condition = await self._extract_condition(page)
         if condition:
             extracted["condition"] = condition
+            playwright_extraction_field_success.labels(field_name="condition").inc()
         else:
             # Default to "used" if not found
             extracted["condition"] = str(Condition.USED.value)
+            playwright_extraction_field_failure.labels(field_name="condition").inc()
 
         # Extract images (optional)
         images = await self._extract_images(page)
         extracted["images"] = images
+        if images:
+            playwright_extraction_field_success.labels(field_name="images").inc()
+        else:
+            playwright_extraction_field_failure.labels(field_name="images").inc()
 
         # Extract description (optional)
         description = await self._extract_description(page)
         if description:
             extracted["description"] = description
+            playwright_extraction_field_success.labels(field_name="description").inc()
+        else:
+            playwright_extraction_field_failure.labels(field_name="description").inc()
 
         # Set marketplace to "other" (generic)
         extracted["marketplace"] = "other"

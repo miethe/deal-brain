@@ -73,6 +73,7 @@ class BrowserPool:
         pool_size: int = 3,
         headless: bool = True,
         timeout_ms: int = 30000,
+        max_requests_per_browser: int = 50,
     ):
         """
         Initialize browser pool.
@@ -81,6 +82,7 @@ class BrowserPool:
             pool_size: Number of browser instances to maintain (1-10)
             headless: Run browsers in headless mode (required for Docker)
             timeout_ms: Browser operation timeout in milliseconds
+            max_requests_per_browser: Maximum requests before recycling browser (default: 50)
         """
         if not 1 <= pool_size <= 10:
             raise ValueError(f"pool_size must be between 1-10, got {pool_size}")
@@ -88,6 +90,7 @@ class BrowserPool:
         self.pool_size = pool_size
         self.headless = headless
         self.timeout_ms = timeout_ms
+        self.max_requests_per_browser = max_requests_per_browser
 
         # Pool state
         self._playwright_context: Any = None
@@ -97,9 +100,13 @@ class BrowserPool:
         self._initialized = False
         self._access_lock = asyncio.Lock()
 
+        # Tracking for browser recycling
+        self._browser_request_counts: dict[Browser, int] = {}
+
         logger.info(
             f"BrowserPool created with pool_size={pool_size}, "
-            f"headless={headless}, timeout_ms={timeout_ms}"
+            f"headless={headless}, timeout_ms={timeout_ms}, "
+            f"max_requests_per_browser={max_requests_per_browser}"
         )
 
     @classmethod
@@ -108,6 +115,7 @@ class BrowserPool:
         pool_size: int = 3,
         headless: bool = True,
         timeout_ms: int = 30000,
+        max_requests_per_browser: int = 50,
     ) -> BrowserPool:
         """
         Get or create singleton BrowserPool instance.
@@ -119,6 +127,7 @@ class BrowserPool:
             pool_size: Number of browser instances (only used on first call)
             headless: Run in headless mode (only used on first call)
             timeout_ms: Browser timeout (only used on first call)
+            max_requests_per_browser: Max requests before recycling (only used on first call)
 
         Returns:
             Singleton BrowserPool instance
@@ -128,6 +137,7 @@ class BrowserPool:
                 pool_size=pool_size,
                 headless=headless,
                 timeout_ms=timeout_ms,
+                max_requests_per_browser=max_requests_per_browser,
             )
             logger.info("Created singleton BrowserPool instance")
         return cls._instance
@@ -158,10 +168,11 @@ class BrowserPool:
                 launch_tasks = [self._launch_browser() for _ in range(self.pool_size)]
                 browsers = await asyncio.gather(*launch_tasks)
 
-                # Add browsers to pool
+                # Add browsers to pool and initialize request counts
                 self._browsers = browsers
                 for browser in browsers:
                     await self._available.put(browser)
+                    self._browser_request_counts[browser] = 0
 
                 self._initialized = True
                 logger.info(
@@ -213,6 +224,7 @@ class BrowserPool:
 
         This method blocks if no browsers are available until one is released.
         If a browser has crashed, it automatically restarts it before returning.
+        Recycles browsers that have exceeded max_requests_per_browser.
 
         Returns:
             Browser instance ready for use
@@ -229,22 +241,57 @@ class BrowserPool:
         # Wait for available browser (blocks if pool is empty)
         browser = await self._available.get()
 
+        # Check if browser needs recycling
+        request_count = self._browser_request_counts.get(browser, 0)
+        if request_count >= self.max_requests_per_browser:
+            logger.info(
+                f"Browser reached max requests ({request_count}/{self.max_requests_per_browser}), recycling...",
+                browser_id=id(browser),
+                request_count=request_count,
+            )
+            try:
+                # Close old browser
+                if browser.is_connected():
+                    await browser.close()
+                # Launch new browser
+                browser = await self._launch_browser()
+                # Reset request count
+                self._browser_request_counts[browser] = 0
+                logger.info("Browser recycled successfully", browser_id=id(browser))
+            except Exception as e:
+                logger.error(f"Failed to recycle browser: {e}", exc_info=True)
+                # Try to put browser back for next acquire attempt
+                await self._available.put(browser)
+                raise
+
         # Check if browser is still connected (not crashed)
-        if not browser.is_connected():
-            logger.warning("Browser crashed, restarting...")
+        elif not browser.is_connected():
+            logger.warning("Browser crashed, restarting...", browser_id=id(browser))
             try:
                 browser = await self._launch_browser()
+                # Reset request count for new browser
+                self._browser_request_counts[browser] = 0
+                logger.info("Crashed browser restarted successfully", browser_id=id(browser))
             except Exception as e:
                 logger.error(f"Failed to restart crashed browser: {e}", exc_info=True)
                 # Try to put browser back for next acquire attempt
                 await self._available.put(browser)
                 raise
 
+        # Increment request count
+        self._browser_request_counts[browser] = self._browser_request_counts.get(browser, 0) + 1
+
         # Mark as in-use
         async with self._access_lock:
             self._in_use.add(browser)
 
-        logger.debug(f"Acquired browser (in_use={len(self._in_use)}, available={self._available.qsize()})")
+        logger.debug(
+            "Acquired browser",
+            browser_id=id(browser),
+            request_count=self._browser_request_counts[browser],
+            in_use=len(self._in_use),
+            available=self._available.qsize(),
+        )
         return browser
 
     async def release(self, browser: Browser) -> None:
@@ -264,7 +311,11 @@ class BrowserPool:
         await self._available.put(browser)
 
         logger.debug(
-            f"Released browser (in_use={len(self._in_use)}, available={self._available.qsize()})"
+            "Released browser",
+            browser_id=id(browser),
+            request_count=self._browser_request_counts.get(browser, 0),
+            in_use=len(self._in_use),
+            available=self._available.qsize(),
         )
 
     async def close_all(self) -> None:
@@ -293,6 +344,7 @@ class BrowserPool:
             self._initialized = False
             self._browsers.clear()
             self._in_use.clear()
+            self._browser_request_counts.clear()
 
             # Clear queue
             while not self._available.empty():
@@ -319,6 +371,31 @@ class BrowserPool:
                 await asyncio.gather(*close_tasks, return_exceptions=True)
             except Exception as e:
                 logger.error(f"Error closing browsers: {e}", exc_info=True)
+
+    def get_pool_stats(self) -> dict[str, Any]:
+        """
+        Get current pool statistics for monitoring.
+
+        Returns:
+            Dictionary with pool statistics:
+                - pool_size: Total browser instances
+                - in_use: Currently in-use browsers
+                - available: Available browsers in queue
+                - initialized: Whether pool is initialized
+                - total_requests: Sum of all request counts
+                - browser_request_counts: Request counts per browser
+        """
+        return {
+            "pool_size": self.pool_size,
+            "in_use": len(self._in_use),
+            "available": self._available.qsize(),
+            "initialized": self._initialized,
+            "total_requests": sum(self._browser_request_counts.values()),
+            "browser_request_counts": {
+                f"browser_{id(browser)}": count
+                for browser, count in self._browser_request_counts.items()
+            },
+        }
 
     async def __aenter__(self) -> BrowserPool:
         """Async context manager entry."""
