@@ -38,6 +38,37 @@ class AdapterConfig(BaseModel):
     )
 
 
+class PlaywrightAdapterConfig(BaseModel):
+    """Configuration for Playwright browser-based adapter."""
+
+    enabled: bool = Field(
+        default=True,
+        description="Whether Playwright adapter is enabled",
+    )
+    timeout_s: int = Field(
+        default=8,
+        ge=1,
+        le=60,
+        description="Request timeout in seconds",
+    )
+    max_retries: int = Field(
+        default=2,
+        ge=0,
+        le=5,
+        description="Maximum retry attempts",
+    )
+    pool_size: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Number of browser instances in pool",
+    )
+    headless: bool = Field(
+        default=True,
+        description="Run browsers in headless mode (required for Docker)",
+    )
+
+
 class IngestionSettings(BaseModel):
     """Configuration for URL ingestion system."""
 
@@ -70,6 +101,16 @@ class IngestionSettings(BaseModel):
             retries=1,
         ),
         description="Amazon adapter configuration (P1 - disabled)",
+    )
+    playwright: PlaywrightAdapterConfig = Field(
+        default_factory=lambda: PlaywrightAdapterConfig(
+            enabled=True,
+            timeout_s=8,
+            max_retries=2,
+            pool_size=3,
+            headless=True,
+        ),
+        description="Playwright browser-based adapter configuration",
     )
 
     # Price change detection
@@ -353,6 +394,7 @@ def get_settings() -> Settings:
 
 __all__ = [
     "AdapterConfig",
+    "PlaywrightAdapterConfig",
     "EmailSettings",
     "IngestionSettings",
     "TelemetrySettings",
