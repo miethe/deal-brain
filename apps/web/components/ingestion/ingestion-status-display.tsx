@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertCircle, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { telemetry } from '@/lib/telemetry';
 import { ImportSuccessResult } from './import-success-result';
+import { useImportProgress, type ImportProgressData } from '@/hooks/use-event-stream';
 import type { IngestionStatusDisplayProps } from './types';
 
 export function IngestionStatusDisplay({
@@ -18,6 +19,29 @@ export function IngestionStatusDisplay({
 }: IngestionStatusDisplayProps) {
   const [elapsed, setElapsed] = useState(0);
   const [showCompletion, setShowCompletion] = useState(false);
+  const [sseProgress, setSseProgress] = useState<ImportProgressData | null>(null);
+
+  // Listen for real-time SSE progress updates when polling
+  const jobId = state.status === 'polling' ? state.jobId : null;
+
+  const handleSseProgress = useCallback((data: ImportProgressData) => {
+    setSseProgress(data);
+    telemetry.debug('frontend.import.sse_progress', {
+      job_id: data.job_id,
+      progress_pct: data.progress_pct,
+      status: data.status,
+      message: data.message,
+    });
+  }, []);
+
+  useImportProgress(jobId, handleSseProgress);
+
+  // Clear SSE progress when not polling
+  useEffect(() => {
+    if (state.status !== 'polling') {
+      setSseProgress(null);
+    }
+  }, [state.status]);
 
   // Track elapsed time for polling state
   useEffect(() => {
@@ -65,20 +89,25 @@ export function IngestionStatusDisplay({
 
   // Polling state
   if (state.status === 'polling') {
-    // Use real progress from backend, fallback to time-based if unavailable
+    // Priority: SSE progress > Backend polling progress > Time-based fallback
+    const sseProgressPct = sseProgress?.progress_pct;
     const backendProgress = jobData?.progress_pct;
-    const progress = backendProgress ?? calculateProgress(elapsed);
+    const progress = sseProgressPct ?? backendProgress ?? calculateProgress(elapsed);
+
+    // Use SSE message if available, otherwise use polling message
+    const sseMessage = sseProgress?.message;
+    const message = sseMessage ?? getPollingMessage(elapsed, backendProgress);
 
     // Log for debugging during development
     if (process.env.NODE_ENV === 'development') {
       telemetry.debug('frontend.import.progress', {
         progress,
+        sseProgress: sseProgressPct ?? null,
         backendProgress: backendProgress ?? null,
         elapsed,
+        source: sseProgressPct ? 'sse' : backendProgress ? 'poll' : 'fallback',
       });
     }
-
-    const message = getPollingMessage(elapsed, backendProgress);
 
     return (
       <Alert className="border-primary/50 bg-primary/5">

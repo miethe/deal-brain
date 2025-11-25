@@ -13,7 +13,8 @@ export type EventType =
   | "listing.updated"
   | "listing.deleted"
   | "valuation.recalculated"
-  | "import.completed";
+  | "import.completed"
+  | "import.progress";
 
 /**
  * Event data payloads for different event types
@@ -44,6 +45,14 @@ export interface ImportCompletedData {
   listings_created: number;
   listings_updated: number;
   timestamp: string;
+}
+
+export interface ImportProgressData {
+  job_id: string;
+  progress_pct: number;
+  status: string;
+  message: string;
+  timestamp?: string;
 }
 
 /**
@@ -248,6 +257,55 @@ export function useListingUpdates(options?: {
       }
     },
     { enabled }
+  );
+}
+
+/**
+ * Hook for listening to import progress events for a specific job.
+ *
+ * Listens for real-time progress updates via SSE and calls the onProgress
+ * callback with the latest progress data. Automatically filters events to
+ * only process those matching the provided jobId.
+ *
+ * @param jobId - The job ID to listen for progress updates (null disables listening)
+ * @param onProgress - Callback to handle progress updates
+ *
+ * @example
+ * ```tsx
+ * function ImportProgress() {
+ *   const [jobId, setJobId] = useState<string | null>(null);
+ *
+ *   useImportProgress(jobId, (data) => {
+ *     console.log(`Progress: ${data.progress_pct}%`)
+ *   });
+ * }
+ * ```
+ */
+export function useImportProgress(
+  jobId: string | null,
+  onProgress: (data: ImportProgressData) => void
+) {
+  const onProgressRef = useRef(onProgress);
+
+  // Keep callback ref up to date
+  useEffect(() => {
+    onProgressRef.current = onProgress;
+  }, [onProgress]);
+
+  useEventStream<ImportProgressData>(
+    "import.progress",
+    useCallback(
+      (data) => {
+        // Filter to only process events for the specified job
+        if (jobId && data.job_id === jobId) {
+          onProgressRef.current(data);
+        }
+      },
+      [jobId]
+    ),
+    {
+      enabled: jobId !== null && jobId !== undefined,
+    }
   );
 }
 
