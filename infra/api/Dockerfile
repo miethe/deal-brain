@@ -1,10 +1,39 @@
-FROM python:3.11-slim AS runtime
+FROM python:3.11-slim AS development
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# Development stage: minimal dependencies (NO Playwright)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml README.md ./
+COPY apps ./apps
+COPY packages ./packages
+COPY data ./data
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir .
+
+EXPOSE 8000
+CMD ["dealbrain-api"]
+
+# ===================================
+
+FROM python:3.11-slim AS production
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Production stage: all dependencies including Playwright
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
@@ -56,5 +85,4 @@ RUN pip install --no-cache-dir --upgrade pip \
 RUN playwright install chromium
 
 EXPOSE 8000
-
 CMD ["dealbrain-api"]

@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from dealbrain_api.adapters.base import AdapterError, AdapterException, BaseAdapter
 from dealbrain_api.adapters.ebay import EbayAdapter
 from dealbrain_api.adapters.jsonld import JsonLdAdapter
+from dealbrain_api.adapters.playwright import PlaywrightAdapter
 from dealbrain_api.settings import get_settings
 from dealbrain_core.schemas.ingestion import NormalizedListingSchema
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 AVAILABLE_ADAPTERS: list[type[BaseAdapter]] = [
     EbayAdapter,
     JsonLdAdapter,
+    PlaywrightAdapter,
 ]
 
 
@@ -150,7 +152,7 @@ class AdapterRouter:
             )
 
         # Step 5: Return initialized adapter instance
-        adapter_instance = adapter_class()
+        adapter_instance = adapter_class()  # type: ignore[call-arg]
         logger.info(f"Selected {adapter_instance.name} adapter for URL: {url}")
         return adapter_instance
 
@@ -210,19 +212,15 @@ class AdapterRouter:
         for adapter_class in matching:
             adapter_name = self._get_adapter_name(adapter_class)
 
-            try:
-                # Check if adapter is enabled before trying
-                if not self._is_adapter_class_enabled(adapter_class):
-                    logger.info(f"Skipping {adapter_name} adapter (disabled in settings)")
-                    raise AdapterException(
-                        AdapterError.ADAPTER_DISABLED,
-                        f"{adapter_name} adapter is disabled in settings",
-                        metadata={"adapter": adapter_name, "url": url},
-                    )
+            # Check if adapter is enabled before trying
+            if not self._is_adapter_class_enabled(adapter_class):
+                logger.info(f"Skipping {adapter_name} adapter (disabled in settings)")
+                continue  # Skip to next adapter silently
 
+            try:
                 # Try to initialize adapter
                 logger.info(f"Trying adapter {adapter_name} for {url}")
-                adapter = adapter_class()
+                adapter = adapter_class()  # type: ignore[call-arg]
                 attempted_adapters.append(adapter_name)
 
                 # Try to extract
@@ -236,12 +234,12 @@ class AdapterRouter:
                 last_error = e
                 logger.warning(f"{adapter_name} adapter failed: [{e.error_type.value}] {e.message}")
 
-                # Don't retry if item not found or adapter disabled
-                if e.error_type in {AdapterError.ITEM_NOT_FOUND, AdapterError.ADAPTER_DISABLED}:
+                # Don't retry if item not found (definitive failure)
+                if e.error_type == AdapterError.ITEM_NOT_FOUND:
                     logger.info(f"Fast-fail for {e.error_type.value}, not trying other adapters")
                     raise
 
-                # Try next adapter
+                # Try next adapter for retryable errors
                 continue
 
             except ValueError as e:
@@ -314,7 +312,7 @@ class AdapterRouter:
 
         return domain
 
-    def _find_matching_adapters(self, url: str, domain: str) -> list[type[BaseAdapter]]:
+    def _find_matching_adapters(self, url: str, domain: str) -> list[type[BaseAdapter]]:  # noqa: ARG002
         """
         Find all adapters that support this URL/domain.
 
@@ -444,7 +442,7 @@ class AdapterRouter:
         """
         # Try to get from class attribute if exists
         if hasattr(adapter_class, "_adapter_name"):
-            return adapter_class._adapter_name
+            return adapter_class._adapter_name  # type: ignore[attr-defined]
 
         # Otherwise, derive from class name
         # EbayAdapter -> "ebay", JsonLdAdapter -> "jsonld"
@@ -465,7 +463,7 @@ class AdapterRouter:
         """
         # Try to get from class attribute if exists
         if hasattr(adapter_class, "_adapter_priority"):
-            return adapter_class._adapter_priority
+            return adapter_class._adapter_priority  # type: ignore[attr-defined]
 
         # Default priority for adapters
         return 10
@@ -482,7 +480,7 @@ class AdapterRouter:
         """
         # Try to get from class attribute if exists
         if hasattr(adapter_class, "_adapter_domains"):
-            return adapter_class._adapter_domains
+            return adapter_class._adapter_domains  # type: ignore[attr-defined]
 
         # Default: no domains supported
         return []
