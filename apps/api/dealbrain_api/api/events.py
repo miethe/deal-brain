@@ -120,6 +120,7 @@ async def stream_events(request: Request):
     - listing.deleted: Listing deleted
     - valuation.recalculated: Valuations recalculated
     - import.completed: Import job completed
+    - import.progress: Real-time import progress updates
 
     Returns:
         EventSourceResponse: SSE stream with events

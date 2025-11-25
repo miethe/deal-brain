@@ -10,6 +10,7 @@ from uuid import UUID
 from sqlalchemy import delete, func, select
 
 from ..db import dispose_engine, session_scope
+from ..events import EventType, publish_event
 from ..models.core import ImportSession, RawPayload
 from ..services.ingestion import IngestionService
 from ..settings import get_settings
@@ -66,6 +67,18 @@ async def _ingest_url_async(
                 message="Job started",
             )
 
+            # Publish SSE event
+            await publish_event(
+                EventType.IMPORT_PROGRESS,
+                {
+                    "job_id": job_id,
+                    "progress_pct": 10,
+                    "status": "running",
+                    "message": "Job started",
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+            )
+
             # Initialize service
             service = IngestionService(session)
 
@@ -77,6 +90,18 @@ async def _ingest_url_async(
                 job_id=job_id,
                 progress=30,
                 message="Extracting data from URL",
+            )
+
+            # Publish SSE event
+            await publish_event(
+                EventType.IMPORT_PROGRESS,
+                {
+                    "job_id": job_id,
+                    "progress_pct": 30,
+                    "status": "running",
+                    "message": "Extracting data from URL",
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
             )
 
             # Execute the full ingestion (includes extraction, normalization, persistence)
@@ -92,6 +117,18 @@ async def _ingest_url_async(
                 message="Data normalized",
             )
 
+            # Publish SSE event
+            await publish_event(
+                EventType.IMPORT_PROGRESS,
+                {
+                    "job_id": job_id,
+                    "progress_pct": 60,
+                    "status": "running",
+                    "message": "Data normalized",
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+            )
+
             # Milestone 4: Persistence starting (80%)
             import_session.progress_pct = 80
             await session.flush()
@@ -100,6 +137,18 @@ async def _ingest_url_async(
                 job_id=job_id,
                 progress=80,
                 message="Saving to database",
+            )
+
+            # Publish SSE event
+            await publish_event(
+                EventType.IMPORT_PROGRESS,
+                {
+                    "job_id": job_id,
+                    "progress_pct": 80,
+                    "status": "running",
+                    "message": "Saving to database",
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
             )
 
             # Milestone 5: Complete (100%)
@@ -122,6 +171,18 @@ async def _ingest_url_async(
                     progress=100,
                     message="Import complete",
                 )
+
+                # Publish SSE event for success
+                await publish_event(
+                    EventType.IMPORT_PROGRESS,
+                    {
+                        "job_id": job_id,
+                        "progress_pct": 100,
+                        "status": import_session.status,
+                        "message": "Import complete",
+                        "timestamp": datetime.utcnow().isoformat(),
+                    },
+                )
             else:
                 import_session.status = "failed"
                 import_session.progress_pct = 30  # Failed during extraction phase
@@ -131,6 +192,18 @@ async def _ingest_url_async(
                     job_id=job_id,
                     progress=import_session.progress_pct,
                     error=ingest_result.error,
+                )
+
+                # Publish SSE event for failure
+                await publish_event(
+                    EventType.IMPORT_PROGRESS,
+                    {
+                        "job_id": job_id,
+                        "progress_pct": import_session.progress_pct,
+                        "status": "failed",
+                        "message": f"Import failed: {ingest_result.error}",
+                        "timestamp": datetime.utcnow().isoformat(),
+                    },
                 )
 
             await session.commit()
@@ -166,6 +239,18 @@ async def _ingest_url_async(
                 "ingestion.task.exception",
                 job_id=job_id,
                 progress=import_session.progress_pct,
+            )
+
+            # Publish SSE event for exception
+            await publish_event(
+                EventType.IMPORT_PROGRESS,
+                {
+                    "job_id": job_id,
+                    "progress_pct": import_session.progress_pct,
+                    "status": "failed",
+                    "message": f"Import failed with exception: {str(e)}",
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
             )
             raise
         finally:

@@ -22,17 +22,15 @@ Supported Events:
 - listing.deleted: Listing deleted
 - valuation.recalculated: Listing valuations recalculated
 - import.completed: Import job completed
+- import.progress: Real-time import progress updates (10%, 30%, 60%, 80%, 100%)
 """
 
 from __future__ import annotations
 
-import json
-from datetime import datetime
 from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
-from redis import asyncio as aioredis
 
 from ..cache import cache_manager
 from ..telemetry import get_logger
@@ -48,6 +46,7 @@ class EventType(str, Enum):
     LISTING_DELETED = "listing.deleted"
     VALUATION_RECALCULATED = "valuation.recalculated"
     IMPORT_COMPLETED = "import.completed"
+    IMPORT_PROGRESS = "import.progress"
 
 
 class ListingCreatedData(BaseModel):
@@ -85,6 +84,16 @@ class ImportCompletedData(BaseModel):
     import_job_id: int = Field(..., description="ID of completed import job")
     listings_created: int = Field(..., description="Number of listings created")
     listings_updated: int = Field(..., description="Number of listings updated")
+    timestamp: str = Field(..., description="ISO 8601 timestamp of event")
+
+
+class ImportProgressData(BaseModel):
+    """Data payload for import.progress event."""
+
+    job_id: str = Field(..., description="UUID of import job")
+    progress_pct: int = Field(..., description="Progress percentage (0-100)")
+    status: str = Field(..., description="Current status (running, complete, partial, failed)")
+    message: str = Field(..., description="Human-readable progress message")
     timestamp: str = Field(..., description="ISO 8601 timestamp of event")
 
 
@@ -145,6 +154,7 @@ __all__ = [
     "ListingDeletedData",
     "ValuationRecalculatedData",
     "ImportCompletedData",
+    "ImportProgressData",
     "EVENTS_CHANNEL",
     "publish_event",
 ]

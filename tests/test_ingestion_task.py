@@ -18,6 +18,7 @@ except ModuleNotFoundError:  # pragma: no cover - skip when unavailable
     aiosqlite = None
 
 from dealbrain_api.db import Base
+from dealbrain_api.events import EventType
 from dealbrain_api.models.core import ImportSession, Listing, RawPayload
 from dealbrain_api.services.ingestion import IngestionResult
 from dealbrain_api.tasks.ingestion import (
@@ -1026,3 +1027,269 @@ async def test_ingestion_task_sets_progress_on_exception(
     assert import_session.progress_pct >= 10  # At least started (10%)
     assert import_session.progress_pct < 100
     assert import_session.status == "failed"
+
+
+# ========================================
+# SSE Event Publishing Tests
+# ========================================
+
+
+@pytest.mark.asyncio
+async def test_ingestion_task_publishes_sse_progress_events(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that SSE progress events are published at each milestone."""
+    engine = db_session.bind
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def _session_scope_override():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.session_scope",
+        _session_scope_override,
+    )
+
+    # Track published events
+    published_events = []
+
+    async def mock_publish_event(event_type, data):
+        """Mock publish_event to track calls."""
+        published_events.append({"type": event_type, "data": data})
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.publish_event",
+        mock_publish_event,
+    )
+
+    # Create ImportSession
+    import_session = ImportSession(
+        id=uuid4(),
+        filename="test",
+        upload_path="test",
+        status="queued",
+        source_type=SourceType.URL_SINGLE.value,
+        url="https://ebay.com/itm/123456789012",
+        progress_pct=0,
+    )
+    db_session.add(import_session)
+    await db_session.commit()
+
+    # Mock successful ingestion
+    mock_result = IngestionResult(
+        success=True,
+        listing_id=1,
+        status="created",
+        provenance="ebay_api",
+        quality="full",
+        url="https://ebay.com/itm/123456789012",
+        title="Test PC",
+        price=Decimal("100"),
+        vendor_item_id="123456789012",
+        marketplace="ebay",
+    )
+
+    with patch("dealbrain_api.tasks.ingestion.IngestionService") as MockService:
+        mock_service_instance = AsyncMock()
+        mock_service_instance.ingest_single_url.return_value = mock_result
+        MockService.return_value = mock_service_instance
+
+        # Execute task
+        await _ingest_url_async(
+            job_id=str(import_session.id),
+            url=import_session.url,
+        )
+
+    # Verify 5 events published (10%, 30%, 60%, 80%, 100%)
+    assert len(published_events) == 5
+
+    # Verify event structure and progress milestones
+    assert published_events[0]["type"] == EventType.IMPORT_PROGRESS
+    assert published_events[0]["data"]["progress_pct"] == 10
+    assert published_events[0]["data"]["status"] == "running"
+    assert published_events[0]["data"]["message"] == "Job started"
+    assert published_events[0]["data"]["job_id"] == str(import_session.id)
+
+    assert published_events[1]["type"] == EventType.IMPORT_PROGRESS
+    assert published_events[1]["data"]["progress_pct"] == 30
+    assert published_events[1]["data"]["status"] == "running"
+    assert published_events[1]["data"]["message"] == "Extracting data from URL"
+
+    assert published_events[2]["type"] == EventType.IMPORT_PROGRESS
+    assert published_events[2]["data"]["progress_pct"] == 60
+    assert published_events[2]["data"]["status"] == "running"
+    assert published_events[2]["data"]["message"] == "Data normalized"
+
+    assert published_events[3]["type"] == EventType.IMPORT_PROGRESS
+    assert published_events[3]["data"]["progress_pct"] == 80
+    assert published_events[3]["data"]["status"] == "running"
+    assert published_events[3]["data"]["message"] == "Saving to database"
+
+    assert published_events[4]["type"] == EventType.IMPORT_PROGRESS
+    assert published_events[4]["data"]["progress_pct"] == 100
+    assert published_events[4]["data"]["status"] == "complete"
+    assert published_events[4]["data"]["message"] == "Import complete"
+
+
+@pytest.mark.asyncio
+async def test_ingestion_task_publishes_sse_event_on_failure(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that SSE event is published when ingestion fails."""
+    engine = db_session.bind
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def _session_scope_override():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.session_scope",
+        _session_scope_override,
+    )
+
+    # Track published events
+    published_events = []
+
+    async def mock_publish_event(event_type, data):
+        """Mock publish_event to track calls."""
+        published_events.append({"type": event_type, "data": data})
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.publish_event",
+        mock_publish_event,
+    )
+
+    # Create ImportSession
+    import_session = ImportSession(
+        id=uuid4(),
+        filename="test",
+        upload_path="test",
+        status="queued",
+        source_type=SourceType.URL_SINGLE.value,
+        url="https://example.com/product",
+        progress_pct=0,
+    )
+    db_session.add(import_session)
+    await db_session.commit()
+
+    # Mock failed ingestion
+    mock_result = IngestionResult(
+        success=False,
+        listing_id=None,
+        status="failed",
+        provenance="unknown",
+        quality="partial",
+        url="https://example.com/product",
+        error="Adapter not found",
+    )
+
+    with patch("dealbrain_api.tasks.ingestion.IngestionService") as MockService:
+        mock_service_instance = AsyncMock()
+        mock_service_instance.ingest_single_url.return_value = mock_result
+        MockService.return_value = mock_service_instance
+
+        # Execute task
+        await _ingest_url_async(
+            job_id=str(import_session.id),
+            url=import_session.url,
+        )
+
+    # Verify events published include failure event (10%, 30%, 60%, 80%, failure)
+    # The task completes all milestones before detecting failure since the service
+    # returns a failure result, not an exception
+    assert len(published_events) == 5
+
+    # First four events should be progress milestones
+    assert published_events[0]["data"]["progress_pct"] == 10
+    assert published_events[1]["data"]["progress_pct"] == 30
+    assert published_events[2]["data"]["progress_pct"] == 60
+    assert published_events[3]["data"]["progress_pct"] == 80
+
+    # Last event should be failure at 30% (set back after detecting failure)
+    assert published_events[4]["type"] == EventType.IMPORT_PROGRESS
+    assert published_events[4]["data"]["progress_pct"] == 30
+    assert published_events[4]["data"]["status"] == "failed"
+    assert "Adapter not found" in published_events[4]["data"]["message"]
+
+
+@pytest.mark.asyncio
+async def test_ingestion_task_publishes_sse_event_on_exception(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Test that SSE event is published when an exception occurs."""
+    engine = db_session.bind
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def _session_scope_override():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.session_scope",
+        _session_scope_override,
+    )
+
+    # Track published events
+    published_events = []
+
+    async def mock_publish_event(event_type, data):
+        """Mock publish_event to track calls."""
+        published_events.append({"type": event_type, "data": data})
+
+    monkeypatch.setattr(
+        "dealbrain_api.tasks.ingestion.publish_event",
+        mock_publish_event,
+    )
+
+    # Create ImportSession
+    import_session = ImportSession(
+        id=uuid4(),
+        filename="test",
+        upload_path="test",
+        status="queued",
+        source_type=SourceType.URL_SINGLE.value,
+        url="https://example.com/product",
+        progress_pct=0,
+    )
+    db_session.add(import_session)
+    await db_session.commit()
+
+    # Mock adapter to raise exception
+    with patch("dealbrain_api.tasks.ingestion.IngestionService") as MockService:
+        mock_service_instance = AsyncMock()
+        mock_service_instance.ingest_single_url.side_effect = Exception("Network error")
+        MockService.return_value = mock_service_instance
+
+        # Execute task (should catch exception)
+        with pytest.raises(Exception, match="Network error"):
+            await _ingest_url_async(
+                job_id=str(import_session.id),
+                url=import_session.url,
+            )
+
+    # Verify events published include exception event
+    # Should have at least 3 events: 10%, 30%, and exception event
+    assert len(published_events) >= 3
+
+    # Last event should be exception failure
+    last_event = published_events[-1]
+    assert last_event["type"] == EventType.IMPORT_PROGRESS
+    assert last_event["data"]["status"] == "failed"
+    assert "Network error" in last_event["data"]["message"]
