@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ChevronRight, Target, BarChart3, Star, Pencil, Trash2 } from "lucide-react";
+import { ChevronRight, Target, Star, Pencil, Trash2 } from "lucide-react";
 import { EntityEditModal } from "@/components/entity/entity-edit-modal";
 import { EntityDeleteDialog } from "@/components/entity/entity-delete-dialog";
 import { profileEditSchema, type ProfileEditFormData } from "@/lib/schemas/entity-schemas";
 import { useUpdateProfile, useDeleteProfile } from "@/hooks/use-entity-mutations";
+import { WeightConfig } from "@/components/profiles/weight-config";
 
 interface Profile {
   id: number;
@@ -38,48 +39,16 @@ interface Listing {
   primary_storage_type?: string | null;
 }
 
+interface RuleGroup {
+  id: number;
+  name: string;
+  category: string;
+}
+
 interface ProfileDetailLayoutProps {
   profile: Profile;
   listings: Listing[];
-}
-
-interface WeightRowProps {
-  metric: string;
-  weight: number;
-}
-
-function WeightRow({ metric, weight }: WeightRowProps) {
-  const percentage = (weight * 100).toFixed(0);
-
-  return (
-    <div className="flex items-center justify-between py-3 border-b last:border-0">
-      <div className="flex-1">
-        <span className="font-medium">{formatMetricName(metric)}</span>
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="w-48">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all"
-                style={{ width: `${percentage}%` }}
-              />
-            </div>
-            <span className="text-sm text-muted-foreground w-12 text-right">{percentage}%</span>
-          </div>
-        </div>
-        <span className="text-sm font-semibold w-16 text-right">{weight.toFixed(2)}</span>
-      </div>
-    </div>
-  );
-}
-
-function formatMetricName(metric: string): string {
-  // Convert snake_case to Title Case
-  return metric
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+  ruleGroups: RuleGroup[];
 }
 
 interface ListingCardProps {
@@ -147,7 +116,7 @@ function ListingCard({ listing }: ListingCardProps) {
   );
 }
 
-export function ProfileDetailLayout({ profile, listings }: ProfileDetailLayoutProps) {
+export function ProfileDetailLayout({ profile, listings, ruleGroups }: ProfileDetailLayoutProps) {
   const router = useRouter();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -171,6 +140,10 @@ export function ProfileDetailLayout({ profile, listings }: ProfileDetailLayoutPr
   const handleDeleteConfirm = async () => {
     await deleteProfileMutation.mutateAsync();
     setShowDeleteDialog(false);
+  };
+
+  const handleWeightsSave = async (weights: Record<string, number>) => {
+    await updateProfileMutation.mutateAsync({ weights_json: weights });
   };
 
   return (
@@ -274,32 +247,14 @@ export function ProfileDetailLayout({ profile, listings }: ProfileDetailLayoutPr
         </CardContent>
       </Card>
 
-      {/* Scoring Weights Card */}
-      {hasWeights && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Scoring Weights
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              {Object.entries(profile.weights_json)
-                .sort(([, a], [, b]) => b - a)
-                .map(([metric, weight]) => (
-                  <WeightRow key={metric} metric={metric} weight={weight} />
-                ))}
-            </div>
-            {totalWeight !== 1.0 && (
-              <div className="mt-4 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900">
-                <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  Note: Total weight is {totalWeight.toFixed(2)}. Typically weights should sum to 1.0 for normalized scoring.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Scoring Weights Configuration */}
+      {ruleGroups.length > 0 && (
+        <WeightConfig
+          profileId={profile.id}
+          initialWeights={profile.weights_json}
+          onSave={handleWeightsSave}
+          ruleGroups={ruleGroups}
+        />
       )}
 
       {/* Used In Listings Card */}

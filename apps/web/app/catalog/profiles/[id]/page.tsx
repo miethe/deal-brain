@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { apiFetch } from "@/lib/utils";
 import { ProfileDetailLayout } from "@/components/catalog/profile-detail-layout";
+import { fetchRuleGroups, type RuleGroup } from "@/lib/api/rules";
 
 interface Profile {
   id: number;
@@ -50,6 +51,16 @@ async function getProfileListings(id: string): Promise<Listing[]> {
   }
 }
 
+async function getRuleGroups(): Promise<RuleGroup[]> {
+  try {
+    const ruleGroups = await fetchRuleGroups();
+    return ruleGroups;
+  } catch (error) {
+    console.error("Failed to fetch rule groups:", error);
+    return [];
+  }
+}
+
 export default async function ProfileDetailPage({ params }: PageProps) {
   const profile = await getProfile(params.id);
 
@@ -57,9 +68,12 @@ export default async function ProfileDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const listings = await getProfileListings(params.id);
+  const [listings, ruleGroups] = await Promise.all([
+    getProfileListings(params.id),
+    getRuleGroups(),
+  ]);
 
-  return <ProfileDetailLayout profile={profile} listings={listings} />;
+  return <ProfileDetailLayout profile={profile} listings={listings} ruleGroups={ruleGroups} />;
 }
 
 export async function generateMetadata({ params }: PageProps) {
