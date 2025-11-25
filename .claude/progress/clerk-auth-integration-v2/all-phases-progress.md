@@ -1,63 +1,80 @@
-# All-Phases Progress: Clerk Authentication Integration v2
+---
+type: progress
+prd: "clerk-auth-integration-v2"
+status: not_started
+progress: 0
+total_effort: 38
+completed_effort: 0
+in_progress_effort: 0
+blocked_effort: 0
+total_tasks: 29
+completed_tasks: 0
+in_progress_tasks: 0
+blocked_tasks: 0
+created: 2025-11-25
+updated: 2025-11-25
+owners: ["python-backend-engineer", "ui-engineer-enhanced"]
+contributors: ["data-layer-expert", "documentation-writer", "backend-architect", "frontend-developer"]
+next_phase: 1
+current_phase: null
+blockers: []
+---
 
-**Status**: NOT STARTED
+# Clerk Authentication Integration v2 - All Phases Progress
+
+**Project**: Deal Brain Clerk-Backed User Authentication & Authorization
+**Status**: NOT STARTED (0% complete, 0/38 story points)
 **Last Updated**: 2025-11-25
-**Completion**: 0% (0 of 38 story points)
+**Primary Owners**: python-backend-engineer, ui-engineer-enhanced
+**Supporting Subagents**: data-layer-expert, documentation-writer, backend-architect, frontend-developer
 
-## Phase Overview
-
-| Phase | Title | Effort | Status | Completion |
-|-------|-------|--------|--------|-----------|
-| 1 | Database & User Model | 6 pts | NOT STARTED | 0% |
-| 2 | Backend Auth Dependencies | 8 pts | NOT STARTED | 0% |
-| 3 | Clerk Webhooks & Sync | 5 pts | NOT STARTED | 0% |
-| 4 | Row-Level Security | 8 pts | NOT STARTED | 0% |
-| 5 | Frontend Integration | 7 pts | NOT STARTED | 0% |
-| 6 | Admin, Testing & Docs | 4 pts | NOT STARTED | 0% |
-
-## Links
+## Quick Links
 
 - **PRD**: `/docs/project_plans/clerk_user_integration/clerk-auth-integration-prd-v2.md`
 - **Implementation Plan**: `/docs/project_plans/clerk_user_integration/clerk-auth-integration-implementation-plan-v2.md`
 
 ---
 
+## Overview
+
+Comprehensive phased implementation of Clerk authentication with OAuth (Google, GitHub), email/password auth, row-level security (RLS), user profiles, and admin controls. 6 phases, 29 tasks, 38 story points total effort.
+
+### Phase Summary
+
+| Phase | Title | Effort | Status | Tasks | Primary Owner | Secondary |
+|-------|-------|--------|--------|-------|---------------|-----------|
+| 1 | Database & User Model | 6 pts | 🕐 NOT STARTED | 5 | data-layer-expert | — |
+| 2 | Backend Auth Dependencies | 8 pts | 🕐 NOT STARTED | 6 | python-backend-engineer | backend-architect |
+| 3 | Clerk Webhooks & Sync | 5 pts | 🕐 NOT STARTED | 5 | python-backend-engineer | — |
+| 4 | Row-Level Security | 8 pts | 🕐 NOT STARTED | 4 | data-layer-expert | python-backend-engineer |
+| 5 | Frontend Integration | 7 pts | 🕐 NOT STARTED | 7 | ui-engineer-enhanced | frontend-developer |
+| 6 | Admin, Testing & Docs | 4 pts | 🕐 NOT STARTED | 5 | documentation-writer | python-backend-engineer |
+
+**Progress**: 0% (0 of 38 story points) | **Next**: Phase 1
+
+---
+
 ## Phase 1: Database & User Model
 
+**Duration**: Estimated 2-3 days
 **Assigned Subagent(s)**: data-layer-expert
 **Status**: NOT STARTED
-**Effort**: 6 pts
+**Effort**: 6 story points
 
-### Completion Checklist
+### Task Breakdown
 
-- [ ] DB-001: Extend User Model (2 pts)
-      Add clerk_id, role, preferences, avatar_url, is_active to User model
-      Assigned Subagent(s): data-layer-expert
-      Files: `apps/api/dealbrain_api/models/sharing.py`
-
-- [ ] DB-002: Create Migration for User Model (1 pt)
-      Alembic migration for User model changes
-      Assigned Subagent(s): data-layer-expert
-      Files: `apps/api/alembic/versions/0031_extend_user_model_clerk_auth.py`
-
-- [ ] DB-003: Add user_id to Listing (1 pt)
-      Add nullable user_id FK to listing table
-      Assigned Subagent(s): data-layer-expert
-      Files: `apps/api/dealbrain_api/models/listings.py`, `apps/api/alembic/versions/0032_add_user_id_to_listings.py`
-
-- [ ] DB-004: Add user_id to Profile (1 pt)
-      Add nullable user_id FK to profile table
-      Assigned Subagent(s): data-layer-expert
-      Files: `apps/api/dealbrain_api/models/listings.py`
-
-- [ ] DB-005: Add user_id to ValuationRuleset (1 pt)
-      Add nullable user_id FK to valuation_ruleset table
-      Assigned Subagent(s): data-layer-expert
+| ID | Task | Effort | Status | Subagent(s) | Notes | Key Files |
+|----|------|--------|--------|------------|-------|-----------|
+| TASK-1.1 | Extend User Model | 2 pts | 🕐 Pending | data-layer-expert | Add clerk_id (unique), role, preferences (JSONB), avatar_url, first_name, last_name, is_active | `apps/api/dealbrain_api/models/sharing.py` |
+| TASK-1.2 | Create User Migration | 1 pt | 🕐 Pending | data-layer-expert | Alembic migration 0031_extend_user_model_clerk_auth | `apps/api/alembic/versions/0031_*.py` |
+| TASK-1.3 | Add user_id to Listing | 1 pt | 🕐 Pending | data-layer-expert | Add nullable user_id FK, update model | `apps/api/dealbrain_api/models/listings.py` |
+| TASK-1.4 | Add user_id to Profile | 1 pt | 🕐 Pending | data-layer-expert | Add nullable user_id FK to profile table | `apps/api/dealbrain_api/models/listings.py` |
+| TASK-1.5 | Add user_id to ValuationRuleset | 1 pt | 🕐 Pending | data-layer-expert | Add nullable user_id FK to valuation_ruleset table | `apps/api/alembic/versions/0032_*.py` |
 
 ### Success Criteria
 
 - [ ] All migrations run successfully (forward and rollback)
-- [ ] User model has clerk_id unique constraint
+- [ ] User model has clerk_id unique constraint and index
 - [ ] Foreign keys cascade properly on user deletion
 - [ ] Existing data remains accessible (nullable FKs)
 
@@ -65,249 +82,223 @@
 
 ## Phase 2: Backend Auth Dependencies
 
-**Assigned Subagent(s)**: python-backend-engineer, backend-architect
+**Duration**: Estimated 3-4 days
+**Assigned Subagent(s)**: python-backend-engineer (primary), backend-architect (support)
 **Status**: NOT STARTED
-**Effort**: 8 pts
+**Effort**: 8 story points
 
-### Completion Checklist
+### Task Breakdown
 
-- [ ] AUTH-001: Create Auth Module (2 pts)
-      Create `apps/api/dealbrain_api/core/auth.py` with Clerk JWT verification
-      Assigned Subagent(s): python-backend-engineer, backend-architect
-      Files: `apps/api/dealbrain_api/core/auth.py`
-
-- [ ] AUTH-002: Auth Dependencies (2 pts)
-      Create `get_current_user()` and `require_admin()` dependencies
-      Assigned Subagent(s): python-backend-engineer
-      Files: `apps/api/dealbrain_api/dependencies/auth.py`
-
-- [ ] AUTH-003: Update Collections API (1 pt)
-      Replace placeholder auth in collections.py
-      Assigned Subagent(s): python-backend-engineer
-      Files: `apps/api/dealbrain_api/api/collections.py`
-
-- [ ] AUTH-004: Update Shares API (1 pt)
-      Replace placeholder auth in shares.py, user_shares.py
-      Assigned Subagent(s): python-backend-engineer
-      Files: `apps/api/dealbrain_api/api/shares.py`, `apps/api/dealbrain_api/api/user_shares.py`
-
-- [ ] AUTH-005: Protect All Routes (1 pt)
-      Add auth dependency to all API routers
-      Assigned Subagent(s): python-backend-engineer
-      Files: `apps/api/dealbrain_api/api/*.py`
-
-- [ ] AUTH-006: Auth Tests (1 pt)
-      Integration tests for auth success/failure
-      Assigned Subagent(s): python-backend-engineer
-      Files: `tests/api/test_auth.py`
+| ID | Task | Effort | Status | Subagent(s) | Notes | Key Files |
+|----|------|--------|--------|------------|-------|-----------|
+| TASK-2.1 | Create Auth Module | 2 pts | 🕐 Pending | python-backend-engineer, backend-architect | JWT verification, JWKS caching, CSRF via authorizedParties | `apps/api/dealbrain_api/core/auth.py` |
+| TASK-2.2 | Auth Dependencies | 2 pts | 🕐 Pending | python-backend-engineer | get_current_user() and require_admin() | `apps/api/dealbrain_api/dependencies/auth.py` |
+| TASK-2.3 | Update Collections API | 1 pt | 🕐 Pending | python-backend-engineer | Replace placeholder, use real auth | `apps/api/dealbrain_api/api/collections.py:64` |
+| TASK-2.4 | Update Shares API | 1 pt | 🕐 Pending | python-backend-engineer | Replace placeholder in shares/user_shares | `apps/api/dealbrain_api/api/shares.py`, `user_shares.py` |
+| TASK-2.5 | Protect All Routes | 1 pt | 🕐 Pending | python-backend-engineer | Add auth dependency to all routers | `apps/api/dealbrain_api/api/*.py` |
+| TASK-2.6 | Auth Integration Tests | 1 pt | 🕐 Pending | python-backend-engineer | Test valid/invalid JWT, admin routes (90%+ coverage) | `tests/api/test_auth.py` |
 
 ### Success Criteria
 
-- [ ] Valid Clerk JWT returns user context
-- [ ] Invalid/expired JWT returns 401
-- [ ] Missing token returns 401
-- [ ] Admin routes check role
-- [ ] Tests cover all auth scenarios
+- [ ] Valid Clerk JWT returns authenticated user context
+- [ ] Invalid/expired JWT returns 401 Unauthorized
+- [ ] Missing Authorization header returns 401
+- [ ] Admin routes verify role and return 403 for non-admin
+- [ ] JIT user provisioning works on first request
+- [ ] Tests cover all auth scenarios (90%+ coverage)
 
 ---
 
 ## Phase 3: Clerk Webhooks & Sync
 
+**Duration**: Estimated 2-3 days
 **Assigned Subagent(s)**: python-backend-engineer
 **Status**: NOT STARTED
-**Effort**: 5 pts
+**Effort**: 5 story points
 
-### Completion Checklist
+### Task Breakdown
 
-- [ ] WH-001: Webhook Endpoint (1 pt)
-      Create POST /api/webhooks/clerk endpoint
-      Assigned Subagent(s): python-backend-engineer
-      Files: `apps/api/dealbrain_api/api/webhooks.py`
-
-- [ ] WH-002: Signature Validation (1 pt)
-      Verify Clerk webhook signatures
-      Assigned Subagent(s): python-backend-engineer
-
-- [ ] WH-003: User Created Handler (1 pt)
-      Handle user.created event
-      Assigned Subagent(s): python-backend-engineer
-      Files: `apps/api/dealbrain_api/services/user_sync_service.py`
-
-- [ ] WH-004: User Updated Handler (1 pt)
-      Handle user.updated event
-      Assigned Subagent(s): python-backend-engineer
-
-- [ ] WH-005: User Deleted Handler (1 pt)
-      Handle user.deleted event (soft delete)
-      Assigned Subagent(s): python-backend-engineer
+| ID | Task | Effort | Status | Subagent(s) | Notes | Key Files |
+|----|------|--------|--------|------------|-------|-----------|
+| TASK-3.1 | Webhook Endpoint | 1 pt | 🕐 Pending | python-backend-engineer | Create POST /api/webhooks/clerk | `apps/api/dealbrain_api/api/webhooks.py` |
+| TASK-3.2 | Signature Validation | 1 pt | 🕐 Pending | python-backend-engineer | Verify signatures using svix.webhooks | `apps/api/dealbrain_api/api/webhooks.py` |
+| TASK-3.3 | User Created Handler | 1 pt | 🕐 Pending | python-backend-engineer | Handle user.created event | `apps/api/dealbrain_api/services/user_sync_service.py` |
+| TASK-3.4 | User Updated Handler | 1 pt | 🕐 Pending | python-backend-engineer | Handle user.updated event | `apps/api/dealbrain_api/services/user_sync_service.py` |
+| TASK-3.5 | User Deleted Handler | 1 pt | 🕐 Pending | python-backend-engineer | Handle user.deleted event (soft delete) | `apps/api/dealbrain_api/services/user_sync_service.py` |
 
 ### Success Criteria
 
-- [ ] Webhook signature validation works
+- [ ] Webhook signature validation works with CLERK_WEBHOOK_SECRET
 - [ ] Duplicate events handled idempotently
-- [ ] User sync matches Clerk data
-- [ ] Audit log captures webhook events
-- [ ] Tests simulate all webhook payloads
+- [ ] User sync data matches Clerk after processing
+- [ ] Audit log captures user lifecycle events
+- [ ] Tests simulate all webhook payloads with proper signatures
 
 ---
 
 ## Phase 4: Row-Level Security
 
-**Assigned Subagent(s)**: data-layer-expert, python-backend-engineer
+**Duration**: Estimated 3-4 days
+**Assigned Subagent(s)**: data-layer-expert (primary), python-backend-engineer (support)
 **Status**: NOT STARTED
-**Effort**: 8 pts
+**Effort**: 8 story points
 
-### Completion Checklist
+### Task Breakdown
 
-- [ ] RLS-001: Enable RLS Migration (2 pts)
-      Create migration enabling RLS on listing, profile, valuation_ruleset
-      Assigned Subagent(s): data-layer-expert
-      Files: `apps/api/alembic/versions/0033_enable_rls_listing.py`
-
-- [ ] RLS-002: Create RLS Policies (2 pts)
-      Define policies: user owns rows, admin bypasses
-      Assigned Subagent(s): data-layer-expert
-      Files: `apps/api/alembic/versions/0034_enable_rls_profile_ruleset.py`
-
-- [ ] RLS-003: Session User Context (2 pts)
-      Set `app.current_user_id` on session start
-      Assigned Subagent(s): python-backend-engineer
-      Files: `apps/api/dealbrain_api/db.py`
-
-- [ ] RLS-004: RLS Integration Tests (2 pts)
-      Test cross-user data isolation
-      Assigned Subagent(s): python-backend-engineer
-      Files: `tests/api/test_rls.py`
+| ID | Task | Effort | Status | Subagent(s) | Notes | Key Files |
+|----|------|--------|--------|------------|-------|-----------|
+| TASK-4.1 | Enable RLS Migration | 2 pts | 🕐 Pending | data-layer-expert | Enable RLS on listing, profile, valuation_ruleset | `apps/api/alembic/versions/0033_*.py` |
+| TASK-4.2 | Create RLS Policies | 2 pts | 🕐 Pending | data-layer-expert | User owns rows, admin bypasses RLS | `apps/api/alembic/versions/0034_*.py` |
+| TASK-4.3 | Session User Context | 2 pts | 🕐 Pending | python-backend-engineer | Set app.current_user_id and app.current_user_role | `apps/api/dealbrain_api/db.py` |
+| TASK-4.4 | RLS Integration Tests | 2 pts | 🕐 Pending | python-backend-engineer | Cross-user isolation, admin query, performance <10ms | `tests/api/test_rls.py` |
 
 ### Success Criteria
 
-- [ ] User A cannot query User B's listings
-- [ ] Admin can query all data
+- [ ] User A cannot query User B's listings via RLS
+- [ ] Admin users can query all data (RLS bypass)
 - [ ] RLS policies don't break existing queries
-- [ ] Performance impact < 10ms per query
-- [ ] Tests confirm isolation for all protected tables
+- [ ] Query performance impact < 10ms per request
+- [ ] Tests confirm isolation across all protected tables
 
 ---
 
 ## Phase 5: Frontend Integration
 
-**Assigned Subagent(s)**: ui-engineer-enhanced, frontend-developer
+**Duration**: Estimated 4-5 days
+**Assigned Subagent(s)**: ui-engineer-enhanced (primary), frontend-developer (support)
 **Status**: NOT STARTED
-**Effort**: 7 pts
+**Effort**: 7 story points
 
-### Completion Checklist
+### Task Breakdown
 
-- [ ] FE-001: Install Clerk SDK (1 pt)
-      Add @clerk/nextjs, configure environment
-      Assigned Subagent(s): frontend-developer
-      Files: `apps/web/package.json`, `apps/web/.env.local`
-
-- [ ] FE-002: Add ClerkProvider (1 pt)
-      Wrap app in ClerkProvider
-      Assigned Subagent(s): frontend-developer
-      Files: `apps/web/app/layout.tsx`
-
-- [ ] FE-003: Create Middleware (1 pt)
-      Route protection in middleware.ts
-      Assigned Subagent(s): frontend-developer
-      Files: `apps/web/middleware.ts`
-
-- [ ] FE-004: Update API Client (1 pt)
-      Inject auth token in apiFetch
-      Assigned Subagent(s): frontend-developer
-      Files: `apps/web/lib/utils.ts`, `apps/web/lib/api-client.ts`
-
-- [ ] FE-005: Login/Signup Pages (1 pt)
-      Create /sign-in and /sign-up routes
-      Assigned Subagent(s): ui-engineer-enhanced
-      Files: `apps/web/app/(auth)/sign-in/[[...sign-in]]/page.tsx`, `apps/web/app/(auth)/sign-up/[[...sign-up]]/page.tsx`
-
-- [ ] FE-006: User Menu (1 pt)
-      Add user menu to AppShell header
-      Assigned Subagent(s): ui-engineer-enhanced
-      Files: `apps/web/components/user-menu.tsx`, `apps/web/components/app-shell.tsx`
-
-- [ ] FE-007: Settings Page (1 pt)
-      User profile and preferences
-      Assigned Subagent(s): ui-engineer-enhanced
-      Files: `apps/web/app/(authenticated)/settings/page.tsx`
+| ID | Task | Effort | Status | Subagent(s) | Notes | Key Files |
+|----|------|--------|--------|------------|-------|-----------|
+| TASK-5.1 | Install Clerk SDK | 1 pt | 🕐 Pending | frontend-developer | Add @clerk/nextjs@6.35.4, @clerk/testing | `apps/web/package.json`, `.env.local` |
+| TASK-5.2 | Add ClerkProvider | 1 pt | 🕐 Pending | frontend-developer | Wrap root layout with ClerkProvider | `apps/web/app/layout.tsx` |
+| TASK-5.3 | Create Middleware | 1 pt | 🕐 Pending | frontend-developer | Route protection via authMiddleware() | `apps/web/middleware.ts` |
+| TASK-5.4 | Update API Client | 1 pt | 🕐 Pending | frontend-developer | Inject auth token via useAuth hook | `apps/web/lib/utils.ts`, `lib/api-client.ts` |
+| TASK-5.5 | Login/Signup Pages | 1 pt | 🕐 Pending | ui-engineer-enhanced | /sign-in and /sign-up routes with OAuth | `apps/web/app/(auth)/sign-in/`, `sign-up/` |
+| TASK-5.6 | User Menu | 1 pt | 🕐 Pending | ui-engineer-enhanced | Header menu with avatar, name, sign-out | `apps/web/components/user-menu.tsx` |
+| TASK-5.7 | Settings Page | 1 pt | 🕐 Pending | ui-engineer-enhanced | Profile & preferences UI | `apps/web/app/(authenticated)/settings/page.tsx` |
 
 ### Success Criteria
 
-- [ ] ClerkProvider wraps entire app
+- [ ] ClerkProvider wraps entire app tree
 - [ ] Unauthenticated users redirected to /sign-in
-- [ ] API calls include valid JWT
-- [ ] User menu shows correct user info
-- [ ] Sign-out clears session
+- [ ] API calls include valid JWT token
+- [ ] User menu displays correct avatar and name
+- [ ] Sign-out clears session and redirects to login
+- [ ] Auth state persists across page refreshes
 
 ---
 
 ## Phase 6: Admin, Testing & Documentation
 
-**Assigned Subagent(s)**: documentation-writer, python-backend-engineer
+**Duration**: Estimated 2-3 days
+**Assigned Subagent(s)**: documentation-writer (primary), python-backend-engineer (support)
 **Status**: NOT STARTED
-**Effort**: 4 pts
+**Effort**: 4 story points
 
-### Completion Checklist
+### Task Breakdown
 
-- [ ] ADMIN-001: Admin API Routes (1 pt)
-      GET /admin/users, PATCH /admin/users/:id/role
-      Assigned Subagent(s): python-backend-engineer
-      Files: `apps/api/dealbrain_api/api/admin.py`
-
-- [ ] TEST-001: E2E Auth Tests (1 pt)
-      Playwright tests for auth flows
-      Assigned Subagent(s): frontend-developer
-      Files: `apps/web/e2e/auth.spec.ts`
-
-- [ ] DOC-001: Developer Setup Guide (1 pt)
-      Document Clerk setup, env vars, local dev
-      Assigned Subagent(s): documentation-writer
-      Files: `docs/development/clerk-setup.md`
-
-- [ ] DOC-002: Update .env.example (0.5 pt)
-      Add all Clerk environment variables
-      Assigned Subagent(s): documentation-writer
-      Files: `apps/api/.env.example`, `apps/web/.env.example`
-
-- [ ] DOC-003: Auth Architecture Doc (0.5 pt)
-      Document auth flow and RLS
-      Assigned Subagent(s): documentation-writer
-      Files: `docs/architecture/ADRs/adr-clerk-authentication.md`
+| ID | Task | Effort | Status | Subagent(s) | Notes | Key Files |
+|----|------|--------|--------|------------|-------|-----------|
+| TASK-6.1 | Admin API Routes | 1 pt | 🕐 Pending | python-backend-engineer | GET /admin/users, PATCH /admin/users/:id/role | `apps/api/dealbrain_api/api/admin.py` |
+| TASK-6.2 | E2E Auth Tests | 1 pt | 🕐 Pending | frontend-developer | Playwright tests (sign-in, sign-up, sign-out) | `apps/web/e2e/auth.spec.ts` |
+| TASK-6.3 | Developer Setup Guide | 1 pt | 🕐 Pending | documentation-writer | Clerk sandbox setup, env vars, webhook testing | `docs/development/clerk-setup.md` |
+| TASK-6.4 | Update .env.example | 0.5 pt | 🕐 Pending | documentation-writer | Add all CLERK_* and NEXT_PUBLIC_CLERK_* vars | `apps/api/.env.example`, `apps/web/.env.example` |
+| TASK-6.5 | Auth Architecture ADR | 0.5 pt | 🕐 Pending | documentation-writer | Document auth flow, RLS, token handling | `docs/architecture/ADRs/adr-clerk-authentication.md` |
 
 ### Success Criteria
 
-- [ ] Admin can view all users
-- [ ] Admin can change user roles
-- [ ] E2E tests pass for sign-in, sign-up, sign-out
-- [ ] Documentation covers all setup steps
-- [ ] CI pipeline supports auth testing
+- [ ] Admin can view all users in system
+- [ ] Admin can modify user roles and changes persist
+- [ ] E2E tests pass for all auth flows
+- [ ] Developer guide covers Clerk sandbox setup
+- [ ] CI pipeline has Clerk test secrets configured
 
 ---
 
-## Notes & Blockers
+## Architecture Context
 
-### Notes
+### Authentication Flow
 
-- Using Clerk SDK v6.35.x with async auth() pattern
-- RLS uses PostgreSQL `SET LOCAL` for session user context
-- JIT provisioning creates users on first API request
-- Webhooks provide eventual consistency for user data
+1. **Frontend**: User signs in via Clerk UI (Google/GitHub/email)
+2. **Clerk**: Issues JWT token with user claims (sub=clerk_id, email, name, etc)
+3. **Frontend**: Injects JWT in Authorization header via useAuth() hook
+4. **Backend**: Validates JWT using Clerk JWKS endpoint (cached)
+5. **Backend**: Creates/updates User record (JIT provisioning)
+6. **Backend**: Sets session context (current_user_id) for RLS
+7. **Database**: RLS policies enforce user_id ownership
 
-### Blockers
+### RLS Architecture
 
-_None currently_
+- **Policy Type**: USING clause checks `user_id = NULLIF(current_setting('app.current_user_id')::int)`
+- **Admin Bypass**: Separate policy checks `current_setting('app.current_user_role') = 'admin'`
+- **Session Context**: FastAPI dependency sets LOCAL variables before query
+- **Legacy Data**: Nullable user_id allows existing data accessible during transition
 
-### Dependencies
+### Token Verification
 
-- Clerk account setup required before Phase 2
-- Clerk webhook secret required before Phase 3
-- Frontend depends on backend auth (Phases 2-3) before Phase 5
+- **JWKS Caching**: PyJWKClient caches for 1 hour (Clerk SDK default)
+- **CSRF Protection**: Verify azp claim matches authorized frontend domain
+- **Token Expiry**: Clerk tokens expire, frontend handles refresh automatically
+- **Custom Claims**: Keep under 1.2KB to avoid cookie size limits
+
+---
+
+## Dependencies & Blockers
+
+### Hard Dependencies
+
+| Dependency | Phase | Impact | Resolution |
+|------------|-------|--------|-----------|
+| Clerk account setup | Phase 2 | Cannot test JWT validation | Request sandbox early |
+| Clerk webhook secret | Phase 3 | Cannot test webhooks | Available after setup |
+| NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY | Phase 5 | Cannot configure ClerkProvider | From Clerk dashboard |
+
+### Phase Dependencies
+
+- Phase 1 → Phase 2 (User model required for auth)
+- Phase 2 → Phase 4 (Auth context required for RLS)
+- Phases 2-3 ∥ Phase 5 (Can work in parallel)
+
+### Current Blockers
+
+_None - ready to start Phase 1_
+
+---
+
+## Quality Gates & Metrics
+
+### Per-Phase Gates
+
+| Phase | Quality Gate | Validation |
+|-------|-------------|-----------|
+| 1 | All migrations run forward/backward | Test suite passes |
+| 2 | 90%+ auth code coverage | pytest coverage report |
+| 3 | Webhook signature validation enforced | Reject invalid signatures |
+| 4 | RLS isolation verified for 2+ users | No cross-user data access |
+| 5 | Middleware protects routes, token injection works | E2E tests pass |
+| 6 | E2E tests pass, docs accurate | CI pipeline green |
+
+### Success Metrics
+
+**Delivery**: 29/29 tasks, 38/38 story points
+**Functional**: 100% auth on APIs, OAuth works, Settings CRUD works
+**Technical**: <300ms p95 token verification, <10ms RLS overhead, 90%+ test coverage
+**Business**: Ready for SaaS deployment, audit trail available
 
 ---
 
 ## Changelog
 
-| Date | Change | Author |
-|------|--------|--------|
-| 2025-11-25 | Initial progress tracking created | Claude Code |
+| Date | Milestone | Status |
+|------|-----------|--------|
+| 2025-11-25 | Initial all-phases tracking created | ✓ Complete |
+| TBD | Phase 1 Complete | Pending |
+| TBD | Phase 2 Complete | Pending |
+| TBD | Phase 3 Complete | Pending |
+| TBD | Phase 4 Complete | Pending |
+| TBD | Phase 5 Complete | Pending |
+| TBD | Phase 6 Complete | Pending |
