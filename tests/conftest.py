@@ -16,4 +16,3 @@ for path in paths_to_add:
     str_path = str(path)
     if str_path not in sys.path:
         sys.path.insert(0, str_path)
-

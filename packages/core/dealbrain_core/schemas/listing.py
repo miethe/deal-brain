@@ -171,4 +171,5 @@ class ListingRead(ListingBase):
     gpu_name: str | None = None
     thumbnail_url: str | None = None
 
+
 ListingRead.model_rebuild()

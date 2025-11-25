@@ -49,10 +49,10 @@ export async function fetchEntityData(
   entityId: number
 ): Promise<any> {
   const endpoints: Record<string, string> = {
-    cpu: `/v1/cpus/${entityId}`,
-    gpu: `/v1/gpus/${entityId}`,
-    "ram-spec": `/v1/ram-specs/${entityId}`,
-    "storage-profile": `/v1/storage-profiles/${entityId}`,
+    cpu: `/v1/catalog/cpus/${entityId}`,
+    gpu: `/v1/catalog/gpus/${entityId}`,
+    "ram-spec": `/v1/catalog/ram-specs/${entityId}`,
+    "storage-profile": `/v1/catalog/storage-profiles/${entityId}`,
   };
 
   const endpoint = endpoints[entityType];
@@ -60,9 +60,20 @@ export async function fetchEntityData(
     throw new Error(`Unknown entity type: ${entityType}`);
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${entityType} data`);
+  const url = `${API_URL}${endpoint}`;
+
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch ${entityType}: ${response.status} ${response.statusText}`
+      );
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error(`fetchEntityData error for ${entityType} ${entityId}:`, error);
+    throw error;
   }
-  return response.json();
 }

@@ -12,6 +12,7 @@ from dealbrain_core.schemas import SpreadsheetSeed
 from ..db import Base, get_engine, session_scope
 from ..models import Cpu, Gpu, Listing, PortsProfile, Port, Profile
 from .component_catalog import seed_component_catalog
+from .cpu_mark_thresholds_seed import seed_cpu_mark_thresholds
 from ..services.listings import (
     apply_listing_metrics,
     create_listing,
@@ -25,13 +26,14 @@ from ..settings import get_settings
 async def apply_seed(seed: SpreadsheetSeed) -> None:
     async with session_scope() as session:
         await seed_component_catalog(session)
+        await seed_cpu_mark_thresholds(session)
 
         for cpu in seed.cpus:
             existing = await session.scalar(select(Cpu).where(Cpu.name == cpu.name))
             data = cpu.model_dump(exclude_none=True)
             # Map 'attributes' to 'attributes_json' for SQLAlchemy model
-            if 'attributes' in data:
-                data['attributes_json'] = data.pop('attributes')
+            if "attributes" in data:
+                data["attributes_json"] = data.pop("attributes")
             if existing:
                 for field, value in data.items():
                     setattr(existing, field, value)
@@ -42,8 +44,8 @@ async def apply_seed(seed: SpreadsheetSeed) -> None:
             existing = await session.scalar(select(Gpu).where(Gpu.name == gpu.name))
             data = gpu.model_dump(exclude_none=True)
             # Map 'attributes' to 'attributes_json' for SQLAlchemy model
-            if 'attributes' in data:
-                data['attributes_json'] = data.pop('attributes')
+            if "attributes" in data:
+                data["attributes_json"] = data.pop("attributes")
             if existing:
                 for field, value in data.items():
                     setattr(existing, field, value)
@@ -65,15 +67,17 @@ async def apply_seed(seed: SpreadsheetSeed) -> None:
                 session.add(Profile(**data))
 
         for ports_profile in seed.ports_profiles:
-            existing = await session.scalar(select(PortsProfile).where(PortsProfile.name == ports_profile.name))
+            existing = await session.scalar(
+                select(PortsProfile).where(PortsProfile.name == ports_profile.name)
+            )
             data = ports_profile.model_dump(exclude={"ports"}, exclude_none=True)
             # Map 'attributes' to 'attributes_json' for SQLAlchemy model
-            if 'attributes' in data:
-                data['attributes_json'] = data['attributes']
+            if "attributes" in data:
+                data["attributes_json"] = data["attributes"]
             # Always remove 'attributes' if present
-            data.pop('attributes', None)
+            data.pop("attributes", None)
             # Only keep valid fields for PortsProfile
-            valid_fields = {'name', 'description', 'attributes_json'}
+            valid_fields = {"name", "description", "attributes_json"}
             filtered_data = {k: v for k, v in data.items() if k in valid_fields}
             if existing:
                 for field, value in filtered_data.items():
@@ -90,12 +94,16 @@ async def apply_seed(seed: SpreadsheetSeed) -> None:
             await get_or_create_ram_spec(session, ram_spec.model_dump(exclude_none=True))
 
         for storage_profile in seed.storage_profiles:
-            await get_or_create_storage_profile(session, storage_profile.model_dump(exclude_none=True))
+            await get_or_create_storage_profile(
+                session, storage_profile.model_dump(exclude_none=True)
+            )
 
         for listing in seed.listings:
             existing = await session.scalar(select(Listing).where(Listing.title == listing.title))
             payload = listing.model_dump(exclude={"components"}, exclude_none=True)
-            components_payload = [component.model_dump(exclude_none=True) for component in (listing.components or [])]
+            components_payload = [
+                component.model_dump(exclude_none=True) for component in (listing.components or [])
+            ]
 
             if existing:
                 await update_listing(session, existing, payload)

@@ -197,7 +197,7 @@ class BaselineLoaderService:
                 "created_groups": created_groups,
                 "created_rules": created_rules,
                 "source_reference": source_reference,
-            }
+            },
         )
 
         return BaselineLoadResult(
@@ -260,6 +260,7 @@ class BaselineLoaderService:
         self, session: AsyncSession, source_hash: str
     ) -> ValuationRuleset | None:
         from sqlalchemy import String, cast
+
         stmt = select(ValuationRuleset).where(
             cast(ValuationRuleset.metadata_json["source_hash"], String) == source_hash
         )
@@ -270,6 +271,7 @@ class BaselineLoaderService:
         self, session: AsyncSession, keep_ruleset_id: int
     ) -> None:
         from sqlalchemy import String, cast
+
         stmt = select(ValuationRuleset).where(
             cast(ValuationRuleset.metadata_json["system_baseline"], String) == "true"
         )
@@ -284,6 +286,7 @@ class BaselineLoaderService:
         self, session: AsyncSession, ruleset_id: int | None
     ) -> ValuationRuleset | None:
         from sqlalchemy import String, cast
+
         if ruleset_id:
             return await session.get(ValuationRuleset, ruleset_id)
 
@@ -298,10 +301,10 @@ class BaselineLoaderService:
     @staticmethod
     def _derive_field_type(field: dict[str, Any]) -> str:
         """Derive the field type from the field structure.
-        
+
         Args:
             field: Field definition from baseline JSON
-            
+
         Returns:
             Field type: "formula", "multiplier", or "scalar"
         """
@@ -309,22 +312,22 @@ class BaselineLoaderService:
         formula = field.get("Formula")
         if formula and isinstance(formula, str) and formula.strip():
             return "formula"
-        
+
         # Check if it's a multiplier field
         unit = field.get("unit")
         if isinstance(unit, str) and unit.lower() == "multiplier":
             return "multiplier"
-        
+
         # Default to scalar (includes valuation_buckets and simple USD values)
         return "scalar"
 
     @staticmethod
     def _derive_field_type_from_metadata(rule_meta: dict[str, Any]) -> str:
         """Derive the field type from rule metadata (for legacy rules without field_type).
-        
+
         Args:
             rule_meta: Rule metadata dictionary
-            
+
         Returns:
             Field type: "formula", "multiplier", or "scalar"
         """
@@ -332,12 +335,12 @@ class BaselineLoaderService:
         formula_text = rule_meta.get("formula_text")
         if formula_text and isinstance(formula_text, str) and formula_text.strip():
             return "formula"
-        
+
         # Check if it's a multiplier field
         unit = rule_meta.get("unit")
         if isinstance(unit, str) and unit.lower() == "multiplier":
             return "multiplier"
-        
+
         # Default to scalar
         return "scalar"
 
@@ -347,7 +350,7 @@ class BaselineLoaderService:
     ) -> dict[str, Any]:
         # Derive field type from structure
         field_type = BaselineLoaderService._derive_field_type(field)
-        
+
         return {
             "system_baseline": True,
             "entity_key": entity_key,
@@ -422,7 +425,7 @@ class BaselineLoaderService:
         # Find active baseline ruleset
         stmt = select(ValuationRuleset).where(
             cast(ValuationRuleset.metadata_json["system_baseline"], String) == "true",
-            ValuationRuleset.is_active.is_(True)
+            ValuationRuleset.is_active.is_(True),
         )
         result = await session.execute(stmt)
         ruleset = result.scalar_one_or_none()
@@ -489,10 +492,12 @@ class BaselineLoaderService:
                 fields.append(field)
 
             if fields:
-                entities.append(BaselineEntityMetadata(
-                    entity_key=entity_key,
-                    fields=fields,
-                ))
+                entities.append(
+                    BaselineEntityMetadata(
+                        entity_key=entity_key,
+                        fields=fields,
+                    )
+                )
 
         return BaselineMetadataResponse(
             version=ruleset.version,
@@ -604,41 +609,47 @@ class BaselineLoaderService:
         for field_key, candidate_field in candidate_fields.items():
             if field_key not in current_fields:
                 # Field is added
-                added.append(BaselineFieldDiff(
-                    entity_key=candidate_field["entity_key"],
-                    field_name=candidate_field["field_name"],
-                    proper_name=candidate_field["proper_name"],
-                    change_type="added",
-                    old_value=None,
-                    new_value=candidate_field,
-                ))
+                added.append(
+                    BaselineFieldDiff(
+                        entity_key=candidate_field["entity_key"],
+                        field_name=candidate_field["field_name"],
+                        proper_name=candidate_field["proper_name"],
+                        change_type="added",
+                        old_value=None,
+                        new_value=candidate_field,
+                    )
+                )
             else:
                 # Check if field changed
                 current_field = current_fields[field_key]
                 value_diff = self._calculate_field_diff(current_field, candidate_field)
 
                 if value_diff:
-                    changed.append(BaselineFieldDiff(
-                        entity_key=candidate_field["entity_key"],
-                        field_name=candidate_field["field_name"],
-                        proper_name=candidate_field["proper_name"],
-                        change_type="changed",
-                        old_value=current_field,
-                        new_value=candidate_field,
-                        value_diff=value_diff,
-                    ))
+                    changed.append(
+                        BaselineFieldDiff(
+                            entity_key=candidate_field["entity_key"],
+                            field_name=candidate_field["field_name"],
+                            proper_name=candidate_field["proper_name"],
+                            change_type="changed",
+                            old_value=current_field,
+                            new_value=candidate_field,
+                            value_diff=value_diff,
+                        )
+                    )
 
         # Find removed
         for field_key, current_field in current_fields.items():
             if field_key not in candidate_fields:
-                removed.append(BaselineFieldDiff(
-                    entity_key=current_field["entity_key"],
-                    field_name=current_field["field_name"],
-                    proper_name=current_field["proper_name"],
-                    change_type="removed",
-                    old_value=current_field,
-                    new_value=None,
-                ))
+                removed.append(
+                    BaselineFieldDiff(
+                        entity_key=current_field["entity_key"],
+                        field_name=current_field["field_name"],
+                        proper_name=current_field["proper_name"],
+                        change_type="removed",
+                        old_value=current_field,
+                        new_value=None,
+                    )
+                )
 
         summary = BaselineDiffSummary(
             added_count=len(added),
@@ -723,7 +734,7 @@ class BaselineLoaderService:
         # Get current baseline ruleset ID before deactivation
         stmt = select(ValuationRuleset).where(
             cast(ValuationRuleset.metadata_json["system_baseline"], String) == "true",
-            ValuationRuleset.is_active.is_(True)
+            ValuationRuleset.is_active.is_(True),
         )
         result = await session.execute(stmt)
         previous_ruleset = result.scalar_one_or_none()

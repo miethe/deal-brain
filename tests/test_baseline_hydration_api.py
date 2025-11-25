@@ -37,6 +37,7 @@ pytestmark = pytest.mark.asyncio
 
 
 if pytest_asyncio:
+
     @pytest_asyncio.fixture
     async def db_session():
         """Create async database session for tests"""
@@ -156,6 +157,7 @@ if pytest_asyncio:
         return rules
 
 else:
+
     @pytest.fixture
     def db_session():
         pytest.skip("pytest-asyncio is not installed")
@@ -189,9 +191,7 @@ class TestHydrateEndpoint:
         # Create service and hydrate
         service = BaselineHydrationService()
         result = await service.hydrate_baseline_rules(
-            session=db_session,
-            ruleset_id=sample_ruleset.id,
-            actor="api_test_user"
+            session=db_session, ruleset_id=sample_ruleset.id, actor="api_test_user"
         )
 
         # Verify result structure (what endpoint would return)
@@ -247,9 +247,7 @@ class TestHydrateEndpoint:
         # The service doesn't validate ruleset existence, so we test that
         # an empty result is returned (endpoint would check and return 404)
         result = await service.hydrate_baseline_rules(
-            session=db_session,
-            ruleset_id=99999,
-            actor="test_user"
+            session=db_session, ruleset_id=99999, actor="test_user"
         )
 
         # No rules found, so nothing hydrated
@@ -267,18 +265,14 @@ class TestHydrateEndpoint:
 
         # First hydration
         result1 = await service.hydrate_baseline_rules(
-            session=db_session,
-            ruleset_id=sample_ruleset.id,
-            actor="user1"
+            session=db_session, ruleset_id=sample_ruleset.id, actor="user1"
         )
         assert result1.hydrated_rule_count == 3
         assert result1.created_rule_count == 5
 
         # Second hydration should skip already-hydrated rules
         result2 = await service.hydrate_baseline_rules(
-            session=db_session,
-            ruleset_id=sample_ruleset.id,
-            actor="user2"
+            session=db_session, ruleset_id=sample_ruleset.id, actor="user2"
         )
         assert result2.status == "success"
         assert result2.hydrated_rule_count == 0
@@ -303,9 +297,7 @@ class TestHydrateEndpoint:
         """Test that response structure matches schema exactly"""
         service = BaselineHydrationService()
         result = await service.hydrate_baseline_rules(
-            session=db_session,
-            ruleset_id=sample_ruleset.id,
-            actor="schema_test_user"
+            session=db_session, ruleset_id=sample_ruleset.id, actor="schema_test_user"
         )
 
         # Verify top-level fields exist
@@ -344,7 +336,7 @@ class TestHydrateEndpoint:
         await service.hydrate_baseline_rules(
             session=db_session,
             ruleset_id=sample_ruleset.id,
-            actor="system"  # Testing with explicit 'system'
+            actor="system",  # Testing with explicit 'system'
         )
 
         # Verify default actor was used
@@ -352,9 +344,7 @@ class TestHydrateEndpoint:
             await db_session.refresh(rule)
             assert rule.metadata_json["hydrated_by"] == "system"
 
-    async def test_hydrate_empty_ruleset(
-        self, db_session: AsyncSession
-    ):
+    async def test_hydrate_empty_ruleset(self, db_session: AsyncSession):
         """Test hydration of ruleset with no placeholder rules"""
         # Create empty ruleset
         ruleset = ValuationRuleset(
@@ -369,9 +359,7 @@ class TestHydrateEndpoint:
         # Hydrate empty ruleset
         service = BaselineHydrationService()
         result = await service.hydrate_baseline_rules(
-            session=db_session,
-            ruleset_id=ruleset.id,
-            actor="test_user"
+            session=db_session, ruleset_id=ruleset.id, actor="test_user"
         )
 
         assert result.status == "success"
@@ -422,9 +410,7 @@ class TestHydrationWorkflow:
         # Step 3: Call hydration via service
         service = BaselineHydrationService()
         result = await service.hydrate_baseline_rules(
-            session=db_session,
-            ruleset_id=sample_ruleset.id,
-            actor="workflow_test"
+            session=db_session, ruleset_id=sample_ruleset.id, actor="workflow_test"
         )
 
         # Step 4: Verify hydration result

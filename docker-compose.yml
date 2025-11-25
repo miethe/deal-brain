@@ -30,6 +30,26 @@ services:
     build:
       context: .
       dockerfile: infra/api/Dockerfile
+      target: development
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file: .env.example
+    environment:
+      DATABASE_URL: postgresql+asyncpg://dealbrain:dealbrain@db:5432/dealbrain
+      SYNC_DATABASE_URL: postgresql+psycopg://dealbrain:dealbrain@db:5432/dealbrain
+    ports:
+      - "8020:8000"
+    command: ["dealbrain-api"]
+
+  api-prod:
+    profiles: ["production"]
+    build:
+      context: .
+      dockerfile: infra/api/Dockerfile
+      target: production
     depends_on:
       db:
         condition: service_healthy
@@ -47,8 +67,23 @@ services:
     build:
       context: .
       dockerfile: infra/worker/Dockerfile
+      target: development
     depends_on:
       api:
+        condition: service_started
+      redis:
+        condition: service_started
+    env_file: .env.example
+    command: ["celery", "-A", "dealbrain_api.worker", "worker", "-l", "info"]
+
+  worker-prod:
+    profiles: ["production"]
+    build:
+      context: .
+      dockerfile: infra/worker/Dockerfile
+      target: production
+    depends_on:
+      api-prod:
         condition: service_started
       redis:
         condition: service_started
@@ -91,10 +126,13 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
     ports:
       - "3021:3000"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/etc/grafana/dashboards:ro
 
 volumes:
   db_data:

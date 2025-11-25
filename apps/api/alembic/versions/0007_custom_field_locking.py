@@ -34,7 +34,13 @@ def upgrade() -> None:
         sa.Column("previous_value", sa.JSON(), nullable=True),
         sa.Column("reason", sa.String(length=64), nullable=False, server_default="archived"),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now(), onupdate=sa.func.now()),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(),
+            nullable=False,
+            server_default=sa.func.now(),
+            onupdate=sa.func.now(),
+        ),
     )
     op.create_index(
         "ix_custom_field_attribute_history_field",
@@ -49,7 +55,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_custom_field_attribute_history_entity_record", table_name="custom_field_attribute_history")
-    op.drop_index("ix_custom_field_attribute_history_field", table_name="custom_field_attribute_history")
+    op.drop_index(
+        "ix_custom_field_attribute_history_entity_record",
+        table_name="custom_field_attribute_history",
+    )
+    op.drop_index(
+        "ix_custom_field_attribute_history_field", table_name="custom_field_attribute_history"
+    )
     op.drop_table("custom_field_attribute_history")
     op.drop_column("custom_field_definition", "is_locked")

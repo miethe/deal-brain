@@ -25,7 +25,7 @@ from dealbrain_api.models.core import (
     ValuationRuleV2,
     ValuationRuleCondition,
     ValuationRuleAction,
-    ValuationRuleAudit
+    ValuationRuleAudit,
 )
 from dealbrain_core.rules.packaging import (
     RulesetPackage,
@@ -36,7 +36,7 @@ from dealbrain_core.rules.packaging import (
     RuleExport,
     RuleConditionExport,
     RuleActionExport,
-    CustomFieldDefinition
+    CustomFieldDefinition,
 )
 
 
@@ -50,7 +50,7 @@ class RulesetPackagingService:
         metadata: PackageMetadata,
         include_examples: bool = False,
         include_baseline: bool = False,
-        active_only: bool = False
+        active_only: bool = False,
     ) -> RulesetPackage:
         """
         Export a ruleset to a complete package.
@@ -71,12 +71,12 @@ class RulesetPackagingService:
             select(ValuationRuleset)
             .where(ValuationRuleset.id == ruleset_id)
             .options(
-                selectinload(ValuationRuleset.rule_groups).selectinload(
-                    ValuationRuleGroup.rules
-                ).selectinload(ValuationRuleV2.conditions),
-                selectinload(ValuationRuleset.rule_groups).selectinload(
-                    ValuationRuleGroup.rules
-                ).selectinload(ValuationRuleV2.actions)
+                selectinload(ValuationRuleset.rule_groups)
+                .selectinload(ValuationRuleGroup.rules)
+                .selectinload(ValuationRuleV2.conditions),
+                selectinload(ValuationRuleset.rule_groups)
+                .selectinload(ValuationRuleGroup.rules)
+                .selectinload(ValuationRuleV2.actions),
             )
         )
         result = await session.execute(query)
@@ -106,7 +106,7 @@ class RulesetPackagingService:
             metadata_json=ruleset.metadata_json,  # Preserves baseline metadata
             created_by=ruleset.created_by,
             created_at=ruleset.created_at,
-            updated_at=ruleset.updated_at
+            updated_at=ruleset.updated_at,
         )
         builder.add_ruleset(ruleset_export)
 
@@ -122,7 +122,7 @@ class RulesetPackagingService:
                 weight=float(group.weight) if group.weight else 1.0,
                 metadata_json=group.metadata_json,  # Preserves entity_key, basic_managed
                 created_at=group.created_at,
-                updated_at=group.updated_at
+                updated_at=group.updated_at,
             )
             builder.add_rule_group(group_export)
 
@@ -143,7 +143,7 @@ class RulesetPackagingService:
                         operator=cond.operator,
                         value_json=cond.value_json,
                         logical_operator=cond.logical_operator,
-                        group_order=cond.group_order
+                        group_order=cond.group_order,
                     )
                     for cond in rule.conditions
                 ]
@@ -159,7 +159,7 @@ class RulesetPackagingService:
                         unit_type=act.unit_type,
                         formula=act.formula,
                         modifiers_json=act.modifiers_json,
-                        display_order=act.display_order
+                        display_order=act.display_order,
                     )
                     for act in rule.actions
                 ]
@@ -178,7 +178,7 @@ class RulesetPackagingService:
                     created_at=rule.created_at,
                     updated_at=rule.updated_at,
                     conditions=conditions,
-                    actions=actions
+                    actions=actions,
                 )
                 builder.add_rule(rule_export)
 
@@ -202,7 +202,7 @@ class RulesetPackagingService:
         ruleset_id: int,
         metadata: PackageMetadata,
         output_path: str,
-        include_baseline: bool = False
+        include_baseline: bool = False,
     ) -> None:
         """
         Export ruleset to a .dbrs file.
@@ -215,10 +215,7 @@ class RulesetPackagingService:
             include_baseline: Whether to include baseline rulesets
         """
         package = await self.export_ruleset_to_package(
-            session,
-            ruleset_id,
-            metadata,
-            include_baseline=include_baseline
+            session, ruleset_id, metadata, include_baseline=include_baseline
         )
         package.to_file(Path(output_path))
 
@@ -228,7 +225,7 @@ class RulesetPackagingService:
         package: RulesetPackage,
         actor: str = "system",
         merge_strategy: Literal["replace", "skip", "merge", "version"] = "replace",
-        baseline_import_mode: Literal["version", "replace"] = "version"
+        baseline_import_mode: Literal["version", "replace"] = "version",
     ) -> Dict[str, Any]:
         """
         Install a ruleset package into the database.
@@ -249,7 +246,7 @@ class RulesetPackagingService:
             "rules_created": 0,
             "rulesets_updated": 0,
             "warnings": [],
-            "baseline_versioned": 0
+            "baseline_versioned": 0,
         }
 
         # Validate compatibility
@@ -264,11 +261,7 @@ class RulesetPackagingService:
             results["warnings"].extend(compat["warnings"])
 
         # Install rulesets
-        id_mapping = {
-            "rulesets": {},
-            "rule_groups": {},
-            "rules": {}
-        }
+        id_mapping = {"rulesets": {}, "rule_groups": {}, "rules": {}}
 
         for ruleset_export in package.rulesets:
             # Check if this is a baseline ruleset
@@ -290,18 +283,12 @@ class RulesetPackagingService:
                     actor,
                     baseline_import_mode,
                     id_mapping,
-                    results
+                    results,
                 )
             else:
                 # Normal ruleset import logic
                 await self._install_regular_ruleset(
-                    session,
-                    ruleset_export,
-                    package,
-                    actor,
-                    merge_strategy,
-                    id_mapping,
-                    results
+                    session, ruleset_export, package, actor, merge_strategy, id_mapping, results
                 )
 
         await session.commit()
@@ -315,7 +302,7 @@ class RulesetPackagingService:
         actor: str,
         baseline_import_mode: Literal["version", "replace"],
         id_mapping: Dict[str, Dict[int, int]],
-        results: Dict[str, Any]
+        results: Dict[str, Any],
     ) -> None:
         """
         Install a baseline ruleset with versioning support.
@@ -325,9 +312,7 @@ class RulesetPackagingService:
         - "replace" mode: Replace existing baseline (not recommended)
         """
         # Find existing baseline rulesets
-        query = select(ValuationRuleset).where(
-            ValuationRuleset.name.like("System: Baseline v%")
-        )
+        query = select(ValuationRuleset).where(ValuationRuleset.name.like("System: Baseline v%"))
         result = await session.execute(query)
         existing_baselines = result.scalars().all()
 
@@ -335,7 +320,8 @@ class RulesetPackagingService:
             # Create new versioned baseline
             # Extract version from name or increment
             import re
-            version_match = re.search(r'v(\d+)\.(\d+)', ruleset_export.name)
+
+            version_match = re.search(r"v(\d+)\.(\d+)", ruleset_export.name)
             if version_match:
                 major, minor = int(version_match.group(1)), int(version_match.group(2))
             else:
@@ -344,7 +330,7 @@ class RulesetPackagingService:
             # Find highest existing version
             if existing_baselines:
                 for baseline in existing_baselines:
-                    match = re.search(r'v(\d+)\.(\d+)', baseline.name)
+                    match = re.search(r"v(\d+)\.(\d+)", baseline.name)
                     if match:
                         ex_major, ex_minor = int(match.group(1)), int(match.group(2))
                         if ex_major > major or (ex_major == major and ex_minor >= minor):
@@ -355,12 +341,13 @@ class RulesetPackagingService:
             # Create new baseline ruleset
             new_ruleset = ValuationRuleset(
                 name=new_name,
-                description=ruleset_export.description or f"Baseline ruleset version {major}.{minor}",
+                description=ruleset_export.description
+                or f"Baseline ruleset version {major}.{minor}",
                 version=ruleset_export.version,
                 is_active=False,  # New baselines start inactive
                 metadata_json=ruleset_export.metadata_json,
                 priority=ruleset_export.metadata_json.get("priority", 1),
-                created_by=actor
+                created_by=actor,
             )
             session.add(new_ruleset)
             await session.flush()
@@ -374,8 +361,14 @@ class RulesetPackagingService:
 
             # Install groups and rules for the new baseline
             await self._install_groups_and_rules(
-                session, package, ruleset_export.id, new_ruleset.id,
-                actor, id_mapping, results, preserve_read_only=True
+                session,
+                package,
+                ruleset_export.id,
+                new_ruleset.id,
+                actor,
+                id_mapping,
+                results,
+                preserve_read_only=True,
             )
 
             # Audit log
@@ -388,8 +381,8 @@ class RulesetPackagingService:
                     "package_version": package.metadata.version,
                     "baseline_name": new_name,
                     "source_version": ruleset_export.metadata_json.get("source_version"),
-                    "source_hash": ruleset_export.metadata_json.get("source_hash")
-                }
+                    "source_hash": ruleset_export.metadata_json.get("source_hash"),
+                },
             )
             session.add(audit)
 
@@ -413,9 +406,7 @@ class RulesetPackagingService:
 
                 id_mapping["rulesets"][ruleset_export.id] = existing_baseline.id
                 results["rulesets_updated"] += 1
-                results["warnings"].append(
-                    f"Updated existing baseline: {existing_baseline.name}"
-                )
+                results["warnings"].append(f"Updated existing baseline: {existing_baseline.name}")
             else:
                 # Create new baseline
                 new_ruleset = ValuationRuleset(
@@ -425,7 +416,7 @@ class RulesetPackagingService:
                     is_active=ruleset_export.is_active,
                     metadata_json=ruleset_export.metadata_json,
                     priority=ruleset_export.metadata_json.get("priority", 1),
-                    created_by=actor
+                    created_by=actor,
                 )
                 session.add(new_ruleset)
                 await session.flush()
@@ -435,8 +426,14 @@ class RulesetPackagingService:
 
                 # Install groups and rules
                 await self._install_groups_and_rules(
-                    session, package, ruleset_export.id, new_ruleset.id,
-                    actor, id_mapping, results, preserve_read_only=True
+                    session,
+                    package,
+                    ruleset_export.id,
+                    new_ruleset.id,
+                    actor,
+                    id_mapping,
+                    results,
+                    preserve_read_only=True,
                 )
 
     async def _install_regular_ruleset(
@@ -447,21 +444,17 @@ class RulesetPackagingService:
         actor: str,
         merge_strategy: str,
         id_mapping: Dict[str, Dict[int, int]],
-        results: Dict[str, Any]
+        results: Dict[str, Any],
     ) -> None:
         """Install a regular (non-baseline) ruleset."""
         # Check if ruleset exists
-        query = select(ValuationRuleset).where(
-            ValuationRuleset.name == ruleset_export.name
-        )
+        query = select(ValuationRuleset).where(ValuationRuleset.name == ruleset_export.name)
         result = await session.execute(query)
         existing_ruleset = result.scalar_one_or_none()
 
         if existing_ruleset:
             if merge_strategy == "skip":
-                results["warnings"].append(
-                    f"Skipped existing ruleset: {ruleset_export.name}"
-                )
+                results["warnings"].append(f"Skipped existing ruleset: {ruleset_export.name}")
                 return
             elif merge_strategy == "replace":
                 # Update existing
@@ -481,13 +474,17 @@ class RulesetPackagingService:
         if not existing_ruleset:
             # Create new ruleset
             new_ruleset = ValuationRuleset(
-                name=ruleset_export.name if not existing_ruleset else f"{ruleset_export.name} (Imported)",
+                name=(
+                    ruleset_export.name
+                    if not existing_ruleset
+                    else f"{ruleset_export.name} (Imported)"
+                ),
                 description=ruleset_export.description,
                 version=ruleset_export.version,
                 is_active=ruleset_export.is_active,
                 metadata_json=ruleset_export.metadata_json,
                 priority=ruleset_export.metadata_json.get("priority", 10),
-                created_by=actor
+                created_by=actor,
             )
             session.add(new_ruleset)
             await session.flush()
@@ -496,8 +493,14 @@ class RulesetPackagingService:
 
             # Install groups and rules
             await self._install_groups_and_rules(
-                session, package, ruleset_export.id, new_ruleset.id,
-                actor, id_mapping, results, preserve_read_only=False
+                session,
+                package,
+                ruleset_export.id,
+                new_ruleset.id,
+                actor,
+                id_mapping,
+                results,
+                preserve_read_only=False,
             )
 
             # Audit log
@@ -508,8 +511,8 @@ class RulesetPackagingService:
                 changes_json={
                     "package_name": package.metadata.name,
                     "package_version": package.metadata.version,
-                    "ruleset_name": ruleset_export.name
-                }
+                    "ruleset_name": ruleset_export.name,
+                },
             )
             session.add(audit)
 
@@ -522,7 +525,7 @@ class RulesetPackagingService:
         actor: str,
         id_mapping: Dict[str, Dict[int, int]],
         results: Dict[str, Any],
-        preserve_read_only: bool = False
+        preserve_read_only: bool = False,
     ) -> None:
         """Install rule groups and rules for a ruleset."""
         # Install rule groups
@@ -565,7 +568,7 @@ class RulesetPackagingService:
                 evaluation_order=rule_export.evaluation_order,
                 metadata_json=rule_export.metadata_json,
                 created_by=actor,
-                version=1  # Reset version for new install
+                version=1,  # Reset version for new install
             )
             session.add(new_rule)
             await session.flush()
@@ -577,9 +580,7 @@ class RulesetPackagingService:
             for cond_export in rule_export.conditions:
                 parent_id = None
                 if cond_export.parent_condition_id:
-                    parent_id = condition_id_mapping.get(
-                        cond_export.parent_condition_id
-                    )
+                    parent_id = condition_id_mapping.get(cond_export.parent_condition_id)
 
                 new_condition = ValuationRuleCondition(
                     rule_id=new_rule.id,
@@ -589,7 +590,7 @@ class RulesetPackagingService:
                     operator=cond_export.operator,
                     value_json=cond_export.value_json,
                     logical_operator=cond_export.logical_operator,
-                    group_order=cond_export.group_order
+                    group_order=cond_export.group_order,
                 )
                 session.add(new_condition)
                 await session.flush()
@@ -605,7 +606,7 @@ class RulesetPackagingService:
                     unit_type=action_export.unit_type,
                     formula=action_export.formula,
                     modifiers_json=action_export.modifiers_json,
-                    display_order=action_export.display_order
+                    display_order=action_export.display_order,
                 )
                 session.add(new_action)
 
@@ -615,7 +616,7 @@ class RulesetPackagingService:
         file_path: str,
         actor: str = "system",
         merge_strategy: Literal["replace", "skip", "merge", "version"] = "replace",
-        baseline_import_mode: Literal["version", "replace"] = "version"
+        baseline_import_mode: Literal["version", "replace"] = "version",
     ) -> Dict[str, Any]:
         """
         Install a package from a .dbrs file.
@@ -636,13 +637,11 @@ class RulesetPackagingService:
             package,
             actor,
             merge_strategy=merge_strategy,
-            baseline_import_mode=baseline_import_mode
+            baseline_import_mode=baseline_import_mode,
         )
 
     async def _extract_custom_fields(
-        self,
-        session: AsyncSession,
-        ruleset_id: int
+        self, session: AsyncSession, ruleset_id: int
     ) -> List[CustomFieldDefinition]:
         """Extract custom field definitions used by the ruleset."""
         # Query all conditions for the ruleset
@@ -666,26 +665,20 @@ class RulesetPackagingService:
                         field_type=condition.field_type,
                         entity_type="listing",  # Default
                         description=f"Custom field used in conditions",
-                        required=False
+                        required=False,
                     )
 
         return list(custom_fields.values())
 
     async def _get_example_listings(
-        self,
-        session: AsyncSession,
-        ruleset_id: int,
-        limit: int = 5
+        self, session: AsyncSession, ruleset_id: int, limit: int = 5
     ) -> List[Dict[str, Any]]:
         """Get example listings affected by the ruleset."""
         # TODO: Implement actual listing query
         # For now, return empty list
         return []
 
-    async def _get_available_custom_fields(
-        self,
-        session: AsyncSession
-    ) -> List[str]:
+    async def _get_available_custom_fields(self, session: AsyncSession) -> List[str]:
         """Get list of available custom field names in the system."""
         # TODO: Query EntityField table for available fields
         # For now, return empty list

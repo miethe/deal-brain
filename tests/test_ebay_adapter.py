@@ -315,14 +315,17 @@ class TestSchemaMapping:
         assert "Missing required field: title" in exc.value.message
 
     def test_map_to_schema_missing_price(self, adapter, ebay_responses):
-        """Test mapping fails when price is missing."""
+        """Test mapping creates partial import when price is missing."""
         item_data = ebay_responses["error_missing_price"]
 
-        with pytest.raises(AdapterException) as exc:
-            adapter._map_to_schema(item_data)
+        # Should not raise exception, but create partial import
+        result = adapter._map_to_schema(item_data)
 
-        assert exc.value.error_type == AdapterError.INVALID_SCHEMA
-        assert "Missing required field: price.value" in exc.value.message
+        # Verify partial import quality indicators
+        assert result.quality == "partial"
+        assert result.missing_fields == ["price"]
+        assert result.price is None
+        assert result.extraction_metadata["price"] == "extraction_failed"
 
 
 class TestApiFetching:
@@ -345,7 +348,10 @@ class TestApiFetching:
 
             result = await adapter._fetch_item("123456789012")
 
-            assert result["title"] == "Gaming PC Intel Core i7-12700K 16GB RAM 512GB SSD Windows 11 Pro"
+            assert (
+                result["title"]
+                == "Gaming PC Intel Core i7-12700K 16GB RAM 512GB SSD Windows 11 Pro"
+            )
             assert result["itemId"] == "v1|123456789012|0"
 
     @pytest.mark.asyncio
@@ -471,7 +477,9 @@ class TestExtractEndToEnd:
             result = await adapter.extract(url)
 
             assert isinstance(result, type(result))  # Check it's a NormalizedListingSchema
-            assert result.title == "Gaming PC Intel Core i7-12700K 16GB RAM 512GB SSD Windows 11 Pro"
+            assert (
+                result.title == "Gaming PC Intel Core i7-12700K 16GB RAM 512GB SSD Windows 11 Pro"
+            )
             assert result.price == Decimal("599.99")
             assert result.cpu_model == "Intel Core i7-12700K"
             assert result.ram_gb == 16

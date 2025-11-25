@@ -18,8 +18,10 @@ import {
 } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { cn } from "../../lib/utils";
+import { telemetry } from "../../lib/telemetry";
 import { Input } from "./input";
 import { Button } from "./button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
@@ -136,7 +138,9 @@ function useColumnSizingPersistence<TData>(
       }
       table.setColumnSizing(filtered);
     } catch (error) {
-      console.error("Failed to hydrate column sizing state", error);
+      telemetry.error("frontend.datagrid.hydration_failed", {
+        message: (error as Error)?.message ?? "Unknown error",
+      });
     }
     hydratedRef.current = true;
   }, [storageKey, table]);
@@ -155,41 +159,30 @@ function useVirtualization<TData>(
   containerRef: React.RefObject<HTMLDivElement>,
   threshold: number
 ): VirtualizationState<TData> {
-  const [range, setRange] = useState(() => ({ start: 0, end: Math.min(rows.length, threshold) }));
   const total = rows.length;
   const enabled = total > threshold;
 
-  useEffect(() => {
-    if (!enabled) {
-      setRange({ start: 0, end: total });
-      return;
-    }
+  // Use @tanstack/react-virtual for virtualization
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => containerRef.current,
+    estimateSize: () => rowHeight,
+    overscan: OVERSCAN_ROWS,
+    enabled,
+  });
 
-    const element = containerRef.current;
-    if (!element) return;
+  const virtualItems = enabled ? rowVirtualizer.getVirtualItems() : [];
+  const visibleRows = enabled
+    ? virtualItems.map(item => rows[item.index])
+    : rows;
 
-    const handleScroll = () => {
-      const scrollTop = element.scrollTop;
-      const viewportHeight = element.clientHeight || MAX_TABLE_HEIGHT;
-      const start = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN_ROWS);
-      const end = Math.min(total, Math.ceil((scrollTop + viewportHeight) / rowHeight) + OVERSCAN_ROWS);
-      setRange({ start, end });
-    };
+  const paddingTop = enabled && virtualItems.length > 0
+    ? virtualItems[0].start
+    : 0;
 
-    handleScroll();
-    element.addEventListener("scroll", handleScroll, { passive: true });
-    return () => element.removeEventListener("scroll", handleScroll);
-  }, [containerRef, enabled, rowHeight, total]);
-
-  useEffect(() => {
-    if (!enabled) {
-      setRange({ start: 0, end: total });
-    }
-  }, [enabled, total]);
-
-  const visibleRows = enabled ? rows.slice(range.start, range.end) : rows;
-  const paddingTop = enabled ? range.start * rowHeight : 0;
-  const paddingBottom = enabled ? Math.max(total - range.end, 0) * rowHeight : 0;
+  const paddingBottom = enabled && virtualItems.length > 0
+    ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end
+    : 0;
 
   return {
     rows: visibleRows,
@@ -476,10 +469,10 @@ export function DataGrid<TData>({
     <div className={gridClassName}>
       <div
         ref={containerRef}
-        className="relative flex-1 overflow-x-auto overflow-y-auto"
+        className="listings-table-container relative flex-1 overflow-x-auto overflow-y-auto"
       >
-        <Table style={{ width: resolvedTable.getTotalSize(), minWidth: "100%" }}>
-          <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
+        <Table className="listings-table" style={{ width: resolvedTable.getTotalSize(), minWidth: "100%" }}>
+          <TableHeader className="sticky top-0 z-20 bg-background shadow-sm">
             {headerGroups.map((headerGroup) => (
               <TableRow key={headerGroup.id} className="border-0">
                 {headerGroup.headers.map((header) => {
@@ -565,7 +558,7 @@ export function DataGrid<TData>({
               </TableRow>
             ) : null}
           </TableHeader>
-          <TableBody>
+          <TableBody className="[&_tr:first-child]:scroll-mt-[calc(var(--header-height,52px)+var(--filter-row-height,0px))]">
             {loading ? (
               <TableRow>
                 <TableCell
@@ -582,9 +575,10 @@ export function DataGrid<TData>({
                     <TableCell colSpan={resolvedTable.getAllLeafColumns().length} className="p-0" />
                   </TableRow>
                 ) : null}
-                {virtualization.rows.map((row) => {
+                {virtualization.rows.map((row, index) => {
                   const rowId = (row.original as any).id;
                   const isHighlighted = highlightedRowId !== null && highlightedRowId !== undefined && rowId === highlightedRowId;
+                  const isFirstRow = index === 0 && !virtualization.enabled;
 
                   return (
                     <TableRow
@@ -592,9 +586,13 @@ export function DataGrid<TData>({
                       ref={isHighlighted ? highlightedRef : null}
                       data-state={row.getIsSelected() ? "selected" : undefined}
                       data-highlighted={isHighlighted}
+                      data-listings-table-row={true}
                       tabIndex={isHighlighted ? -1 : undefined}
                       aria-label={isHighlighted ? "Newly created listing" : undefined}
-                      className="hover:bg-muted/40 outline-none"
+                      className={cn(
+                        "hover:bg-muted/40 outline-none",
+                        isFirstRow && "scroll-mt-[calc(var(--header-height,52px)+var(--filter-row-height,0px))]"
+                      )}
                       style={{ minHeight: rowHeight }}
                     >
                       {row.getVisibleCells().map((cell) => {

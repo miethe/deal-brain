@@ -20,12 +20,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import session_dependency as get_session
-from ..services.baseline_loader import BaselineLoaderService
+from ..models.core import ValuationRuleGroup, ValuationRuleset
+from ..services.baseline_loader import BASIC_GROUP_CATEGORY, BASIC_GROUP_NAME, BaselineLoaderService
 
 router = APIRouter(prefix="/api/v1/baseline", tags=["baseline"])
 
 
 # --- Baseline Metadata Endpoint ---
+
 
 @router.get("/meta", response_model=BaselineMetadataResponse | None)
 async def get_baseline_metadata(
@@ -44,8 +46,7 @@ async def get_baseline_metadata(
 
     if metadata is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No active baseline ruleset found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="No active baseline ruleset found"
         )
 
     return metadata
@@ -64,6 +65,7 @@ async def get_baseline_metadata_alias(
 
 
 # --- Baseline Instantiation Endpoint ---
+
 
 @router.post("/instantiate", response_model=BaselineInstantiateResponse)
 async def instantiate_baseline(
@@ -90,7 +92,7 @@ async def instantiate_baseline(
     if not baseline_path.exists():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Baseline file not found: {request.baseline_path}"
+            detail=f"Baseline file not found: {request.baseline_path}",
         )
 
     # Load baseline (idempotent)
@@ -124,6 +126,7 @@ async def instantiate_baseline(
 
 
 # --- Baseline Diff Endpoint ---
+
 
 @router.post("/diff", response_model=BaselineDiffResponse)
 async def diff_baseline(
@@ -159,6 +162,7 @@ async def diff_baseline(
 
 
 # --- Baseline Adopt Endpoint ---
+
 
 @router.post("/adopt", response_model=BaselineAdoptResponse)
 async def adopt_baseline(
@@ -223,6 +227,7 @@ async def adopt_baseline(
 
 # --- Baseline Hydration Endpoint ---
 
+
 @router.post("/rulesets/{ruleset_id}/hydrate", response_model=HydrateBaselineResponse)
 async def hydrate_baseline_rules(
     ruleset_id: int,
@@ -258,17 +263,14 @@ async def hydrate_baseline_rules(
 
     if not ruleset:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Ruleset {ruleset_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Ruleset {ruleset_id} not found"
         )
 
     # Hydrate rules
     service = BaselineHydrationService()
     try:
         hydration_result = await service.hydrate_baseline_rules(
-            session=session,
-            ruleset_id=ruleset_id,
-            actor=request.actor or "system"
+            session=session, ruleset_id=ruleset_id, actor=request.actor or "system"
         )
 
         return HydrateBaselineResponse(
@@ -293,7 +295,38 @@ async def hydrate_baseline_rules(
         ) from e
 
 
-# --- Field Override Endpoints (Stub implementations) ---
+# --- Field Override Endpoints ---
+
+
+async def _get_basic_adjustments_group(session: AsyncSession) -> ValuationRuleGroup | None:
+    """Get the Basic Adjustments group from the active ruleset.
+
+    Returns:
+        ValuationRuleGroup if found, None otherwise
+    """
+    from sqlalchemy import select
+
+    # Find active ruleset (prefer non-baseline rulesets)
+    ruleset_stmt = (
+        select(ValuationRuleset)
+        .where(ValuationRuleset.is_active.is_(True))
+        .order_by(ValuationRuleset.priority.asc())
+    )
+    ruleset_result = await session.execute(ruleset_stmt)
+    active_ruleset = ruleset_result.scalars().first()
+
+    if not active_ruleset:
+        return None
+
+    # Find "Basic · Adjustments" group in this ruleset
+    group_stmt = select(ValuationRuleGroup).where(
+        ValuationRuleGroup.ruleset_id == active_ruleset.id,
+        ValuationRuleGroup.name == BASIC_GROUP_NAME,
+        ValuationRuleGroup.category == BASIC_GROUP_CATEGORY,
+    )
+    group_result = await session.execute(group_stmt)
+    return group_result.scalar_one_or_none()
+
 
 @router.get("/overrides/{entity_key}")
 async def get_entity_overrides(
@@ -302,19 +335,39 @@ async def get_entity_overrides(
 ):
     """Get all field overrides for an entity.
 
-    TODO: Implement full override management via Basic Adjustments group.
-    For now, returns empty list to allow UI to load.
-
     Args:
-        entity_key: Entity identifier (e.g., 'listing', 'cpu', 'gpu')
+        entity_key: Entity identifier (e.g., 'Listing', 'CPU', 'GPU')
 
     Returns:
-        List of field overrides (currently empty stub)
+        List of field overrides for the entity
     """
-    # Stub: Return empty list for now
-    # TODO: Query ValuationRuleGroup where group_name='Basic · Adjustments'
-    # and metadata_json->entity_key = entity_key, extract modifiers_json
-    return []
+    group = await _get_basic_adjustments_group(session)
+    if not group:
+        return []
+
+    # Extract overrides from metadata_json
+    metadata = group.metadata_json or {}
+    overrides_data = metadata.get("field_overrides", {})
+    entity_overrides = overrides_data.get(entity_key, {})
+
+    # Convert to list of FieldOverride objects
+    result = []
+    for field_name, override_data in entity_overrides.items():
+        result.append(
+            {
+                "field_name": field_name,
+                "entity_key": entity_key,
+                "override_value": override_data.get("override_value"),
+                "override_min": override_data.get("override_min"),
+                "override_max": override_data.get("override_max"),
+                "override_formula": override_data.get("override_formula"),
+                "is_enabled": override_data.get("is_enabled", True),
+                "created_at": override_data.get("created_at"),
+                "updated_at": override_data.get("updated_at"),
+            }
+        )
+
+    return result
 
 
 @router.post("/overrides")
@@ -324,18 +377,84 @@ async def upsert_field_override(
 ):
     """Create or update a field override.
 
-    TODO: Implement by updating modifiers_json in Basic Adjustments group.
-    For now, returns the input unchanged.
-
     Args:
         override: Field override data (field_name, entity_key, override_value, etc.)
 
     Returns:
-        The created/updated override (currently echo stub)
+        The created/updated override
     """
-    # Stub: Echo back the input
-    # TODO: Update ValuationRuleGroup modifiers_json for the specified entity/field
-    return override
+    from datetime import datetime
+
+    from sqlalchemy.orm.attributes import flag_modified
+
+    # Ensure we have a Basic Adjustments group
+    loader_service = BaselineLoaderService()
+    group = await loader_service.ensure_basic_adjustments_group(session, actor="system")
+
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create or find Basic Adjustments group",
+        )
+
+    # Extract override data
+    entity_key = override.get("entity_key")
+    field_name = override.get("field_name")
+
+    if not entity_key or not field_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="entity_key and field_name are required",
+        )
+
+    # Initialize metadata structure if needed
+    if group.metadata_json is None:
+        group.metadata_json = {}
+
+    metadata = dict(group.metadata_json)
+    if "field_overrides" not in metadata:
+        metadata["field_overrides"] = {}
+    if entity_key not in metadata["field_overrides"]:
+        metadata["field_overrides"][entity_key] = {}
+
+    # Store override data
+    now_iso = datetime.utcnow().isoformat()
+    is_new = field_name not in metadata["field_overrides"][entity_key]
+
+    # Preserve created_at if updating existing override
+    created_at = now_iso
+    if not is_new:
+        existing = metadata["field_overrides"][entity_key].get(field_name, {})
+        created_at = existing.get("created_at", now_iso)
+
+    metadata["field_overrides"][entity_key][field_name] = {
+        "override_value": override.get("override_value"),
+        "override_min": override.get("override_min"),
+        "override_max": override.get("override_max"),
+        "override_formula": override.get("override_formula"),
+        "is_enabled": override.get("is_enabled", True),
+        "created_at": created_at,
+        "updated_at": now_iso,
+    }
+
+    # Update group metadata
+    group.metadata_json = metadata
+    flag_modified(group, "metadata_json")
+    await session.commit()
+    await session.refresh(group)
+
+    # Return the saved override
+    return {
+        "field_name": field_name,
+        "entity_key": entity_key,
+        "override_value": override.get("override_value"),
+        "override_min": override.get("override_min"),
+        "override_max": override.get("override_max"),
+        "override_formula": override.get("override_formula"),
+        "is_enabled": override.get("is_enabled", True),
+        "created_at": metadata["field_overrides"][entity_key][field_name]["created_at"],
+        "updated_at": metadata["field_overrides"][entity_key][field_name]["updated_at"],
+    }
 
 
 @router.delete("/overrides/{entity_key}/{field_name}")
@@ -346,8 +465,6 @@ async def delete_field_override(
 ):
     """Delete a specific field override (reset to baseline).
 
-    TODO: Implement by removing field from modifiers_json.
-
     Args:
         entity_key: Entity identifier
         field_name: Field name to reset
@@ -355,8 +472,41 @@ async def delete_field_override(
     Returns:
         Success status
     """
-    # Stub: Return success
-    # TODO: Remove field from modifiers_json in Basic Adjustments group
+    from sqlalchemy.orm.attributes import flag_modified
+
+    group = await _get_basic_adjustments_group(session)
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Basic Adjustments group not found",
+        )
+
+    # Get current metadata
+    metadata = dict(group.metadata_json or {})
+    field_overrides = metadata.get("field_overrides", {})
+    entity_overrides = field_overrides.get(entity_key, {})
+
+    # Check if override exists
+    if field_name not in entity_overrides:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Override not found for {entity_key}.{field_name}",
+        )
+
+    # Remove the field override
+    del entity_overrides[field_name]
+
+    # Clean up empty structures
+    if not entity_overrides:
+        del field_overrides[entity_key]
+    if not field_overrides:
+        del metadata["field_overrides"]
+
+    # Update group metadata
+    group.metadata_json = metadata
+    flag_modified(group, "metadata_json")
+    await session.commit()
+
     return {"status": "deleted", "entity_key": entity_key, "field_name": field_name}
 
 
@@ -367,20 +517,49 @@ async def delete_entity_overrides(
 ):
     """Delete all overrides for an entity.
 
-    TODO: Implement by clearing modifiers_json for entity.
-
     Args:
         entity_key: Entity identifier
 
     Returns:
-        Success status
+        Success status with count of deleted overrides
     """
-    # Stub: Return success
-    # TODO: Clear all modifiers_json for entity in Basic Adjustments group
-    return {"status": "deleted", "entity_key": entity_key, "count": 0}
+    from sqlalchemy.orm.attributes import flag_modified
+
+    group = await _get_basic_adjustments_group(session)
+    if not group:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Basic Adjustments group not found",
+        )
+
+    # Get current metadata
+    metadata = dict(group.metadata_json or {})
+    field_overrides = metadata.get("field_overrides", {})
+    entity_overrides = field_overrides.get(entity_key, {})
+
+    # Count overrides to delete
+    count = len(entity_overrides)
+
+    if count == 0:
+        return {"status": "deleted", "entity_key": entity_key, "count": 0}
+
+    # Delete all overrides for this entity
+    del field_overrides[entity_key]
+
+    # Clean up empty structure
+    if not field_overrides:
+        del metadata["field_overrides"]
+
+    # Update group metadata
+    group.metadata_json = metadata
+    flag_modified(group, "metadata_json")
+    await session.commit()
+
+    return {"status": "deleted", "entity_key": entity_key, "count": count}
 
 
 # --- Preview Impact Endpoint (Stub) ---
+
 
 @router.get("/preview")
 async def preview_impact(
@@ -418,6 +597,7 @@ async def preview_impact(
 
 # --- Export Endpoint (Stub) ---
 
+
 @router.get("/export")
 async def export_baseline(
     session: AsyncSession = Depends(get_session),
@@ -435,14 +615,14 @@ async def export_baseline(
 
     if metadata is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No active baseline to export"
+            status_code=status.HTTP_404_NOT_FOUND, detail="No active baseline to export"
         )
 
     return metadata
 
 
 # --- Validate Endpoint (Stub) ---
+
 
 @router.post("/validate")
 async def validate_baseline(

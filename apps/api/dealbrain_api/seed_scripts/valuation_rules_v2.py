@@ -90,7 +90,7 @@ async def seed_sample_ruleset():
                         "condition_new": 1.0,
                         "condition_refurb": 0.85,
                         "condition_used": 0.70,
-                    }
+                    },
                 }
             ],
             created_by="system",
@@ -121,7 +121,7 @@ async def seed_sample_ruleset():
                         "condition_new": 1.0,
                         "condition_refurb": 0.80,
                         "condition_used": 0.65,
-                    }
+                    },
                 }
             ],
             created_by="system",
@@ -154,7 +154,7 @@ async def seed_sample_ruleset():
                         "condition_new": 1.0,
                         "condition_refurb": 0.80,
                         "condition_used": 0.65,
-                    }
+                    },
                 }
             ],
             created_by="system",
@@ -184,7 +184,7 @@ async def seed_sample_ruleset():
                         "condition_new": 1.0,
                         "condition_refurb": 0.75,
                         "condition_used": 0.60,
-                    }
+                    },
                 }
             ],
             created_by="system",
@@ -205,13 +205,7 @@ async def seed_sample_ruleset():
                     "value": 32,
                 }
             ],
-            actions=[
-                {
-                    "action_type": "additive",
-                    "value_usd": 25.0,
-                    "modifiers": {}
-                }
-            ],
+            actions=[{"action_type": "additive", "value_usd": 25.0, "modifiers": {}}],
             created_by="system",
         )
 
@@ -242,7 +236,7 @@ async def seed_sample_ruleset():
                         "condition_new": 1.0,
                         "condition_refurb": 0.85,
                         "condition_used": 0.70,
-                    }
+                    },
                 }
             ],
             created_by="system",
@@ -267,7 +261,7 @@ async def seed_sample_ruleset():
                     "field_type": "string",
                     "operator": "not_in",
                     "value": ["NVMe"],
-                }
+                },
             ],
             actions=[
                 {
@@ -278,7 +272,7 @@ async def seed_sample_ruleset():
                         "condition_new": 1.0,
                         "condition_refurb": 0.80,
                         "condition_used": 0.65,
-                    }
+                    },
                 }
             ],
             created_by="system",

@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { cn } from "../../lib/utils";
+import { telemetry } from "../../lib/telemetry";
 import { ComboBoxOption } from "./combobox";
 
 interface MultiComboBoxProps {
@@ -74,7 +75,9 @@ export function MultiComboBox({
       onChange([...value, search]);
       setSearch("");
     } catch (error) {
-      console.error("Failed to create option:", error);
+      telemetry.error("frontend.form.create_option_failed", {
+        message: (error as Error)?.message ?? "Unknown error",
+      });
     } finally {
       setCreating(false);
     }

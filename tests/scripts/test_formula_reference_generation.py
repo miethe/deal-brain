@@ -43,8 +43,9 @@ def test_reference_has_required_top_level_keys(reference_data):
         "notes",
     }
 
-    assert required_keys.issubset(reference_data.keys()), \
-        f"Reference missing required keys: {required_keys - set(reference_data.keys())}"
+    assert required_keys.issubset(
+        reference_data.keys()
+    ), f"Reference missing required keys: {required_keys - set(reference_data.keys())}"
 
 
 def test_entities_structure(reference_data):
@@ -53,8 +54,9 @@ def test_entities_structure(reference_data):
 
     # Should have at least core entities
     core_entities = {"listing", "cpu", "gpu", "ram_spec"}
-    assert core_entities.issubset(entities.keys()), \
-        f"Missing core entities: {core_entities - set(entities.keys())}"
+    assert core_entities.issubset(
+        entities.keys()
+    ), f"Missing core entities: {core_entities - set(entities.keys())}"
 
     # Each entity should have required fields
     for entity_name, entity_data in entities.items():
@@ -97,8 +99,9 @@ def test_enums_structure(reference_data):
 
     # Should have core enums
     core_enums = {"Condition", "RamGeneration", "StorageMedium", "ListingStatus"}
-    assert core_enums.issubset(enums.keys()), \
-        f"Missing core enums: {core_enums - set(enums.keys())}"
+    assert core_enums.issubset(
+        enums.keys()
+    ), f"Missing core enums: {core_enums - set(enums.keys())}"
 
     # Each enum should have required fields
     for enum_name, enum_data in enums.items():
@@ -139,8 +142,9 @@ def test_functions_structure(reference_data):
 
     # Should have core functions
     core_functions = {"abs", "min", "max", "round", "clamp", "floor", "ceil"}
-    assert core_functions.issubset(functions.keys()), \
-        f"Missing core functions: {core_functions - set(functions.keys())}"
+    assert core_functions.issubset(
+        functions.keys()
+    ), f"Missing core functions: {core_functions - set(functions.keys())}"
 
     # Each function should have required fields
     for func_name, func_data in functions.items():
@@ -156,16 +160,18 @@ def test_syntax_patterns_structure(reference_data):
 
     # Should have core patterns
     core_patterns = {"ternary", "field_access", "arithmetic", "comparison"}
-    assert core_patterns.issubset(patterns.keys()), \
-        f"Missing core patterns: {core_patterns - set(patterns.keys())}"
+    assert core_patterns.issubset(
+        patterns.keys()
+    ), f"Missing core patterns: {core_patterns - set(patterns.keys())}"
 
     # Each pattern should have required fields
     for pattern_name, pattern_data in patterns.items():
         assert "syntax" in pattern_data, f"Pattern {pattern_name} missing syntax"
         assert "description" in pattern_data, f"Pattern {pattern_name} missing description"
         assert "examples" in pattern_data, f"Pattern {pattern_name} missing examples"
-        assert isinstance(pattern_data["examples"], list), \
-            f"Pattern {pattern_name} examples must be list"
+        assert isinstance(
+            pattern_data["examples"], list
+        ), f"Pattern {pattern_name} examples must be list"
 
 
 def test_examples_structure(reference_data):
@@ -182,10 +188,10 @@ def test_examples_structure(reference_data):
         assert "use_case" in example_data, f"Example {example_name} missing use_case"
 
         # Formula should be non-empty string
-        assert isinstance(example_data["formula"], str), \
-            f"Example {example_name} formula must be string"
-        assert len(example_data["formula"]) > 0, \
-            f"Example {example_name} formula must not be empty"
+        assert isinstance(
+            example_data["formula"], str
+        ), f"Example {example_name} formula must be string"
+        assert len(example_data["formula"]) > 0, f"Example {example_name} formula must not be empty"
 
 
 def test_notes_section_exists(reference_data):
@@ -194,8 +200,9 @@ def test_notes_section_exists(reference_data):
 
     # Should have key guidance topics
     guidance_topics = {"null_safety", "field_access", "type_coercion", "operator_precedence"}
-    assert guidance_topics.issubset(notes.keys()), \
-        f"Missing guidance topics: {guidance_topics - set(notes.keys())}"
+    assert guidance_topics.issubset(
+        notes.keys()
+    ), f"Missing guidance topics: {guidance_topics - set(notes.keys())}"
 
     # Each note should be non-empty
     for topic, content in notes.items():
@@ -215,8 +222,9 @@ def test_listing_entity_has_key_fields(reference_data):
         "adjusted_price_usd",
     }
 
-    assert essential_fields.issubset(listing_fields.keys()), \
-        f"Listing missing essential fields: {essential_fields - set(listing_fields.keys())}"
+    assert essential_fields.issubset(
+        listing_fields.keys()
+    ), f"Listing missing essential fields: {essential_fields - set(listing_fields.keys())}"
 
 
 def test_cpu_entity_has_benchmark_fields(reference_data):
@@ -225,8 +233,9 @@ def test_cpu_entity_has_benchmark_fields(reference_data):
 
     benchmark_fields = {"cpu_mark_multi", "cpu_mark_single", "cores", "threads", "tdp_w"}
 
-    assert benchmark_fields.issubset(cpu_fields.keys()), \
-        f"CPU missing benchmark fields: {benchmark_fields - set(cpu_fields.keys())}"
+    assert benchmark_fields.issubset(
+        cpu_fields.keys()
+    ), f"CPU missing benchmark fields: {benchmark_fields - set(cpu_fields.keys())}"
 
 
 def test_ram_spec_has_ddr_generation(reference_data):
@@ -238,8 +247,7 @@ def test_ram_spec_has_ddr_generation(reference_data):
     ddr_field = ram_spec_fields["ddr_generation"]
     assert ddr_field["type"] == "enum", "ddr_generation must be enum type"
     assert "enum_type" in ddr_field, "ddr_generation must specify enum_type"
-    assert ddr_field["enum_type"] == "RamGeneration", \
-        "ddr_generation must use RamGeneration enum"
+    assert ddr_field["enum_type"] == "RamGeneration", "ddr_generation must use RamGeneration enum"
 
 
 def test_storage_has_medium_field(reference_data):
@@ -279,8 +287,9 @@ def test_examples_use_valid_field_references(reference_data):
         assert len(formula) > 0, f"Example {example_name} has empty formula"
 
         # Should not have obvious syntax errors
-        assert formula.count("(") == formula.count(")"), \
-            f"Example {example_name} has unmatched parentheses"
+        assert formula.count("(") == formula.count(
+            ")"
+        ), f"Example {example_name} has unmatched parentheses"
 
 
 def test_version_is_semver(reference_data):

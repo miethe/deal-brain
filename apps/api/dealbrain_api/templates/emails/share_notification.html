@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Deal Shared with You</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4F46E5;
+            margin-bottom: 10px;
+        }
+        .title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 15px;
+        }
+        .message {
+            font-size: 16px;
+            color: #4a4a4a;
+            margin-bottom: 25px;
+        }
+        .deal-card {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .deal-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+        .deal-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .deal-label {
+            font-weight: 500;
+            color: #6b7280;
+        }
+        .deal-value {
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        .price {
+            color: #10b981;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .score {
+            color: #4F46E5;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #4F46E5;
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .cta-button:hover {
+            background-color: #4338CA;
+        }
+        .footer {
+            text-align: center;
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .sender-message {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .sender-message-label {
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 5px;
+        }
+        .sender-message-text {
+            color: #78350f;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Deal Brain</div>
+            <div style="color: #6b7280; font-size: 14px;">Smart deal tracking for PC enthusiasts</div>
+        </div>
+
+        <div class="title">{{ sender_name }} shared a deal with you!</div>
+
+        <div class="message">
+            <strong>{{ sender_name }}</strong> thought you might be interested in this deal:
+        </div>
+
+        {% if message %}
+        <div class="sender-message">
+            <div class="sender-message-label">Message from {{ sender_name }}:</div>
+            <div class="sender-message-text">"{{ message }}"</div>
+        </div>
+        {% endif %}
+
+        <div class="deal-card">
+            <div class="deal-name">{{ listing_name }}</div>
+
+            {% if listing_manufacturer %}
+            <div class="deal-info">
+                <span class="deal-label">Manufacturer:</span>
+                <span class="deal-value">{{ listing_manufacturer }}</span>
+            </div>
+            {% endif %}
+
+            {% if listing_cpu %}
+            <div class="deal-info">
+                <span class="deal-label">CPU:</span>
+                <span class="deal-value">{{ listing_cpu }}</span>
+            </div>
+            {% endif %}
+
+            {% if listing_ram %}
+            <div class="deal-info">
+                <span class="deal-label">RAM:</span>
+                <span class="deal-value">{{ listing_ram }}</span>
+            </div>
+            {% endif %}
+
+            {% if listing_storage %}
+            <div class="deal-info">
+                <span class="deal-label">Storage:</span>
+                <span class="deal-value">{{ listing_storage }}</span>
+            </div>
+            {% endif %}
+
+            <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div class="deal-label">Price</div>
+                    <div class="price">${{ listing_price }}</div>
+                </div>
+                {% if listing_score %}
+                <div>
+                    <div class="deal-label">Score</div>
+                    <div class="score">{{ listing_score }}/10</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="text-align: center;">
+            <a href="{{ share_url }}" class="cta-button">View Deal Details</a>
+        </div>
+
+        <div class="message" style="font-size: 14px; color: #6b7280;">
+            Click the button above to view the full deal breakdown, valuation details, and performance metrics.
+        </div>
+
+        <div class="footer">
+            <p>
+                This email was sent because {{ sender_name }} shared a deal with you on Deal Brain.
+            </p>
+            <p>
+                Deal Brain - Your AI-powered PC deal assistant
+            </p>
+        </div>
+    </div>
+</body>
+</html>

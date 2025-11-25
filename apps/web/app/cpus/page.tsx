@@ -1,0 +1,125 @@
+"use client";
+
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { useCPUCatalogStore, useSort, useFilters } from "@/stores/cpu-catalog-store";
+import { useCPUs } from "@/hooks/use-cpus";
+import { useCPUUrlSync } from "@/hooks/use-cpu-url-sync";
+import { Plus, Upload } from "lucide-react";
+import { CatalogTab } from "./_components/catalog-tab";
+import { CPUDataTable } from "@/components/catalog/cpu-data-table";
+
+/**
+ * CPU Catalog Main Page
+ *
+ * Dual-tab interface for browsing CPU catalog:
+ * - Catalog Tab: Grid/List/Master-Detail views with filters and sorting (FE-003, FE-004, FE-005)
+ * - Data Tab: Legacy table view for power users
+ *
+ * Features:
+ * - React Query integration for data fetching with analytics
+ * - Zustand store for view state, tab persistence, sort, and filters
+ * - URL sync for shareable state (FE-007)
+ * - Server-side sorting and filtering for performance
+ * - Loading and error states
+ * - Accessible, responsive layout
+ */
+export default function CPUsPage() {
+  // Get sort and filter state
+  const { sort } = useSort();
+  const { filters } = useFilters();
+
+  // Fetch CPUs with analytics data, sorting, and filtering
+  const { data: cpus, isLoading, error } = useCPUs({
+    include_analytics: true,
+    sort_by: sort.sortBy,
+    sort_order: sort.sortOrder,
+    only_with_listings: filters.activeListingsOnly,
+  });
+
+  // Store state management
+  const activeTab = useCPUCatalogStore((state) => state.activeTab);
+  const setActiveTab = useCPUCatalogStore((state) => state.setActiveTab);
+
+  // URL sync for shareable state (FE-007)
+  useCPUUrlSync();
+
+  // Error state rendering
+  if (error) {
+    return (
+      <div className="w-full space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">CPUs</h1>
+            <p className="text-sm text-muted-foreground">
+              Browse CPU catalog with performance metrics and pricing analytics.
+            </p>
+          </div>
+        </div>
+        <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+          <p className="text-sm text-destructive">
+            Failed to load CPU data. Please try again later.
+          </p>
+          {error instanceof Error && (
+            <p className="mt-2 text-xs text-destructive/80">
+              Error: {error.message}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full space-y-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">CPUs</h1>
+          <p className="text-sm text-muted-foreground">
+            Browse CPU catalog with performance metrics and pricing analytics.
+          </p>
+        </div>
+
+        {/* Action Buttons - Future: Import and Add CPU functionality */}
+        <div className="flex gap-2">
+          <Button variant="outline" disabled>
+            <Upload className="mr-2 h-4 w-4" />
+            Import
+          </Button>
+          <Button disabled>
+            <Plus className="mr-2 h-4 w-4" />
+            Add CPU
+          </Button>
+        </div>
+      </div>
+
+      {/* Dual-Tab Interface */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as 'catalog' | 'data')}
+      >
+        <TabsList>
+          <TabsTrigger value="catalog">Catalog</TabsTrigger>
+          <TabsTrigger value="data">Data</TabsTrigger>
+        </TabsList>
+
+        {/* Catalog Tab - Multi-view interface for browsing CPUs */}
+        <TabsContent value="catalog" className="space-y-4">
+          <CatalogTab
+            cpus={cpus || []}
+            isLoading={isLoading}
+          />
+        </TabsContent>
+
+        {/* Data Tab - Table view for power users */}
+        <TabsContent value="data" className="space-y-4">
+          <CPUDataTable
+            cpus={cpus || []}
+            isLoading={isLoading}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

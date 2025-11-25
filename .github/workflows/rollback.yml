@@ -1,0 +1,303 @@
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback (staging or production)'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      git_ref:
+        description: 'Git ref/tag/commit to rollback to (leave empty for previous commit)'
+        required: false
+      reason:
+        description: 'Reason for rollback'
+        required: true
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  rollback:
+    name: Rollback ${{ github.event.inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    environment:
+      name: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 20  # Get recent history for finding previous version
+
+      - name: Determine rollback version
+        id: version
+        run: |
+          if [ -z "${{ github.event.inputs.git_ref }}" ]; then
+            # Get previous commit
+            ROLLBACK_REF=$(git log --oneline -2 | tail -1 | awk '{print $1}')
+            echo "Using previous commit: $ROLLBACK_REF"
+          else
+            ROLLBACK_REF="${{ github.event.inputs.git_ref }}"
+            echo "Using specified ref: $ROLLBACK_REF"
+          fi
+          echo "rollback_ref=$ROLLBACK_REF" >> $GITHUB_OUTPUT
+
+      - name: Get current deployment info
+        id: current
+        run: |
+          echo "current_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "rollback_sha=${{ steps.version.outputs.rollback_ref }}" >> $GITHUB_OUTPUT
+
+      - name: Check out rollback version
+        run: |
+          git fetch origin ${{ steps.version.outputs.rollback_ref }}
+          git checkout ${{ steps.version.outputs.rollback_ref }}
+
+      - name: Log rollback decision
+        run: |
+          echo "=== ROLLBACK INITIATED ==="
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Current: ${{ steps.current.outputs.current_sha }}"
+          echo "Rollback to: ${{ steps.current.outputs.rollback_sha }}"
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          echo "Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+
+      - name: Trigger Render rollback - Staging
+        if: github.event.inputs.environment == 'staging'
+        run: |
+          echo "Triggering staging rollback..."
+          # Call Render API to deploy previous version
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_STAGING }} \
+            -H "Content-Type: application/json" \
+            -d '{
+              "commit": "${{ steps.version.outputs.rollback_ref }}",
+              "reason": "${{ github.event.inputs.reason }}"
+            }' \
+            -v
+
+      - name: Trigger Render rollback - Production
+        if: github.event.inputs.environment == 'production'
+        run: |
+          echo "Triggering production rollback..."
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_PRODUCTION }} \
+            -H "Content-Type: application/json" \
+            -d '{
+              "commit": "${{ steps.version.outputs.rollback_ref }}",
+              "reason": "${{ github.event.inputs.reason }}"
+            }' \
+            -v
+
+      - name: Wait for deployment
+        run: |
+          echo "Waiting 45 seconds for deployment to start..."
+          sleep 45
+
+      - name: Verify rollback health - Staging
+        if: github.event.inputs.environment == 'staging'
+        run: |
+          MAX_ATTEMPTS=12
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            if curl -f https://staging-api.dealbrain.render.com/health; then
+              echo "✓ Rollback successful - staging healthy"
+              exit 0
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Health check attempt $ATTEMPT/$MAX_ATTEMPTS"
+            sleep 10
+          done
+          echo "✗ Rollback verification failed - staging not healthy after $MAX_ATTEMPTS attempts"
+          exit 1
+
+      - name: Verify rollback health - Production
+        if: github.event.inputs.environment == 'production'
+        run: |
+          MAX_ATTEMPTS=12
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            if curl -f https://api.dealbrain.com/health; then
+              echo "✓ Rollback successful - production healthy"
+              exit 0
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Health check attempt $ATTEMPT/$MAX_ATTEMPTS"
+            sleep 10
+          done
+          echo "✗ Rollback verification failed - production not healthy after $MAX_ATTEMPTS attempts"
+          exit 1
+
+      - name: Monitor error rate - Staging
+        if: github.event.inputs.environment == 'staging' && success()
+        run: |
+          echo "Monitoring staging error rate for 1 minute..."
+          for i in {1..6}; do
+            echo "Check $i: $(date)"
+            curl -s https://staging-api.dealbrain.render.com/metrics | grep -i "http_requests_total" || true
+            sleep 10
+          done
+
+      - name: Monitor error rate - Production
+        if: github.event.inputs.environment == 'production' && success()
+        run: |
+          echo "Monitoring production error rate for 2 minutes..."
+          for i in {1..12}; do
+            echo "Check $i: $(date)"
+            curl -s https://api.dealbrain.com/metrics | grep -i "http_requests_total" || true
+            sleep 10
+          done
+
+      - name: Create deployment record
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const rollbackInfo = {
+              timestamp: new Date().toISOString(),
+              environment: '${{ github.event.inputs.environment }}',
+              from_commit: '${{ steps.current.outputs.current_sha }}',
+              to_commit: '${{ steps.current.outputs.rollback_sha }}',
+              reason: '${{ github.event.inputs.reason }}',
+              triggered_by: '${{ github.actor }}',
+              status: '${{ job.status }}'
+            };
+            console.log(JSON.stringify(rollbackInfo, null, 2));
+
+      - name: Slack notification - Rollback Success
+        if: success()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "Rollback successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "✅ Rollback Successful\n*Environment:* ${{ github.event.inputs.environment }}\n*Rollback to:* ${{ steps.version.outputs.rollback_ref }}\n*Reason:* ${{ github.event.inputs.reason }}\n*Time:* $(date)"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Next Steps:*\n1. Verify application is working correctly\n2. Check metrics and logs\n3. Investigate root cause\n4. Plan fix and re-deployment"
+                  }
+                }
+              ]
+            }
+
+      - name: Slack notification - Rollback Failed
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "Rollback failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "❌ Rollback FAILED\n*Environment:* ${{ github.event.inputs.environment }}\n*Attempted rollback to:* ${{ steps.version.outputs.rollback_ref }}\n*Reason:* ${{ github.event.inputs.reason }}\n*View*: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Workflow>"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*CRITICAL - Manual intervention required*\n1. Check deployment platform dashboard\n2. Review logs immediately\n3. Contact ops team\n4. Escalate if needed"
+                  }
+                }
+              ]
+            }
+
+  # Post-rollback verification
+  verify-rollback:
+    name: Verify Rollback
+    runs-on: ubuntu-latest
+    needs: rollback
+    if: always()
+    timeout-minutes: 10
+
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Smoke test - Staging
+        if: github.event.inputs.environment == 'staging'
+        run: |
+          python -m pip install httpx
+          python << 'EOF'
+          import httpx
+          import time
+
+          # API smoke tests
+          client = httpx.Client(base_url="https://staging-api.dealbrain.render.com", timeout=5.0)
+
+          tests = [
+              ("GET", "/health", 200),
+              ("GET", "/api/listings", [200, 401]),
+          ]
+
+          for method, endpoint, expected_status in tests:
+              try:
+                  response = client.request(method, endpoint)
+                  expected = expected_status if isinstance(expected_status, list) else [expected_status]
+                  if response.status_code in expected:
+                      print(f"✓ {method} {endpoint}: {response.status_code}")
+                  else:
+                      print(f"✗ {method} {endpoint}: {response.status_code} (expected {expected})")
+              except Exception as e:
+                  print(f"✗ {method} {endpoint}: {e}")
+          EOF
+
+      - name: Smoke test - Production
+        if: github.event.inputs.environment == 'production'
+        run: |
+          python -m pip install httpx
+          python << 'EOF'
+          import httpx
+          import time
+
+          # API smoke tests
+          client = httpx.Client(base_url="https://api.dealbrain.com", timeout=5.0)
+
+          tests = [
+              ("GET", "/health", 200),
+              ("GET", "/api/listings", [200, 401]),
+          ]
+
+          for method, endpoint, expected_status in tests:
+              try:
+                  response = client.request(method, endpoint)
+                  expected = expected_status if isinstance(expected_status, list) else [expected_status]
+                  if response.status_code in expected:
+                      print(f"✓ {method} {endpoint}: {response.status_code}")
+                  else:
+                      print(f"✗ {method} {endpoint}: {response.status_code} (expected {expected})")
+              except Exception as e:
+                  print(f"✗ {method} {endpoint}: {e}")
+          EOF
+
+      - name: Generate rollback report
+        run: |
+          echo "# Rollback Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment**: ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Reason**: ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status**: ${{ needs.rollback.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY

@@ -17,6 +17,8 @@ fastapi = "^0.110.0"
 uvicorn = { extras = ["standard"], version = "^0.27.1" }
 SQLAlchemy = "^2.0.25"
 asyncpg = "^0.29.0"
+beautifulsoup4 = "^4.12.0"
+lxml = "^5.1.0"
 psycopg = { version = "^3.1.18", extras = ["binary"] }
 psycopg-binary = "^3.1.18"
 pydantic = "^2.6.2"
@@ -41,6 +43,14 @@ rapidfuzz = "^3.6.1"
 pyyaml = "^6.0.1"
 aiosqlite = "^0.21.0"
 extruct = "^0.18.0"
+opentelemetry-sdk = "^1.24.0"
+opentelemetry-exporter-otlp = "^1.24.0"
+opentelemetry-instrumentation-fastapi = "^0.45b0"
+sse-starlette = "^2.0.0"
+playwright = "^1.41.2"
+boto3 = "^1.34.0"
+pillow = "^10.2.0"
+jinja2 = ">=3.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.2"
@@ -58,6 +68,7 @@ types-requests = "^2.31.0.20240218"
 playwright = "^1.41.2"
 pytest-playwright = "^0.4.2"
 pre-commit = "^3.6.2"
+colorama = "^0.4.6"
 
 [tool.poetry.scripts]
 dealbrain-api = "dealbrain_api.main:run"

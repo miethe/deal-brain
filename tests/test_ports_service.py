@@ -106,9 +106,7 @@ class TestUpdateListingPorts:
             {"port_type": "DisplayPort", "quantity": 2},
         ]
 
-        updated_profile = await update_listing_ports(
-            session, listing.id, new_ports_data
-        )
+        updated_profile = await update_listing_ports(session, listing.id, new_ports_data)
 
         assert len(updated_profile.ports) == 2
         assert updated_profile.ports[0].port_type == "USB-C"

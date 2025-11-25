@@ -9,10 +9,7 @@ from sqlalchemy.orm import joinedload
 from ..models import Listing, Port, PortsProfile
 
 
-async def get_or_create_ports_profile(
-    session: AsyncSession,
-    listing_id: int
-) -> PortsProfile:
+async def get_or_create_ports_profile(session: AsyncSession, listing_id: int) -> PortsProfile:
     """Get existing ports profile or create new one for listing.
 
     Args:
@@ -25,8 +22,10 @@ async def get_or_create_ports_profile(
     Raises:
         ValueError: If listing not found
     """
-    stmt = select(Listing).where(Listing.id == listing_id).options(
-        joinedload(Listing.ports_profile).joinedload(PortsProfile.ports)
+    stmt = (
+        select(Listing)
+        .where(Listing.id == listing_id)
+        .options(joinedload(Listing.ports_profile).joinedload(PortsProfile.ports))
     )
     result = await session.execute(stmt)
     listing = result.unique().scalar_one_or_none()
@@ -49,9 +48,7 @@ async def get_or_create_ports_profile(
 
 
 async def update_listing_ports(
-    session: AsyncSession,
-    listing_id: int,
-    ports_data: list[dict]
+    session: AsyncSession, listing_id: int, ports_data: list[dict]
 ) -> PortsProfile:
     """Update ports for a listing.
 
@@ -72,16 +69,12 @@ async def update_listing_ports(
     profile = await get_or_create_ports_profile(session, listing_id)
 
     # Clear existing ports
-    await session.execute(
-        delete(Port).where(Port.ports_profile_id == profile.id)
-    )
+    await session.execute(delete(Port).where(Port.ports_profile_id == profile.id))
 
     # Add new ports
     for port_data in ports_data:
         port = Port(
-            ports_profile_id=profile.id,
-            type=port_data['port_type'],
-            count=port_data['quantity']
+            ports_profile_id=profile.id, type=port_data["port_type"], count=port_data["quantity"]
         )
         session.add(port)
 
@@ -90,17 +83,16 @@ async def update_listing_ports(
     return profile
 
 
-async def get_listing_ports(
-    session: AsyncSession,
-    listing_id: int
-) -> list[dict]:
+async def get_listing_ports(session: AsyncSession, listing_id: int) -> list[dict]:
     """Get ports for a listing as simple dict list.
 
     Returns:
         List of dicts with port_type and quantity, or empty list if none.
     """
-    stmt = select(Listing).where(Listing.id == listing_id).options(
-        joinedload(Listing.ports_profile).joinedload(PortsProfile.ports)
+    stmt = (
+        select(Listing)
+        .where(Listing.id == listing_id)
+        .options(joinedload(Listing.ports_profile).joinedload(PortsProfile.ports))
     )
     result = await session.execute(stmt)
     listing = result.scalar_one_or_none()
@@ -109,6 +101,5 @@ async def get_listing_ports(
         return []
 
     return [
-        {"port_type": port.type, "quantity": port.count}
-        for port in listing.ports_profile.ports
+        {"port_type": port.type, "quantity": port.count} for port in listing.ports_profile.ports
     ]

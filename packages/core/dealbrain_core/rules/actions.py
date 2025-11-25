@@ -1,15 +1,18 @@
 """Action system for valuation rules"""
+
 from __future__ import annotations
 
-import logging
 from enum import Enum
 from typing import Any
 
-logger = logging.getLogger(__name__)
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 
 class ActionType(str, Enum):
     """Supported action types for valuation rules"""
+
     FIXED_VALUE = "fixed_value"  # Set specific dollar amount
     PER_UNIT = "per_unit"  # Value based on quantity (per-GB, per-core, etc.)
     BENCHMARK_BASED = "benchmark_based"  # Value proportional to performance score
@@ -110,7 +113,7 @@ class Action:
         metric_map = {
             "per_gb": "ram_gb",
             "per_tb": "primary_storage_gb",
-             "per_ram_spec_gb": "ram_spec.total_capacity_gb",
+            "per_ram_spec_gb": "ram_spec.total_capacity_gb",
             "per_ram_speed": "ram_spec.speed_mhz",
             "per_primary_storage_gb": "storage.primary.capacity_gb",
             "per_secondary_storage_gb": "storage.secondary.capacity_gb",
@@ -237,7 +240,9 @@ class Action:
             condition_key = condition.lower()
             multiplier = self.modifiers["condition_multipliers"].get(condition_key, 1.0)
             if multiplier != 1.0:
-                logger.debug(f"Applied condition multiplier {multiplier} for condition '{condition}'")
+                logger.debug(
+                    f"Applied condition multiplier {multiplier} for condition '{condition}'"
+                )
                 adjusted_value *= multiplier
 
         # 3. Apply age depreciation
@@ -246,14 +251,20 @@ class Action:
             age_curve = self.modifiers["age_curve"]
             # Simple linear depreciation for now
             if isinstance(age_curve, dict) and "rate_per_year" in age_curve:
-                depreciation = min(age_years * age_curve["rate_per_year"], age_curve.get("max", 0.5))
+                depreciation = min(
+                    age_years * age_curve["rate_per_year"], age_curve.get("max", 0.5)
+                )
                 if depreciation > 0:
-                    logger.debug(f"Applied age depreciation {depreciation:.2%} for {age_years} years")
-                    adjusted_value *= (1.0 - depreciation)
+                    logger.debug(
+                        f"Applied age depreciation {depreciation:.2%} for {age_years} years"
+                    )
+                    adjusted_value *= 1.0 - depreciation
 
         # 4. Apply brand/model multipliers
         if "brand_multipliers" in self.modifiers:
-            brand = self._get_field_value(context, "brand") or self._get_field_value(context, "manufacturer")
+            brand = self._get_field_value(context, "brand") or self._get_field_value(
+                context, "manufacturer"
+            )
             if brand:
                 multiplier = self.modifiers["brand_multipliers"].get(brand.lower(), 1.0)
                 if multiplier != 1.0:
@@ -284,11 +295,7 @@ class ActionEngine:
     def __init__(self, formula_engine: Any = None):
         self.formula_engine = formula_engine
 
-    def execute_actions(
-        self,
-        actions: list[Action],
-        context: dict[str, Any]
-    ) -> dict[str, Any]:
+    def execute_actions(self, actions: list[Action], context: dict[str, Any]) -> dict[str, Any]:
         """
         Execute multiple actions and return combined results.
 
@@ -307,25 +314,26 @@ class ActionEngine:
         for action in actions:
             try:
                 value = action.calculate(context, self.formula_engine)
-                breakdown.append({
-                    "action_type": action.action_type.value,
-                    "metric": action.metric,
-                    "value": value,
-                    "details": action.to_dict()
-                })
+                breakdown.append(
+                    {
+                        "action_type": action.action_type.value,
+                        "metric": action.metric,
+                        "value": value,
+                        "details": action.to_dict(),
+                    }
+                )
                 total_adjustment += value
             except Exception as e:
-                breakdown.append({
-                    "action_type": action.action_type.value,
-                    "metric": action.metric,
-                    "value": 0.0,
-                    "error": str(e)
-                })
+                breakdown.append(
+                    {
+                        "action_type": action.action_type.value,
+                        "metric": action.metric,
+                        "value": 0.0,
+                        "error": str(e),
+                    }
+                )
 
-        return {
-            "total_adjustment": total_adjustment,
-            "breakdown": breakdown
-        }
+        return {"total_adjustment": total_adjustment, "breakdown": breakdown}
 
 
 def build_action_from_dict(data: dict[str, Any]) -> Action:

@@ -97,19 +97,27 @@ class SpreadsheetImporter:
                 threads=self._to_int(self._first_value(row, ["Threads"])),
                 tdp_w=self._to_int(self._first_value(row, ["TDP", "TDP W", "TDP (W)"])),
                 igpu_model=self._first_value(row, ["GPU", "iGPU", "Integrated GPU"]),
-                cpu_mark_multi=self._to_int(self._first_value(row, ["CPU Mark - Multi", "CPU Mark"])),
-                cpu_mark_single=self._to_int(self._first_value(row, ["Single Thread", "CPU Mark - Single"])),
+                cpu_mark_multi=self._to_int(
+                    self._first_value(row, ["CPU Mark - Multi", "CPU Mark"])
+                ),
+                cpu_mark_single=self._to_int(
+                    self._first_value(row, ["Single Thread", "CPU Mark - Single"])
+                ),
                 release_year=self._to_int(self._first_value(row, ["Release Year", "Year"])),
                 notes=self._first_value(row, ["Notes"]),
             )
             cpus.append(cpu)
         return cpus
 
-    def _parse_reference(self, dataframe: pd.DataFrame) -> tuple[list[ValuationRuleCreate], list[GpuCreate]]:
+    def _parse_reference(
+        self, dataframe: pd.DataFrame
+    ) -> tuple[list[ValuationRuleCreate], list[GpuCreate]]:
         rules: list[ValuationRuleCreate] = []
         gpus: list[GpuCreate] = []
         for row in dataframe.fillna("").to_dict(orient="records"):
-            component_type = (self._first_value(row, ["Component", "Component Type"]) or "").strip().lower()
+            component_type = (
+                (self._first_value(row, ["Component", "Component Type"]) or "").strip().lower()
+            )
             if component_type in {"gpu", "graphics"}:
                 gpu_name = self._first_value(row, ["GPU Model", "GPU"])
                 if gpu_name:
@@ -117,8 +125,12 @@ class SpreadsheetImporter:
                         GpuCreate(
                             name=str(gpu_name).strip(),
                             manufacturer=self._infer_gpu_manufacturer(gpu_name),
-                            gpu_mark=self._to_int(self._first_value(row, ["GPU Mark Score", "GPU Mark"])),
-                            metal_score=self._to_int(self._first_value(row, ["Metal", "Metal Score"])),
+                            gpu_mark=self._to_int(
+                                self._first_value(row, ["GPU Mark Score", "GPU Mark"])
+                            ),
+                            metal_score=self._to_int(
+                                self._first_value(row, ["Metal", "Metal Score"])
+                            ),
                         )
                     )
                 continue
@@ -126,33 +138,64 @@ class SpreadsheetImporter:
             if not component_type:
                 continue
 
-            metric_value = (self._first_value(row, ["Metric"]) or "per_gb").replace("/", "_").replace("-", "_").lower()
+            metric_value = (
+                (self._first_value(row, ["Metric"]) or "per_gb")
+                .replace("/", "_")
+                .replace("-", "_")
+                .lower()
+            )
             metric = ComponentMetric.PER_GB if "gb" in metric_value else ComponentMetric.FLAT
             if "tb" in metric_value:
                 metric = ComponentMetric.PER_TB
 
             rule = ValuationRuleCreate(
                 name=self._first_value(row, ["Reference", "Name"]) or component_type.title(),
-                component_type=ComponentType(component_type) if component_type in ComponentType._value2member_map_ else ComponentType.MISC,
+                component_type=(
+                    ComponentType(component_type)
+                    if component_type in ComponentType._value2member_map_
+                    else ComponentType.MISC
+                ),
                 metric=metric,
-                unit_value_usd=float(self._first_value(row, ["Unit cost (suggested)", "Adjustment Amount", "Unit Value"]) or 0.0),
-                condition_new=self._to_float(self._first_value(row, ["Condition New", "Multiplier New"]) or 1.0) or 1.0,
-                condition_refurb=self._to_float(self._first_value(row, ["Condition Refurb", "Multiplier Refurb"]) or 0.75) or 0.75,
-                condition_used=self._to_float(self._first_value(row, ["Condition Used", "Multiplier Used"]) or 0.6) or 0.6,
+                unit_value_usd=float(
+                    self._first_value(
+                        row, ["Unit cost (suggested)", "Adjustment Amount", "Unit Value"]
+                    )
+                    or 0.0
+                ),
+                condition_new=self._to_float(
+                    self._first_value(row, ["Condition New", "Multiplier New"]) or 1.0
+                )
+                or 1.0,
+                condition_refurb=self._to_float(
+                    self._first_value(row, ["Condition Refurb", "Multiplier Refurb"]) or 0.75
+                )
+                or 0.75,
+                condition_used=self._to_float(
+                    self._first_value(row, ["Condition Used", "Multiplier Used"]) or 0.6
+                )
+                or 0.6,
                 notes=self._first_value(row, ["Notes"]),
             )
             rules.append(rule)
         return rules, gpus
 
-    def _parse_listings(self, dataframe: pd.DataFrame, *, is_apple: bool = False) -> list[ListingCreate]:
+    def _parse_listings(
+        self, dataframe: pd.DataFrame, *, is_apple: bool = False
+    ) -> list[ListingCreate]:
         listings: list[ListingCreate] = []
         for row in dataframe.fillna("").to_dict(orient="records"):
             title = self._first_value(row, ["Device", "Title", "Listing"])
             if not title:
                 continue
-            price_value = self._to_float(self._first_value(row, ["Cost", "Price", "Listing Price"])) or 0.0
+            price_value = (
+                self._to_float(self._first_value(row, ["Cost", "Price", "Listing Price"])) or 0.0
+            )
             condition_value = (self._first_value(row, ["Condition"]) or "used").lower()
-            condition = Condition(condition_value) if condition_value in Condition._value2member_map_ else Condition.USED
+            condition = (
+                Condition(condition_value)
+                if condition_value in Condition._value2member_map_
+                else Condition.USED
+            )
 
             listing = ListingCreate(
                 title=str(title).strip(),
@@ -163,8 +206,12 @@ class SpreadsheetImporter:
                 ports_profile_id=None,
                 ram_gb=self._to_int(self._first_value(row, ["Memory", "RAM"]) or 0) or 0,
                 primary_storage_gb=self._normalize_storage(row),
-                primary_storage_type=self._first_value(row, ["Storage 1 Type", "Storage Type", "Primary Storage Type"]),
-                secondary_storage_gb=self._to_int(self._first_value(row, ["Storage 2", "Storage Secondary"])),
+                primary_storage_type=self._first_value(
+                    row, ["Storage 1 Type", "Storage Type", "Primary Storage Type"]
+                ),
+                secondary_storage_gb=self._to_int(
+                    self._first_value(row, ["Storage 2", "Storage Secondary"])
+                ),
                 secondary_storage_type=self._first_value(row, ["Storage 2 Type"]),
                 os_license=self._first_value(row, ["OS", "OS License"]),
                 notes=self._first_value(row, ["Notes"]),

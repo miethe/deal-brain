@@ -1,0 +1,138 @@
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Deal Brain Application                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Frontend Layer                             │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  │
+│  │ Listings Page    │  │ Dashboard        │  │ Any Page/        │  │
+│  │                  │  │                  │  │ Component        │  │
+│  │ • Table view     │  │ • Quick actions  │  │                  │  │
+│  │ • Catalog view   │  │ • Stats cards    │  │ • Empty states   │  │
+│  │ • Filters        │  │ • Recent items   │  │ • CTAs           │  │
+│  └────────┬─────────┘  └────────┬─────────┘  └────────┬─────────┘  │
+│           │                     │                     │             │
+│           └─────────────────────┼─────────────────────┘             │
+│                                 │                                   │
+│                    ┌────────────▼────────────┐                      │
+│                    │                         │                      │
+│                    │    ImportModal          │  ◄── NEW COMPONENT   │
+│                    │                         │                      │
+│                    │  Props:                 │                      │
+│                    │  • open: boolean        │                      │
+│                    │  • onOpenChange         │                      │
+│                    │  • onSuccess?           │                      │
+│                    │                         │                      │
+│                    │  Features:              │                      │
+│                    │  ┌─────────────────┐   │                      │
+│                    │  │ URL Import Tab  │   │                      │
+│                    │  │ • Input field   │   │                      │
+│                    │  │ • Validation    │   │                      │
+│                    │  └─────────────────┘   │                      │
+│                    │  ┌─────────────────┐   │                      │
+│                    │  │ File Upload Tab │   │                      │
+│                    │  │ • File picker   │   │                      │
+│                    │  │ • Preview       │   │                      │
+│                    │  └─────────────────┘   │                      │
+│                    └────────────┬────────────┘                      │
+│                                 │                                   │
+└─────────────────────────────────┼───────────────────────────────────┘
+                                  │
+                    ┌─────────────▼────────────┐
+                    │                          │
+                    │    API Layer             │
+                    │                          │
+                    └────────┬────────┬────────┘
+                             │        │
+           ┌─────────────────┘        └─────────────────┐
+           │                                             │
+┌──────────▼──────────┐                    ┌────────────▼──────────┐
+│                     │                    │                       │
+│  URL Import API     │                    │  File Import API      │
+│                     │                    │                       │
+│  POST /api/v1/      │                    │  POST /v1/imports/    │
+│       ingest/single │                    │       sessions        │
+│                     │                    │                       │
+│  Request:           │                    │  Request:             │
+│  {                  │                    │  FormData with        │
+│    url: string,     │                    │  'upload' field       │
+│    priority: enum   │                    │                       │
+│  }                  │                    │  Response:            │
+│                     │                    │  {                    │
+│  Response:          │                    │    id: uuid,          │
+│  {                  │                    │    filename: string,  │
+│    job_id: uuid     │                    │    status: string,    │
+│  }                  │                    │    mappings: {...}    │
+│                     │                    │  }                    │
+│                     │                    │                       │
+└─────────────────────┘                    └───────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Component Relationships                       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  ImportModal (NEW)                   Full Import Page (EXISTING)     │
+│  ═══════════════════                 ═══════════════════════════     │
+│                                                                       │
+│  • Quick, lightweight                • Full workflow                 │
+│  • Modal overlay                     • Dedicated page                │
+│  • Immediate return                  • Job polling                   │
+│  • Simple UX                         • Status tracking               │
+│  • Anywhere in app                   • Conflict resolution           │
+│                                      • Mapping interface             │
+│  Use Cases:                          • Commit workflow               │
+│  • Quick single import                                               │
+│  • Empty states                      Use Cases:                      │
+│  • Dashboard actions                 • Complex batch imports         │
+│  • Catalog CTAs                      • File mapping required         │
+│                                      • Multiple entities             │
+│                                      • Conflict management           │
+│                                                                       │
+│  COMPLEMENTARY - Both serve different purposes                       │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Usage Pattern                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  1. User clicks "Import" button anywhere in app                      │
+│                                                                       │
+│  2. ImportModal opens with two tabs:                                 │
+│     • URL - for marketplace listings                                 │
+│     • File - for Excel/CSV workbooks                                 │
+│                                                                       │
+│  3. User enters URL or selects file                                  │
+│                                                                       │
+│  4. Component validates and submits to API                           │
+│                                                                       │
+│  5. API returns job/session ID                                       │
+│                                                                       │
+│  6. Success toast notification appears                               │
+│                                                                       │
+│  7. Modal closes automatically                                       │
+│                                                                       │
+│  8. onSuccess callback fires (optional):                             │
+│     • Refresh data (queryClient.invalidateQueries)                   │
+│     • Navigate to listings                                           │
+│     • Show custom notification                                       │
+│     • Update local state                                             │
+│                                                                       │
+│  9. Import processes in background                                   │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                          File Structure                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  apps/web/components/listings/                                       │
+│  ├── import-modal.tsx              ◄── Main component                │
+│  ├── import-modal.example.tsx      ◄── Usage examples                │
+│  ├── import-modal.md               ◄── Full documentation            │
+│  ├── IMPORT_MODAL_SUMMARY.md       ◄── Implementation summary        │
+│  └── import-modal-architecture.txt ◄── This diagram                  │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘

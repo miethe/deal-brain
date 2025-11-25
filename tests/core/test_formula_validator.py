@@ -98,7 +98,15 @@ class TestFormulaValidatorFieldExtraction:
         )
         fields = validator.get_field_references(formula)
 
-        expected = {"ram_gb", "multiplier", "min_value", "cpu_mark", "divisor", "threshold", "default_value"}
+        expected = {
+            "ram_gb",
+            "multiplier",
+            "min_value",
+            "cpu_mark",
+            "divisor",
+            "threshold",
+            "default_value",
+        }
         assert fields == expected
 
     def test_extract_fields_ignores_constants(self):
@@ -319,10 +327,7 @@ class TestValidationErrorClass:
     def test_validation_error_with_details(self):
         """Test ValidationError with all details"""
         error = ValidationError(
-            "Test error",
-            severity="warning",
-            position=10,
-            suggestion="Try this instead"
+            "Test error", severity="warning", position=10, suggestion="Try this instead"
         )
 
         assert error.message == "Test error"
@@ -332,12 +337,7 @@ class TestValidationErrorClass:
 
     def test_validation_error_repr(self):
         """Test ValidationError string representation"""
-        error = ValidationError(
-            "Test error",
-            severity="error",
-            position=5,
-            suggestion="Fix it"
-        )
+        error = ValidationError("Test error", severity="error", position=5, suggestion="Fix it")
 
         repr_str = repr(error)
         assert "ERROR" in repr_str
@@ -348,10 +348,7 @@ class TestValidationErrorClass:
     def test_validation_error_to_dict(self):
         """Test ValidationError dictionary conversion"""
         error = ValidationError(
-            "Test error",
-            severity="warning",
-            position=10,
-            suggestion="Try this"
+            "Test error", severity="warning", position=10, suggestion="Try this"
         )
 
         d = error.to_dict()

@@ -30,9 +30,6 @@ import { useCatalogStore } from '@/stores/catalog-store'
 import type { ListingRow } from '@/components/listings/listings-table'
 import { formatRamSummary, formatStorageSummary } from '@/components/listings/listing-formatters'
 import { EntityTooltip } from '@/components/listings/entity-tooltip'
-import { CpuTooltipContent } from '@/components/listings/tooltips/cpu-tooltip-content'
-import { GpuTooltipContent } from '@/components/listings/tooltips/gpu-tooltip-content'
-import { fetchEntityData } from '@/lib/api/entities'
 
 interface DenseTableProps {
   listings: ListingRow[]
@@ -251,8 +248,6 @@ export const DenseTable = React.memo(function DenseTable({
                           <EntityTooltip
                             entityType="cpu"
                             entityId={listing.cpu.id}
-                            tooltipContent={(cpuData) => <CpuTooltipContent cpu={cpuData} />}
-                            fetchData={fetchEntityData}
                             variant="inline"
                           >
                             {listing.cpu_name || listing.cpu.name || 'Unknown CPU'}
@@ -266,8 +261,6 @@ export const DenseTable = React.memo(function DenseTable({
                           <EntityTooltip
                             entityType="gpu"
                             entityId={listing.gpu.id}
-                            tooltipContent={(gpuData) => <GpuTooltipContent gpu={gpuData} />}
-                            fetchData={fetchEntityData}
                             variant="inline"
                           >
                             GPU: {listing.gpu_name}

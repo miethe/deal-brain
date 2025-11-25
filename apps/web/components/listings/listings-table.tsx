@@ -1,5 +1,6 @@
 "use client";
 
+import "@/styles/listings-table.css";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -15,8 +16,9 @@ import {
   useReactTable
 } from "@tanstack/react-table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDebouncedCallback } from "use-debounce";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef, Profiler } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { apiFetch, ApiError } from "../../lib/utils";
@@ -36,12 +38,13 @@ import { ComboBox } from "../forms/combobox";
 import { useConfirmation } from "../ui/confirmation-dialog";
 import { useValuationThresholds } from "@/hooks/use-valuation-thresholds";
 import { EntityTooltip } from "./entity-tooltip";
-import { CpuTooltipContent } from "./tooltips/cpu-tooltip-content";
-import { GpuTooltipContent } from "./tooltips/gpu-tooltip-content";
-import { fetchEntityData } from "@/lib/api/entities";
 import { RamSpecSelector } from "../forms/ram-spec-selector";
 import { StorageProfileSelector } from "../forms/storage-profile-selector";
 import { getStorageMediumLabel } from "../../lib/component-catalog";
+import { measureInteraction, measureInteractionAsync, logRenderPerformance } from "../../lib/performance";
+import { ColumnSelector, type ColumnDefinition } from "../ui/column-selector";
+import { useColumnPreferences } from "@/hooks/use-column-preferences";
+import { ShareButton } from "../share/share-button";
 
 // ListingRow is just an alias for ListingRecord - all fields come from the API
 export type ListingRow = ListingRecord;
@@ -147,6 +150,7 @@ export function ListingsTable() {
   const [grouping, setGrouping] = useState<GroupingState>([]);
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({});
   const [quickSearch, setQuickSearch] = useState("");
+  const [quickSearchInput, setQuickSearchInput] = useState("");
   const [rowSelection, setRowSelection] = useState({});
   const [bulkState, setBulkState] = useState<BulkEditState>({ ...DEFAULT_BULK_STATE });
   const [inlineError, setInlineError] = useState<string | null>(null);
@@ -166,6 +170,13 @@ export function ListingsTable() {
     return param ? parseInt(param, 10) : null;
   }, [searchParams]);
 
+  // Debounced search with performance tracking (200ms debounce)
+  const debouncedSearch = useDebouncedCallback((value: string) => {
+    measureInteraction('quick_search', () => {
+      setQuickSearch(value);
+    });
+  }, 200);
+
   // Load saved table state on mount (will be validated when table initializes)
   useEffect(() => {
     const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
@@ -177,7 +188,10 @@ export function ListingsTable() {
       if (parsed.sorting) setSorting(parsed.sorting);
       if (parsed.filters) setColumnFilters(parsed.filters);
       if (parsed.grouping) setGrouping(parsed.grouping);
-      if (parsed.search) setQuickSearch(parsed.search);
+      if (parsed.search) {
+        setQuickSearch(parsed.search);
+        setQuickSearchInput(parsed.search);
+      }
     } catch (
       // eslint-disable-next-line no-empty
       _error
@@ -314,10 +328,13 @@ export function ListingsTable() {
       field: FieldConfig,
       rawValue: string | string[] | boolean | number | RamSpecRecord | StorageProfileRecord | null
     ) => {
-      const parsed = parseFieldValue(field, rawValue);
-      inlineMutation.mutate({ listingId, field, value: parsed });
+      measureInteraction('inline_cell_save', () => {
+        const parsed = parseFieldValue(field, rawValue);
+        inlineMutation.mutate({ listingId, field, value: parsed });
+      });
     },
-    [inlineMutation]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [inlineMutation.mutate]
   );
 
   const handleCreateOption = useCallback(
@@ -330,8 +347,8 @@ export function ListingsTable() {
       // Show confirmation dialog
       const confirmed = await confirm({
         title: `Add "${value}" to ${field.label}?`,
-        message: 'This will add the option globally for all listings.',
-        confirmLabel: 'Add Option',
+        description: 'This will add the option globally for all listings.',
+        confirmText: 'Add Option',
         onConfirm: () => {},
       });
 
@@ -356,7 +373,7 @@ export function ListingsTable() {
     [fieldConfigs, confirm, queryClient]
   );
 
-  const handleBulkSubmit = async () => {
+  const handleBulkSubmit = useCallback(async () => {
     if (!bulkState.fieldKey || !listings.length) return;
     const field = fieldConfigs.find((item) => item.key === bulkState.fieldKey);
     if (!field) return;
@@ -366,26 +383,28 @@ export function ListingsTable() {
       .map(([key]) => Number(key));
     if (!selectedIds.length) return;
 
-    setIsBulkSubmitting(true);
-    setBulkMessage(null);
-    try {
-      const parsedValue = parseFieldValue(field, bulkState.value);
-      const payload = buildBulkPayload(field, parsedValue, selectedIds);
-      await apiFetch("/v1/listings/bulk-update", {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-      queryClient.invalidateQueries({ queryKey: ["listings", "records"] });
-      setBulkMessage(`Applied changes to ${selectedIds.length} listing(s).`);
-      setRowSelection({});
-      setBulkState({ ...DEFAULT_BULK_STATE });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Bulk update failed";
-      setBulkMessage(message);
-    } finally {
-      setIsBulkSubmitting(false);
-    }
-  };
+    await measureInteractionAsync('bulk_edit_submit', async () => {
+      setIsBulkSubmitting(true);
+      setBulkMessage(null);
+      try {
+        const parsedValue = parseFieldValue(field, bulkState.value);
+        const payload = buildBulkPayload(field, parsedValue, selectedIds);
+        await apiFetch("/v1/listings/bulk-update", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        queryClient.invalidateQueries({ queryKey: ["listings", "records"] });
+        setBulkMessage(`Applied changes to ${selectedIds.length} listing(s).`);
+        setRowSelection({});
+        setBulkState({ ...DEFAULT_BULK_STATE });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Bulk update failed";
+        setBulkMessage(message);
+      } finally {
+        setIsBulkSubmitting(false);
+      }
+    });
+  }, [bulkState.fieldKey, bulkState.value, fieldConfigs, listings.length, queryClient, rowSelection]);
 
   const cpuOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -394,6 +413,32 @@ export function ListingsTable() {
     });
     return Array.from(unique).map((value) => ({ label: value, value }));
   }, [listings]);
+
+  // Define all available columns for column selector
+  const allColumnDefinitions: ColumnDefinition[] = useMemo(() => [
+    { id: "title", label: "Title", defaultVisible: true, description: "Product title or name" },
+    { id: "cpu_name", label: "CPU", defaultVisible: true, description: "CPU model" },
+    { id: "adjusted_price_usd", label: "Valuation", defaultVisible: true, description: "Adjusted valuation" },
+    { id: "dollar_per_cpu_mark", label: "$/CPU Mark", defaultVisible: false, description: "Price per CPU mark" },
+    { id: "dollar_per_cpu_mark_single", label: "$/CPU Mark (Single)", defaultVisible: true, description: "Single-thread price efficiency" },
+    { id: "dollar_per_cpu_mark_multi", label: "$/CPU Mark (Multi)", defaultVisible: true, description: "Multi-thread price efficiency" },
+    { id: "manufacturer", label: "Manufacturer", defaultVisible: true, description: "PC manufacturer" },
+    { id: "form_factor", label: "Form Factor", defaultVisible: true, description: "PC form factor" },
+    { id: "ports", label: "Ports", defaultVisible: false, description: "Connectivity ports" },
+    { id: "score_composite", label: "Composite", defaultVisible: false, description: "Composite performance score" },
+    // Add editable fields from schema
+    ...fieldConfigs
+      .filter((config) => config.editable && !["title", "cpu_id", "gpu_id", "manufacturer", "form_factor"].includes(config.key))
+      .map((config) => ({
+        id: config.key,
+        label: config.label,
+        defaultVisible: ["price_usd", "ram_gb", "primary_storage_gb"].includes(config.key), // Common fields visible by default
+        description: config.description ?? undefined,
+      })),
+  ], [fieldConfigs]);
+
+  // Column preferences hook
+  const { selectedColumns, updateColumns } = useColumnPreferences("listings", allColumnDefinitions);
 
   const columns = useMemo<ColumnDef<ListingRow>[]>(() => {
     const titleConfig = fieldMap.get("title");
@@ -463,8 +508,6 @@ export function ListingsTable() {
                   <EntityTooltip
                     entityType="gpu"
                     entityId={gpu.id}
-                    tooltipContent={(gpuData) => <GpuTooltipContent gpu={gpuData} />}
-                    fetchData={fetchEntityData}
                     variant="inline"
                   >
                     {gpuName || gpu.name || "Unknown GPU"}
@@ -521,8 +564,6 @@ export function ListingsTable() {
               <EntityTooltip
                 entityType="cpu"
                 entityId={cpu.id}
-                tooltipContent={(cpuData) => <CpuTooltipContent cpu={cpuData} />}
-                fetchData={fetchEntityData}
                 variant="inline"
               >
                 {cpuName || cpu.name || "Unknown"}
@@ -584,7 +625,7 @@ export function ListingsTable() {
         enableColumnFilter: true,
         meta: {
           filterType: "number",
-          tooltip: "Adjusted price based on active ruleset. Click for breakdown.",
+          tooltip: "Adjusted value based on active ruleset. Click for breakdown.",
           description: "Final valuation after applying active ruleset rules",
         },
         filterFn: numericFilterFn,
@@ -732,6 +773,27 @@ export function ListingsTable() {
         filterFn: numericFilterFn,
         size: 140,
       },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1">
+            <ShareButton
+              listingId={row.original.id}
+              listingName={row.original.title || "Untitled"}
+              variant="ghost"
+              size="sm"
+            />
+          </div>
+        ),
+        enableSorting: false,
+        enableColumnFilter: false,
+        enableResizing: false,
+        size: 80,
+        meta: {
+          tooltip: "Share this listing",
+        },
+      },
     ];
 
     // Exclude fields that have custom column implementations above
@@ -776,8 +838,48 @@ export function ListingsTable() {
         };
       });
 
-    return [...baseColumns, ...editableColumns];
-  }, [cpuOptions, fieldConfigs, fieldMap, handleInlineSave, handleCreateOption, inlineMutation.isPending, thresholds]);
+    // Build all columns
+    const allColumns = [...baseColumns, ...editableColumns];
+
+    // Filter and reorder based on column preferences
+    // Keep the select column always visible (not part of preferences)
+    const selectColumn = allColumns.find((col) => (col as any).id === "select");
+    const otherColumns = allColumns.filter((col) => (col as any).id !== "select");
+
+    // Create a map for efficient lookup
+    const columnMap = new Map<string, ColumnDef<ListingRow>>();
+    otherColumns.forEach((col) => {
+      const id = (col as any).id || (col as any).accessorKey;
+      if (id) {
+        columnMap.set(String(id), col);
+      }
+    });
+
+    // Filter and reorder based on selectedColumns
+    const orderedColumns: ColumnDef<ListingRow>[] = [];
+    selectedColumns.forEach((id) => {
+      const column = columnMap.get(id);
+      if (column) {
+        orderedColumns.push(column);
+      }
+    });
+
+    // Return select column + ordered visible columns
+    return selectColumn ? [selectColumn, ...orderedColumns] : orderedColumns;
+  }, [cpuOptions, fieldConfigs, fieldMap, handleInlineSave, handleCreateOption, inlineMutation.isPending, thresholds, selectedColumns]);
+
+  // Wrap state setters with performance instrumentation
+  const handleSortingChange = useCallback((updater: any) => {
+    measureInteraction('column_sort', () => {
+      setSorting(updater);
+    });
+  }, []);
+
+  const handleColumnFiltersChange = useCallback((updater: any) => {
+    measureInteraction('column_filter', () => {
+      setColumnFilters(updater);
+    });
+  }, []);
 
   const table = useReactTable({
     data: filteredListings,
@@ -792,8 +894,8 @@ export function ListingsTable() {
     enableRowSelection: true,
     columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
-    onColumnFiltersChange: setColumnFilters,
-    onSortingChange: setSorting,
+    onColumnFiltersChange: handleColumnFiltersChange,
+    onSortingChange: handleSortingChange,
     onGroupingChange: setGrouping,
     onColumnSizingChange: setColumnSizing,
     getCoreRowModel: getCoreRowModel(),
@@ -834,14 +936,16 @@ export function ListingsTable() {
     setSorting([{ id: "title", desc: false }]);
     setGrouping([]);
     setQuickSearch("");
+    setQuickSearchInput("");
     setRowSelection({});
     setBulkState({ ...DEFAULT_BULK_STATE });
     setBulkMessage(null);
   };
 
   return (
-    <Card className="w-full border-0 bg-background shadow-none">
-      <CardHeader className="space-y-4">
+    <Profiler id="ListingsTable" onRender={logRenderPerformance}>
+      <Card className="w-full border-0 bg-background shadow-none">
+        <CardHeader className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-1">
             <h2 className="text-2xl font-semibold tracking-tight">Listings workspace</h2>
@@ -858,8 +962,12 @@ export function ListingsTable() {
             </Label>
             <Input
               id="listings-search"
-              value={quickSearch}
-              onChange={(event) => setQuickSearch(event.target.value)}
+              value={quickSearchInput}
+              onChange={(event) => {
+                const value = event.target.value;
+                setQuickSearchInput(value);
+                debouncedSearch(value);
+              }}
               placeholder="Title, CPU, custom fields…"
             />
           </div>
@@ -884,6 +992,13 @@ export function ListingsTable() {
               ))}
             </select>
           </div>
+          <ColumnSelector
+            columns={allColumnDefinitions}
+            selectedColumns={selectedColumns}
+            onColumnsChange={updateColumns}
+            variant="outline"
+            size="sm"
+          />
           <Button variant="ghost" size="sm" onClick={resetView}>
             Reset view
           </Button>
@@ -898,6 +1013,8 @@ export function ListingsTable() {
           storageKey="listings-grid"
           highlightedRowId={highlightedId}
           highlightedRef={highlightedRef}
+          estimatedRowHeight={48}
+          virtualizationThreshold={100}
         />
 
         {Object.keys(rowSelection).length > 0 && (
@@ -926,7 +1043,8 @@ export function ListingsTable() {
 
       {/* Confirmation Dialog */}
       {confirmationDialog}
-    </Card>
+      </Card>
+    </Profiler>
   );
 }
 
@@ -944,7 +1062,7 @@ interface EditableCellProps {
   listing?: ListingRecord;
 }
 
-function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOption, listing }: EditableCellProps) {
+function EditableCellComponent({ listingId, field, value, isSaving, onSave, onCreateOption, listing }: EditableCellProps) {
   const [draft, setDraft] = useState<string>(() => toEditableString(field, value));
 
   // Query for CPU/GPU options if this is a reference field
@@ -1143,6 +1261,19 @@ function EditableCell({ listingId, field, value, isSaving, onSave, onCreateOptio
   );
 }
 
+// Memoize EditableCell to prevent unnecessary re-renders
+const EditableCell = React.memo(
+  EditableCellComponent,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.listingId === nextProps.listingId &&
+      prevProps.field.key === nextProps.field.key &&
+      prevProps.value === nextProps.value &&
+      prevProps.isSaving === nextProps.isSaving
+    );
+  }
+);
+
 interface BulkEditPanelProps {
   fieldConfigs: FieldConfig[];
   state: BulkEditState;
@@ -1153,7 +1284,7 @@ interface BulkEditPanelProps {
   selectionCount: number;
 }
 
-function BulkEditPanel({ fieldConfigs, state, onChange, onSubmit, isSubmitting, message, selectionCount }: BulkEditPanelProps) {
+function BulkEditPanelComponent({ fieldConfigs, state, onChange, onSubmit, isSubmitting, message, selectionCount }: BulkEditPanelProps) {
   const selectedField = fieldConfigs.find((field) => field.key === state.fieldKey);
   return (
     <div className="rounded-md border border-primary/30 bg-primary/5 p-4">
@@ -1222,6 +1353,20 @@ function BulkEditPanel({ fieldConfigs, state, onChange, onSubmit, isSubmitting, 
     </div>
   );
 }
+
+// Memoize BulkEditPanel to prevent unnecessary re-renders
+const BulkEditPanel = React.memo(
+  BulkEditPanelComponent,
+  (prevProps, nextProps) => {
+    return (
+      prevProps.state.fieldKey === nextProps.state.fieldKey &&
+      prevProps.state.value === nextProps.state.value &&
+      prevProps.isSubmitting === nextProps.isSubmitting &&
+      prevProps.message === nextProps.message &&
+      prevProps.selectionCount === nextProps.selectionCount
+    );
+  }
+);
 
 function parseFieldValue(
   field: FieldConfig,

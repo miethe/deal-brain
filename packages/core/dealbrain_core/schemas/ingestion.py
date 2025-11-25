@@ -32,6 +32,11 @@ class NormalizedListingSchema(DealBrainModel):
         ram_gb: Extracted RAM amount in GB (optional)
         storage_gb: Extracted storage amount in GB (optional)
         description: Full product description text (optional)
+        manufacturer: Product manufacturer/brand (optional)
+        model_number: Product model number (optional)
+        quality: Data completeness indicator (full|partial, default: full)
+        extraction_metadata: Field provenance tracking (default: {})
+        missing_fields: List of fields requiring manual entry (default: [])
     """
 
     title: str = Field(
@@ -40,9 +45,15 @@ class NormalizedListingSchema(DealBrainModel):
         min_length=1,
         max_length=500,
     )
-    price: Decimal = Field(
-        ...,
-        description="Listing price (must be positive)",
+    price: Decimal | None = Field(
+        None,
+        description="Listing price (must be positive if provided)",
+        gt=0,
+        decimal_places=2,
+    )
+    list_price: Decimal | None = Field(
+        None,
+        description="Original/regular price before discount (MSRP)",
         gt=0,
         decimal_places=2,
     )
@@ -102,6 +113,19 @@ class NormalizedListingSchema(DealBrainModel):
         description="Product model number (e.g., OptiPlex 7090, Venus NAB9)",
         max_length=128,
     )
+    quality: str = Field(
+        default="full",
+        description="Data completeness indicator",
+        pattern=r"^(full|partial)$",
+    )
+    extraction_metadata: dict[str, str] = Field(
+        default_factory=dict,
+        description="Field provenance tracking: {field_name: 'extracted'|'manual'|'extraction_failed'}",
+    )
+    missing_fields: list[str] = Field(
+        default_factory=list,
+        description="List of fields requiring manual entry",
+    )
 
     @field_validator("condition")
     @classmethod
@@ -140,6 +164,22 @@ class NormalizedListingSchema(DealBrainModel):
         if isinstance(value, str):
             return [value]
         return list(value)
+
+    @field_validator("price")
+    @classmethod
+    def validate_minimum_data(cls, price: Decimal | None, info) -> Decimal | None:
+        """Require at least title to be present when price is missing.
+
+        This validator ensures we don't create listings with neither title nor price.
+        At minimum, we need a title to create a meaningful listing record.
+        """
+        if price is None:
+            # Check if title exists and is non-empty
+            title = info.data.get("title")
+            if not title or not str(title).strip():
+                raise ValueError("At least title must be provided when price is missing")
+
+        return price
 
 
 class IngestionRequest(DealBrainModel):
@@ -274,6 +314,7 @@ class PerRowStatus(DealBrainModel):
         url: The URL being processed
         status: Job status (queued|running|complete|partial|failed)
         listing_id: Created listing ID if successful (optional)
+        quality: Data quality level (full|partial) for completed imports (optional)
         error: Error message if failed (optional)
     """
 
@@ -289,6 +330,11 @@ class PerRowStatus(DealBrainModel):
     listing_id: int | None = Field(
         default=None,
         description="Created listing ID if successful",
+    )
+    quality: str | None = Field(
+        default=None,
+        description="Data quality level (full|partial) for completed imports",
+        pattern=r"^(full|partial)$",
     )
     error: str | None = Field(
         default=None,

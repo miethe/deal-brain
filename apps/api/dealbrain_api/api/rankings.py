@@ -36,11 +36,7 @@ async def rankings(
     ordering = VALID_METRICS[metric]
     column = getattr(Listing, metric)
     result = await session.execute(
-        select(Listing)
-        .where(column.is_not(None))
-        .order_by(ordering(column))
-        .limit(limit)
+        select(Listing).where(column.is_not(None)).order_by(ordering(column)).limit(limit)
     )
     listings = result.scalars().unique().all()
     return [ListingRead.model_validate(listing) for listing in listings]
-

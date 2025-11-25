@@ -12,6 +12,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 if "celery" not in sys.modules:
+
     class _DummyTask:
         def __init__(self, func):
             self._func = func
@@ -159,7 +160,10 @@ class TestRulesetCRUD:
 
     @pytest.mark.asyncio
     async def test_get_ruleset(
-        self, db_session: AsyncSession, rules_service: RulesService, sample_ruleset_data: RulesetCreate
+        self,
+        db_session: AsyncSession,
+        rules_service: RulesService,
+        sample_ruleset_data: RulesetCreate,
     ):
         """Test retrieving a ruleset by ID."""
         created = await rules_service.create_ruleset(db_session, sample_ruleset_data)
@@ -170,14 +174,19 @@ class TestRulesetCRUD:
         assert retrieved.name == created.name
 
     @pytest.mark.asyncio
-    async def test_get_ruleset_not_found(self, db_session: AsyncSession, rules_service: RulesService):
+    async def test_get_ruleset_not_found(
+        self, db_session: AsyncSession, rules_service: RulesService
+    ):
         """Test retrieving non-existent ruleset returns None."""
         result = await rules_service.get_ruleset(db_session, 99999)
         assert result is None
 
     @pytest.mark.asyncio
     async def test_list_rulesets(
-        self, db_session: AsyncSession, rules_service: RulesService, sample_ruleset_data: RulesetCreate
+        self,
+        db_session: AsyncSession,
+        rules_service: RulesService,
+        sample_ruleset_data: RulesetCreate,
     ):
         """Test listing all rulesets."""
         # Create multiple rulesets
@@ -192,7 +201,10 @@ class TestRulesetCRUD:
 
     @pytest.mark.asyncio
     async def test_list_rulesets_active_only(
-        self, db_session: AsyncSession, rules_service: RulesService, sample_ruleset_data: RulesetCreate
+        self,
+        db_session: AsyncSession,
+        rules_service: RulesService,
+        sample_ruleset_data: RulesetCreate,
     ):
         """Test filtering rulesets by active status."""
         # Create active ruleset

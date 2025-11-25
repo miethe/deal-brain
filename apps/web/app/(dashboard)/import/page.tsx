@@ -1,19 +1,86 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SingleUrlImportForm } from '@/components/ingestion/single-url-import-form';
 import { BulkImportDialog } from '@/components/ingestion/bulk-import-dialog';
 import { ImporterWorkspace } from '@/components/import/importer-workspace';
-import { Globe, FileSpreadsheet, Link, Upload } from 'lucide-react';
+import { PartialImportModal } from '@/components/imports/PartialImportModal';
+import { ListingRecord } from '@/types/listings';
+import { telemetry } from '@/lib/telemetry';
+import { Globe, FileSpreadsheet, Link, Upload, FileJson } from 'lucide-react';
+import { JsonImportDropzone } from '@/components/import-export/json-import-button';
 
 export default function ImportPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('url');
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [partialListing, setPartialListing] = useState<ListingRecord | null>(null);
+  const [completedListings, setCompletedListings] = useState<ListingRecord[]>([]);
+
+  // Listen for import completion events from bulk status polling
+  useEffect(() => {
+    const handleImportComplete = (event: CustomEvent<{
+      listing: ListingRecord;
+      quality: string;
+    }>) => {
+      const { listing, quality } = event.detail;
+
+      if (quality === 'partial') {
+        setPartialListing(listing);
+        telemetry.info('frontend.import.partial_detected', {
+          listingId: listing.id,
+          title: listing.title,
+        });
+      } else {
+        setCompletedListings(prev => [...prev, listing]);
+        telemetry.info('frontend.import.complete', {
+          listingId: listing.id,
+          quality,
+        });
+      }
+    };
+
+    window.addEventListener(
+      'import-complete',
+      handleImportComplete as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        'import-complete',
+        handleImportComplete as EventListener
+      );
+    };
+  }, []);
+
+  const handlePartialComplete = () => {
+    if (partialListing) {
+      setCompletedListings(prev => [...prev, partialListing]);
+      setPartialListing(null);
+
+      // Invalidate queries to refresh listings
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+
+      telemetry.info('frontend.import.partial_completed', {
+        listingId: partialListing.id,
+      });
+    }
+  };
+
+  const handlePartialSkip = () => {
+    if (partialListing) {
+      telemetry.info('frontend.import.partial_skipped', {
+        listingId: partialListing.id,
+      });
+    }
+    setPartialListing(null);
+  };
 
   return (
     <div className="container max-w-6xl py-8 space-y-6">
@@ -27,7 +94,7 @@ export default function ImportPage() {
 
       {/* Import Method Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="url" className="gap-2">
             <Globe className="h-4 w-4" />
             URL Import
@@ -35,6 +102,10 @@ export default function ImportPage() {
           <TabsTrigger value="file" className="gap-2">
             <FileSpreadsheet className="h-4 w-4" />
             File Import
+          </TabsTrigger>
+          <TabsTrigger value="json" className="gap-2">
+            <FileJson className="h-4 w-4" />
+            JSON Import
           </TabsTrigger>
         </TabsList>
 
@@ -56,12 +127,18 @@ export default function ImportPage() {
           {/* Single URL Import Form */}
           <SingleUrlImportForm
             onSuccess={(result) => {
-              console.log('Import successful:', result);
+              telemetry.info('frontend.import.single.success', {
+                listingId: result.listingId,
+                provenance: result.provenance,
+                quality: result.quality,
+              });
               // Optionally navigate to the listing
               // router.push(`/listings/${result.listingId}`);
             }}
             onError={(error) => {
-              console.error('Import failed:', error);
+              telemetry.error('frontend.import.single.failed', {
+                message: error?.message ?? 'Unknown error',
+              });
             }}
           />
 
@@ -106,6 +183,40 @@ export default function ImportPage() {
           {/* Importer Workspace */}
           <ImporterWorkspace />
         </TabsContent>
+
+        {/* JSON Import Tab */}
+        <TabsContent value="json" className="space-y-6 mt-6">
+          {/* Method Overview */}
+          <ImportMethodCard
+            icon={<FileJson className="h-5 w-5" />}
+            title="Import from JSON Export"
+            description="Import previously exported listings or collections from JSON files. Supports duplicate detection with merge or skip options to avoid creating duplicate entries."
+            bestFor={[
+              'Restoring exported data',
+              'Migrating between environments',
+              'Sharing individual listings or collections',
+              'Backup restoration',
+            ]}
+            supports="JSON files exported from Deal Brain"
+            workflow={[
+              'Select or drag and drop a JSON file',
+              'Review import preview and duplicates',
+              'Choose merge, skip, or create new',
+              'Confirm import',
+            ]}
+          />
+
+          {/* JSON Import Dropzone */}
+          <JsonImportDropzone
+            importType="listing"
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ['listings'] });
+              telemetry.info('frontend.import.json.success', {
+                type: 'listing',
+              });
+            }}
+          />
+        </TabsContent>
       </Tabs>
 
       {/* Bulk Import Dialog */}
@@ -113,12 +224,67 @@ export default function ImportPage() {
         open={bulkDialogOpen}
         onOpenChange={setBulkDialogOpen}
         onSuccess={(result) => {
-          console.log('Bulk import successful:', result);
+          telemetry.info('frontend.import.bulk.success', {
+            total: result.total_urls,
+            success: result.success,
+            failed: result.failed,
+          });
         }}
         onError={(error) => {
-          console.error('Bulk import failed:', error);
+          telemetry.error('frontend.import.bulk.failed', {
+            message: error?.message ?? 'Unknown error',
+          });
         }}
       />
+
+      {/* Partial Import Modal */}
+      {partialListing && (
+        <PartialImportModal
+          listing={partialListing}
+          onComplete={handlePartialComplete}
+          onSkip={handlePartialSkip}
+        />
+      )}
+
+      {/* Completed Listings Section */}
+      {completedListings.length > 0 && (
+        <div className="mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Imported Listings ({completedListings.length})</CardTitle>
+              <CardDescription>
+                Successfully imported listings in this session
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {completedListings.map((listing) => (
+                  <div
+                    key={listing.id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium">{listing.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {listing.cpu?.name && `CPU: ${listing.cpu.name}`}
+                        {listing.ram_gb && ` • RAM: ${listing.ram_gb}GB`}
+                        {listing.price_usd && ` • $${listing.price_usd.toFixed(2)}`}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`/listings/${listing.id}`)}
+                    >
+                      View Details
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

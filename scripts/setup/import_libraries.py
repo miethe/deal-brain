@@ -1,0 +1,459 @@
+#!/usr/bin/env python3
+"""
+Library Import Script
+
+Automated import of reference data libraries for Deal Brain.
+Imports custom fields, valuation rules, rulesets, and scoring profiles.
+
+Usage:
+    poetry run python scripts/import_libraries.py --all
+    poetry run python scripts/import_libraries.py --fields
+    poetry run python scripts/import_libraries.py --rules
+    poetry run python scripts/import_libraries.py --profiles
+    poetry run python scripts/import_libraries.py --ruleset gaming
+"""
+
+import asyncio
+import argparse
+import sys
+from pathlib import Path
+from typing import List, Dict, Any
+import yaml
+import json
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from dealbrain_api.db import session_scope
+from dealbrain_api.services.custom_fields import CustomFieldService
+from dealbrain_api.services.rules import RulesService
+from dealbrain_api.models.core import Profile
+
+
+# Directory paths
+EXAMPLES_DIR = Path(__file__).parent.parent / "docs" / "examples" / "libraries"
+FIELDS_DIR = EXAMPLES_DIR / "fields"
+RULES_DIR = EXAMPLES_DIR / "rules"
+RULESETS_DIR = EXAMPLES_DIR / "rulesets"
+PROFILES_DIR = EXAMPLES_DIR / "profiles"
+
+
+class LibraryImporter:
+    """Handles importing reference libraries into the database."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+        self.fields_service = CustomFieldService()
+        self.rules_service = RulesService()
+
+    async def import_custom_fields(self, filepath: Path) -> Dict[str, Any]:
+        """Import custom field definitions from YAML."""
+        print(f"\n📋 Importing custom fields from {filepath.name}...")
+
+        with open(filepath, "r") as f:
+            data = yaml.safe_load(f)
+
+        entity_type = data.get("entity_type", "listing")
+        fields = data.get("fields", [])
+
+        imported = 0
+        skipped = 0
+        errors = []
+
+        for field_data in fields:
+            try:
+                field_key = field_data.get("key") or field_data["name"]
+                field_label = field_data["name"]
+
+                # Check if field already exists
+                existing_fields = await self.fields_service.list_fields(
+                    self.session, entity=entity_type
+                )
+                existing = next((f for f in existing_fields if f.key == field_key), None)
+
+                if existing:
+                    print(f"  ⏭️  Skipping existing field: {field_key}")
+                    skipped += 1
+                    continue
+
+                # Create field definition
+                await self.fields_service.create_field(
+                    self.session,
+                    entity=entity_type,
+                    key=field_key,
+                    label=field_label,
+                    data_type=field_data.get("data_type", "string"),
+                    description=field_data.get("description"),
+                    required=field_data.get("required", False),
+                    default_value=field_data.get("default_value"),
+                    options=field_data.get("options"),
+                    is_active=field_data.get("is_active", True),
+                )
+
+                print(f"  ✅ Imported field: {field_key}")
+                imported += 1
+
+            except Exception as e:
+                error_msg = f"Error importing field {field_data.get('name', 'unknown')}: {e}"
+                print(f"  ❌ {error_msg}")
+                errors.append(error_msg)
+
+        await self.session.commit()
+
+        return {
+            "filepath": str(filepath),
+            "imported": imported,
+            "skipped": skipped,
+            "errors": errors,
+        }
+
+    async def import_rules_yaml(self, filepath: Path) -> Dict[str, Any]:
+        """Import valuation rules from YAML."""
+        print(f"\n🎯 Importing rules from {filepath.name}...")
+
+        with open(filepath, "r") as f:
+            data = yaml.safe_load(f)
+
+        ruleset_data = data.get("ruleset", {})
+        rule_groups_data = data.get("rule_groups", [])
+
+        # Extract ruleset data
+        ruleset_name = ruleset_data["name"]
+        ruleset_version = ruleset_data["version"]
+        ruleset_description = ruleset_data.get("description", "")
+        ruleset_metadata = self._sanitize_metadata(ruleset_data.get("metadata", {}))
+
+        # Check if ruleset exists
+        existing_rulesets = await self.rules_service.list_rulesets(self.session)
+        existing = next((rs for rs in existing_rulesets if rs.name == ruleset_name), None)
+
+        if existing:
+            print(f"  ⏭️  Ruleset '{ruleset_name}' already exists (ID: {existing.id})")
+            ruleset = existing
+        else:
+            ruleset = await self.rules_service.create_ruleset(
+                self.session,
+                name=ruleset_name,
+                description=ruleset_description,
+                version=ruleset_version,
+                metadata=ruleset_metadata,
+            )
+            print(f"  ✅ Created ruleset: {ruleset.name} (ID: {ruleset.id})")
+
+        # Import rule groups and rules
+        groups_created = 0
+        rules_created = 0
+        errors = []
+
+        for group_data in rule_groups_data:
+            try:
+                # Create rule group with individual parameters
+                group = await self.rules_service.create_rule_group(
+                    self.session,
+                    ruleset_id=ruleset.id,
+                    name=group_data["name"],
+                    category=group_data["category"],
+                    description=group_data.get("description", ""),
+                    weight=group_data.get("weight", 1.0),
+                    display_order=group_data.get("display_order", 0),
+                )
+                groups_created += 1
+                print(f"  ✅ Created group: {group.name}")
+
+                # Create rules in group
+                for rule_data in group_data.get("rules", []):
+                    try:
+                        # Convert conditions and actions to dict format for service layer
+                        conditions_list = self._conditions_to_dict_list(rule_data["conditions"])
+                        actions_list = rule_data["actions"]  # Already in dict format
+
+                        # Create rule with individual parameters
+                        rule = await self.rules_service.create_rule(
+                            self.session,
+                            group_id=group.id,
+                            name=rule_data["name"],
+                            description=rule_data.get("description", ""),
+                            priority=rule_data.get("priority", 100),
+                            evaluation_order=rule_data.get("evaluation_order", 100),
+                            conditions=conditions_list,
+                            actions=actions_list,
+                        )
+                        rules_created += 1
+                        print(f"    ✅ Created rule: {rule.name}")
+
+                    except Exception as e:
+                        error_msg = f"Error creating rule {rule_data.get('name', 'unknown')}: {e}"
+                        print(f"    ❌ {error_msg}")
+                        errors.append(error_msg)
+
+            except Exception as e:
+                error_msg = f"Error creating group {group_data.get('name', 'unknown')}: {e}"
+                print(f"  ❌ {error_msg}")
+                errors.append(error_msg)
+
+        await self.session.commit()
+
+        return {
+            "filepath": str(filepath),
+            "ruleset_id": ruleset.id,
+            "ruleset_name": ruleset.name,
+            "groups_created": groups_created,
+            "rules_created": rules_created,
+            "errors": errors,
+        }
+
+    def _sanitize_metadata(self, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert non-JSON-serializable types in metadata to strings."""
+        import datetime
+
+        sanitized = {}
+        for key, value in metadata.items():
+            if isinstance(value, (datetime.date, datetime.datetime)):
+                sanitized[key] = value.isoformat()
+            elif isinstance(value, dict):
+                sanitized[key] = self._sanitize_metadata(value)
+            elif isinstance(value, list):
+                sanitized[key] = [
+                    (
+                        item.isoformat()
+                        if isinstance(item, (datetime.date, datetime.datetime))
+                        else item
+                    )
+                    for item in value
+                ]
+            else:
+                sanitized[key] = value
+        return sanitized
+
+    def _conditions_to_dict_list(self, condition_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Convert nested condition structure to flat list of condition dicts for service layer."""
+        conditions = []
+
+        def flatten_conditions(cond_data: Dict[str, Any], parent_group: int = 0):
+            """Recursively flatten nested conditions."""
+            if "logical_operator" in cond_data:
+                # This is a condition group - process nested conditions
+                for nested_cond in cond_data.get("conditions", []):
+                    flatten_conditions(nested_cond, parent_group)
+            else:
+                # This is a leaf condition
+                conditions.append(
+                    {
+                        "field_name": cond_data["field_name"],
+                        "field_type": cond_data.get("field_type", "string"),
+                        "operator": cond_data["operator"],
+                        "value": cond_data["value"],
+                        "logical_operator": cond_data.get("logical_operator"),
+                        "group_order": parent_group,
+                    }
+                )
+
+        flatten_conditions(condition_data)
+        return conditions
+
+    async def import_profiles(self, filepath: Path) -> Dict[str, Any]:
+        """Import scoring profiles from YAML."""
+        print(f"\n⚖️  Importing profiles from {filepath.name}...")
+
+        with open(filepath, "r") as f:
+            data = yaml.safe_load(f)
+
+        profiles_data = data.get("profiles", [])
+
+        imported = 0
+        skipped = 0
+        errors = []
+
+        for profile_data in profiles_data:
+            try:
+                name = profile_data["name"]
+
+                # Check if profile exists
+                from sqlalchemy import select
+
+                stmt = select(Profile).where(Profile.name == name)
+                result = await self.session.execute(stmt)
+                existing = result.scalar_one_or_none()
+
+                if existing:
+                    print(f"  ⏭️  Skipping existing profile: {name}")
+                    skipped += 1
+                    continue
+
+                # Create profile
+                profile = Profile(
+                    name=name,
+                    description=profile_data.get("description", ""),
+                    weights_json=profile_data.get("metric_weights", {}),
+                    rule_group_weights=profile_data.get("rule_group_weights", {}),
+                    is_default=profile_data.get("is_default", False),
+                )
+
+                self.session.add(profile)
+                print(f"  ✅ Imported profile: {name}")
+                imported += 1
+
+            except Exception as e:
+                error_msg = f"Error importing profile {profile_data.get('name', 'unknown')}: {e}"
+                print(f"  ❌ {error_msg}")
+                errors.append(error_msg)
+
+        await self.session.commit()
+
+        return {
+            "filepath": str(filepath),
+            "imported": imported,
+            "skipped": skipped,
+            "errors": errors,
+        }
+
+
+async def import_all_fields(session: AsyncSession) -> List[Dict[str, Any]]:
+    """Import all custom field libraries."""
+    importer = LibraryImporter(session)
+    results = []
+
+    for filepath in FIELDS_DIR.glob("*.yaml"):
+        result = await importer.import_custom_fields(filepath)
+        results.append(result)
+
+    return results
+
+
+async def import_all_rules(session: AsyncSession) -> List[Dict[str, Any]]:
+    """Import all rule libraries."""
+    importer = LibraryImporter(session)
+    results = []
+
+    for filepath in RULES_DIR.glob("*.yaml"):
+        result = await importer.import_rules_yaml(filepath)
+        results.append(result)
+
+    return results
+
+
+async def import_all_profiles(session: AsyncSession) -> List[Dict[str, Any]]:
+    """Import all profile libraries."""
+    importer = LibraryImporter(session)
+    results = []
+
+    for filepath in PROFILES_DIR.glob("*.yaml"):
+        result = await importer.import_profiles(filepath)
+        results.append(result)
+
+    return results
+
+
+async def import_specific_ruleset(session: AsyncSession, ruleset_name: str) -> Dict[str, Any]:
+    """Import a specific ruleset by name."""
+    importer = LibraryImporter(session)
+
+    # Find matching file
+    filepath = RULES_DIR / f"{ruleset_name}.yaml"
+
+    if not filepath.exists():
+        # Try fuzzy match
+        for f in RULES_DIR.glob("*.yaml"):
+            if ruleset_name.lower() in f.stem.lower():
+                filepath = f
+                break
+
+    if not filepath.exists():
+        raise FileNotFoundError(f"Ruleset file not found: {ruleset_name}")
+
+    return await importer.import_rules_yaml(filepath)
+
+
+def print_summary(results: List[Dict[str, Any]], import_type: str):
+    """Print import summary."""
+    print(f"\n{'='*60}")
+    print(f"📊 {import_type.upper()} IMPORT SUMMARY")
+    print(f"{'='*60}")
+
+    total_imported = 0
+    total_skipped = 0
+    total_errors = 0
+
+    for result in results:
+        filepath = Path(result["filepath"]).name
+
+        if "imported" in result:
+            imported = result["imported"]
+            skipped = result["skipped"]
+            total_imported += imported
+            total_skipped += skipped
+        elif "rules_created" in result:
+            imported = result["rules_created"]
+            skipped = 0
+            total_imported += imported
+            print(f"\n{filepath}:")
+            print(f"  Ruleset: {result['ruleset_name']} (ID: {result['ruleset_id']})")
+            print(f"  Groups: {result['groups_created']}")
+            print(f"  Rules: {result['rules_created']}")
+
+        errors = result.get("errors", [])
+        total_errors += len(errors)
+
+        if errors:
+            print(f"\n  ⚠️  Errors in {filepath}:")
+            for error in errors[:5]:  # Show first 5 errors
+                print(f"    - {error}")
+            if len(errors) > 5:
+                print(f"    ... and {len(errors) - 5} more errors")
+
+    print(f"\n{'='*60}")
+    print(f"✅ Total Imported: {total_imported}")
+    print(f"⏭️  Total Skipped: {total_skipped}")
+    print(f"❌ Total Errors: {total_errors}")
+    print(f"{'='*60}\n")
+
+
+async def main():
+    parser = argparse.ArgumentParser(description="Import Deal Brain reference libraries")
+    parser.add_argument("--all", action="store_true", help="Import all libraries")
+    parser.add_argument("--fields", action="store_true", help="Import custom fields")
+    parser.add_argument("--rules", action="store_true", help="Import valuation rules")
+    parser.add_argument("--profiles", action="store_true", help="Import scoring profiles")
+    parser.add_argument("--ruleset", type=str, help="Import specific ruleset by name")
+
+    args = parser.parse_args()
+
+    # Default to --all if no options specified
+    if not any([args.all, args.fields, args.rules, args.profiles, args.ruleset]):
+        args.all = True
+
+    print("\n" + "=" * 60)
+    print("🚀 Deal Brain Library Importer")
+    print("=" * 60)
+
+    async with session_scope() as session:
+        try:
+            if args.all or args.fields:
+                results = await import_all_fields(session)
+                print_summary(results, "Custom Fields")
+
+            if args.all or args.rules:
+                results = await import_all_rules(session)
+                print_summary(results, "Valuation Rules")
+
+            if args.all or args.profiles:
+                results = await import_all_profiles(session)
+                print_summary(results, "Scoring Profiles")
+
+            if args.ruleset:
+                result = await import_specific_ruleset(session, args.ruleset)
+                print_summary([result], f"Ruleset: {args.ruleset}")
+
+            print("\n✨ Import completed successfully!\n")
+
+        except Exception as e:
+            print(f"\n❌ Import failed: {e}\n")
+            import traceback
+
+            traceback.print_exc()
+            sys.exit(1)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

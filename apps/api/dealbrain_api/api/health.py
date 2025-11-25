@@ -43,14 +43,16 @@ async def check_baseline_health(
     }
 
     # Check for active baseline ruleset
-    baseline_stmt = select(ValuationRuleset).where(
-        and_(
-            ValuationRuleset.is_active == True,
-            ValuationRuleset.metadata_json.op("->>")(
-                "system_baseline"
-            ) == "true"
+    baseline_stmt = (
+        select(ValuationRuleset)
+        .where(
+            and_(
+                ValuationRuleset.is_active == True,
+                ValuationRuleset.metadata_json.op("->>")("system_baseline") == "true",
+            )
         )
-    ).order_by(ValuationRuleset.priority.asc())
+        .order_by(ValuationRuleset.priority.asc())
+    )
 
     baseline_result = await session.execute(baseline_stmt)
     baseline_ruleset = baseline_result.scalar_one_or_none()
@@ -66,9 +68,7 @@ async def check_baseline_health(
 
         # Check if baseline is stale
         if age_days > 90:
-            warnings.append(
-                f"Baseline is {age_days} days old, consider updating"
-            )
+            warnings.append(f"Baseline is {age_days} days old, consider updating")
 
         # Check hash match if expected
         if expected_hash is not None:

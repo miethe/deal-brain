@@ -80,6 +80,7 @@ class StorageMedium(str, Enum):
 
 class Marketplace(str, Enum):
     """Source marketplace for URL-ingested listings."""
+
     EBAY = "ebay"
     AMAZON = "amazon"
     OTHER = "other"
@@ -87,6 +88,7 @@ class Marketplace(str, Enum):
 
 class SourceType(str, Enum):
     """Type of import source for ImportSession."""
+
     EXCEL = "excel"
     URL_SINGLE = "url_single"
     URL_BULK = "url_bulk"
@@ -94,8 +96,26 @@ class SourceType(str, Enum):
 
 class SourceDataType(str, Enum):
     """Type of raw payload data stored."""
+
     JSON = "json"
     HTML = "html"
+
+
+class CollectionVisibility(str, Enum):
+    """Collection visibility options."""
+
+    PRIVATE = "private"
+    UNLISTED = "unlisted"
+    PUBLIC = "public"
+
+
+class CollectionItemStatus(str, Enum):
+    """Collection item status options."""
+
+    UNDECIDED = "undecided"
+    SHORTLISTED = "shortlisted"
+    REJECTED = "rejected"
+    BOUGHT = "bought"
 
 
 __all__ = [
@@ -109,4 +129,6 @@ __all__ = [
     "Marketplace",
     "SourceType",
     "SourceDataType",
+    "CollectionVisibility",
+    "CollectionItemStatus",
 ]

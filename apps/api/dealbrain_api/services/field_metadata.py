@@ -13,6 +13,7 @@ from .field_registry import FieldRegistry
 @dataclass
 class OperatorDefinition:
     """Operator metadata for frontend."""
+
     value: str
     label: str
     field_types: list[str]  # Applicable data types
@@ -21,6 +22,7 @@ class OperatorDefinition:
 @dataclass
 class FieldMetadata:
     """Field metadata for condition builder."""
+
     key: str
     label: str
     data_type: str
@@ -33,6 +35,7 @@ class FieldMetadata:
 @dataclass
 class EntityMetadata:
     """Entity metadata for condition builder."""
+
     key: str
     label: str
     fields: list[FieldMetadata]
@@ -84,15 +87,25 @@ class FieldMetadataService:
                 key="cpu",
                 label="CPU",
                 fields=[
-                    FieldMetadata("cpu_mark_multi", "CPU Mark (Multi-Core)", "number",
-                                  description="PassMark multi-core benchmark score"),
-                    FieldMetadata("cpu_mark_single", "CPU Mark (Single-Core)", "number",
-                                  description="PassMark single-core benchmark score"),
+                    FieldMetadata(
+                        "cpu_mark_multi",
+                        "CPU Mark (Multi-Core)",
+                        "number",
+                        description="PassMark multi-core benchmark score",
+                    ),
+                    FieldMetadata(
+                        "cpu_mark_single",
+                        "CPU Mark (Single-Core)",
+                        "number",
+                        description="PassMark single-core benchmark score",
+                    ),
                     FieldMetadata("name", "CPU Name", "string"),
                     FieldMetadata("manufacturer", "Manufacturer", "enum", options=["Intel", "AMD"]),
                     FieldMetadata("cores", "Cores", "number"),
                     FieldMetadata("threads", "Threads", "number"),
-                    FieldMetadata("tdp_w", "TDP (Watts)", "number", description="Thermal Design Power"),
+                    FieldMetadata(
+                        "tdp_w", "TDP (Watts)", "number", description="Thermal Design Power"
+                    ),
                 ],
             )
         )
@@ -103,10 +116,16 @@ class FieldMetadataService:
                 key="gpu",
                 label="GPU",
                 fields=[
-                    FieldMetadata("gpu_mark", "GPU Mark", "number", description="PassMark GPU benchmark score"),
-                    FieldMetadata("metal_score", "Metal Score", "number", description="Metal benchmark score"),
+                    FieldMetadata(
+                        "gpu_mark", "GPU Mark", "number", description="PassMark GPU benchmark score"
+                    ),
+                    FieldMetadata(
+                        "metal_score", "Metal Score", "number", description="Metal benchmark score"
+                    ),
                     FieldMetadata("name", "GPU Name", "string"),
-                    FieldMetadata("manufacturer", "Manufacturer", "enum", options=["NVIDIA", "AMD", "Intel"]),
+                    FieldMetadata(
+                        "manufacturer", "Manufacturer", "enum", options=["NVIDIA", "AMD", "Intel"]
+                    ),
                 ],
             )
         )

@@ -73,7 +73,13 @@ class ListingBulkUpdateRequest(BaseModel):
     def coerce_bulk_reference_fields(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
         if v is None:
             return v
-        for key in ("cpu_id", "gpu_id", "ram_spec_id", "primary_storage_profile_id", "secondary_storage_profile_id"):
+        for key in (
+            "cpu_id",
+            "gpu_id",
+            "ram_spec_id",
+            "primary_storage_profile_id",
+            "secondary_storage_profile_id",
+        ):
             if key in v:
                 if v[key] is None or v[key] == "":
                     v[key] = None
@@ -89,6 +95,7 @@ class ListingBulkUpdateResponse(BaseModel):
 
 class ValuationAdjustmentAction(BaseModel):
     """Breakdown of an individual action contributing to a rule adjustment."""
+
     action_type: str | None = Field(None, description="Action type identifier")
     metric: str | None = Field(None, description="Metric or dimension affected by the action")
     value: float = Field(..., description="Value contributed by this action in USD")
@@ -98,6 +105,7 @@ class ValuationAdjustmentAction(BaseModel):
 
 class ValuationAdjustmentDetail(BaseModel):
     """Details of a rule adjustment applied during valuation."""
+
     rule_id: int | None = Field(None, description="Identifier of the valuation rule")
     rule_name: str = Field(..., description="Display name of the rule")
     rule_description: str | None = Field(None, description="Rule description from database")
@@ -112,26 +120,36 @@ class ValuationAdjustmentDetail(BaseModel):
 
 class LegacyValuationLine(BaseModel):
     """Legacy component deduction line retained for backwards compatibility."""
+
     label: str = Field(..., description="Component or deduction label")
     component_type: str = Field(..., description="Component type identifier")
     quantity: float = Field(..., description="Quantity associated with the deduction")
     unit_value: float = Field(..., description="Unit value in USD")
     condition_multiplier: float = Field(..., description="Condition multiplier applied")
     deduction_usd: float = Field(..., description="Deduction amount in USD")
-    adjustment_usd: float | None = Field(None, description="Signed adjustment amount when available")
+    adjustment_usd: float | None = Field(
+        None, description="Signed adjustment amount when available"
+    )
 
 
 class ValuationBreakdownResponse(BaseModel):
     """Detailed breakdown of listing valuation calculation."""
+
     listing_id: int = Field(..., description="Listing ID")
     listing_title: str = Field(..., description="Listing title")
     base_price_usd: float = Field(..., description="Original listing price")
     adjusted_price_usd: float = Field(..., description="Price after rule adjustments")
-    total_adjustment: float = Field(..., description="Total adjustment amount (can be positive or negative)")
-    total_deductions: float | None = Field(None, description="Sum of deduction amounts when available")
+    total_adjustment: float = Field(
+        ..., description="Total adjustment amount (can be positive or negative)"
+    )
+    total_deductions: float | None = Field(
+        None, description="Sum of deduction amounts when available"
+    )
     matched_rules_count: int = Field(0, description="Number of rules that contributed adjustments")
     ruleset_id: int | None = Field(None, description="Identifier of the ruleset used for valuation")
-    ruleset_name: str | None = Field(None, description="Display name of the ruleset used for valuation")
+    ruleset_name: str | None = Field(
+        None, description="Display name of the ruleset used for valuation"
+    )
     adjustments: list[ValuationAdjustmentDetail] = Field(
         default_factory=list,
         description="Applied rule adjustments",
@@ -144,33 +162,41 @@ class ValuationBreakdownResponse(BaseModel):
 
 class BulkRecalculateRequest(BaseModel):
     """Request to recalculate metrics for multiple listings"""
-    listing_ids: list[int] | None = Field(None, description="List of listing IDs. If None, updates all.")
+
+    listing_ids: list[int] | None = Field(
+        None, description="List of listing IDs. If None, updates all."
+    )
 
 
 class BulkRecalculateResponse(BaseModel):
     """Response after bulk metric recalculation"""
+
     updated_count: int = Field(..., description="Number of listings updated")
     message: str = Field(..., description="Status message")
 
 
 class PortEntry(BaseModel):
     """Single port entry with type and quantity"""
+
     port_type: str = Field(..., description="Port type (e.g., USB-A, HDMI)")
     quantity: int = Field(..., ge=1, le=16, description="Quantity of this port type")
 
 
 class UpdatePortsRequest(BaseModel):
     """Request to update ports for a listing"""
+
     ports: list[PortEntry] = Field(default_factory=list, description="List of port entries")
 
 
 class PortsResponse(BaseModel):
     """Response with ports data"""
+
     ports: list[PortEntry] = Field(default_factory=list, description="List of port entries")
 
 
 class ListingValuationOverrideRequest(BaseModel):
     """Request schema for managing listing-level ruleset overrides."""
+
     mode: Literal["auto", "static"] = Field(
         "auto",
         description="Auto selects by priority; static locks to a specific ruleset.",
@@ -192,14 +218,47 @@ class ListingValuationOverrideRequest(BaseModel):
 
 class ListingValuationOverrideResponse(BaseModel):
     """Response describing the current listing valuation override state."""
+
     mode: Literal["auto", "static"]
     ruleset_id: int | None = Field(None, description="Static ruleset assignment if any.")
     disabled_rulesets: list[int] = Field(default_factory=list)
 
 
+class PaginatedListingsResponse(BaseModel):
+    """Cursor-based paginated listings response."""
+
+    items: list[ListingRead] = Field(..., description="Listings in current page")
+    total: int = Field(..., description="Total count of listings (cached)")
+    limit: int = Field(..., description="Number of items requested per page")
+    next_cursor: str | None = Field(None, description="Cursor for next page (null if last page)")
+    has_next: bool = Field(..., description="Whether more pages are available")
+
+
+class CompletePartialImportRequest(BaseModel):
+    """Request schema for completing a partial import."""
+
+    price: float = Field(..., gt=0, description="Listing price in USD (must be positive)")
+
+    class Config:
+        json_schema_extra = {"example": {"price": 299.99}}
+
+
+class CompletePartialImportResponse(BaseModel):
+    """Response schema for completed listing."""
+
+    id: int
+    title: str
+    price_usd: float | None
+    quality: str
+    missing_fields: list[str]
+    adjusted_price_usd: float | None
+
+
 __all__ = [
     "BulkRecalculateRequest",
     "BulkRecalculateResponse",
+    "CompletePartialImportRequest",
+    "CompletePartialImportResponse",
     "LegacyValuationLine",
     "ListingBulkUpdateRequest",
     "ListingBulkUpdateResponse",
@@ -208,6 +267,7 @@ __all__ = [
     "ListingSchemaResponse",
     "ListingValuationOverrideRequest",
     "ListingValuationOverrideResponse",
+    "PaginatedListingsResponse",
     "PortEntry",
     "PortsResponse",
     "UpdatePortsRequest",

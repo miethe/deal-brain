@@ -1,4 +1,5 @@
 """Application settings service."""
+
 from typing import Any
 
 from sqlalchemy import select
@@ -50,11 +51,7 @@ class SettingsService:
             if description is not None:
                 setting.description = description
         else:
-            setting = ApplicationSettings(
-                key=key,
-                value_json=value,
-                description=description
-            )
+            setting = ApplicationSettings(key=key, value_json=value, description=description)
             session.add(setting)
 
         await session.commit()
@@ -73,9 +70,31 @@ class SettingsService:
         thresholds = await self.get_setting(session, "valuation_thresholds")
         if not thresholds:
             # Return defaults if not configured
+            return {"good_deal": 15.0, "great_deal": 25.0, "premium_warning": 10.0}
+        return thresholds
+
+    async def get_cpu_mark_thresholds(self, session: AsyncSession) -> dict[str, float]:
+        """Get CPU Mark thresholds with defaults.
+
+        These are percentage improvement values representing price-to-performance efficiency.
+        Positive values indicate better efficiency (lower $/mark), negative values indicate
+        worse efficiency (higher $/mark) compared to baseline.
+
+        Args:
+            session: Database session
+
+        Returns:
+            Thresholds dict with excellent, good, fair, neutral, poor, premium
+        """
+        thresholds = await self.get_setting(session, "cpu_mark_thresholds")
+        if not thresholds:
+            # Return defaults if not configured
             return {
-                "good_deal": 15.0,
-                "great_deal": 25.0,
-                "premium_warning": 10.0
+                "excellent": 20.0,
+                "good": 10.0,
+                "fair": 5.0,
+                "neutral": 0.0,
+                "poor": -10.0,
+                "premium": -20.0,
             }
         return thresholds

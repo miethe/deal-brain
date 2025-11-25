@@ -17,8 +17,8 @@ depends_on = None
 def upgrade() -> None:
     component_type = sa.Enum(ComponentType, name="component_type")
     component_metric = sa.Enum(ComponentMetric, name="component_metric")
-    condition = sa.Enum('new', 'refurb', 'used', name="condition")
-    listing_status = sa.Enum('active', 'archived', 'pending', name="listing_status")
+    condition = sa.Enum("new", "refurb", "used", name="condition")
+    listing_status = sa.Enum("active", "archived", "pending", name="listing_status")
     port_type = sa.Enum(PortType, name="port_type")
 
     op.create_table(
@@ -117,7 +117,12 @@ def upgrade() -> None:
     op.create_table(
         "port",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("ports_profile_id", sa.Integer(), sa.ForeignKey("ports_profile.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "ports_profile_id",
+            sa.Integer(),
+            sa.ForeignKey("ports_profile.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("type", port_type, nullable=False),
         sa.Column("count", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("spec_notes", sa.String(length=255)),
@@ -134,8 +139,18 @@ def upgrade() -> None:
         sa.Column("seller", sa.String(length=128)),
         sa.Column("price_usd", sa.Numeric(10, 2), nullable=False),
         sa.Column("price_date", sa.DateTime()),
-        sa.Column("condition", condition, nullable=False, server_default=sa.text(f"'{Condition.USED.value}'")),
-        sa.Column("status", listing_status, nullable=False, server_default=sa.text(f"'{ListingStatus.ACTIVE.value}'")),
+        sa.Column(
+            "condition",
+            condition,
+            nullable=False,
+            server_default=sa.text(f"'{Condition.USED.value}'"),
+        ),
+        sa.Column(
+            "status",
+            listing_status,
+            nullable=False,
+            server_default=sa.text(f"'{ListingStatus.ACTIVE.value}'"),
+        ),
         sa.Column("cpu_id", sa.Integer(), sa.ForeignKey("cpu.id")),
         sa.Column("gpu_id", sa.Integer(), sa.ForeignKey("gpu.id")),
         sa.Column("ports_profile_id", sa.Integer(), sa.ForeignKey("ports_profile.id")),
@@ -167,7 +182,12 @@ def upgrade() -> None:
     op.create_table(
         "listing_component",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("listing_id", sa.Integer(), sa.ForeignKey("listing.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "listing_id",
+            sa.Integer(),
+            sa.ForeignKey("listing.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("rule_id", sa.Integer(), sa.ForeignKey("valuation_rule.id")),
         sa.Column("component_type", sa.Enum(ComponentType), nullable=False),
         sa.Column("name", sa.String(length=255)),
@@ -181,7 +201,12 @@ def upgrade() -> None:
     op.create_table(
         "listing_score_snapshot",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("listing_id", sa.Integer(), sa.ForeignKey("listing.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "listing_id",
+            sa.Integer(),
+            sa.ForeignKey("listing.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("profile_id", sa.Integer(), sa.ForeignKey("profile.id")),
         sa.Column("score_composite", sa.Float()),
         sa.Column("adjusted_price_usd", sa.Numeric(10, 2)),

@@ -105,8 +105,7 @@ class RateLimitConfig:
         if self.current_count >= self.requests_per_minute:
             wait_time = 60 - elapsed
             logger.warning(
-                f"Rate limit reached ({self.requests_per_minute}/min). "
-                f"Waiting {wait_time:.1f}s"
+                f"Rate limit reached ({self.requests_per_minute}/min). " f"Waiting {wait_time:.1f}s"
             )
             await asyncio.sleep(wait_time)
             self.current_count = 0
@@ -170,14 +169,11 @@ class RetryConfig:
                 if attempt < self.max_retries:
                     wait_time = self.backoff_factor * (2**attempt)
                     logger.warning(
-                        f"Attempt {attempt + 1} failed: {e.message}. "
-                        f"Retrying in {wait_time}s"
+                        f"Attempt {attempt + 1} failed: {e.message}. " f"Retrying in {wait_time}s"
                     )
                     await asyncio.sleep(wait_time)
                 else:
-                    logger.error(
-                        f"All {self.max_retries + 1} attempts failed: {e.message}"
-                    )
+                    logger.error(f"All {self.max_retries + 1} attempts failed: {e.message}")
                     raise
 
         # Should never reach here, but just in case
@@ -318,13 +314,18 @@ class BaseAdapter(ABC):
         """
         Validate raw response data before transformation.
 
+        Only title is required for partial imports. Price is optional.
+        If price is missing, marks the data as "partial" quality and tracks
+        extraction metadata for manual population.
+
         Args:
             data: Raw response data dictionary
 
         Raises:
-            AdapterException: If validation fails
+            AdapterException: If validation fails (title missing)
         """
-        required_fields = ["title", "price"]
+        # Only title is required now (price is optional for partial imports)
+        required_fields = ["title"]
         missing = [f for f in required_fields if f not in data or not data[f]]
         if missing:
             raise AdapterException(
@@ -332,6 +333,28 @@ class BaseAdapter(ABC):
                 f"Missing required fields: {', '.join(missing)}",
                 metadata={"missing_fields": missing},
             )
+
+        # Track extraction quality based on price presence
+        has_price = bool(data.get("price"))
+
+        if not has_price:
+            logger.warning(f"[{self.name}] No price extracted - will create partial import")
+            data["quality"] = "partial"
+            data["missing_fields"] = ["price"]
+        else:
+            data["quality"] = "full"
+            data["missing_fields"] = []
+
+        # Track what was extracted (all fields that have values)
+        data["extraction_metadata"] = {
+            k: "extracted"
+            for k, v in data.items()
+            if v and k not in ["quality", "missing_fields", "extraction_metadata"]
+        }
+
+        # Mark price extraction as failed if missing
+        if not has_price:
+            data["extraction_metadata"]["price"] = "extraction_failed"
 
 
 __all__ = [

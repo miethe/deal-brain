@@ -35,7 +35,7 @@ export function ValuationModeToggle({ value, onChange }: ValuationModeToggleProp
       <button
         role="tab"
         aria-selected={value === "adjusted"}
-        aria-label="Show adjusted prices with component deductions"
+        aria-label="Show adjusted values with component deductions"
         className={cn(
           "inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
           value === "adjusted"
@@ -45,7 +45,7 @@ export function ValuationModeToggle({ value, onChange }: ValuationModeToggleProp
         onClick={() => onChange("adjusted")}
       >
         <Calculator className="h-4 w-4" />
-        Adjusted Price
+        Adjusted Value
       </button>
     </div>
   );

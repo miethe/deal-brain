@@ -32,19 +32,19 @@ export function DetailPageTabs({ listing }: DetailPageTabsProps) {
         <TabsTrigger value="notes">Notes</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="specifications" className="mt-6">
+      <TabsContent value="specifications" className="mt-4">
         <SpecificationsTab listing={listing} />
       </TabsContent>
 
-      <TabsContent value="valuation" className="mt-6">
+      <TabsContent value="valuation" className="mt-4">
         <ValuationTabPage listing={listing} />
       </TabsContent>
 
-      <TabsContent value="history" className="mt-6">
+      <TabsContent value="history" className="mt-4">
         <HistoryTab listing={listing} />
       </TabsContent>
 
-      <TabsContent value="notes" className="mt-6">
+      <TabsContent value="notes" className="mt-4">
         <NotesTab />
       </TabsContent>
     </Tabs>

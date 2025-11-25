@@ -496,9 +496,7 @@ async def test_handles_database_error_gracefully(db_session, mock_normalized_dat
 
 
 @pytest.mark.asyncio
-async def test_deduplication_result_included_in_response(
-    db_session, mock_normalized_data
-):
+async def test_deduplication_result_included_in_response(db_session, mock_normalized_data):
     """Test that deduplication result is included in ingestion result."""
     service = IngestionService(db_session)
 
@@ -514,9 +512,7 @@ async def test_deduplication_result_included_in_response(
 
 
 @pytest.mark.asyncio
-async def test_deduplication_finds_existing_by_vendor_id(
-    db_session, mock_normalized_data
-):
+async def test_deduplication_finds_existing_by_vendor_id(db_session, mock_normalized_data):
     """Test that deduplication finds existing listing by vendor_item_id."""
     # Create existing listing
     existing = Listing(

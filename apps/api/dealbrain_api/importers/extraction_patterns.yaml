@@ -1,0 +1,247 @@
+# Extraction patterns for component identification from product titles and descriptions
+# Each pattern includes:
+#   - pattern: Regex pattern for extraction
+#   - confidence: Extraction confidence level (high, medium, low)
+#   - examples: Example strings that should match this pattern
+#   - description: Human-readable description of what this pattern matches
+
+cpu_patterns:
+  # Intel Core processors (high confidence)
+  - pattern: '(?:Intel\s+)?(?:Core\s+)?([iI][3579])\s*-?\s*(\d{4,5})([A-Z]{1,3})?'
+    confidence: high
+    description: "Intel Core i3/i5/i7/i9 processors with generation and SKU"
+    examples:
+      - "Intel Core i7-12700K"
+      - "Core i5-13600"
+      - "i9-13900KS"
+      - "Intel i7 12700K"
+
+  # AMD Ryzen processors (high confidence)
+  - pattern: '(?:AMD\s+)?Ryzen\s+([3579])\s+(\d{4})([A-Z]{1,3})?'
+    confidence: high
+    description: "AMD Ryzen 3/5/7/9 processors with generation and SKU"
+    examples:
+      - "AMD Ryzen 5 5600X"
+      - "Ryzen 7 7700X"
+      - "Ryzen 9 7950X3D"
+
+  # Intel Celeron/Pentium (medium confidence)
+  - pattern: '(?:Intel\s+)?(Celeron|Pentium)\s+([A-Z]?\d{4,5})'
+    confidence: medium
+    description: "Intel Celeron and Pentium processors"
+    examples:
+      - "Intel Celeron N5105"
+      - "Pentium G7400"
+      - "Celeron J4125"
+
+  # Intel Xeon (medium confidence)
+  - pattern: '(?:Intel\s+)?Xeon\s+([A-Z]-?\d{4,5}[A-Z]?)'
+    confidence: medium
+    description: "Intel Xeon processors"
+    examples:
+      - "Intel Xeon E-2288G"
+      - "Xeon W-1290P"
+
+  # AMD Athlon/A-Series (medium confidence)
+  - pattern: '(?:AMD\s+)?(Athlon|A\d+)\s+(\d{4})'
+    confidence: medium
+    description: "AMD Athlon and A-series processors"
+    examples:
+      - "AMD Athlon 3000G"
+      - "A10-9700"
+
+  # Generic processor pattern (low confidence)
+  - pattern: '(\d+(?:\.\d+)?)\s*GHz\s+(Quad|Dual|Hexa|Octa)[\s-]?Core'
+    confidence: low
+    description: "Generic processor description with clock speed and core count"
+    examples:
+      - "3.6GHz Quad-Core"
+      - "2.4 GHz Dual Core"
+
+ram_patterns:
+  # Standard DDR RAM (high confidence)
+  - pattern: '(\d+)\s*GB\s+(DDR[3-5])'
+    confidence: high
+    description: "RAM with capacity and DDR generation"
+    examples:
+      - "16GB DDR4"
+      - "32GB DDR5"
+      - "8GB DDR3"
+
+  # RAM with speed (high confidence)
+  - pattern: '(\d+)\s*GB\s+(DDR[3-5])\s*-?\s*(\d{4,5})'
+    confidence: high
+    description: "RAM with capacity, generation, and speed"
+    examples:
+      - "16GB DDR4-3200"
+      - "32GB DDR5 5600"
+      - "8GB DDR4-2666"
+
+  # Generic RAM without DDR generation (medium confidence)
+  - pattern: '(\d+)\s*GB\s+(RAM|Memory)'
+    confidence: medium
+    description: "RAM with capacity but no generation specified"
+    examples:
+      - "16GB RAM"
+      - "32GB Memory"
+
+  # Dual channel RAM (high confidence)
+  - pattern: '(\d+)\s*GB\s+\(2\s*[xX×]\s*(\d+)\s*GB\)\s+(DDR[3-5])?'
+    confidence: high
+    description: "Dual channel RAM configuration"
+    examples:
+      - "16GB (2 x 8GB) DDR4"
+      - "32GB (2x16GB)"
+
+storage_patterns:
+  # NVMe SSD (high confidence)
+  - pattern: '(\d+(?:\.\d+)?)\s*(TB|GB)\s+(?:PCIe\s+)?NVMe\s+(?:M\.2\s+)?SSD'
+    confidence: high
+    description: "NVMe SSD storage with capacity"
+    examples:
+      - "512GB NVMe SSD"
+      - "1TB PCIe NVMe SSD"
+      - "256GB NVMe M.2 SSD"
+
+  # Standard SSD (high confidence)
+  - pattern: '(\d+(?:\.\d+)?)\s*(TB|GB)\s+(?:SATA\s+)?SSD'
+    confidence: high
+    description: "Standard SSD storage with capacity"
+    examples:
+      - "512GB SSD"
+      - "1TB SATA SSD"
+      - "256GB SSD"
+
+  # Hard disk drive (high confidence)
+  - pattern: '(\d+(?:\.\d+)?)\s*(TB|GB)\s+(?:SATA\s+)?HDD'
+    confidence: high
+    description: "Hard disk drive storage with capacity"
+    examples:
+      - "1TB HDD"
+      - "2TB SATA HDD"
+      - "500GB HDD"
+
+  # M.2 SSD (high confidence)
+  - pattern: '(\d+(?:\.\d+)?)\s*(TB|GB)\s+M\.2\s+(?:PCIe\s+)?SSD'
+    confidence: high
+    description: "M.2 form factor SSD"
+    examples:
+      - "512GB M.2 SSD"
+      - "1TB M.2 PCIe SSD"
+
+  # Generic storage (medium confidence)
+  - pattern: '(\d+(?:\.\d+)?)\s*(TB|GB)\s+(Storage|Hard\s+Drive|Solid\s+State)'
+    confidence: medium
+    description: "Generic storage without specific type"
+    examples:
+      - "512GB Storage"
+      - "1TB Hard Drive"
+
+gpu_patterns:
+  # NVIDIA RTX (high confidence)
+  - pattern: '(?:NVIDIA\s+)?(?:GeForce\s+)?(RTX)\s*(\d{4})\s*(Ti|SUPER)?'
+    confidence: high
+    description: "NVIDIA RTX series GPUs"
+    examples:
+      - "NVIDIA GeForce RTX 3060"
+      - "RTX 3060 Ti"
+      - "GeForce RTX 4070 SUPER"
+
+  # NVIDIA GTX (high confidence)
+  - pattern: '(?:NVIDIA\s+)?(?:GeForce\s+)?(GTX)\s*(\d{4})\s*(Ti)?'
+    confidence: high
+    description: "NVIDIA GTX series GPUs"
+    examples:
+      - "NVIDIA GeForce GTX 1660"
+      - "GTX 1650 Ti"
+      - "GeForce GTX 1080"
+
+  # AMD Radeon RX (high confidence)
+  - pattern: '(?:AMD\s+)?(?:Radeon\s+)?(RX)\s*(\d{4})\s*(XT)?'
+    confidence: high
+    description: "AMD Radeon RX series GPUs"
+    examples:
+      - "AMD Radeon RX 6600"
+      - "RX 6600 XT"
+      - "Radeon RX 7900 XT"
+
+  # Intel Arc (high confidence)
+  - pattern: '(?:Intel\s+)?(Arc)\s+([A-Z]\d{3})'
+    confidence: high
+    description: "Intel Arc series GPUs"
+    examples:
+      - "Intel Arc A770"
+      - "Arc A380"
+
+  # Intel UHD/Iris Graphics (medium confidence)
+  - pattern: '(?:Intel\s+)?(UHD|Iris)\s+(?:Graphics\s+)?(\d{3,4})'
+    confidence: medium
+    description: "Intel integrated graphics"
+    examples:
+      - "Intel UHD Graphics 770"
+      - "Iris Xe Graphics"
+      - "UHD 630"
+
+  # AMD Vega/Radeon Graphics (medium confidence)
+  - pattern: '(?:AMD\s+)?(Vega|Radeon)\s+(?:Graphics\s+)?(\d+)?'
+    confidence: medium
+    description: "AMD integrated graphics"
+    examples:
+      - "AMD Radeon Graphics"
+      - "Vega 8"
+
+  # Generic discrete GPU (low confidence)
+  - pattern: '(\d+)\s*GB\s+(?:Dedicated\s+)?(?:Graphics|GPU|Video\s+Card)'
+    confidence: low
+    description: "Generic GPU description with VRAM capacity"
+    examples:
+      - "4GB Dedicated Graphics"
+      - "6GB GPU"
+
+form_factor_patterns:
+  # Mini PC form factors (medium confidence)
+  - pattern: '(Mini\s+PC|Small\s+Form\s+Factor|SFF|NUC|Micro\s+PC|Tiny)'
+    confidence: medium
+    description: "Small form factor PC types"
+    examples:
+      - "Mini PC"
+      - "Small Form Factor"
+      - "Intel NUC"
+      - "Micro PC"
+
+  # Desktop form factors (low confidence)
+  - pattern: '(Desktop|Tower|Mid-Tower|Full-Tower|Compact\s+Desktop)'
+    confidence: low
+    description: "Standard desktop form factors"
+    examples:
+      - "Desktop PC"
+      - "Mid-Tower"
+      - "Compact Desktop"
+
+# Extraction order: Apply patterns in this order for best results
+extraction_order:
+  - cpu_patterns
+  - ram_patterns
+  - storage_patterns
+  - gpu_patterns
+  - form_factor_patterns
+
+# Normalization rules for extracted values
+normalization:
+  # Convert capacity units to GB
+  capacity_units:
+    TB: 1000
+    GB: 1
+
+  # DDR generation mapping
+  ddr_generations:
+    DDR3: 3
+    DDR4: 4
+    DDR5: 5
+
+  # Storage type priority (for multiple storage devices)
+  storage_priority:
+    - NVMe SSD
+    - M.2 SSD
+    - SSD
+    - HDD

@@ -28,10 +28,7 @@ class BaselineAuditLog(Base):
     actor_id: Mapped[int | None] = mapped_column(Integer, index=True)
     actor_name: Mapped[str | None] = mapped_column(String(128))
     timestamp: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=func.now(),
-        nullable=False,
-        index=True
+        DateTime(timezone=True), default=func.now(), nullable=False, index=True
     )
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     result: Mapped[str] = mapped_column(

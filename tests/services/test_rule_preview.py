@@ -331,9 +331,7 @@ class TestPreviewImpact:
             ),
         )
 
-        preview = await preview_service.preview_rule_impact(
-            db_session, rule.id, sample_limit=5
-        )
+        preview = await preview_service.preview_rule_impact(db_session, rule.id, sample_limit=5)
 
         assert len(preview.sample_listings) <= 5
         assert preview.total_listings_affected == 2  # listing1 and listing2

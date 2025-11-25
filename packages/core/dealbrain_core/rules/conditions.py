@@ -1,4 +1,5 @@
 """Condition evaluation system for valuation rules"""
+
 from __future__ import annotations
 
 import re
@@ -8,6 +9,7 @@ from typing import Any
 
 class ConditionOperator(str, Enum):
     """Supported condition operators"""
+
     # Equality
     EQUALS = "equals"
     NOT_EQUALS = "not_equals"
@@ -36,6 +38,7 @@ class ConditionOperator(str, Enum):
 
 class LogicalOperator(str, Enum):
     """Logical operators for combining conditions"""
+
     AND = "and"
     OR = "or"
     NOT = "not"
@@ -45,11 +48,7 @@ class Condition:
     """Individual condition that can be evaluated against a context"""
 
     def __init__(
-        self,
-        field_name: str,
-        field_type: str,
-        operator: ConditionOperator | str,
-        value: Any = None
+        self, field_name: str, field_type: str, operator: ConditionOperator | str, value: Any = None
     ):
         self.field_name = field_name
         self.field_type = field_type
@@ -177,7 +176,7 @@ class Condition:
             "field_name": self.field_name,
             "field_type": self.field_type,
             "operator": self.operator.value,
-            "value": self.value
+            "value": self.value,
         }
 
 
@@ -187,7 +186,7 @@ class ConditionGroup:
     def __init__(
         self,
         conditions: list[Condition | "ConditionGroup"],
-        logical_operator: LogicalOperator | str = LogicalOperator.AND
+        logical_operator: LogicalOperator | str = LogicalOperator.AND,
     ):
         self.conditions = conditions
         if isinstance(logical_operator, str):
@@ -227,7 +226,7 @@ class ConditionGroup:
         """Convert condition group to dictionary representation"""
         return {
             "logical_operator": self.logical_operator.value,
-            "conditions": [cond.to_dict() for cond in self.conditions]
+            "conditions": [cond.to_dict() for cond in self.conditions],
         }
 
 
@@ -244,12 +243,10 @@ def build_condition_from_dict(data: dict[str, Any]) -> Condition | ConditionGrou
     if "logical_operator" in data:
         # This is a condition group
         nested_conditions = [
-            build_condition_from_dict(cond_data)
-            for cond_data in data.get("conditions", [])
+            build_condition_from_dict(cond_data) for cond_data in data.get("conditions", [])
         ]
         return ConditionGroup(
-            conditions=nested_conditions,
-            logical_operator=data["logical_operator"]
+            conditions=nested_conditions, logical_operator=data["logical_operator"]
         )
     else:
         # This is a single condition
@@ -257,5 +254,5 @@ def build_condition_from_dict(data: dict[str, Any]) -> Condition | ConditionGrou
             field_name=data["field_name"],
             field_type=data["field_type"],
             operator=data["operator"],
-            value=data.get("value")
+            value=data.get("value"),
         )

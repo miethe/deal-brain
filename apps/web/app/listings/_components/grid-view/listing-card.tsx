@@ -1,18 +1,19 @@
 "use client";
 
-import { memo } from "react";
-import { ArrowUpRight, SquarePen } from "lucide-react";
+import { memo, useState } from "react";
+import { ArrowUpRight, SquarePen, Trash2 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { ListingRecord } from "@/types/listings";
 import { formatRamSummary, formatStorageSummary } from "@/components/listings/listing-formatters";
 import { PerformanceBadges } from "./performance-badges";
 import { useCatalogStore } from "@/stores/catalog-store";
 import { EntityTooltip } from "@/components/listings/entity-tooltip";
-import { CpuTooltipContent } from "@/components/listings/tooltips/cpu-tooltip-content";
-import { GpuTooltipContent } from "@/components/listings/tooltips/gpu-tooltip-content";
-import { fetchEntityData } from "@/lib/api/entities";
+import { API_URL } from "@/lib/utils";
 
 interface ListingCardProps {
   listing: ListingRecord;
@@ -24,14 +25,44 @@ interface ListingCardProps {
  * Card layout for grid view with:
  * - Header: Title (truncated), Open button
  * - Badges: CPU, Device type, Tags
- * - Price: List price (large), Adjusted price (with color accent)
+ * - Price: List price (large), Adjusted value (with color accent)
  * - Performance badges
  * - Metadata: RAM, Storage, Condition
  * - Footer: Vendor badge, Quick Edit button (hover visible)
  */
 export const ListingCard = memo(function ListingCard({ listing }: ListingCardProps) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const openDetailsDialog = useCatalogStore((state) => state.openDetailsDialog);
   const openQuickEditDialog = useCatalogStore((state) => state.openQuickEditDialog);
+
+  // Delete mutation
+  const { mutate: deleteListing, isPending: isDeleting } = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${API_URL}/v1/listings/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Failed to delete listing' }));
+        throw new Error(error.detail || 'Failed to delete listing');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      toast({
+        title: 'Success',
+        description: 'Listing deleted successfully',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: `Delete failed: ${error.message}`,
+        variant: 'destructive',
+      });
+    },
+  });
 
   const handleCardClick = () => {
     openDetailsDialog(listing.id);
@@ -40,6 +71,11 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
   const handleQuickEdit = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
     openQuickEditDialog(listing.id);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    setDeleteConfirmOpen(true);
   };
 
   const handleOpenExternal = (e: React.MouseEvent) => {
@@ -92,17 +128,28 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
           <h3 className="font-semibold text-base line-clamp-2 flex-1">
             {listing.title}
           </h3>
-          {listing.listing_url && (
+          <div className="flex gap-1">
+            {listing.listing_url && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={handleOpenExternal}
+                aria-label="Open listing in new tab"
+              >
+                <ArrowUpRight className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={handleOpenExternal}
-              aria-label="Open listing in new tab"
+              onClick={handleDelete}
+              aria-label="Delete listing"
             >
-              <ArrowUpRight className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" />
             </Button>
-          )}
+          </div>
         </div>
       </CardHeader>
 
@@ -117,9 +164,8 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
                 <EntityTooltip
                   entityType="cpu"
                   entityId={listing.cpu.id}
-                  tooltipContent={(cpuData) => <CpuTooltipContent cpu={cpuData} />}
-                  fetchData={fetchEntityData}
                   variant="inline"
+                  disableLink={true}
                 >
                   {listing.cpu_name}
                 </EntityTooltip>
@@ -136,9 +182,8 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
                 <EntityTooltip
                   entityType="gpu"
                   entityId={listing.gpu.id}
-                  tooltipContent={(gpuData) => <GpuTooltipContent gpu={gpuData} />}
-                  fetchData={fetchEntityData}
                   variant="inline"
+                  disableLink={true}
                 >
                   {listing.gpu_name}
                 </EntityTooltip>
@@ -215,6 +260,19 @@ export const ListingCard = memo(function ListingCard({ listing }: ListingCardPro
           Quick Edit
         </Button>
       </CardFooter>
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete Listing?"
+        description="This action cannot be undone. The listing and all related data will be permanently deleted."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={() => deleteListing(listing.id)}
+        isLoading={isDeleting}
+      />
     </Card>
   );
 });

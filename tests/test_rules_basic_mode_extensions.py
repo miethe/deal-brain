@@ -13,6 +13,7 @@ from dealbrain_api.validation.rules_validation import VALID_ENTITY_KEYS
 
 # --- Fixtures ---
 
+
 @pytest.fixture
 async def db_session():
     """Create async database session for tests"""
@@ -375,7 +376,10 @@ class TestRuleModifiersExtensions:
 
         response = await client.post("/api/v1/valuation-rules", json=rule_data)
         assert response.status_code == 400
-        assert "'min_usd' (200.0) cannot be greater than 'max_usd' (100.0)" in response.json()["detail"]
+        assert (
+            "'min_usd' (200.0) cannot be greater than 'max_usd' (100.0)"
+            in response.json()["detail"]
+        )
 
     async def test_cannot_modify_rules_in_basic_managed_group(
         self,

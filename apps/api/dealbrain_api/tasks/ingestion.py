@@ -3,20 +3,21 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import delete, func, select
 
-from ..db import session_scope
+from ..db import dispose_engine, session_scope
+from ..events import EventType, publish_event
 from ..models.core import ImportSession, RawPayload
 from ..services.ingestion import IngestionService
 from ..settings import get_settings
+from ..telemetry import bind_request_context, clear_context, get_logger, new_request_id
 from ..worker import celery_app
 
-logger = logging.getLogger(__name__)
+logger = get_logger("dealbrain.tasks.ingestion")
 
 INGEST_TASK_NAME = "ingestion.ingest_url"
 CLEANUP_TASK_NAME = "ingestion.cleanup_expired_payloads"
@@ -39,6 +40,10 @@ async def _ingest_url_async(
     Raises:
         ValueError: If ImportSession not found
     """
+    correlation_id = job_id or new_request_id()
+    bind_request_context(correlation_id, job_id=job_id, task=INGEST_TASK_NAME, url=url)
+    logger.info("ingestion.task.start", job_id=job_id, url=url)
+
     job_uuid = UUID(job_id)
 
     async with session_scope() as session:
@@ -55,7 +60,24 @@ async def _ingest_url_async(
             import_session.status = "running"
             import_session.progress_pct = 10
             await session.flush()
-            logger.info(f"[{job_id}] Progress: 10% - Job started")
+            logger.info(
+                "ingestion.task.progress",
+                job_id=job_id,
+                progress=10,
+                message="Job started",
+            )
+
+            # Publish SSE event
+            await publish_event(
+                EventType.IMPORT_PROGRESS,
+                {
+                    "job_id": job_id,
+                    "progress_pct": 10,
+                    "status": "running",
+                    "message": "Job started",
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+            )
 
             # Initialize service
             service = IngestionService(session)
@@ -63,7 +85,24 @@ async def _ingest_url_async(
             # Milestone 2: Adapter extraction started (30%)
             import_session.progress_pct = 30
             await session.flush()
-            logger.info(f"[{job_id}] Progress: 30% - Extracting data from URL")
+            logger.info(
+                "ingestion.task.progress",
+                job_id=job_id,
+                progress=30,
+                message="Extracting data from URL",
+            )
+
+            # Publish SSE event
+            await publish_event(
+                EventType.IMPORT_PROGRESS,
+                {
+                    "job_id": job_id,
+                    "progress_pct": 30,
+                    "status": "running",
+                    "message": "Extracting data from URL",
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+            )
 
             # Execute the full ingestion (includes extraction, normalization, persistence)
             ingest_result = await service.ingest_single_url(url)
@@ -71,12 +110,46 @@ async def _ingest_url_async(
             # Milestone 3: Normalization complete (60%)
             import_session.progress_pct = 60
             await session.flush()
-            logger.info(f"[{job_id}] Progress: 60% - Data normalized")
+            logger.info(
+                "ingestion.task.progress",
+                job_id=job_id,
+                progress=60,
+                message="Data normalized",
+            )
+
+            # Publish SSE event
+            await publish_event(
+                EventType.IMPORT_PROGRESS,
+                {
+                    "job_id": job_id,
+                    "progress_pct": 60,
+                    "status": "running",
+                    "message": "Data normalized",
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+            )
 
             # Milestone 4: Persistence starting (80%)
             import_session.progress_pct = 80
             await session.flush()
-            logger.info(f"[{job_id}] Progress: 80% - Saving to database")
+            logger.info(
+                "ingestion.task.progress",
+                job_id=job_id,
+                progress=80,
+                message="Saving to database",
+            )
+
+            # Publish SSE event
+            await publish_event(
+                EventType.IMPORT_PROGRESS,
+                {
+                    "job_id": job_id,
+                    "progress_pct": 80,
+                    "status": "running",
+                    "message": "Saving to database",
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+            )
 
             # Milestone 5: Complete (100%)
             if ingest_result.success:
@@ -92,28 +165,55 @@ async def _ingest_url_async(
                     "vendor_item_id": ingest_result.vendor_item_id,
                     "marketplace": ingest_result.marketplace,
                 }
-                logger.info(f"[{job_id}] Progress: 100% - Import complete")
+                logger.info(
+                    "ingestion.task.progress",
+                    job_id=job_id,
+                    progress=100,
+                    message="Import complete",
+                )
+
+                # Publish SSE event for success
+                await publish_event(
+                    EventType.IMPORT_PROGRESS,
+                    {
+                        "job_id": job_id,
+                        "progress_pct": 100,
+                        "status": import_session.status,
+                        "message": "Import complete",
+                        "timestamp": datetime.utcnow().isoformat(),
+                    },
+                )
             else:
                 import_session.status = "failed"
                 import_session.progress_pct = 30  # Failed during extraction phase
                 import_session.conflicts_json = {"error": ingest_result.error}
                 logger.error(
-                    "[%s] Import failed at %s%%: %s",
-                    job_id,
-                    import_session.progress_pct,
-                    ingest_result.error,
+                    "ingestion.task.failed",
+                    job_id=job_id,
+                    progress=import_session.progress_pct,
+                    error=ingest_result.error,
+                )
+
+                # Publish SSE event for failure
+                await publish_event(
+                    EventType.IMPORT_PROGRESS,
+                    {
+                        "job_id": job_id,
+                        "progress_pct": import_session.progress_pct,
+                        "status": "failed",
+                        "message": f"Import failed: {ingest_result.error}",
+                        "timestamp": datetime.utcnow().isoformat(),
+                    },
                 )
 
             await session.commit()
 
             logger.info(
-                "URL ingestion async complete",
-                extra={
-                    "job_id": job_id,
-                    "success": ingest_result.success,
-                    "status": import_session.status,
-                    "progress_pct": import_session.progress_pct,
-                },
+                "ingestion.task.complete",
+                job_id=job_id,
+                success=ingest_result.success,
+                status=import_session.status,
+                progress=import_session.progress_pct,
             )
 
             # Return result dict
@@ -136,10 +236,25 @@ async def _ingest_url_async(
             import_session.conflicts_json = {"error": str(e)}
             await session.commit()
             logger.exception(
-                "Exception in URL ingestion async",
-                extra={"job_id": job_id, "progress_pct": import_session.progress_pct},
+                "ingestion.task.exception",
+                job_id=job_id,
+                progress=import_session.progress_pct,
+            )
+
+            # Publish SSE event for exception
+            await publish_event(
+                EventType.IMPORT_PROGRESS,
+                {
+                    "job_id": job_id,
+                    "progress_pct": import_session.progress_pct,
+                    "status": "failed",
+                    "message": f"Import failed with exception: {str(e)}",
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
             )
             raise
+        finally:
+            clear_context()
 
 
 @celery_app.task(name=INGEST_TASK_NAME, bind=True, max_retries=3)
@@ -173,8 +288,10 @@ def ingest_url_task(
         Retry: For transient errors (timeout, connection errors)
     """
     logger.info(
-        "Starting URL ingestion task",
-        extra={"job_id": job_id, "url": url, "retry": self.request.retries},
+        "ingestion.task.dispatch",
+        job_id=job_id,
+        url=url,
+        retry=self.request.retries,
     )
 
     # Create fresh event loop for each task execution
@@ -183,19 +300,26 @@ def ingest_url_task(
 
     try:
         asyncio.set_event_loop(loop)
+
+        # Dispose existing engine if present to prevent "attached to a different loop" errors
+        # The engine will be recreated with the new event loop on first use
+        loop.run_until_complete(dispose_engine())
+
         result = loop.run_until_complete(_ingest_url_async(job_id=job_id, url=url))
 
         logger.info(
-            "URL ingestion task complete",
-            extra={"job_id": job_id, "success": result["success"]},
+            "ingestion.task.success",
+            job_id=job_id,
+            success=result["success"],
         )
         return result
 
     except ValueError as e:
         # Permanent error (invalid URL, missing session)
         logger.error(
-            "Permanent error in URL ingestion",
-            extra={"job_id": job_id, "error": str(e)},
+            "ingestion.task.permanent_error",
+            job_id=job_id,
+            error=str(e),
         )
         # Don't retry - mark as failed
         return {
@@ -211,13 +335,11 @@ def ingest_url_task(
         # Transient error - retry with exponential backoff
         retry_countdown = 2**self.request.retries * 5
         logger.warning(
-            "Transient error in URL ingestion, retrying",
-            extra={
-                "job_id": job_id,
-                "error": str(e),
-                "retry_count": self.request.retries,
-                "countdown": retry_countdown,
-            },
+            "ingestion.task.retry",
+            job_id=job_id,
+            error=str(e),
+            retry_count=self.request.retries,
+            countdown=retry_countdown,
         )
         raise self.retry(exc=e, countdown=retry_countdown) from e
 
@@ -226,12 +348,16 @@ def ingest_url_task(
         if self.request.retries < self.max_retries:
             retry_countdown = 2**self.request.retries * 5
             logger.exception(
-                "Unknown error in URL ingestion, retrying",
-                extra={"job_id": job_id, "retry_count": self.request.retries},
+                "ingestion.task.unknown_error",
+                job_id=job_id,
+                retry_count=self.request.retries,
             )
             raise self.retry(exc=e, countdown=retry_countdown) from e
         else:
-            logger.exception("URL ingestion failed after max retries", extra={"job_id": job_id})
+            logger.exception(
+                "ingestion.task.max_retries_exceeded",
+                job_id=job_id,
+            )
             return {
                 "success": False,
                 "listing_id": None,
@@ -281,20 +407,16 @@ async def _cleanup_expired_payloads_async() -> dict[str, Any]:
             await session.commit()
 
             logger.info(
-                "Cleanup completed: deleted expired raw payloads",
-                extra={
-                    "deleted_count": count,
-                    "ttl_days": ttl_days,
-                    "cutoff_date": cutoff_date.isoformat(),
-                },
+                "ingestion.cleanup.deleted",
+                deleted_count=count,
+                ttl_days=ttl_days,
+                cutoff_date=cutoff_date.isoformat(),
             )
         else:
             logger.info(
-                "Cleanup completed: no expired payloads found",
-                extra={
-                    "ttl_days": ttl_days,
-                    "cutoff_date": cutoff_date.isoformat(),
-                },
+                "ingestion.cleanup.noop",
+                ttl_days=ttl_days,
+                cutoff_date=cutoff_date.isoformat(),
             )
 
         return {
@@ -323,7 +445,9 @@ def cleanup_expired_payloads_task() -> dict[str, Any]:
         >>> result.get()
         {'deleted_count': 42, 'ttl_days': 30, 'cutoff_date': '2025-09-19T...'}
     """
-    logger.info("Starting raw payload cleanup task")
+    correlation_id = new_request_id()
+    bind_request_context(correlation_id, task=CLEANUP_TASK_NAME)
+    logger.info("ingestion.cleanup.start")
 
     # Create fresh event loop for each task execution
     # This prevents "attached to a different loop" errors in forked worker processes
@@ -331,19 +455,23 @@ def cleanup_expired_payloads_task() -> dict[str, Any]:
 
     try:
         asyncio.set_event_loop(loop)
+
+        # Dispose existing engine if present to prevent "attached to a different loop" errors
+        # The engine will be recreated with the new event loop on first use
+        loop.run_until_complete(dispose_engine())
+
         result = loop.run_until_complete(_cleanup_expired_payloads_async())
 
         logger.info(
-            "Raw payload cleanup task complete",
-            extra={
-                "deleted_count": result["deleted_count"],
-                "ttl_days": result["ttl_days"],
-            },
+            "ingestion.cleanup.complete",
+            deleted_count=result["deleted_count"],
+            ttl_days=result["ttl_days"],
+            cutoff_date=result["cutoff_date"],
         )
         return result
 
     except Exception as e:
-        logger.exception("Error in raw payload cleanup task", extra={"error": str(e)})
+        logger.exception("ingestion.cleanup.failed", error=str(e))
         # Return error result instead of raising to prevent beat schedule from stopping
         return {
             "deleted_count": 0,
@@ -351,7 +479,6 @@ def cleanup_expired_payloads_task() -> dict[str, Any]:
             "cutoff_date": None,
             "error": str(e),
         }
-
     finally:
         # Clean up loop after task completion
         try:
@@ -359,6 +486,7 @@ def cleanup_expired_payloads_task() -> dict[str, Any]:
         finally:
             loop.close()
             asyncio.set_event_loop(None)
+            clear_context()
 
 
 __all__ = [

@@ -1,12 +1,13 @@
 """Formula validator with AST analysis and field reference extraction"""
 
 import ast
-import logging
 from typing import Any, Optional
 
-from .formula import FormulaParser, FormulaError, FormulaSyntaxError, FormulaValidationError
+import structlog
 
-logger = logging.getLogger(__name__)
+from .formula import FormulaError, FormulaParser, FormulaSyntaxError, FormulaValidationError
+
+logger = structlog.get_logger(__name__)
 
 
 class ValidationError:
@@ -86,7 +87,7 @@ class FormulaValidator:
                 ValidationError(
                     "Formula cannot be empty",
                     severity="error",
-                    suggestion="Provide a valid formula expression"
+                    suggestion="Provide a valid formula expression",
                 )
             )
             return errors
@@ -98,30 +99,19 @@ class FormulaValidator:
         except FormulaSyntaxError as e:
             errors.append(
                 ValidationError(
-                    e.message,
-                    severity="error",
-                    position=e.position,
-                    suggestion=e.suggestion
+                    e.message, severity="error", position=e.position, suggestion=e.suggestion
                 )
             )
             return errors
         except FormulaValidationError as e:
             errors.append(
                 ValidationError(
-                    e.message,
-                    severity="error",
-                    position=e.position,
-                    suggestion=e.suggestion
+                    e.message, severity="error", position=e.position, suggestion=e.suggestion
                 )
             )
             return errors
         except Exception as e:
-            errors.append(
-                ValidationError(
-                    f"Unexpected validation error: {e}",
-                    severity="error"
-                )
-            )
+            errors.append(ValidationError(f"Unexpected validation error: {e}", severity="error"))
             return errors
 
         # Additional validations (warnings, best practices)
@@ -175,9 +165,7 @@ class FormulaValidator:
         return "\n".join(lines)
 
     def validate_field_availability(
-        self,
-        formula: str,
-        available_fields: set[str]
+        self, formula: str, available_fields: set[str]
     ) -> list[ValidationError]:
         """
         Validate that all referenced fields exist in the available context.
@@ -203,7 +191,8 @@ class FormulaValidator:
                     ValidationError(
                         f"Field '{field}' is not available in context",
                         severity="error",
-                        suggestion=suggestion or f"Available fields: {', '.join(sorted(available_fields))}"
+                        suggestion=suggestion
+                        or f"Available fields: {', '.join(sorted(available_fields))}",
                     )
                 )
 
@@ -279,13 +268,7 @@ class FormulaValidator:
 
         return None
 
-    def _visualize_node(
-        self,
-        node: ast.AST,
-        lines: list[str],
-        level: int,
-        indent: int
-    ) -> None:
+    def _visualize_node(self, node: ast.AST, lines: list[str], level: int, indent: int) -> None:
         """
         Recursively visualize AST node structure.
 
@@ -361,11 +344,7 @@ class FormulaValidator:
         else:
             lines.append(f"{prefix}{node_type}")
 
-    def _check_best_practices(
-        self,
-        formula: str,
-        tree: ast.Expression
-    ) -> list[ValidationError]:
+    def _check_best_practices(self, formula: str, tree: ast.Expression) -> list[ValidationError]:
         """
         Check formula for best practices and potential issues.
 
@@ -384,7 +363,7 @@ class FormulaValidator:
                 ValidationError(
                     "Formula contains division - ensure divisor is never zero",
                     severity="warning",
-                    suggestion="Consider using clamp() or conditional checks to prevent division by zero"
+                    suggestion="Consider using clamp() or conditional checks to prevent division by zero",
                 )
             )
 
@@ -395,7 +374,7 @@ class FormulaValidator:
                 ValidationError(
                     f"Formula has deep nesting (depth {max_depth})",
                     severity="warning",
-                    suggestion="Consider simplifying the formula for better readability"
+                    suggestion="Consider simplifying the formula for better readability",
                 )
             )
 
@@ -405,7 +384,7 @@ class FormulaValidator:
                 ValidationError(
                     "Multiple divisions may accumulate floating-point precision errors",
                     severity="info",
-                    suggestion="Consider reordering operations to minimize precision loss"
+                    suggestion="Consider reordering operations to minimize precision loss",
                 )
             )
 
@@ -416,7 +395,9 @@ class FormulaValidator:
         if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Div, ast.FloorDiv)):
             return True
         elif isinstance(node, ast.BinOp):
-            return self._has_division_without_check(node.left) or self._has_division_without_check(node.right)
+            return self._has_division_without_check(node.left) or self._has_division_without_check(
+                node.right
+            )
         elif isinstance(node, ast.UnaryOp):
             return self._has_division_without_check(node.operand)
         elif isinstance(node, ast.Compare):
@@ -424,9 +405,11 @@ class FormulaValidator:
         elif isinstance(node, ast.Call):
             return any(self._has_division_without_check(arg) for arg in node.args)
         elif isinstance(node, ast.IfExp):
-            return (self._has_division_without_check(node.test) or
-                    self._has_division_without_check(node.body) or
-                    self._has_division_without_check(node.orelse))
+            return (
+                self._has_division_without_check(node.test)
+                or self._has_division_without_check(node.body)
+                or self._has_division_without_check(node.orelse)
+            )
         return False
 
     def _get_max_depth(self, node: ast.AST, current_depth: int = 0) -> int:
@@ -436,7 +419,7 @@ class FormulaValidator:
         if isinstance(node, ast.BinOp):
             max_child_depth = max(
                 self._get_max_depth(node.left, current_depth + 1),
-                self._get_max_depth(node.right, current_depth + 1)
+                self._get_max_depth(node.right, current_depth + 1),
             )
         elif isinstance(node, ast.UnaryOp):
             max_child_depth = self._get_max_depth(node.operand, current_depth + 1)
@@ -446,12 +429,14 @@ class FormulaValidator:
             max_child_depth = max(depths)
         elif isinstance(node, ast.Call):
             if node.args:
-                max_child_depth = max(self._get_max_depth(arg, current_depth + 1) for arg in node.args)
+                max_child_depth = max(
+                    self._get_max_depth(arg, current_depth + 1) for arg in node.args
+                )
         elif isinstance(node, ast.IfExp):
             max_child_depth = max(
                 self._get_max_depth(node.test, current_depth + 1),
                 self._get_max_depth(node.body, current_depth + 1),
-                self._get_max_depth(node.orelse, current_depth + 1)
+                self._get_max_depth(node.orelse, current_depth + 1),
             )
 
         return max_child_depth
@@ -463,7 +448,7 @@ class FormulaValidator:
                 count += 1
             count = max(
                 self._has_multiple_divisions(node.left, count),
-                self._has_multiple_divisions(node.right, count)
+                self._has_multiple_divisions(node.right, count),
             )
         elif isinstance(node, ast.UnaryOp):
             return self._has_multiple_divisions(node.operand, count)
@@ -471,7 +456,7 @@ class FormulaValidator:
             return max(
                 self._has_multiple_divisions(node.test, count),
                 self._has_multiple_divisions(node.body, count),
-                self._has_multiple_divisions(node.orelse, count)
+                self._has_multiple_divisions(node.orelse, count),
             )
 
         return count >= 2

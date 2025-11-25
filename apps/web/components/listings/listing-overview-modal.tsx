@@ -1,19 +1,25 @@
 "use client";
 
-import { memo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { memo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import { ValuationCell } from "./valuation-cell";
 import { DualMetricCell } from "./dual-metric-cell";
 import { PortsDisplay } from "./ports-display";
-import { apiFetch } from "../../lib/utils";
+import { apiFetch, API_URL } from "../../lib/utils";
 import { useValuationThresholds } from "../../hooks/use-valuation-thresholds";
+import { useToast } from "../../hooks/use-toast";
 import { ListingRecord } from "../../types/listings";
 import { formatRamSummary, formatStorageSummary } from "./listing-formatters";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Trash2, Edit } from "lucide-react";
+import { EntityTooltip } from "./entity-tooltip";
+import { ProductImageDisplay } from "./product-image-display";
+import { ConfirmationDialog } from "../ui/confirmation-dialog";
+import { useCatalogStore } from "../../stores/catalog-store";
 
 interface ListingOverviewModalProps {
   listingId: number | null;
@@ -22,6 +28,11 @@ interface ListingOverviewModalProps {
 }
 
 function ListingOverviewModalComponent({ listingId, open, onOpenChange }: ListingOverviewModalProps) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const openQuickEditDialog = useCatalogStore((state) => state.openQuickEditDialog);
+
   const { data: listing, isLoading } = useQuery<ListingRecord>({
     queryKey: ['listing', listingId],
     queryFn: async () => {
@@ -33,6 +44,34 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
   });
 
   const { data: thresholds } = useValuationThresholds();
+
+  // Delete mutation
+  const { mutate: deleteListing, isPending: isDeleting } = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${API_URL}/v1/listings/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Failed to delete listing' }));
+        throw new Error(error.detail || 'Failed to delete listing');
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['listings'] });
+      toast({
+        title: 'Success',
+        description: 'Listing deleted successfully',
+      });
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: `Delete failed: ${error.message}`,
+        variant: 'destructive',
+      });
+    },
+  });
 
   if (!open || !listingId) return null;
 
@@ -52,15 +91,13 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
               <DialogTitle className="text-xl">{listing.title}</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4">
-              {listing.thumbnail_url && (
-                <img
-                  src={listing.thumbnail_url}
-                  alt={listing.title}
-                  className="w-full max-w-md rounded-lg mx-auto"
-                />
-              )}
+            {/* Product Image Display */}
+            <ProductImageDisplay
+              listing={listing}
+              className="w-full max-w-md mx-auto mb-6"
+            />
 
+            <div className="space-y-4">
               <Section title="Pricing">
                 {thresholds && listing.adjusted_price_usd !== null ? (
                   <ValuationCell
@@ -121,30 +158,134 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
 
               <Section title="Hardware">
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <SpecRow label="CPU" value={listing.cpu_name} />
-                  <SpecRow label="GPU" value={listing.gpu_name} />
-                  <SpecRow label="RAM" value={formatRamSummary(listing)} />
-                  <SpecRow
-                    label="Primary Storage"
-                    value={formatStorageSummary(
-                      listing.primary_storage_profile ?? null,
-                      listing.primary_storage_gb ?? null,
-                      listing.primary_storage_type ?? null,
-                    )}
-                  />
+                  {listing.cpu_name && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">CPU</span>
+                      <span className="font-medium">
+                        {listing.cpu?.id ? (
+                          <EntityTooltip
+                            entityType="cpu"
+                            entityId={listing.cpu.id}
+                            variant="inline"
+                            disableLink={true}
+                          >
+                            {listing.cpu_name}
+                          </EntityTooltip>
+                        ) : (
+                          listing.cpu_name
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {listing.gpu_name && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">GPU</span>
+                      <span className="font-medium">
+                        {listing.gpu?.id ? (
+                          <EntityTooltip
+                            entityType="gpu"
+                            entityId={listing.gpu.id}
+                            variant="inline"
+                            disableLink={true}
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              {listing.gpu_name}
+                              {listing.gpu?.type === 'integrated' && (
+                                <Badge variant="outline" className="text-xs">Integrated</Badge>
+                              )}
+                            </span>
+                          </EntityTooltip>
+                        ) : (
+                          <span className="inline-flex items-center gap-1">
+                            {listing.gpu_name}
+                            {listing.gpu?.type === 'integrated' && (
+                              <Badge variant="outline" className="text-xs">Integrated</Badge>
+                            )}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {formatRamSummary(listing) && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">RAM</span>
+                      <span className="font-medium">
+                        {listing.ram_spec?.id ? (
+                          <EntityTooltip
+                            entityType="ram-spec"
+                            entityId={listing.ram_spec.id}
+                            variant="inline"
+                            disableLink={true}
+                          >
+                            {formatRamSummary(listing)}
+                          </EntityTooltip>
+                        ) : (
+                          formatRamSummary(listing)
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {formatStorageSummary(
+                    listing.primary_storage_profile ?? null,
+                    listing.primary_storage_gb ?? null,
+                    listing.primary_storage_type ?? null,
+                  ) && (
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">Primary Storage</span>
+                      <span className="font-medium">
+                        {listing.primary_storage_profile?.id ? (
+                          <EntityTooltip
+                            entityType="storage-profile"
+                            entityId={listing.primary_storage_profile.id}
+                            variant="inline"
+                            disableLink={true}
+                          >
+                            {formatStorageSummary(
+                              listing.primary_storage_profile ?? null,
+                              listing.primary_storage_gb ?? null,
+                              listing.primary_storage_type ?? null,
+                            )}
+                          </EntityTooltip>
+                        ) : (
+                          formatStorageSummary(
+                            listing.primary_storage_profile ?? null,
+                            listing.primary_storage_gb ?? null,
+                            listing.primary_storage_type ?? null,
+                          )
+                        )}
+                      </span>
+                    </div>
+                  )}
                   {formatStorageSummary(
                     listing.secondary_storage_profile ?? null,
                     listing.secondary_storage_gb ?? null,
                     listing.secondary_storage_type ?? null,
                   ) && (
-                    <SpecRow
-                      label="Secondary Storage"
-                      value={formatStorageSummary(
-                        listing.secondary_storage_profile ?? null,
-                        listing.secondary_storage_gb ?? null,
-                        listing.secondary_storage_type ?? null,
-                      )}
-                    />
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">Secondary Storage</span>
+                      <span className="font-medium">
+                        {listing.secondary_storage_profile?.id ? (
+                          <EntityTooltip
+                            entityType="storage-profile"
+                            entityId={listing.secondary_storage_profile.id}
+                            variant="inline"
+                            disableLink={true}
+                          >
+                            {formatStorageSummary(
+                              listing.secondary_storage_profile ?? null,
+                              listing.secondary_storage_gb ?? null,
+                              listing.secondary_storage_type ?? null,
+                            )}
+                          </EntityTooltip>
+                        ) : (
+                          formatStorageSummary(
+                            listing.secondary_storage_profile ?? null,
+                            listing.secondary_storage_gb ?? null,
+                            listing.secondary_storage_type ?? null,
+                          )
+                        )}
+                      </span>
+                    </div>
                   )}
                 </div>
                 {listing.ports_profile?.ports && listing.ports_profile.ports.length > 0 && (
@@ -159,16 +300,16 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                 <>
                   <Separator />
 
-                  <Section title="Links">
+                  <Section title={`Links${listing.other_urls && listing.other_urls.length > 3 ? ` (${listing.other_urls.length + 1})` : ''}`}>
                     <div className="space-y-2">
                       {listing.listing_url && (
                         <div className="flex items-center gap-2">
-                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                          <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                           <a
                             href={listing.listing_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline"
+                            className="text-sm text-primary hover:underline break-all"
                           >
                             View Original Listing
                           </a>
@@ -177,12 +318,12 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
 
                       {listing.other_urls && listing.other_urls.map((link, index) => (
                         <div key={index} className="flex items-center gap-2">
-                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                          <ExternalLink className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                           <a
                             href={link.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline"
+                            className="text-sm text-primary hover:underline break-all"
                           >
                             {link.label || `Additional Link ${index + 1}`}
                           </a>
@@ -208,6 +349,17 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
             </div>
 
             <div className="flex gap-2 mt-6 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (listingId) {
+                    openQuickEditDialog(listingId);
+                  }
+                }}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Quick Edit
+              </Button>
               <Button asChild className="flex-1">
                 <Link href={`/listings?highlight=${listing.id}`}>
                   View Full Listing
@@ -220,7 +372,28 @@ function ListingOverviewModalComponent({ listingId, open, onOpenChange }: Listin
                   </Link>
                 </Button>
               )}
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteConfirmOpen(true)}
+                disabled={isDeleting}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
             </div>
+
+            {/* Confirmation Dialog */}
+            <ConfirmationDialog
+              open={deleteConfirmOpen}
+              onOpenChange={setDeleteConfirmOpen}
+              title="Delete Listing?"
+              description="This action cannot be undone. The listing and all related data will be permanently deleted."
+              confirmText="Delete"
+              cancelText="Cancel"
+              variant="destructive"
+              onConfirm={() => deleteListing(listing.id)}
+              isLoading={isDeleting}
+            />
           </>
         ) : (
           <div className="p-8 text-center">

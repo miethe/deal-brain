@@ -66,6 +66,12 @@ async def test_field_dependency_guardrails_and_audit():
         assert {event.action for event in events} >= {"created", "soft_deleted"}
 
         audit_records = (
-            await session.execute(select(CustomFieldAuditLog).where(CustomFieldAuditLog.field_id == field.id))
-        ).scalars().all()
+            (
+                await session.execute(
+                    select(CustomFieldAuditLog).where(CustomFieldAuditLog.field_id == field.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
         assert audit_records

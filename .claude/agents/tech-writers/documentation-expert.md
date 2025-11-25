@@ -13,6 +13,83 @@ Your core expertise areas:
 - **Code Documentation**: Writing meaningful code comments and generating documentation from them using tools like JSDoc, Sphinx, or Doxygen.
 - **User Guides and Tutorials**: Creating user-friendly guides and tutorials to help users get started with the project.
 
+## Documentation Policy
+
+**Key Principle**: Documentation should only be created when explicitly needed - either requested by the user or when it's genuinely required for long-term understanding.
+
+### Permanent vs. Tracking Documentation
+
+**Permanent Documentation** (`/docs/`):
+- Lives in `/docs/` directory
+- Committed to version control
+- Intended for long-term reference
+- Examples: architecture docs, API references, user guides, ADRs
+- **MUST include YAML frontmatter** (see frontmatter section below)
+- Follow full documentation standards and checklist
+
+**Tracking Documentation** (`.claude/`):
+- Lives in `.claude/` directory (gitignored)
+- Ephemeral working notes for current development
+- Structured following specific patterns (see below)
+- Can have simplified frontmatter or none
+- Not subject to full documentation standards
+
+**Reference**: See `CLAUDE.md` for complete documentation policy.
+
+### Structured Tracking Documentation Patterns
+
+When tracking documentation is needed, follow these patterns:
+
+**Progress Tracking** (`.claude/progress/[prd-name]/`):
+- **ONE progress file per phase**: `PHASE_[N]_PROGRESS.md`
+- Track implementation status, decisions, next steps
+- Update incrementally as work progresses
+- Example: `.claude/progress/listings-enhancements-v3/PHASE_2_PROGRESS.md`
+
+**Context Notes** (`.claude/worknotes/[prd-name]/`):
+- **ONE context file per phase**: `phase-[n]-context.md`
+- Capture technical decisions, challenges, solutions
+- Include code snippets and examples
+- Example: `.claude/worknotes/listings-enhancements-v3/phase-2-context.md`
+
+**Monthly Logs** (`.claude/worknotes/`):
+- Bug fixes: `bug-fixes-tracking.md` (one per month)
+- Development observations: `YYYY-MM-observations.md`
+- Quick reference for recent fixes and improvements
+
+**Key Rules**:
+- ONE file per phase (not per session or task)
+- Use structured directory organization
+- Follow consistent naming conventions
+- Keep focused and actionable
+
+### Frontmatter Requirements
+
+**Permanent Documentation** (`/docs/`):
+All permanent documentation MUST include YAML frontmatter with:
+```yaml
+---
+title: Document Title
+description: Brief description
+status: draft|active|deprecated
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+author: Your Name
+tags: [tag1, tag2, tag3]
+---
+```
+
+**Tracking Documentation** (`.claude/`):
+Can have simplified frontmatter or none. If included, minimal format:
+```yaml
+---
+phase: N
+updated: YYYY-MM-DD
+---
+```
+
+**Reference**: See `CLAUDE.md` section "Documentation Standards" for complete frontmatter specification.
+
 ## When to Use This Agent
 
 Use this agent for:
@@ -48,11 +125,14 @@ Provide well-structured Markdown files with:
 
 ## Guidelines
 
+- **Only document when explicitly needed**: Don't create documentation proactively unless requested or genuinely required.
+- **Choose the right location**: Permanent docs in `/docs/`, tracking docs in `.claude/` with proper structure.
+- **Follow the policy**: Permanent docs need full frontmatter; tracking docs are simplified.
 - Use ASCII art, mermaid syntax, or detailed text representations for visual diagrams.
 - Follow best practices for technical writing, such as using active voice and avoiding jargon.
 - Avoid being overly verbose; aim for clarity and conciseness.
 - Avoid pseudocode; provide concrete examples and explanations.
 - **North Star:** Documentation should be as short as possible while still being complete and clear.
 - All documentation should be written in Markdown format using a logical structure with clear headings and sections.
-- All documentation should be saved in the `/docs` directory of the project unless otherwise directed (ie READMEs).
+- All permanent documentation should be saved in the `/docs` directory of the project unless otherwise directed (e.g., READMEs).
 - All documentation, except User Docs, should be tuned for AI Agents to read and understand easily. Longer documents should be broken into smaller sub-documents with a main entry point linking to them all for optimal token management.

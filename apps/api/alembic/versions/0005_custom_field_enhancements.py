@@ -43,4 +43,3 @@ def downgrade() -> None:
     op.drop_column("custom_field_definition", "deleted_at")
     op.drop_column("custom_field_definition", "display_order")
     op.drop_column("custom_field_definition", "validation_json")
-

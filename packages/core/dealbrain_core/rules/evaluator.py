@@ -1,20 +1,23 @@
 """Rule evaluator orchestrates condition checking and action execution"""
+
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import Any
+
+import structlog
 
 from .actions import Action, ActionEngine
 from .conditions import Condition, ConditionGroup
 from .formula import FormulaEngine
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
 class RuleEvaluationResult:
     """Result of evaluating a rule against a listing"""
+
     rule_id: int
     rule_name: str
     matched: bool
@@ -37,7 +40,7 @@ class RuleEvaluator:
         conditions: Condition | ConditionGroup | list[Condition | ConditionGroup],
         actions: list[Action],
         context: dict[str, Any],
-        is_active: bool = True
+        is_active: bool = True,
     ) -> RuleEvaluationResult:
         """
         Evaluate a single rule against a context.
@@ -56,10 +59,7 @@ class RuleEvaluator:
         # Skip inactive rules
         if not is_active:
             return RuleEvaluationResult(
-                rule_id=rule_id,
-                rule_name=rule_name,
-                matched=False,
-                adjustment_value=0.0
+                rule_id=rule_id, rule_name=rule_name, matched=False, adjustment_value=0.0
             )
 
         try:
@@ -68,10 +68,7 @@ class RuleEvaluator:
 
             if not matched:
                 return RuleEvaluationResult(
-                    rule_id=rule_id,
-                    rule_name=rule_name,
-                    matched=False,
-                    adjustment_value=0.0
+                    rule_id=rule_id, rule_name=rule_name, matched=False, adjustment_value=0.0
                 )
 
             # Execute actions
@@ -82,7 +79,7 @@ class RuleEvaluator:
                 rule_name=rule_name,
                 matched=True,
                 adjustment_value=action_result["total_adjustment"],
-                breakdown=action_result["breakdown"]
+                breakdown=action_result["breakdown"],
             )
 
         except Exception as e:
@@ -93,20 +90,20 @@ class RuleEvaluator:
                     "rule_name": rule_name,
                     "error_type": type(e).__name__,
                 },
-                exc_info=True
+                exc_info=True,
             )
             return RuleEvaluationResult(
                 rule_id=rule_id,
                 rule_name=rule_name,
                 matched=False,
                 adjustment_value=0.0,
-                error=str(e)
+                error=str(e),
             )
 
     def _evaluate_conditions(
         self,
         conditions: Condition | ConditionGroup | list[Condition | ConditionGroup],
-        context: dict[str, Any]
+        context: dict[str, Any],
     ) -> bool:
         """
         Evaluate conditions (single, group, or list).
@@ -134,7 +131,7 @@ class RuleEvaluator:
         self,
         rules: list[dict[str, Any]],
         context: dict[str, Any],
-        stop_on_first_match: bool = False
+        stop_on_first_match: bool = False,
     ) -> list[RuleEvaluationResult]:
         """
         Evaluate multiple rules in a ruleset.
@@ -151,14 +148,13 @@ class RuleEvaluator:
 
         # Sort rules by evaluation_order if present
         sorted_rules = sorted(
-            rules,
-            key=lambda r: r.get("evaluation_order", r.get("priority", 100))
+            rules, key=lambda r: r.get("evaluation_order", r.get("priority", 100))
         )
 
         for rule_dict in sorted_rules:
             # Build conditions and actions from dict
-            from .conditions import build_condition_from_dict
             from .actions import build_action_from_dict
+            from .conditions import build_condition_from_dict
 
             conditions = None
             if "conditions" in rule_dict and rule_dict["conditions"]:
@@ -169,9 +165,7 @@ class RuleEvaluator:
                 else:
                     conditions = build_condition_from_dict(rule_dict["conditions"])
 
-            actions = [
-                build_action_from_dict(action) for action in rule_dict.get("actions", [])
-            ]
+            actions = [build_action_from_dict(action) for action in rule_dict.get("actions", [])]
 
             result = self.evaluate_rule(
                 rule_id=rule_dict["id"],
@@ -179,7 +173,7 @@ class RuleEvaluator:
                 conditions=conditions,
                 actions=actions,
                 context=context,
-                is_active=rule_dict.get("is_active", True)
+                is_active=rule_dict.get("is_active", True),
             )
 
             results.append(result)
@@ -190,8 +184,7 @@ class RuleEvaluator:
         return results
 
     def calculate_total_adjustment(
-        self,
-        evaluation_results: list[RuleEvaluationResult]
+        self, evaluation_results: list[RuleEvaluationResult]
     ) -> dict[str, Any]:
         """
         Calculate total adjustment from multiple rule evaluations.
@@ -208,17 +201,19 @@ class RuleEvaluator:
         for result in evaluation_results:
             if result.matched and not result.error:
                 total += result.adjustment_value
-                matched_rules.append({
-                    "rule_id": result.rule_id,
-                    "rule_name": result.rule_name,
-                    "adjustment": result.adjustment_value,
-                    "breakdown": result.breakdown
-                })
+                matched_rules.append(
+                    {
+                        "rule_id": result.rule_id,
+                        "rule_name": result.rule_name,
+                        "adjustment": result.adjustment_value,
+                        "breakdown": result.breakdown,
+                    }
+                )
 
         return {
             "total_adjustment": total,
             "matched_rules_count": len(matched_rules),
-            "matched_rules": matched_rules
+            "matched_rules": matched_rules,
         }
 
 
@@ -240,12 +235,20 @@ def build_context_from_listing(listing: Any) -> dict[str, Any]:
 
     # Core listing fields
     for field in [
-        "id", "title", "price_usd", "condition", "status",
-        "ram_gb", "ram_notes",
-        "primary_storage_gb", "primary_storage_type",
-        "secondary_storage_gb", "secondary_storage_type",
-        "os_license", "device_model",
-        "adjusted_price_usd"
+        "id",
+        "title",
+        "price_usd",
+        "condition",
+        "status",
+        "ram_gb",
+        "ram_notes",
+        "primary_storage_gb",
+        "primary_storage_type",
+        "secondary_storage_gb",
+        "secondary_storage_type",
+        "os_license",
+        "device_model",
+        "adjusted_price_usd",
     ]:
         if hasattr(listing, field):
             context[field] = getattr(listing, field)
@@ -285,7 +288,9 @@ def build_context_from_listing(listing: Any) -> dict[str, Any]:
         context["ram_spec"] = {
             "id": ram_spec.id,
             "label": ram_spec.label,
-            "ddr_generation": ram_spec.ddr_generation.value if getattr(ram_spec, "ddr_generation", None) else None,
+            "ddr_generation": (
+                ram_spec.ddr_generation.value if getattr(ram_spec, "ddr_generation", None) else None
+            ),
             "speed_mhz": ram_spec.speed_mhz,
             "module_count": ram_spec.module_count,
             "capacity_per_module_gb": ram_spec.capacity_per_module_gb,

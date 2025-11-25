@@ -22,11 +22,7 @@ class FormulaValidationService:
         self.validator = FormulaValidator()
         self.engine = FormulaEngine()
 
-    async def get_available_fields(
-        self,
-        session: AsyncSession,
-        entity_type: str
-    ) -> set[str]:
+    async def get_available_fields(self, session: AsyncSession, entity_type: str) -> set[str]:
         """
         Get available field names for an entity type.
 
@@ -46,7 +42,7 @@ class FormulaValidationService:
         query = select(CustomFieldDefinition).where(
             CustomFieldDefinition.entity == entity_type_normalized,
             CustomFieldDefinition.is_active.is_(True),
-            CustomFieldDefinition.deleted_at.is_(None)
+            CustomFieldDefinition.deleted_at.is_(None),
         )
         result = await session.execute(query)
         custom_fields = result.scalars().all()
@@ -71,7 +67,6 @@ class FormulaValidationService:
             # Pricing fields
             "price_usd",
             "adjusted_price_usd",
-
             # Metadata
             "title",
             "listing_url",
@@ -83,14 +78,12 @@ class FormulaValidationService:
             "model_number",
             "form_factor",
             "status",
-
             # Storage and RAM
             "ram_gb",
             "primary_storage_gb",
             "primary_storage_type",
             "secondary_storage_gb",
             "secondary_storage_type",
-
             # Performance metrics
             "score_cpu_multi",
             "score_cpu_single",
@@ -103,11 +96,9 @@ class FormulaValidationService:
             "dollar_per_cpu_mark_multi",
             "dollar_per_cpu_mark_multi_adjusted",
             "perf_per_watt",
-
             # Timestamps
             "created_at",
             "updated_at",
-
             # Nested fields (CPU)
             "cpu.name",
             "cpu.manufacturer",
@@ -120,7 +111,6 @@ class FormulaValidationService:
             "cpu.igpu_model",
             "cpu.socket",
             "cpu.release_year",
-
             # Nested fields (GPU)
             "gpu.name",
             "gpu.manufacturer",
@@ -166,7 +156,7 @@ class FormulaValidationService:
         self,
         session: AsyncSession,
         entity_type: str,
-        provided_context: dict[str, Any] | None = None
+        provided_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Get sample context data for formula preview.
@@ -207,11 +197,7 @@ class FormulaValidationService:
 
     async def _get_sample_listing(self, session: AsyncSession) -> Listing | None:
         """Get a sample listing from database"""
-        query = (
-            select(Listing)
-            .where(Listing.status == "active")
-            .limit(1)
-        )
+        query = select(Listing).where(Listing.status == "active").limit(1)
         result = await session.execute(query)
         return result.scalar_one_or_none()
 
@@ -231,7 +217,9 @@ class FormulaValidationService:
         """Convert listing to context dictionary"""
         context = {
             "price_usd": float(listing.price_usd) if listing.price_usd else 0.0,
-            "adjusted_price_usd": float(listing.adjusted_price_usd) if listing.adjusted_price_usd else 0.0,
+            "adjusted_price_usd": (
+                float(listing.adjusted_price_usd) if listing.adjusted_price_usd else 0.0
+            ),
             "title": listing.title or "",
             "condition": listing.condition or "used",
             "device_model": listing.device_model or "",
@@ -241,12 +229,18 @@ class FormulaValidationService:
             "form_factor": listing.form_factor or "",
             "status": listing.status or "",
             "ram_gb": float(listing.ram_gb) if listing.ram_gb else 0.0,
-            "primary_storage_gb": float(listing.primary_storage_gb) if listing.primary_storage_gb else 0.0,
+            "primary_storage_gb": (
+                float(listing.primary_storage_gb) if listing.primary_storage_gb else 0.0
+            ),
             "primary_storage_type": listing.primary_storage_type or "",
-            "secondary_storage_gb": float(listing.secondary_storage_gb) if listing.secondary_storage_gb else 0.0,
+            "secondary_storage_gb": (
+                float(listing.secondary_storage_gb) if listing.secondary_storage_gb else 0.0
+            ),
             "secondary_storage_type": listing.secondary_storage_type or "",
             "score_cpu_multi": float(listing.score_cpu_multi) if listing.score_cpu_multi else 0.0,
-            "score_cpu_single": float(listing.score_cpu_single) if listing.score_cpu_single else 0.0,
+            "score_cpu_single": (
+                float(listing.score_cpu_single) if listing.score_cpu_single else 0.0
+            ),
             "score_gpu": float(listing.score_gpu) if listing.score_gpu else 0.0,
             "score_composite": float(listing.score_composite) if listing.score_composite else 0.0,
         }
@@ -259,8 +253,12 @@ class FormulaValidationService:
                 "cores": listing.cpu.cores or 0,
                 "threads": listing.cpu.threads or 0,
                 "tdp_w": listing.cpu.tdp_w or 0,
-                "cpu_mark_multi": float(listing.cpu.cpu_mark_multi) if listing.cpu.cpu_mark_multi else 0.0,
-                "cpu_mark_single": float(listing.cpu.cpu_mark_single) if listing.cpu.cpu_mark_single else 0.0,
+                "cpu_mark_multi": (
+                    float(listing.cpu.cpu_mark_multi) if listing.cpu.cpu_mark_multi else 0.0
+                ),
+                "cpu_mark_single": (
+                    float(listing.cpu.cpu_mark_single) if listing.cpu.cpu_mark_single else 0.0
+                ),
                 "igpu_mark": float(listing.cpu.igpu_mark) if listing.cpu.igpu_mark else 0.0,
                 "socket": listing.cpu.socket or "",
                 "release_year": listing.cpu.release_year or 0,
@@ -336,7 +334,7 @@ class FormulaValidationService:
         session: AsyncSession,
         formula: str,
         entity_type: str = "Listing",
-        sample_context: dict[str, Any] | None = None
+        sample_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Validate a formula and provide preview calculation.
@@ -357,12 +355,14 @@ class FormulaValidationService:
         # Step 1: Validate formula syntax
         validation_errors = self.validator.validate(formula)
         for error in validation_errors:
-            errors.append({
-                "message": error.message,
-                "severity": error.severity,
-                "position": error.position,
-                "suggestion": error.suggestion,
-            })
+            errors.append(
+                {
+                    "message": error.message,
+                    "severity": error.severity,
+                    "position": error.position,
+                    "suggestion": error.suggestion,
+                }
+            )
 
         # If there are syntax errors, don't proceed
         if any(e["severity"] == "error" for e in errors):
@@ -381,17 +381,18 @@ class FormulaValidationService:
         # Step 3: Get available fields and validate field availability
         available_fields = await self.get_available_fields(session, entity_type)
         field_availability_errors = self.validator.validate_field_availability(
-            formula,
-            available_fields
+            formula, available_fields
         )
 
         for error in field_availability_errors:
-            errors.append({
-                "message": error.message,
-                "severity": error.severity,
-                "position": error.position,
-                "suggestion": error.suggestion,
-            })
+            errors.append(
+                {
+                    "message": error.message,
+                    "severity": error.severity,
+                    "position": error.position,
+                    "suggestion": error.suggestion,
+                }
+            )
 
         # If there are field availability errors, don't proceed to preview
         if any(e["severity"] == "error" for e in errors):
@@ -409,12 +410,14 @@ class FormulaValidationService:
             preview = self.engine.evaluate(formula, context)
         except Exception as e:
             logger.warning(f"Preview calculation failed: {e}", exc_info=True)
-            errors.append({
-                "message": f"Preview calculation failed: {str(e)}",
-                "severity": "warning",
-                "position": None,
-                "suggestion": "Check that all required fields have values in the sample context",
-            })
+            errors.append(
+                {
+                    "message": f"Preview calculation failed: {str(e)}",
+                    "severity": "warning",
+                    "position": None,
+                    "suggestion": "Check that all required fields have values in the sample context",
+                }
+            )
 
         # Validation passes if no errors (warnings are okay)
         valid = not any(e["severity"] == "error" for e in errors)

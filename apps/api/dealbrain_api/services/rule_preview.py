@@ -26,7 +26,7 @@ class RulePreviewService:
         conditions: list[dict[str, Any]],
         actions: list[dict[str, Any]],
         sample_size: int = 10,
-        category_filter: dict[str, Any] | None = None
+        category_filter: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Preview impact of a rule before saving.
@@ -78,12 +78,14 @@ class RulePreviewService:
             results = self.evaluator.evaluate_ruleset([rule_dict], context)
 
             if results and results[0].matched:
-                matching_listings.append({
-                    "listing": listing,
-                    "adjustment": results[0].adjustment_value,
-                    "original_price": listing.price_usd,
-                    "adjusted_price": listing.price_usd + results[0].adjustment_value,
-                })
+                matching_listings.append(
+                    {
+                        "listing": listing,
+                        "adjustment": results[0].adjustment_value,
+                        "original_price": listing.price_usd,
+                        "adjusted_price": listing.price_usd + results[0].adjustment_value,
+                    }
+                )
                 adjustment_values.append(results[0].adjustment_value)
             else:
                 non_matching_listings.append(listing)
@@ -101,16 +103,18 @@ class RulePreviewService:
         }
 
         if adjustment_values:
-            stats.update({
-                "avg_adjustment": round(sum(adjustment_values) / len(adjustment_values), 2),
-                "min_adjustment": round(min(adjustment_values), 2),
-                "max_adjustment": round(max(adjustment_values), 2),
-                "total_adjustment": round(sum(adjustment_values), 2),
-            })
+            stats.update(
+                {
+                    "avg_adjustment": round(sum(adjustment_values) / len(adjustment_values), 2),
+                    "min_adjustment": round(min(adjustment_values), 2),
+                    "max_adjustment": round(max(adjustment_values), 2),
+                    "total_adjustment": round(sum(adjustment_values), 2),
+                }
+            )
 
         # Sample listings
         sample_matching = matching_listings[:sample_size]
-        sample_non_matching = non_matching_listings[:min(3, len(non_matching_listings))]
+        sample_non_matching = non_matching_listings[: min(3, len(non_matching_listings))]
 
         return {
             "statistics": stats,
@@ -122,8 +126,12 @@ class RulePreviewService:
                     "adjustment": item["adjustment"],
                     "adjusted_price": item["adjusted_price"],
                     "price_change_pct": round(
-                        (item["adjustment"] / item["original_price"] * 100)
-                        if item["original_price"] > 0 else 0, 2
+                        (
+                            (item["adjustment"] / item["original_price"] * 100)
+                            if item["original_price"] > 0
+                            else 0
+                        ),
+                        2,
                     ),
                 }
                 for item in sample_matching
@@ -139,10 +147,7 @@ class RulePreviewService:
         }
 
     async def preview_ruleset(
-        self,
-        session: AsyncSession,
-        ruleset_id: int,
-        sample_size: int = 10
+        self, session: AsyncSession, ruleset_id: int, sample_size: int = 10
     ) -> dict[str, Any]:
         """
         Preview impact of an entire ruleset.
@@ -172,9 +177,7 @@ class RulePreviewService:
         evaluation_results = []
         for listing in listings:
             try:
-                result = await eval_service.evaluate_listing(
-                    session, listing.id, ruleset_id
-                )
+                result = await eval_service.evaluate_listing(session, listing.id, ruleset_id)
                 evaluation_results.append(result)
             except Exception as e:
                 # Skip listings that fail evaluation
@@ -187,7 +190,7 @@ class RulePreviewService:
                     "total_listings_checked": len(listings),
                     "evaluated_count": 0,
                 },
-                "sample_results": []
+                "sample_results": [],
             }
 
         adjustments = [r["total_adjustment"] for r in evaluation_results]
@@ -216,20 +219,20 @@ class RulePreviewService:
                     "total_adjustment": r["total_adjustment"],
                     "matched_rules_count": r["matched_rules_count"],
                     "price_change_pct": round(
-                        (r["total_adjustment"] / r["original_price"] * 100)
-                        if r["original_price"] > 0 else 0, 2
+                        (
+                            (r["total_adjustment"] / r["original_price"] * 100)
+                            if r["original_price"] > 0
+                            else 0
+                        ),
+                        2,
                     ),
                 }
                 for r in sample_results
-            ]
+            ],
         }
 
     async def compare_rulesets(
-        self,
-        session: AsyncSession,
-        ruleset_id_a: int,
-        ruleset_id_b: int,
-        sample_size: int = 50
+        self, session: AsyncSession, ruleset_id_a: int, ruleset_id_b: int, sample_size: int = 50
     ) -> dict[str, Any]:
         """
         Compare impact of two rulesets.
@@ -248,11 +251,7 @@ class RulePreviewService:
         eval_service = RuleEvaluationService()
 
         # Get sample listings
-        stmt = (
-            select(Listing)
-            .where(Listing.status == "active")
-            .limit(sample_size)
-        )
+        stmt = select(Listing).where(Listing.status == "active").limit(sample_size)
         result = await session.execute(stmt)
         listings = list(result.scalars().all())
 
@@ -266,25 +265,25 @@ class RulePreviewService:
 
                 difference = result_b["adjusted_price"] - result_a["adjusted_price"]
 
-                comparisons.append({
-                    "listing_id": listing.id,
-                    "original_price": listing.price_usd,
-                    "ruleset_a_adjusted": result_a["adjusted_price"],
-                    "ruleset_b_adjusted": result_b["adjusted_price"],
-                    "difference": round(difference, 2),
-                    "difference_pct": round(
-                        (difference / listing.price_usd * 100) if listing.price_usd > 0 else 0, 2
-                    ),
-                })
+                comparisons.append(
+                    {
+                        "listing_id": listing.id,
+                        "original_price": listing.price_usd,
+                        "ruleset_a_adjusted": result_a["adjusted_price"],
+                        "ruleset_b_adjusted": result_b["adjusted_price"],
+                        "difference": round(difference, 2),
+                        "difference_pct": round(
+                            (difference / listing.price_usd * 100) if listing.price_usd > 0 else 0,
+                            2,
+                        ),
+                    }
+                )
             except Exception:
                 pass
 
         # Calculate aggregate statistics
         if not comparisons:
-            return {
-                "statistics": {},
-                "comparisons": []
-            }
+            return {"statistics": {}, "comparisons": []}
 
         differences = [c["difference"] for c in comparisons]
 

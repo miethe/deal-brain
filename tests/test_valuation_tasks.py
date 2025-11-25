@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 import pytest
 import pytest_asyncio
-from contextlib import asynccontextmanager
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession, create_async_engine
-
-from dealbrain_core.enums import ListingStatus, Condition
 from dealbrain_api.db import Base
+from dealbrain_core.enums import Condition, ListingStatus
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 try:  # pragma: no cover - optional dependency check
     import aiosqlite  # type: ignore  # noqa: F401
@@ -16,7 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover - skip when unavailable
     aiosqlite = None
 
 from dealbrain_api.models.core import Listing
-from dealbrain_api.tasks.valuation import recalculate_listings_task
+from dealbrain_api.tasks.valuation import _recalculate_listings_async
 
 
 @pytest_asyncio.fixture
@@ -75,7 +75,9 @@ async def test_recalculate_listings_task_updates_adjusted_price(
     listing.valuation_breakdown = None
     await db_session.commit()
 
-    result = recalculate_listings_task(
+    # Call the async function directly instead of the Celery wrapper
+    # This avoids event loop conflicts in tests
+    result = await _recalculate_listings_async(
         listing_ids=[listing.id],
         include_inactive=False,
     )

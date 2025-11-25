@@ -1,0 +1,724 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # STAGE 1: Validate & Lint
+  # ============================================================================
+
+  validate:
+    name: Validate & Lint Code
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better commit analysis
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install Python dependencies
+        run: poetry install --no-interaction --no-root
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint Python (Ruff)
+        run: poetry run ruff check . --output-format github
+
+      - name: Format Python check (Black)
+        run: poetry run black --check .
+
+      - name: Import sort check (isort)
+        run: poetry run isort --check-only .
+
+      - name: Lint JavaScript (ESLint)
+        run: pnpm lint
+
+      - name: Check TypeScript types
+        run: pnpm --filter web typecheck || true
+
+  # ============================================================================
+  # STAGE 2: Security Scanning
+  # ============================================================================
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install Python dependencies
+        run: poetry install --no-interaction --no-root
+
+      - name: Run Bandit security check
+        run: poetry run bandit -r apps/ packages/ -f json -o bandit-report.json || true
+
+      - name: Check dependencies for vulnerabilities
+        run: poetry run safety check --json || true
+
+      - name: Detect secrets in commits
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          extra_args: --debug --json
+
+  # ============================================================================
+  # STAGE 3: Unit & Integration Tests
+  # ============================================================================
+
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      checks: write
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dealbrain_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5442:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6399:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install Python dependencies
+        run: poetry install --no-interaction
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup test database
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5442/dealbrain_test
+          SYNC_DATABASE_URL: postgresql://postgres:postgres@localhost:5442/dealbrain_test
+        run: poetry run alembic upgrade head
+
+      - name: Run pytest with coverage
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5442/dealbrain_test
+          SYNC_DATABASE_URL: postgresql://postgres:postgres@localhost:5442/dealbrain_test
+          REDIS_URL: redis://localhost:6399
+        run: |
+          poetry run pytest \
+            --cov=apps \
+            --cov=packages \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-report=html \
+            --junitxml=test-results.xml \
+            -v
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: test-results.xml
+          check_name: Unit Test Results
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: htmlcov/
+          retention-days: 30
+
+  # ============================================================================
+  # STAGE 4: Build Docker Images
+  # ============================================================================
+
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    needs: [validate, security, test]
+
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    outputs:
+      api-image: ${{ steps.meta-api.outputs.tags }}
+      web-image: ${{ steps.meta-web.outputs.tags }}
+      worker-image: ${{ steps.meta-worker.outputs.tags }}
+
+    strategy:
+      matrix:
+        service: [api, web, worker]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (api)
+        if: matrix.service == 'api'
+        id: meta-api
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-api
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Extract metadata (web)
+        if: matrix.service == 'web'
+        id: meta-web
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Extract metadata (worker)
+        if: matrix.service == 'worker'
+        id: meta-worker
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-worker
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push API image
+        if: matrix.service == 'api'
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./infra/api/Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push web image
+        if: matrix.service == 'web'
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./infra/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push worker image
+        if: matrix.service == 'worker'
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./infra/worker/Dockerfile
+          target: production
+          push: true
+          tags: ${{ steps.meta-worker.outputs.tags }}
+          labels: ${{ steps.meta-worker.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================================
+  # STAGE 5: Scan Images for Vulnerabilities
+  # ============================================================================
+
+  scan-images:
+    name: Scan Docker Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      matrix:
+        image: [api, web, worker]
+
+    steps:
+      - name: Log in to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-${{ matrix.image }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-${{ matrix.image }}-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-${{ matrix.image }}-results.sarif'
+          category: 'trivy-${{ matrix.image }}'
+
+  # ============================================================================
+  # STAGE 6: E2E Tests (against built images)
+  # ============================================================================
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build
+
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dealbrain_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5442:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6399:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install Python dependencies
+        run: poetry install --no-interaction
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Setup test database
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5442/dealbrain_test
+          SYNC_DATABASE_URL: postgresql://postgres:postgres@localhost:5442/dealbrain_test
+        run: poetry run alembic upgrade head
+
+      - name: Seed test data
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5442/dealbrain_test
+          SYNC_DATABASE_URL: postgresql://postgres:postgres@localhost:5442/dealbrain_test
+        run: poetry run python scripts/seed_test_data.py || true
+
+      - name: Start API server
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5442/dealbrain_test
+          SYNC_DATABASE_URL: postgresql://postgres:postgres@localhost:5442/dealbrain_test
+          REDIS_URL: redis://localhost:6399
+          ENVIRONMENT: test
+        run: |
+          poetry run uvicorn dealbrain_api.main:app --host 0.0.0.0 --port 8020 &
+          echo "Waiting for API server..."
+          timeout 60 bash -c 'until curl -f http://localhost:8020/health; do sleep 2; done'
+
+      - name: Build Next.js app
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8020
+        run: pnpm --filter web build
+
+      - name: Run E2E tests (critical flows)
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8020
+          CI: true
+        run: pnpm test:e2e:critical
+
+      - name: Run E2E tests (mobile flows)
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8020
+          CI: true
+        run: pnpm test:e2e:mobile
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: e2e-test-results
+          path: test-results/
+          retention-days: 7
+
+  # ============================================================================
+  # STAGE 7: Deploy to Staging (auto-deploy on main push)
+  # ============================================================================
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [build, e2e, scan-images]
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    environment:
+      name: staging
+      url: https://staging.dealbrain.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via Render webhook
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_STAGING }} \
+            -H "Content-Type: application/json" \
+            -d '{"commit": "${{ github.sha }}", "branch": "main"}'
+
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Verify staging deployment
+        run: |
+          MAX_ATTEMPTS=12
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            if curl -f https://staging.dealbrain.example.com/health; then
+              echo "Staging deployment healthy"
+              exit 0
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Health check attempt $ATTEMPT/$MAX_ATTEMPTS"
+            sleep 10
+          done
+          echo "Deployment verification failed"
+          exit 1
+
+      - name: Slack notification - success
+        if: success()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "Staging deployment successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "✅ Staging Deployment Successful\n*Commit:* ${{ github.sha }}\n*Branch:* ${{ github.ref }}\n*View*: <https://staging.dealbrain.example.com|Staging>"
+                  }
+                }
+              ]
+            }
+
+      - name: Slack notification - failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "Staging deployment failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "❌ Staging Deployment Failed\n*Commit:* ${{ github.sha }}\n*View*: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Workflow>"
+                  }
+                }
+              ]
+            }
+
+  # ============================================================================
+  # STAGE 8: Manual Approval & Production Deployment
+  # ============================================================================
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build, e2e, scan-images]
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    environment:
+      name: production
+      url: https://dealbrain.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check approval
+        run: echo "Production deployment approved. Proceeding with deployment."
+
+      - name: Deploy via Render webhook
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_PRODUCTION }} \
+            -H "Content-Type: application/json" \
+            -d '{"commit": "${{ github.sha }}", "branch": "main"}'
+
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Verify production deployment
+        run: |
+          MAX_ATTEMPTS=20
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            if curl -f https://dealbrain.example.com/health; then
+              echo "Production deployment healthy"
+              exit 0
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Health check attempt $ATTEMPT/$MAX_ATTEMPTS"
+            sleep 10
+          done
+          echo "Deployment verification failed"
+          exit 1
+
+      - name: Monitor error rate (30 seconds)
+        run: |
+          echo "Monitoring error rates for 30 seconds..."
+          for i in {1..6}; do
+            ERROR_RATE=$(curl -s https://dealbrain.example.com/metrics | grep -i "http_requests_total{status=\"5" | awk '{print $2}' || echo "0")
+            echo "Check $i: Error rate = $ERROR_RATE"
+            sleep 5
+          done
+
+      - name: Slack notification - success
+        if: success()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "Production deployment successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "✅ Production Deployment Successful\n*Commit:* ${{ github.sha }}\n*Branch:* ${{ github.ref }}\n*View*: <https://dealbrain.example.com|Production>"
+                  }
+                }
+              ]
+            }
+
+      - name: Slack notification - failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "text": "Production deployment failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "❌ Production Deployment Failed - Rollback recommended\n*Commit:* ${{ github.sha }}\n*View*: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Workflow>"
+                  }
+                }
+              ]
+            }
+
+  # ============================================================================
+  # SUMMARY
+  # ============================================================================
+
+  summary:
+    name: Workflow Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [validate, security, test, build, scan-images, e2e]
+
+    steps:
+      - name: Check workflow status
+        run: |
+          echo "Workflow Status Summary:"
+          echo "- Validation: ${{ needs.validate.result }}"
+          echo "- Security: ${{ needs.security.result }}"
+          echo "- Tests: ${{ needs.test.result }}"
+          echo "- Build: ${{ needs.build.result }}"
+          echo "- Scan: ${{ needs.scan-images.result }}"
+          echo "- E2E: ${{ needs.e2e.result }}"
+
+      - name: Fail if critical checks failed
+        if: |
+          needs.validate.result == 'failure' ||
+          needs.test.result == 'failure' ||
+          needs.build.result == 'failure'
+        run: exit 1

@@ -6,6 +6,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
+import { telemetry } from "../../lib/telemetry";
 import { calculateDropdownWidth } from "../../lib/dropdown-utils";
 import { useDebounce } from "use-debounce";
 
@@ -95,7 +96,9 @@ export function ComboBox({
       setOpen(false);
       setSearch("");
     } catch (error) {
-      console.error("Failed to create option:", error);
+      telemetry.error("frontend.form.create_option_failed", {
+        message: (error as Error)?.message ?? "Unknown error",
+      });
     } finally {
       setCreating(false);
     }

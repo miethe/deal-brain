@@ -10,6 +10,8 @@ from typing import Optional
 import typer
 from sqlalchemy import select
 
+from dealbrain_api.settings import get_settings
+from dealbrain_api.telemetry import get_logger, init_telemetry
 from dealbrain_api.api.rankings import VALID_METRICS
 from dealbrain_api.db import session_scope
 from dealbrain_api.models import Listing
@@ -20,8 +22,11 @@ from dealbrain_api.services.listings import (
     create_listing,
     sync_listing_components,
 )
-from dealbrain_core.schemas import ListingCreate
 from dealbrain_cli.commands.rules import rules_app
+from dealbrain_core.schemas import ListingCreate
+
+init_telemetry(get_settings())
+logger = get_logger("dealbrain.cli")
 
 app = typer.Typer(help="Deal Brain CLI utilities")
 
@@ -44,7 +49,9 @@ def import_workbook(path: Path) -> None:
     async def runner() -> None:
         await seed_from_workbook(path)
 
+    logger.info("cli.import_workbook.start", path=str(path))
     asyncio.run(runner())
+    logger.info("cli.import_workbook.complete", path=str(path))
     typer.echo(f"Imported workbook from {path}")
 
 
@@ -71,12 +78,29 @@ def add(
             primary_storage_type=storage_type,
         )
         async with session_scope() as session:
-            listing = await create_listing(session, payload.model_dump(exclude={"components"}, exclude_none=True))
+            listing = await create_listing(
+                session, payload.model_dump(exclude={"components"}, exclude_none=True)
+            )
             await sync_listing_components(session, listing, None)
             await apply_listing_metrics(session, listing)
             await session.refresh(listing)
-            typer.echo(f"Created listing #{listing.id} — adjusted price ${listing.adjusted_price_usd}")
+            logger.info(
+                "cli.add.success",
+                listing_id=listing.id,
+                title=listing.title,
+                adjusted_price=listing.adjusted_price_usd,
+            )
+            typer.echo(
+                f"Created listing #{listing.id} — adjusted price ${listing.adjusted_price_usd}"
+            )
 
+    logger.info(
+        "cli.add.start",
+        title=title,
+        price=price,
+        condition=condition,
+        cpu_id=cpu_id,
+    )
     asyncio.run(runner())
 
 
@@ -84,15 +108,14 @@ def add(
 def top(metric: str = typer.Option("score_composite"), limit: int = typer.Option(5)) -> None:
     """Show top listings by metric."""
 
+    logger.info("cli.top.start", metric=metric, limit=limit)
+
     async def runner() -> None:
         async with session_scope() as session:
             ordering = VALID_METRICS.get(metric, lambda column: column.desc())
             column = getattr(Listing, metric)
             result = await session.execute(
-                select(Listing)
-                    .where(column.is_not(None))
-                    .order_by(ordering(column))
-                    .limit(limit)
+                select(Listing).where(column.is_not(None)).order_by(ordering(column)).limit(limit)
             )
             for listing in result.scalars().all():
                 value = getattr(listing, metric)
@@ -101,6 +124,7 @@ def top(metric: str = typer.Option("score_composite"), limit: int = typer.Option
                 )
 
     asyncio.run(runner())
+    logger.info("cli.top.complete", metric=metric, limit=limit)
 
 
 @app.command()
@@ -128,15 +152,19 @@ def export(
 ) -> None:
     """Export top listings to JSON."""
 
+    logger.info(
+        "cli.export.start",
+        metric=metric,
+        limit=limit,
+        output=str(output) if output else None,
+    )
+
     async def runner() -> list[dict[str, object]]:
         async with session_scope() as session:
             ordering = VALID_METRICS.get(metric, lambda column: column.desc())
             column = getattr(Listing, metric)
             result = await session.execute(
-                select(Listing)
-                    .where(column.is_not(None))
-                    .order_by(ordering(column))
-                    .limit(limit)
+                select(Listing).where(column.is_not(None)).order_by(ordering(column)).limit(limit)
             )
             return [listing_to_dict(listing) for listing in result.scalars().all()]
 
@@ -147,6 +175,13 @@ def export(
         typer.echo(f"Exported {len(data)} listings to {output}")
     else:
         typer.echo(payload)
+    logger.info(
+        "cli.export.complete",
+        metric=metric,
+        limit=limit,
+        output=str(output) if output else None,
+        count=len(data),
+    )
 
 
 @app.command()
@@ -155,6 +190,8 @@ def cleanup_field_options(
     dry_run: bool = typer.Option(True, help="Preview changes without applying"),
 ) -> None:
     """Archive orphaned field attribute values for deleted dropdown options."""
+
+    logger.info("cli.cleanup_field_options.start", entity=entity, dry_run=dry_run)
 
     async def runner() -> None:
         async with session_scope() as session:
@@ -194,6 +231,7 @@ def cleanup_field_options(
                 typer.echo("Use --no-dry-run to apply changes")
 
     asyncio.run(runner())
+    logger.info("cli.cleanup_field_options.complete", entity=entity, dry_run=dry_run)
 
 
 def listing_to_dict(listing: Listing) -> dict[str, object]:
@@ -212,4 +250,3 @@ def listing_to_dict(listing: Listing) -> dict[str, object]:
 
 if __name__ == "__main__":  # pragma: no cover
     app()
-

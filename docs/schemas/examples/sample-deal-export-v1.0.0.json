@@ -1,0 +1,147 @@
+{
+  "deal_brain_export": {
+    "version": "1.0.0",
+    "exported_at": "2025-11-19T10:30:00Z",
+    "exported_by": "550e8400-e29b-41d4-a716-446655440000",
+    "type": "deal"
+  },
+  "data": {
+    "listing": {
+      "id": 42,
+      "title": "Dell OptiPlex 7050 Micro - i7-7700T, 16GB DDR4, 512GB NVMe",
+      "listing_url": "https://example.com/listings/dell-optiplex-7050",
+      "other_urls": [
+        {
+          "url": "https://example.com/seller/profile",
+          "label": "Seller Profile"
+        }
+      ],
+      "seller": "TechDeals Inc",
+      "price_usd": 299.99,
+      "price_date": "2025-11-18T15:00:00Z",
+      "condition": "refurb",
+      "status": "active",
+      "device_model": "OptiPlex 7050 Micro",
+      "notes": "Excellent condition, recently refurbished. Includes power adapter.",
+      "custom_fields": {
+        "warranty_months": 12,
+        "accessories_included": ["Power adapter", "VESA mount"],
+        "cosmetic_condition": "Like new"
+      },
+      "created_at": "2025-11-15T08:00:00Z",
+      "updated_at": "2025-11-18T15:00:00Z"
+    },
+    "valuation": {
+      "base_price_usd": 299.99,
+      "adjusted_price_usd": 289.99,
+      "valuation_breakdown": {
+        "base_price": 299.99,
+        "adjustments": [
+          {
+            "rule_name": "RAM Upgrade Bonus",
+            "rule_id": 5,
+            "adjustment": -10.0,
+            "reason": "16GB RAM configuration"
+          }
+        ],
+        "final_price": 289.99
+      },
+      "ruleset_name": "Standard Valuation Rules v2"
+    },
+    "performance": {
+      "cpu": {
+        "name": "Intel Core i7-7700T",
+        "manufacturer": "Intel",
+        "cores": 4,
+        "threads": 8,
+        "tdp_w": 35,
+        "igpu_model": "Intel HD Graphics 630",
+        "cpu_mark_multi": 8542,
+        "cpu_mark_single": 2234,
+        "igpu_mark": 1153,
+        "release_year": 2017
+      },
+      "gpu": null,
+      "ram": {
+        "total_gb": 16,
+        "ddr_generation": "ddr4",
+        "speed_mhz": 2400,
+        "module_count": 2,
+        "capacity_per_module_gb": 8,
+        "notes": "Dual channel configuration"
+      },
+      "storage_primary": {
+        "capacity_gb": 512,
+        "medium": "nvme",
+        "interface": "PCIe 3.0 x4",
+        "form_factor": "M.2 2280",
+        "performance_tier": "Mid-range"
+      },
+      "storage_secondary": null,
+      "metrics": {
+        "dollar_per_cpu_mark_single": 0.134,
+        "dollar_per_cpu_mark_single_adjusted": 0.130,
+        "dollar_per_cpu_mark_multi": 0.035,
+        "dollar_per_cpu_mark_multi_adjusted": 0.034,
+        "score_cpu_multi": 85.0,
+        "score_cpu_single": 88.0,
+        "score_gpu": null,
+        "score_composite": 86.5,
+        "perf_per_watt": 243.9
+      },
+      "ports": {
+        "profile_name": "Dell OptiPlex 7050 Micro Standard",
+        "ports": [
+          {
+            "type": "usb_a",
+            "count": 6,
+            "spec_notes": "USB 3.1 Gen 1"
+          },
+          {
+            "type": "usb_c",
+            "count": 1,
+            "spec_notes": "USB 3.1 Gen 1"
+          },
+          {
+            "type": "displayport",
+            "count": 2,
+            "spec_notes": "DisplayPort 1.2"
+          },
+          {
+            "type": "hdmi",
+            "count": 1,
+            "spec_notes": "HDMI 1.4"
+          },
+          {
+            "type": "rj45_1g",
+            "count": 1,
+            "spec_notes": "Gigabit Ethernet"
+          },
+          {
+            "type": "audio",
+            "count": 1,
+            "spec_notes": "3.5mm combo jack"
+          }
+        ]
+      },
+      "components": [
+        {
+          "component_type": "wifi",
+          "name": "Intel Dual Band Wireless-AC 8265",
+          "quantity": 1,
+          "metadata": {
+            "wifi_standard": "802.11ac",
+            "bluetooth": "4.2"
+          },
+          "adjustment_value_usd": null
+        }
+      ]
+    },
+    "metadata": {
+      "manufacturer": "Dell",
+      "series": "OptiPlex",
+      "model_number": "7050",
+      "form_factor": "Micro"
+    }
+  }
+}
