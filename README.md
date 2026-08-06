@@ -1,4 +1,28 @@
-# Deal Brain
+# Deal Brain — ARCHIVED
+
+> ## 🗄️ Archived 2026-08-06 · not maintained, not an active initiative
+>
+> **Decision HAR-009 (2026-08-05): the SFF-PC-shopping habit this tool served is no longer live**, so
+> the tool is archived rather than revived. Nothing here is broken — last commit is **2025-11-25**, so
+> it simply went ~8 months without a user. Per HAR-009 a revival is roughly a half-day, not a rebuild.
+>
+> **The salvage happened first and is done:** the transferable scoring ideas were extracted for the
+> AOS model scorecard before archiving —
+> `agentic_meta_dev/docs/portfolio-intelligence/briefs/har-009-deal-brain-salvage.md`. What was taken
+> is the **corpus-relative percentile ranking** in `apps/api/dealbrain_api/services/cpu_analytics.py`
+> (`calculate_performance_value`: $/PassMark → percentile across all CPUs → quartile rating, with
+> `None` propagated rather than defaulted whenever benchmarks or prices are missing), plus the
+> weighted rule-group valuation and weight-sum validation in
+> `packages/core/dealbrain_core/scoring.py`.
+>
+> ⚠️ **Note for anyone reading a stale local clone of this repo.** A working copy of deal-brain on this
+> machine sat pinned at `9c427f5` (2025-09-16) — the point where local and origin diverged — **589
+> commits behind origin**, with no indication in the tree that it was stale. A salvage pass on
+> 2026-08-06 initially read that snapshot, found a 42-line `scoring.py` with no normalization in it,
+> and wrongly concluded the percentile mechanism did not exist. It does; it just landed after the
+> local clone stopped being updated. **`git fetch` before drawing any conclusion from this repo.**
+>
+> **Reopening condition:** the shopping habit returns.
 
 **A full-stack price-to-performance intelligence system for Small Form Factor PCs.** Import listings from Excel workbooks or marketplace URLs, normalize and enrich the data, apply configurable valuation rules, and discover the best SFF PC deals ranked by intelligent scoring profiles.
 
