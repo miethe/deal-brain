@@ -1,0 +1,76 @@
+schema_version: 1
+project: "deal-brain"
+
+policy:
+  mode: auto
+
+artifacts:
+  - { name: agent-expert, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: ai-artifacts-engineer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: ai-engineer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: codebase-explorer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: command-creator, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: prompt-engineer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: search-specialist, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: symbols-engineer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: backend-architect, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: backend-typescript-architect, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: data-layer-expert, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: devops-architect, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: frontend-architect, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: lead-architect, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: nextjs-architecture-expert, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: system-architect, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: frontend-developer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: mobile-app-builder, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: "mobile-app-builder copy", type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent file" }
+  - { name: python-backend-engineer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: python-pro, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: ui-engineer-enhanced, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: deployment-engineer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: hybrid-cloud-architect, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: terraform-specialist, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: refactoring-expert, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: ultrathink-debugger, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: feature-planner, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: implementation-planner, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: lead-pm, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: prd-writer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: spike-writer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: task-decomposition-expert, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: api-documenter, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: changelog-generator, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: documentation-complex, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: documentation-expert, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: documentation-writer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: openapi-expert, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: technical-writer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: test-automator, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: a11y-sheriff, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: ui-designer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: ui-engineer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: ux-researcher, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: react-performance-optimizer, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: url-context-validator, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: url-link-extractor, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: web-accessibility-checker, type: agent, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude agent" }
+  - { name: artifact-tracking, type: skill, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude skill" }
+  - { name: clerk-auth, type: skill, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude skill" }
+  - { name: planning, type: skill, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude skill" }
+  - { name: receiving-code-review, type: skill, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude skill" }
+  - { name: skill-creator, type: skill, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude skill" }
+  - { name: symbols, type: skill, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude skill" }
+  - { name: lyra, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
+  - { name: memory-spring-cleaning, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
+  - { name: session-learning-capture, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
+  - { name: analyze-codebase, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
+  - { name: architecture-review, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
+  - { name: check-file, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
+  - { name: complete-user-story, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
+  - { name: create-feature, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
+  - { name: execute-phase, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
+  - { name: implement-story, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
+  - { name: new-feature, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
+  - { name: plan_artifacts, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
+  - { name: plan_requests, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
+  - { name: refactor-code, type: command, lifecycle: permanent, status: active, source: project-local, tuned: true, scope: null, version: null, note: "local .claude command" }
