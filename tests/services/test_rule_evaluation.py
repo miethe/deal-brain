@@ -8,7 +8,7 @@ import pytest
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dealbrain_api.models.core import Listing, CPU, GPU
+from dealbrain_api.models import Cpu, Gpu, Listing
 from dealbrain_api.services.rules import RulesService
 from dealbrain_api.services.rule_evaluation import RuleEvaluationService
 from dealbrain_api.schemas.rules import (
@@ -36,14 +36,13 @@ async def rules_service():
 
 
 @pytest.fixture
-async def sample_cpu(db_session: AsyncSession) -> CPU:
+async def sample_cpu(db_session: AsyncSession) -> Cpu:
     """Create a sample CPU for testing."""
-    cpu = CPU(
+    cpu = Cpu(
         name="Intel Core i7-12700K",
+        manufacturer="Intel",
         cores=12,
         threads=20,
-        base_clock_ghz=3.6,
-        boost_clock_ghz=5.0,
         tdp_w=125,
         cpu_mark_single=4116,
         cpu_mark_multi=35228,
@@ -56,14 +55,12 @@ async def sample_cpu(db_session: AsyncSession) -> CPU:
 
 
 @pytest.fixture
-async def sample_gpu(db_session: AsyncSession) -> GPU:
+async def sample_gpu(db_session: AsyncSession) -> Gpu:
     """Create a sample GPU for testing."""
-    gpu = GPU(
+    gpu = Gpu(
         name="NVIDIA RTX 3070",
-        vram_gb=8,
-        tdp_w=220,
+        manufacturer="NVIDIA",
         gpu_mark=22699,
-        release_year=2020,
     )
     db_session.add(gpu)
     await db_session.commit()
@@ -72,7 +69,7 @@ async def sample_gpu(db_session: AsyncSession) -> GPU:
 
 
 @pytest.fixture
-async def sample_listing(db_session: AsyncSession, sample_cpu: CPU, sample_gpu: GPU) -> Listing:
+async def sample_listing(db_session: AsyncSession, sample_cpu: Cpu, sample_gpu: Gpu) -> Listing:
     """Create a sample listing for testing."""
     listing = Listing(
         source="test",

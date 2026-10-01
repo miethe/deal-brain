@@ -18,8 +18,10 @@ import pytest
 from fastapi import status
 from httpx import AsyncClient
 
-from apps.api.dealbrain_api.main import app
+from apps.api.dealbrain_api import create_app
 from apps.api.dealbrain_api.models.core import Listing
+
+app = create_app()
 
 
 @pytest.fixture

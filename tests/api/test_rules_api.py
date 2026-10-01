@@ -8,8 +8,6 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dealbrain_api.models.core import ValuationRulesetV2, ValuationRuleGroupV2, ValuationRuleV2
-
 
 @pytest.fixture
 async def sample_ruleset_data():

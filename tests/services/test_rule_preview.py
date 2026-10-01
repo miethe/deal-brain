@@ -8,7 +8,7 @@ import pytest
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dealbrain_api.models.core import Listing, CPU, GPU
+from dealbrain_api.models import Cpu, Listing
 from dealbrain_api.services.rules import RulesService
 from dealbrain_api.services.rule_preview import RulePreviewService
 from dealbrain_api.schemas.rules import (
@@ -35,14 +35,13 @@ async def rules_service():
 
 
 @pytest.fixture
-async def sample_cpu(db_session: AsyncSession) -> CPU:
+async def sample_cpu(db_session: AsyncSession) -> Cpu:
     """Create a sample CPU for testing."""
-    cpu = CPU(
+    cpu = Cpu(
         name="Intel Core i7-12700K",
+        manufacturer="Intel",
         cores=12,
         threads=20,
-        base_clock_ghz=3.6,
-        boost_clock_ghz=5.0,
         tdp_w=125,
         cpu_mark_single=4116,
         cpu_mark_multi=35228,
@@ -55,7 +54,7 @@ async def sample_cpu(db_session: AsyncSession) -> CPU:
 
 
 @pytest.fixture
-async def multiple_listings(db_session: AsyncSession, sample_cpu: CPU) -> list[Listing]:
+async def multiple_listings(db_session: AsyncSession, sample_cpu: Cpu) -> list[Listing]:
     """Create multiple listings for preview testing."""
     listings = []
 
