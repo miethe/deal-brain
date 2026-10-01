@@ -54,7 +54,7 @@ poetry run python scripts/maintenance/recalculate_all_metrics.py
 |--------|---------|-------|
 | `debug_fetch_html.py` | Fetch HTML using production ingestion config for debugging extraction issues | `poetry run python scripts/development/debug_fetch_html.py "https://amazon.com/dp/B0FD3BCMBS"` |
 | `seed_sample_listings.py` | Create sample listings with metadata and ports for testing | `poetry run python scripts/development/seed_sample_listings.py` |
-| `test_cpu_analytics.py` | Test CPU analytics service methods | `poetry run python scripts/development/test_cpu_analytics.py` |
+| `cpu_analytics_diagnostic.py` | Test CPU analytics service methods | `poetry run python scripts/development/cpu_analytics_diagnostic.py` |
 
 ---
 
