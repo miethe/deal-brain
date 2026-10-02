@@ -10,7 +10,6 @@ from dealbrain_core.rules.conditions import (
     ConditionGroup,
     ConditionOperator,
     LogicalOperator,
-    evaluate_condition,
 )
 
 
@@ -247,11 +246,15 @@ class TestNestedConditions:
             conditions=[
                 Condition(
                     field_name="cpu.cores",
+                    field_type="integer",
                     operator=ConditionOperator.GREATER_THAN_OR_EQUAL,
                     value=8,
                 ),
                 Condition(
-                    field_name="ram_gb", operator=ConditionOperator.GREATER_THAN_OR_EQUAL, value=16
+                    field_name="ram_gb",
+                    field_type="integer",
+                    operator=ConditionOperator.GREATER_THAN_OR_EQUAL,
+                    value=16,
                 ),
             ],
             logical_operator=LogicalOperator.AND,
@@ -279,11 +282,15 @@ class TestNestedConditions:
             conditions=[
                 Condition(
                     field_name="cpu.cpu_mark_multi",
+                    field_type="integer",
                     operator=ConditionOperator.GREATER_THAN,
                     value=30000,
                 ),
                 Condition(
-                    field_name="gpu.gpu_mark", operator=ConditionOperator.GREATER_THAN, value=20000
+                    field_name="gpu.gpu_mark",
+                    field_type="integer",
+                    operator=ConditionOperator.GREATER_THAN,
+                    value=20000,
                 ),
             ],
             logical_operator=LogicalOperator.OR,
@@ -312,13 +319,24 @@ class TestNestedConditions:
             conditions=[
                 ConditionGroup(
                     conditions=[
-                        Condition(field_name="cpu.cores", operator=ConditionOperator.GTE, value=8),
-                        Condition(field_name="ram_gb", operator=ConditionOperator.GTE, value=16),
+                        Condition(
+                            field_name="cpu.cores",
+                            field_type="integer",
+                            operator=ConditionOperator.GREATER_THAN_OR_EQUAL,
+                            value=8,
+                        ),
+                        Condition(
+                            field_name="ram_gb",
+                            field_type="integer",
+                            operator=ConditionOperator.GREATER_THAN_OR_EQUAL,
+                            value=16,
+                        ),
                     ],
                     logical_operator=LogicalOperator.AND,
                 ),
                 Condition(
                     field_name="cpu.cpu_mark_multi",
+                    field_type="integer",
                     operator=ConditionOperator.GREATER_THAN,
                     value=25000,
                 ),
@@ -348,7 +366,12 @@ class TestEdgeCases:
 
     def test_missing_field(self):
         """Test behavior when field is missing from context."""
-        condition = Condition(field_name="cpu.cores", operator=ConditionOperator.EQUALS, value=8)
+        condition = Condition(
+            field_name="cpu.cores",
+            field_type="integer",
+            operator=ConditionOperator.EQUALS,
+            value=8,
+        )
 
         # Missing cpu object
         context = {}
@@ -361,7 +384,10 @@ class TestEdgeCases:
     def test_null_value(self):
         """Test behavior with null/None values."""
         condition = Condition(
-            field_name="gpu.gpu_mark", operator=ConditionOperator.GREATER_THAN, value=10000
+            field_name="gpu.gpu_mark",
+            field_type="integer",
+            operator=ConditionOperator.GREATER_THAN,
+            value=10000,
         )
 
         context = {"gpu": {"gpu_mark": None}}
@@ -384,7 +410,6 @@ class TestEdgeCases:
             field_type="string",
             operator=ConditionOperator.EQUALS,
             value="used",
-            case_sensitive=False,
         )
 
         context = {"condition": "USED"}

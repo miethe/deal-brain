@@ -15,32 +15,37 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..models.core import Listing, ValuationRuleGroup, ValuationRuleset, ValuationRuleV2
+from ..prometheus import get_or_create_metric
 from ..telemetry import get_logger
 
 # Set up logging
 logger = get_logger("dealbrain.rules")
 
 # Prometheus metrics
-valuation_layer_events = Counter(
+valuation_layer_events = get_or_create_metric(
+    Counter,
     "valuation_layer_contributions_total",
     "Total valuation layer contribution events",
     ["layer", "ruleset_name"],
 )
 
-valuation_layer_delta = Histogram(
+valuation_layer_delta = get_or_create_metric(
+    Histogram,
     "valuation_layer_delta_usd",
     "Valuation layer delta in USD",
     ["layer", "ruleset_name"],
     buckets=[0, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000],
 )
 
-valuation_evaluation_duration = Histogram(
+valuation_evaluation_duration = get_or_create_metric(
+    Histogram,
     "valuation_evaluation_duration_seconds",
     "Time taken to evaluate valuation rules",
     ["ruleset_name"],
 )
 
-listings_by_layer = Gauge(
+listings_by_layer = get_or_create_metric(
+    Gauge,
     "listings_influenced_by_layer",
     "Number of listings influenced by each valuation layer",
     ["layer"],

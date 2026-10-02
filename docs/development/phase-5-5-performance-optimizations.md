@@ -199,7 +199,7 @@ WARNING - Potential N+1 query detected: Same query pattern executed 15 times
 
 ### Performance Test Script
 
-**File**: `/home/user/deal-brain/scripts/test_performance_optimizations.py`
+**File**: `/home/user/deal-brain/scripts/performance_optimizations.py`
 
 **Test Suite**:
 1. **Collection Performance**: Verify 100+ item collections load in <200ms
@@ -210,7 +210,7 @@ WARNING - Potential N+1 query detected: Same query pattern executed 15 times
 **Running Tests**:
 ```bash
 # Run performance tests
-poetry run python scripts/test_performance_optimizations.py
+poetry run python scripts/performance_optimizations.py
 
 # Expected output:
 # ✅ Collection with 150 items: 187.23ms
@@ -407,7 +407,7 @@ setup_query_profiling(engine, slow_query_threshold_ms=200)
 ### New Files
 - `/home/user/deal-brain/apps/api/dealbrain_api/services/caching_service.py`
 - `/home/user/deal-brain/apps/api/dealbrain_api/observability/query_profiling.py`
-- `/home/user/deal-brain/scripts/test_performance_optimizations.py`
+- `/home/user/deal-brain/scripts/performance_optimizations.py`
 - `/home/user/deal-brain/docs/development/phase-5-5-performance-optimizations.md`
 
 ### Configuration Files
