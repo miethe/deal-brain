@@ -277,7 +277,9 @@ describe('PriceTargets', () => {
       expect(screen.getByText(/for available deals/i)).toBeInTheDocument();
     });
 
-    it('displays alert when sample size is less than 2', () => {
+    it('derives insufficiency from confidence, not sampleSize', () => {
+      // The API maps < 2 listings to confidence="insufficient" (cpu_analytics.py),
+      // so the component deliberately trusts confidence alone (2ff6b65).
       render(
         <PriceTargets
           priceTargetGreat={320}
@@ -288,7 +290,8 @@ describe('PriceTargets', () => {
         />
       );
 
-      expect(screen.getByText(/insufficient data/i)).toBeInTheDocument();
+      expect(screen.queryByText(/insufficient data/i)).not.toBeInTheDocument();
+      expect(screen.getByText('$350')).toBeInTheDocument();
     });
 
     it('displays alert when priceTargetGood is null', () => {

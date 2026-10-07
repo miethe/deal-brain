@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+// Jest globals (describe/it/expect/beforeEach) are provided by the runner
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ColumnSelector, type ColumnDefinition } from '../column-selector';
 
 describe('ColumnSelector', () => {
@@ -11,7 +12,7 @@ describe('ColumnSelector', () => {
   ];
 
   const mockSelectedColumns = ['name', 'email'];
-  const mockOnColumnsChange = vi.fn();
+  const mockOnColumnsChange = jest.fn();
 
   beforeEach(() => {
     mockOnColumnsChange.mockClear();
@@ -52,7 +53,8 @@ describe('ColumnSelector', () => {
     );
 
     const button = screen.getByRole('button', { name: /Column selector/ });
-    fireEvent.click(button);
+    // Radix DropdownMenu opens on pointerdown, which fireEvent.click never dispatches
+    await userEvent.setup().click(button);
 
     // Should show column checkboxes
     expect(screen.getByLabelText(/Toggle Name column visibility/)).toBeInTheDocument();
@@ -69,7 +71,7 @@ describe('ColumnSelector', () => {
     );
 
     const button = screen.getByRole('button', { name: /Column selector/ });
-    fireEvent.click(button);
+    await userEvent.setup().click(button);
 
     expect(screen.getByText('All')).toBeInTheDocument();
     expect(screen.getByText('None')).toBeInTheDocument();
@@ -88,7 +90,7 @@ describe('ColumnSelector', () => {
     );
 
     const button = screen.getByRole('button', { name: /Column selector/ });
-    fireEvent.click(button);
+    await userEvent.setup().click(button);
 
     expect(screen.getByLabelText(/Drag to reorder Name/)).toBeInTheDocument();
     expect(screen.getByLabelText(/Drag to reorder Email/)).toBeInTheDocument();
@@ -104,7 +106,7 @@ describe('ColumnSelector', () => {
     );
 
     const button = screen.getByRole('button', { name: /Column selector/ });
-    fireEvent.click(button);
+    await userEvent.setup().click(button);
 
     const phoneCheckbox = screen.getByLabelText(/Show Phone column/);
     expect(phoneCheckbox).toBeInTheDocument();

@@ -53,7 +53,8 @@ type SupportedListing = ListingDetail | ListingRecord;
 
 /**
  * Normalizes a string value for configuration lookups.
- * Converts to lowercase and replaces spaces with underscores.
+ * Converts to lowercase, collapses spaces around hyphens ("Mini - PC" -> "mini-pc"),
+ * and replaces remaining spaces with underscores.
  *
  * @param value - Raw string value from listing
  * @returns Normalized string for config key lookup
@@ -62,7 +63,7 @@ function normalizeKey(value: string | null | undefined): string | null {
   if (!value || typeof value !== 'string') {
     return null;
   }
-  return value.toLowerCase().trim().replace(/\s+/g, '_');
+  return value.toLowerCase().trim().replace(/\s*-\s*/g, '-').replace(/\s+/g, '_');
 }
 
 /**

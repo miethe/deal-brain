@@ -20,7 +20,13 @@ jest.mock("@/hooks/use-toast", () => ({
 
 // Mock UI components
 jest.mock("@/components/ui/dialog", () => ({
-  Dialog: ({ children, open }: any) => (open ? <div>{children}</div> : null),
+  Dialog: ({ children, open, onOpenChange }: any) =>
+    open ? (
+      <div>
+        <button type="button" aria-label="Close dialog" onClick={() => onOpenChange?.(false)} />
+        {children}
+      </div>
+    ) : null,
   DialogContent: ({ children }: any) => <div data-testid="dialog-content">{children}</div>,
   DialogHeader: ({ children }: any) => <div>{children}</div>,
   DialogTitle: ({ children }: any) => <h2>{children}</h2>,
@@ -28,8 +34,8 @@ jest.mock("@/components/ui/dialog", () => ({
 }));
 
 jest.mock("@/components/ui/button", () => ({
-  Button: ({ children, onClick, disabled, type }: any) => (
-    <button onClick={onClick} disabled={disabled} type={type}>
+  Button: ({ children, onClick, disabled, type, "aria-label": ariaLabel }: any) => (
+    <button onClick={onClick} disabled={disabled} type={type} aria-label={ariaLabel}>
       {children}
     </button>
   ),
@@ -95,6 +101,15 @@ describe("CollectionSelectorModal", () => {
       },
     });
     jest.clearAllMocks();
+    // The component always calls both mutation hooks; tests that care override these.
+    (collectionsHooks.useCreateCollection as jest.Mock).mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    });
+    (addToCollectionHook.useAddToCollection as jest.Mock).mockReturnValue({
+      mutate: jest.fn(),
+      isPending: false,
+    });
     jest.useFakeTimers();
   });
 
@@ -237,17 +252,18 @@ describe("CollectionSelectorModal", () => {
       });
     });
 
-    it("shows loading state while adding", () => {
-      (addToCollectionHook.useAddToCollection as jest.Mock).mockReturnValue({
-        ...mockAddMutation,
-        isPending: true,
-      });
+    it("shows loading state while adding", async () => {
+      const user = userEvent.setup({ delay: null });
 
       renderModal();
 
-      // Buttons should be disabled during add operation
-      const createButton = screen.getByRole("button", { name: /Create New Collection/i });
-      expect(createButton).toBeDisabled();
+      // Selecting a collection starts the add; the in-flight add disables the controls
+      await user.click(screen.getByRole("button", { name: "Add to Gaming Builds" }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Create New Collection/i })).toBeDisabled();
+      });
+      expect(screen.getByRole("button", { name: /Cancel/i })).toBeDisabled();
     });
   });
 
@@ -356,14 +372,16 @@ describe("CollectionSelectorModal", () => {
       const createButton = screen.getByRole("button", { name: /Create New Collection/i });
       await user.click(createButton);
 
-      // Type a name that's too long (> 100 characters)
-      const nameInput = screen.getByLabelText(/Name/i);
+      // The input caps names at 100 characters, so a 101st character is never accepted
+      const nameInput = screen.getByLabelText(/Name/i) as HTMLInputElement;
+      expect(nameInput).toHaveAttribute("maxLength", "100");
       await user.type(nameInput, "a".repeat(101));
+      expect(nameInput.value).toHaveLength(100);
 
       const submitButton = screen.getByRole("button", { name: /Create & Add/i });
       await user.click(submitButton);
 
-      expect(screen.getByText(/Name must be between 1 and 100 characters/i)).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
     it("creates collection with valid data", async () => {
@@ -452,8 +470,10 @@ describe("CollectionSelectorModal", () => {
       const nameInput = screen.getByLabelText(/Name/i);
       await user.type(nameInput, "Test Collection");
 
-      // Close modal
+      // Close modal through the dialog's own close path, then the parent hides it
       mockOnClose.mockClear();
+      await user.click(screen.getByRole("button", { name: "Close dialog" }));
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
       rerender(
         <QueryClientProvider client={queryClient}>
           <CollectionSelectorModal
