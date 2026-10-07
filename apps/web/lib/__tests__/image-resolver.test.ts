@@ -319,7 +319,7 @@ describe('resolveProductImage', () => {
       };
 
       const result = resolveProductImage(listing);
-      expect(result).toBe('/images/fallbacks/arm.svg');
+      expect(result).toBe('/images/cpu-vendors/arm.svg');
     });
 
     it('should normalize CPU vendor (case insensitive)', () => {

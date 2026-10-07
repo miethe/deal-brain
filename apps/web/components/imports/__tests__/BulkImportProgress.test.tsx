@@ -65,8 +65,9 @@ describe('BulkImportProgress', () => {
     render(<BulkImportProgress status={mockStatus} />);
 
     // Check labels
+    // "Complete" is also a quality badge (span); the status-card label is a div
     expect(screen.getByText('Total')).toBeInTheDocument();
-    expect(screen.getByText('Complete')).toBeInTheDocument();
+    expect(screen.getByText('Complete', { selector: 'div' })).toBeInTheDocument();
     expect(screen.getByText('Partial')).toBeInTheDocument();
     expect(screen.getByText('Running')).toBeInTheDocument();
     expect(screen.getByText('Failed')).toBeInTheDocument();
@@ -97,8 +98,8 @@ describe('BulkImportProgress', () => {
   it('displays quality badges correctly', () => {
     render(<BulkImportProgress status={mockStatus} />);
 
-    // Full quality badge
-    expect(screen.getByText('Complete')).toBeInTheDocument();
+    // Full quality badge (the status-card label "Complete" is a div)
+    expect(screen.getByText('Complete', { selector: 'span' })).toBeInTheDocument();
 
     // Partial quality badge
     expect(screen.getByText('Needs Data')).toBeInTheDocument();
@@ -264,6 +265,13 @@ describe('BulkImportProgress', () => {
       per_row_status: [
         {
           url: 'https://example.com/pending',
+          status: 'running',
+          listing_id: 7,
+          quality: null,
+          error: null,
+        },
+        {
+          url: 'https://example.com/queued',
           status: 'queued',
           listing_id: null,
           quality: null,
@@ -274,6 +282,7 @@ describe('BulkImportProgress', () => {
 
     render(<BulkImportProgress status={pendingStatus} />);
 
-    expect(screen.getByText('Pending')).toBeInTheDocument();
+    // Quality badges render only once a listing exists; quality not yet known → Pending
+    expect(screen.getAllByText('Pending')).toHaveLength(1);
   });
 });

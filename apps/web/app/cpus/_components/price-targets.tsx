@@ -96,7 +96,8 @@ interface PriceTargetsProps {
  *   - Individual section styling for each tier
  *
  * Insufficient Data Alert:
- * - Displays when confidence is 'insufficient' or sample size < 2
+ * - Displays when confidence is 'insufficient' (the API sets this for < 2 listings)
+ *   or when priceTargetGood is missing
  * - Suggests checking the Listings page for available deals
  * - Amber/warning styling to draw attention
  *

@@ -43,7 +43,8 @@ describe('DualMetricCell', () => {
   it('handles zero raw value correctly', () => {
     render(<DualMetricCell raw={0} adjusted={0} prefix="$" decimals={2} />);
 
-    expect(screen.getByText('$0.00')).toBeInTheDocument();
+    // Raw and adjusted lines both render; equal values print the same text twice
+    expect(screen.getAllByText('$0.00')).toHaveLength(2);
   });
 
   it('uses custom prefix and suffix', () => {
@@ -61,7 +62,7 @@ describe('DualMetricCell', () => {
   it('shows no change indicator when values are equal', () => {
     const { container } = render(<DualMetricCell raw={0.15} adjusted={0.15} prefix="$" decimals={2} />);
 
-    expect(screen.getByText('$0.15')).toBeInTheDocument();
+    expect(screen.getAllByText('$0.15')).toHaveLength(2);
     // Should not show percentage change
     expect(container.textContent).not.toMatch(/↓/);
     expect(container.textContent).not.toMatch(/↑/);
