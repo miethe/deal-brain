@@ -20,7 +20,7 @@ from dealbrain_api.schemas.rules import (
     ConditionOperator,
     ActionType,
 )
-from dealbrain_core.rules.packaging import PackageMetadata, MergeStrategy
+from dealbrain_core.rules.packaging import PackageMetadata
 
 
 @pytest.fixture
@@ -151,7 +151,7 @@ class TestPackageExport:
             version="1.0.0",
             author="Test Author",
             description="Test package",
-            required_app_version=">=1.0.0",
+            compatibility={"min_app_version": "1.0.0"},
         )
 
         package = await packaging_service.export_ruleset_to_package(
@@ -306,7 +306,7 @@ class TestPackageImport:
 
         # Import the package
         result = await packaging_service.install_package(
-            db_session, package, merge_strategy=MergeStrategy.REPLACE
+            db_session, package, merge_strategy="replace"
         )
 
         assert result.success is True
@@ -336,9 +336,7 @@ class TestPackageImport:
         )
 
         # Try to import with existing ruleset (should skip)
-        result = await packaging_service.install_package(
-            db_session, package, merge_strategy=MergeStrategy.SKIP
-        )
+        result = await packaging_service.install_package(db_session, package, merge_strategy="skip")
 
         # Should skip because ruleset already exists
         assert result.rulesets_created == 0
@@ -381,7 +379,7 @@ class TestPackageImport:
 
         # Import with REPLACE
         result = await packaging_service.install_package(
-            db_session, package, merge_strategy=MergeStrategy.REPLACE
+            db_session, package, merge_strategy="replace"
         )
 
         assert result.success is True
@@ -418,7 +416,7 @@ class TestPackageImport:
 
         # Import from file
         result = await packaging_service.install_from_file(
-            db_session, str(output_path), merge_strategy=MergeStrategy.REPLACE
+            db_session, str(output_path), merge_strategy="replace"
         )
 
         assert result.success is True
@@ -443,7 +441,7 @@ class TestPackageValidation:
             version="1.0.0",
             author="Test",
             description="Validation test",
-            required_app_version=">=1.0.0",
+            compatibility={"min_app_version": "1.0.0"},
         )
 
         package = await packaging_service.export_ruleset_to_package(
@@ -473,7 +471,7 @@ class TestPackageValidation:
             version="1.0.0",
             author="Test",
             description="Version test",
-            required_app_version=">=2.0.0",  # Requires newer version
+            compatibility={"min_app_version": "2.0.0"},  # Requires newer version
         )
 
         package = await packaging_service.export_ruleset_to_package(
@@ -550,9 +548,7 @@ class TestPackageRoundTrip:
         await db_session.commit()
 
         # Re-import
-        await packaging_service.install_package(
-            db_session, package, merge_strategy=MergeStrategy.REPLACE
-        )
+        await packaging_service.install_package(db_session, package, merge_strategy="replace")
 
         # Verify all data is preserved
         rulesets = await rules_service.list_rulesets(db_session)

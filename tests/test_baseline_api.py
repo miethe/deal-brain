@@ -10,11 +10,13 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dealbrain_api.db import Base, engine
-from dealbrain_api.main import app
-from dealbrain_api.models.core import ValuationRuleset, ValuationRuleAudit
+from dealbrain_api import create_app
+from dealbrain_api.db import Base, get_engine, get_session_factory
+from dealbrain_api.models import ValuationRuleAudit, ValuationRuleset
 from dealbrain_api.services.baseline_loader import BaselineLoaderService
 from sqlalchemy import select
+
+app = create_app()
 
 
 # --- Fixtures ---
@@ -23,15 +25,14 @@ from sqlalchemy import select
 @pytest.fixture
 async def async_session():
     """Create async database session for tests"""
+    engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    from dealbrain_api.db import AsyncSessionLocal
-
-    async with AsyncSessionLocal() as session:
+    async with get_session_factory()() as session:
         yield session
 
-    async with engine.begin() as conn:
+    async with get_engine().begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
 

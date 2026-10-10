@@ -17,41 +17,49 @@ from dealbrain_core.schemas.ingestion import NormalizedListingSchema
 from playwright.async_api import Browser, Page, TimeoutError as PlaywrightTimeoutError
 from prometheus_client import Counter, Gauge, Histogram
 
+from dealbrain_api.prometheus import get_or_create_metric
+
 logger = get_logger("dealbrain.adapters.playwright")
 
 # Prometheus metrics
-playwright_extraction_duration = Histogram(
+playwright_extraction_duration = get_or_create_metric(
+    Histogram,
     "playwright_extraction_duration_ms",
     "Duration of Playwright extraction in milliseconds",
     ["status"],
     buckets=[100, 500, 1000, 2000, 3000, 5000, 8000, 10000, 15000, 20000],
 )
 
-playwright_extraction_total = Counter(
+playwright_extraction_total = get_or_create_metric(
+    Counter,
     "playwright_extraction_total",
     "Total number of Playwright extraction attempts",
     ["status", "error_type"],
 )
 
-playwright_browser_pool_size = Gauge(
+playwright_browser_pool_size = get_or_create_metric(
+    Gauge,
     "playwright_browser_pool_size",
     "Number of browsers in pool by state",
     ["state"],  # in_use, available, total
 )
 
-playwright_page_load_duration = Histogram(
+playwright_page_load_duration = get_or_create_metric(
+    Histogram,
     "playwright_page_load_duration_ms",
     "Duration of page load in milliseconds",
     buckets=[500, 1000, 2000, 3000, 5000, 8000, 10000],
 )
 
-playwright_extraction_field_success = Counter(
+playwright_extraction_field_success = get_or_create_metric(
+    Counter,
     "playwright_extraction_field_success_total",
     "Number of successful field extractions",
     ["field_name"],
 )
 
-playwright_extraction_field_failure = Counter(
+playwright_extraction_field_failure = get_or_create_metric(
+    Counter,
     "playwright_extraction_field_failure_total",
     "Number of failed field extractions",
     ["field_name"],
@@ -687,7 +695,8 @@ class PlaywrightAdapter(BaseAdapter):
 
         # Check refurb first (before new) to avoid "renewed" matching "new"
         if any(
-            keyword in condition_lower for keyword in ["refurb", "renewed", "refurbished", "recertified"]
+            keyword in condition_lower
+            for keyword in ["refurb", "renewed", "refurbished", "recertified"]
         ):
             return str(Condition.REFURB.value)
         elif "brand new" in condition_lower or "brand-new" in condition_lower:
@@ -771,7 +780,9 @@ class PlaywrightAdapter(BaseAdapter):
                     text = await element.text_content()
                     if text and len(text.strip()) > 10:
                         description = text.strip()
-                        logger.debug(f"Extracted description from selector '{selector}': {len(description)} chars")
+                        logger.debug(
+                            f"Extracted description from selector '{selector}': {len(description)} chars"
+                        )
                         return description
             except Exception as e:
                 logger.debug(f"Failed to extract description with selector '{selector}': {e}")

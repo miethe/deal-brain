@@ -6,9 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from dealbrain_api.db import Base, get_engine, get_session_factory
-from dealbrain_api.main import app
-from dealbrain_api.models.core import ValuationRuleset, ValuationRuleGroup, ValuationRuleV2
+from dealbrain_api import create_app
+from dealbrain_api.models import ValuationRuleset, ValuationRuleGroup, ValuationRuleV2
 from dealbrain_api.validation.rules_validation import VALID_ENTITY_KEYS
+
+app = create_app()
 
 
 # --- Fixtures ---

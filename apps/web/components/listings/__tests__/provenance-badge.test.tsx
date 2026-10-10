@@ -8,7 +8,8 @@
  * - Icon display
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ProvenanceBadge } from '../provenance-badge';
 import { QualityIndicator } from '../quality-indicator';
 import { LastSeenTimestamp } from '../last-seen-timestamp';
@@ -61,7 +62,8 @@ describe('QualityIndicator', () => {
   });
 
   it('shows missing fields in tooltip for partial quality', async () => {
-    const { user } = render(
+    const user = userEvent.setup();
+    render(
       <QualityIndicator
         quality="partial"
         missingFields={['RAM Size', 'Storage Type']}
@@ -71,9 +73,11 @@ describe('QualityIndicator', () => {
     const badge = screen.getByLabelText(/Data quality: Partial/i);
     await user.hover(badge);
 
-    expect(await screen.findByText('Missing Fields:')).toBeInTheDocument();
-    expect(screen.getByText('RAM Size')).toBeInTheDocument();
-    expect(screen.getByText('Storage Type')).toBeInTheDocument();
+    // Radix renders the content twice (visual + role="tooltip" for screen readers)
+    const tooltip = within(await screen.findByRole('tooltip'));
+    expect(tooltip.getByText('Missing Fields:')).toBeInTheDocument();
+    expect(tooltip.getByText('RAM Size')).toBeInTheDocument();
+    expect(tooltip.getByText('Storage Type')).toBeInTheDocument();
   });
 
   it('hides label when showLabel is false', () => {
@@ -93,12 +97,14 @@ describe('LastSeenTimestamp', () => {
 
   it('shows exact datetime in tooltip', async () => {
     const testDate = new Date('2025-04-27T10:30:00Z').toISOString();
-    const { user } = render(<LastSeenTimestamp lastSeenAt={testDate} />);
+    const user = userEvent.setup();
+    render(<LastSeenTimestamp lastSeenAt={testDate} />);
 
     const timestamp = screen.getByText(/Last seen/i);
     await user.hover(timestamp);
 
-    expect(await screen.findByText('Last Seen')).toBeInTheDocument();
+    const tooltip = within(await screen.findByRole('tooltip'));
+    expect(tooltip.getByText('Last Seen')).toBeInTheDocument();
   });
 
   it('hides icon when showIcon is false', () => {

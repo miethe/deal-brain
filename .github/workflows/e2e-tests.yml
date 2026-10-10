@@ -1,10 +1,9 @@
 name: E2E Tests
 
+# Hosted GitHub Actions is out estate-wide (2026-10-01 decision); PR/push/schedule triggers disabled.
+# Elastic CI replaces this gate: node_01M3VZCY1FP6WFM8ZJAZH7YSRH. Landing is on a recorded local-test-pass.
+# Manual runs stay available via workflow_dispatch.
 on:
-  push:
-    branches: [main, development]
-  pull_request:
-    branches: [main, development]
   workflow_dispatch: # Allow manual triggers
 
 jobs:
